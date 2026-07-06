@@ -189,14 +189,21 @@ def calibrate_torso(
 
 
 def _flow_prediction(previous: np.ndarray, current: np.ndarray, anchor: tuple[float, float]):
+    if previous.shape[:2] != current.shape[:2]:
+        return anchor, 0.0
     old = cv2.cvtColor(previous[:, :, :3], cv2.COLOR_RGB2GRAY)
     new = cv2.cvtColor(current[:, :, :3], cv2.COLOR_RGB2GRAY)
     mask = (previous[:, :, 3] > 8).astype(np.uint8) * 255
     features = cv2.goodFeaturesToTrack(old, 50, 0.01, 3, mask=mask)
     if features is None:
         return anchor, 0.0
-    nxt, status, _ = cv2.calcOpticalFlowPyrLK(old, new, features, None)
-    back, status2, _ = cv2.calcOpticalFlowPyrLK(new, old, nxt, None)
+    try:
+        nxt, status, _ = cv2.calcOpticalFlowPyrLK(old, new, features, None)
+        back, status2, _ = cv2.calcOpticalFlowPyrLK(new, old, nxt, None)
+    except cv2.error:
+        return anchor, 0.0
+    if nxt is None or back is None or status is None or status2 is None:
+        return anchor, 0.0
     error = np.linalg.norm(features - back, axis=2).ravel()
     valid = (status.ravel() == 1) & (status2.ravel() == 1) & (error <= 1.5)
     if not valid.any():

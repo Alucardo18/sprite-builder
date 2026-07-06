@@ -12,11 +12,13 @@ import numpy as np
 import streamlit as st
 from PIL import Image
 
+from sprite_builder.domain.errors import ArtifactIntegrityError
 from sprite_builder.sheets import (
     AutoCenterConfig,
     BackgroundRemovalConfig,
     CenteringResult,
     FrameAdjustment,
+    ExportCropResult,
     SegmentationConfig,
     SheetSessionStore,
     apply_background_removal,
@@ -27,6 +29,7 @@ from sprite_builder.sheets import (
     render_contact_sheet,
     render_frame_overlay,
     render_selection_overlay,
+    render_segmentation_guides,
     render_segmentation_preview,
     resolve_segmentation_config,
     sample_pixel,
@@ -94,6 +97,153 @@ def _show_pixel(image: Image.Image, caption: str, *, max_height: int = 560) -> N
         pixel_image_html(image, caption=caption, max_height=max_height),
         unsafe_allow_html=True,
     )
+
+
+def _auto_cut_positions(
+    source_size: tuple[int, int],
+    config: SegmentationConfig,
+) -> tuple[int, ...]:
+    resolved, _ = resolve_segmentation_config(source_size, config)
+    if resolved.frame_count < 2:
+        return ()
+    if resolved.orientation == "vertical":
+        start = resolved.offset_y
+        span = (
+            int(resolved.cell_height or source_size[1]) * resolved.frame_count
+            + max(0, resolved.frame_count - 1) * resolved.spacing_y
+        )
+    else:
+        start = resolved.offset_x
+        span = (
+            int(resolved.cell_width or source_size[0]) * resolved.frame_count
+            + max(0, resolved.frame_count - 1) * resolved.spacing_x
+        )
+    step = span / resolved.frame_count
+    return tuple(
+        int(round(start + step * index))
+        for index in range(1, resolved.frame_count)
+    )
+
+
+def _normalized_segmentation_cut_positions(
+    source_size: tuple[int, int],
+    config: SegmentationConfig,
+    positions: Sequence[int] | None,
+) -> tuple[int, ...]:
+    if config.orientation not in {"horizontal", "vertical"}:
+        return ()
+    desired = max(0, int(config.frame_count) - 1)
+    if desired == 0:
+        return ()
+    raw = tuple(int(value) for value in (positions or ()))
+    if len(raw) != desired:
+        fallback_config = SegmentationConfig(
+            frame_count=config.frame_count,
+            orientation=config.orientation,
+            rows=config.rows,
+            columns=config.columns,
+            cell_width=config.cell_width,
+            cell_height=config.cell_height,
+            offset_x=config.offset_x,
+            offset_y=config.offset_y,
+            spacing_x=config.spacing_x,
+            spacing_y=config.spacing_y,
+            manual_cut_positions=(),
+        )
+        return _auto_cut_positions(source_size, fallback_config)
+    return raw
+
+
+def _ensure_segmentation_cut_state(
+    session: Any,
+    source_size: tuple[int, int],
+    config: SegmentationConfig,
+) -> tuple[int, ...]:
+    prefix = session.session_id
+    cuts_key = f"{prefix}:segmentation_cut_positions"
+    sync_key = f"{prefix}:segmentation_cut_positions_sig"
+    signature = json.dumps(
+        {
+            "source_size": list(source_size),
+            "frame_count": config.frame_count,
+            "orientation": config.orientation,
+            "rows": config.rows,
+            "columns": config.columns,
+            "cell_width": config.cell_width,
+            "cell_height": config.cell_height,
+            "offset_x": config.offset_x,
+            "offset_y": config.offset_y,
+            "spacing_x": config.spacing_x,
+            "spacing_y": config.spacing_y,
+            "manual_cut_positions": list(config.manual_cut_positions),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    saved = _normalized_segmentation_cut_positions(
+        source_size,
+        config,
+        config.manual_cut_positions,
+    )
+    if (
+        cuts_key not in st.session_state
+        or st.session_state.get(sync_key) != signature
+        or len(st.session_state[cuts_key]) != max(0, config.frame_count - 1)
+    ):
+        st.session_state[cuts_key] = list(saved)
+        st.session_state[sync_key] = signature
+    return tuple(int(value) for value in st.session_state[cuts_key])
+
+
+def _ensure_segmentation_cut_controls_state(session: Any) -> None:
+    prefix = session.session_id
+    zoom_key = f"{prefix}:segmentation_cut_zoom"
+    zoom_widget_key = f"{zoom_key}_widget"
+    zoom_sync_key = f"{zoom_key}_widget_sync"
+    free_key = f"{prefix}:segmentation_free_adjust"
+    free_widget_key = f"{free_key}_widget"
+    free_sync_key = f"{free_key}_widget_sync"
+    if zoom_key not in st.session_state:
+        st.session_state[zoom_key] = 8
+    if zoom_sync_key in st.session_state:
+        st.session_state[zoom_widget_key] = st.session_state.pop(zoom_sync_key)
+    elif zoom_widget_key not in st.session_state:
+        st.session_state[zoom_widget_key] = st.session_state[zoom_key]
+    if free_key not in st.session_state:
+        st.session_state[free_key] = False
+    if free_sync_key in st.session_state:
+        st.session_state[free_widget_key] = st.session_state.pop(free_sync_key)
+    elif free_widget_key not in st.session_state:
+        st.session_state[free_widget_key] = st.session_state[free_key]
+
+
+def _set_auto_segmentation_cuts(
+    session: Any,
+    source_size: tuple[int, int],
+    config: SegmentationConfig,
+) -> tuple[int, ...]:
+    prefix = session.session_id
+    cuts = list(_auto_cut_positions(source_size, config))
+    st.session_state[f"{prefix}:segmentation_cut_positions"] = cuts
+    st.session_state[f"{prefix}:segmentation_cut_positions_sig"] = json.dumps(
+        {
+            "source_size": list(source_size),
+            "frame_count": config.frame_count,
+            "orientation": config.orientation,
+            "rows": config.rows,
+            "columns": config.columns,
+            "cell_width": config.cell_width,
+            "cell_height": config.cell_height,
+            "offset_x": config.offset_x,
+            "offset_y": config.offset_y,
+            "spacing_x": config.spacing_x,
+            "spacing_y": config.spacing_y,
+            "manual_cut_positions": cuts,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return tuple(cuts)
 
 
 def _load_stage_manifest(
@@ -459,6 +609,35 @@ def _handle_center_editor_event(
     return False
 
 
+def _handle_segmentation_cut_event(
+    session: Any,
+    count: int,
+    event: dict[str, Any] | None,
+) -> bool:
+    if not event:
+        return False
+    prefix = session.session_id
+    event_id = event.get("eventId")
+    last_event = st.session_state.get(f"{prefix}:segmentation_cut_last_event")
+    if not event_id or event_id == last_event:
+        return False
+    st.session_state[f"{prefix}:segmentation_cut_last_event"] = event_id
+    if event.get("type") != "cut":
+        if event.get("type") == "toolbar" and str(event.get("action", "")) == "zoom":
+            zoom = int(event.get("zoom", st.session_state.get(f"{prefix}:segmentation_cut_zoom", 8)))
+            st.session_state[f"{prefix}:segmentation_cut_zoom"] = max(1, min(40, zoom))
+            return True
+        return False
+    cuts = event.get("cutPositions")
+    if not isinstance(cuts, (list, tuple)):
+        return False
+    normalized = [int(value) for value in cuts]
+    if len(normalized) != max(0, count - 1):
+        return False
+    st.session_state[f"{prefix}:segmentation_cut_positions"] = normalized
+    return True
+
+
 def _render_pick_preview(
     image: Image.Image,
     *,
@@ -504,6 +683,17 @@ def _session_badge(session: Any) -> tuple[str, str]:
 def _load_source(store: SheetSessionStore, session: Any) -> Image.Image:
     with Image.open(store.source_path(session)) as image:
         return image.convert("RGBA")
+
+
+def _load_stage_frames(
+    store: SheetSessionStore,
+    session: Any,
+    stage: str,
+) -> tuple[Image.Image, ...]:
+    return tuple(
+        Image.open(path).convert("RGBA")
+        for path in store.stage_paths(session, stage)
+    )
 
 
 def _ensure_adjustment_state(session: Any, count: int) -> None:
@@ -728,6 +918,13 @@ def _fallback_centering(
         },
         status="manual_review",
     )
+
+
+def _safe_trim_transparent_frames(
+    frames: Sequence[Image.Image],
+    config: ExportCropConfig,
+) -> tuple[ExportCropResult, str | None]:
+    return trim_transparent_frames(frames, config), None
 
 
 def _new_or_existing_session(store: SheetSessionStore) -> Any | None:
@@ -963,6 +1160,46 @@ def main() -> None:
         spacing_x=spacing_x,
         spacing_y=spacing_y,
     )
+    current_cut_positions = _normalized_segmentation_cut_positions(
+        source.size,
+        segmentation_config,
+        st.session_state.get(
+            f"{session.session_id}:segmentation_cut_positions",
+            session.segmentation_config.manual_cut_positions,
+        ),
+    )
+    segmentation_config = SegmentationConfig(
+        frame_count=segmentation_config.frame_count,
+        orientation=segmentation_config.orientation,
+        rows=segmentation_config.rows,
+        columns=segmentation_config.columns,
+        cell_width=segmentation_config.cell_width,
+        cell_height=segmentation_config.cell_height,
+        offset_x=segmentation_config.offset_x,
+        offset_y=segmentation_config.offset_y,
+        spacing_x=segmentation_config.spacing_x,
+        spacing_y=segmentation_config.spacing_y,
+        manual_cut_positions=current_cut_positions,
+    )
+
+    manual_cut_positions = _ensure_segmentation_cut_state(
+        session,
+        source.size,
+        segmentation_config,
+    )
+    segmentation_config = SegmentationConfig(
+        frame_count=segmentation_config.frame_count,
+        orientation=segmentation_config.orientation,
+        rows=segmentation_config.rows,
+        columns=segmentation_config.columns,
+        cell_width=segmentation_config.cell_width,
+        cell_height=segmentation_config.cell_height,
+        offset_x=segmentation_config.offset_x,
+        offset_y=segmentation_config.offset_y,
+        spacing_x=segmentation_config.spacing_x,
+        spacing_y=segmentation_config.spacing_y,
+        manual_cut_positions=manual_cut_positions,
+    )
 
     try:
         resolved_config, _ = resolve_segmentation_config(source.size, segmentation_config)
@@ -1150,10 +1387,37 @@ def main() -> None:
         left, right = st.columns((1.65, 1), gap="large")
         with left:
             if segmentation:
-                _show_pixel(
-                    render_segmentation_preview(background_source, segmentation),
-                    "Líneas de corte · preview 1:1 / pixelated",
-                )
+                prefix = session.session_id
+                _ensure_segmentation_cut_controls_state(session)
+                guide_overlay = render_segmentation_guides(background_source, segmentation)
+                with st.container(border=True):
+                    st.markdown("#### Líneas de corte · preview 1:1 / pixelated")
+                    event = pixel_editor(
+                        background_source,
+                        overlay=guide_overlay,
+                        sample=None,
+                        tool="drag",
+                        mode="segmentation-cut",
+                        zoom=int(st.session_state[f"{prefix}:segmentation_cut_zoom"]),
+                        cut_positions=st.session_state[f"{prefix}:segmentation_cut_positions"],
+                        allow_cut_drag=bool(
+                            st.session_state[f"{prefix}:segmentation_free_adjust"]
+                        ),
+                        fit_on_load=True,
+                        frame_token=(
+                            f"{prefix}:segmentation-cut:{background_source.width}x"
+                            f"{background_source.height}:{segmentation_config.frame_count}:"
+                            f"{segmentation_config.orientation}"
+                        ),
+                        key=f"{prefix}:segmentation_cut_editor",
+                    )
+                    changed = _handle_segmentation_cut_event(
+                        session,
+                        segmentation.resolved_config.frame_count,
+                        event,
+                    )
+                    if changed:
+                        st.rerun()
             else:
                 _show_pixel(source, "Sprite sheet original")
         with right, st.container(border=True):
@@ -1171,8 +1435,66 @@ def main() -> None:
                 st.write(
                     f"Celda resuelta: `{resolved.cell_width} × {resolved.cell_height}`"
                 )
+                if resolved.manual_cut_positions:
+                    st.write(
+                        "Cortes manuales: "
+                        f"`{', '.join(map(str, resolved.manual_cut_positions))}`"
+                    )
                 for warning in segmentation.warnings:
                     st.warning(warning)
+            if segmentation:
+                st.markdown("#### Herramientas manuales")
+                if st.button(
+                    "Auto cut",
+                    width="stretch",
+                    key=f"{session.session_id}:segmentation_auto_cut",
+                ):
+                    auto_cuts = _set_auto_segmentation_cuts(
+                        session,
+                        source.size,
+                        segmentation_config,
+                    )
+                    st.session_state[f"{session.session_id}:segmentation_cut_positions"] = list(auto_cuts)
+                    st.rerun()
+                zoom_col1, zoom_col2 = st.columns(2)
+                if zoom_col1.button(
+                    "Zoom -",
+                    width="stretch",
+                    key=f"{session.session_id}:segmentation_cut_zoom_out",
+                ):
+                    st.session_state[f"{session.session_id}:segmentation_cut_zoom"] = max(
+                        1,
+                        int(st.session_state[f"{session.session_id}:segmentation_cut_zoom"]) - 1,
+                    )
+                    st.session_state[f"{session.session_id}:segmentation_cut_zoom_widget_sync"] = (
+                        st.session_state[f"{session.session_id}:segmentation_cut_zoom"]
+                    )
+                    st.rerun()
+                if zoom_col2.button(
+                    "Zoom +",
+                    width="stretch",
+                    key=f"{session.session_id}:segmentation_cut_zoom_in",
+                ):
+                    st.session_state[f"{session.session_id}:segmentation_cut_zoom"] = min(
+                        40,
+                        int(st.session_state[f"{session.session_id}:segmentation_cut_zoom"]) + 1,
+                    )
+                    st.session_state[f"{session.session_id}:segmentation_cut_zoom_widget_sync"] = (
+                        st.session_state[f"{session.session_id}:segmentation_cut_zoom"]
+                    )
+                    st.rerun()
+                free_adjust = st.toggle(
+                    "Free adjust",
+                    value=bool(st.session_state[f"{session.session_id}:segmentation_free_adjust"]),
+                    key=f"{session.session_id}:segmentation_free_adjust_widget",
+                    help="Actívalo para arrastrar las líneas verticales de corte.",
+                )
+                st.session_state[f"{session.session_id}:segmentation_free_adjust"] = bool(free_adjust)
+                st.caption(
+                    "Arrastra las líneas verticales del canvas para mover los cortes "
+                    "y luego guarda la segmentación."
+                )
+                st.write(f"Modo libre: `{'sí' if free_adjust else 'no'}`")
         if segmentation:
             st.markdown("#### Frames extraídos")
             gallery = st.columns(min(6, len(segmentation.frames)))
@@ -1470,8 +1792,16 @@ def main() -> None:
                     alpha_threshold=8,
                 )
             )
-            preview_source = preview_centered or centered
-            preview_crop = trim_transparent_frames(preview_source.frames, preview_crop_config)
+            preview_source = centered
+            preview_crop, preview_crop_warning = _safe_trim_transparent_frames(
+                preview_source.frames,
+                preview_crop_config,
+            )
+            if preview_crop_warning:
+                st.warning(
+                    "El preview de crop usa un fallback porque los frames tienen "
+                    "tamaños distintos. La exportación seguirá usando el canvas de cada frame."
+                )
             if centered.status == "manual_review":
                 st.warning(
                     "Hay anchors de baja confianza. Revísalos y bloquéalos antes de exportar."
@@ -1593,7 +1923,11 @@ def main() -> None:
                     f"{prefix}:center:{selected}:{combined_canvas.width}x{combined_canvas.height}:"
                     f"{selected_frame.width}x{selected_frame.height}"
                 ),
-                key=f"{prefix}:center_pixel_editor:{selected}",
+                frame_token=(
+                    f"{prefix}:center:{selected}:{combined_canvas.width}x{combined_canvas.height}:"
+                    f"{selected_frame.width}x{selected_frame.height}"
+                ),
+                key=f"{prefix}:center_pixel_editor",
             )
             changed = _handle_center_editor_event(
                 session,
@@ -1603,6 +1937,42 @@ def main() -> None:
                 home_offset=selected_home,
             )
             if changed:
+                st.rerun()
+            if st.button(
+                "Fijar frame",
+                type="primary",
+                key=f"{session.session_id}:save_center",
+            ):
+                _ensure_adjustment_state(session, len(background_frames))
+                final_result = auto_center_frames(
+                    background_frames,
+                    center_config,
+                    manual_offsets=st.session_state[f"{prefix}:offsets"],
+                    locked=st.session_state[f"{prefix}:locks"],
+                    notes=st.session_state[f"{prefix}:notes"],
+                    overflow_strategy="clamp",
+                )
+                session.segmentation_config = segmentation_config
+                session.background_removal_config = background_config
+                session.auto_center_config = center_config
+                store.commit_stage(
+                    session,
+                    "alignment",
+                    final_result.frames,
+                    config={
+                        "segmentation": segmentation_config.to_dict(),
+                        "background": background_config.to_dict(),
+                        "auto_center": center_config.to_dict(),
+                        "manual_offsets": list(st.session_state[f"{prefix}:offsets"]),
+                    },
+                    status=final_result.status,
+                    metrics=final_result.jitter_report,
+                    metadata={
+                        "frames": [item.to_dict() for item in final_result.adjustments]
+                    },
+                )
+                store.save_adjustments(session, final_result.adjustments)
+                st.success("Frame fijado y anchors guardados.")
                 st.rerun()
             st.caption(
                 f"Canvas visible recortado a `{preview_crop.bbox[2] - preview_crop.bbox[0]} × "
@@ -1626,31 +1996,6 @@ def main() -> None:
             )
             with st.expander("Reporte de jitter"):
                 st.json(centered.jitter_report)
-            if st.button(
-                "Guardar auto center",
-                type="primary",
-                key=f"{session.session_id}:save_center",
-            ):
-                session.segmentation_config = segmentation_config
-                session.background_removal_config = background_config
-                session.auto_center_config = center_config
-                store.commit_stage(
-                    session,
-                    "alignment",
-                    centered.frames,
-                    config={
-                        "segmentation": segmentation_config.to_dict(),
-                        "background": background_config.to_dict(),
-                        "auto_center": center_config.to_dict(),
-                    },
-                    status=centered.status,
-                    metrics=centered.jitter_report,
-                    metadata={
-                        "frames": [item.to_dict() for item in centered.adjustments]
-                    },
-                )
-                store.save_adjustments(session, centered.adjustments)
-                st.success("Centrado y anchors guardados.")
             adjustment = centered.adjustments[selected]
             view_col, property_col = st.columns((1.7, 1), gap="large")
             with view_col:
@@ -1748,14 +2093,6 @@ def main() -> None:
                     f"Objetivo `{target_anchor_x:.1f}, {target_anchor_y:.1f}` · "
                     f"Δ `{anchor_delta_x:+.1f}, {anchor_delta_y:+.1f}`"
                 )
-                locked_key = f"{prefix}:locked:{selected}"
-                if locked_key not in st.session_state:
-                    st.session_state[locked_key] = bool(locks[selected])
-                st.checkbox(
-                    "Revisado y bloqueado",
-                    key=locked_key,
-                    help="Confirma manualmente un anchor de baja confianza.",
-                )
                 note_key = f"{prefix}:note:{selected}"
                 if note_key not in st.session_state:
                     st.session_state[note_key] = str(notes[selected])
@@ -1815,24 +2152,10 @@ def main() -> None:
             ):
                 _ensure_adjustment_state(session, len(background_frames))
                 requested_offsets = list(st.session_state[f"{prefix}:offsets"])
-                clamped_offsets, changed_indexes = _clamp_manual_offsets_to_canvas(
-                    centered.adjustments,
-                    requested_offsets,
-                    (center_config.canvas_width, center_config.canvas_height),
-                )
-                if changed_indexes:
-                    st.session_state[f"{prefix}:offsets"] = clamped_offsets
-                    for index in changed_indexes:
-                        st.session_state.pop(f"{prefix}:offset_x_widget:{index}", None)
-                        st.session_state.pop(f"{prefix}:offset_y_widget:{index}", None)
-                    st.warning(
-                        "Algunos offsets manuales se salieron del canvas y fueron ajustados "
-                        "automáticamente para evitar overflow."
-                    )
                 final_result = auto_center_frames(
                     background_frames,
                     center_config,
-                    manual_offsets=clamped_offsets,
+                    manual_offsets=requested_offsets,
                     locked=st.session_state[f"{prefix}:locks"],
                     notes=st.session_state[f"{prefix}:notes"],
                     overflow_strategy="clamp",
@@ -1848,7 +2171,7 @@ def main() -> None:
                         "segmentation": segmentation_config.to_dict(),
                         "background": background_config.to_dict(),
                         "auto_center": center_config.to_dict(),
-                        "manual_offsets": clamped_offsets,
+                        "manual_offsets": requested_offsets,
                     },
                     status=final_result.status,
                     metrics=final_result.jitter_report,
@@ -1865,6 +2188,18 @@ def main() -> None:
         st.subheader("Export")
         if centered:
             prefix = session.session_id
+            export_frames_source = centered.frames
+            try:
+                persisted_alignment_frames = _load_stage_frames(
+                    store,
+                    session,
+                    "alignment",
+                )
+            except ArtifactIntegrityError as exc:
+                st.warning(f"Alignment guardado inválido: {exc}")
+                persisted_alignment_frames = ()
+            if len(persisted_alignment_frames) == len(centered.frames):
+                export_frames_source = persisted_alignment_frames
             if f"{prefix}:export_crop_enabled" not in st.session_state:
                 st.session_state[f"{prefix}:export_crop_enabled"] = session.export_crop_config.enabled
             if f"{prefix}:export_crop_padding" not in st.session_state:
@@ -1956,18 +2291,23 @@ def main() -> None:
                     item.manual_review for item in centered.adjustments
                 )
                 if review_count:
-                    st.warning(
-                        f"{review_count} frame(s) requieren revisión y bloqueo antes de exportar."
+                    st.info(
+                        f"{review_count} frame(s) siguen marcados como revisión, "
+                        "pero la exportación ya no está bloqueada."
                     )
-                preview_crop = trim_transparent_frames(
-                    centered.frames,
+                preview_crop, preview_crop_warning = _safe_trim_transparent_frames(
+                    export_frames_source,
                     session.export_crop_config,
                 )
+                if preview_crop_warning:
+                    st.warning(
+                        "El preview de crop usa un fallback porque los frames tienen "
+                        "tamaños distintos. La exportación seguirá usando el canvas de cada frame."
+                    )
                 if st.button(
                     "Exportar sprite .png",
                     type="primary",
                     width="stretch",
-                    disabled=bool(review_count),
                     key=f"{session.session_id}:export",
                 ):
                     session.segmentation_config = segmentation_config
@@ -1977,7 +2317,7 @@ def main() -> None:
                     store.save(session)
                     manifest = store.export(
                         session,
-                        centered.frames,
+                        export_frames_source,
                         layout=layout,
                         columns=export_columns,
                         export_frames=include_frames,
@@ -2013,15 +2353,42 @@ def main() -> None:
                         width="stretch",
                     )
             with preview_col:
+                guide_col, axis_col, anchor_col = st.columns(3)
+                show_export_cell_guides = guide_col.checkbox(
+                    "Cortes",
+                    value=True,
+                    key=f"{prefix}:export_preview_cell_guides",
+                )
+                show_export_axes = axis_col.checkbox(
+                    "Ejes XY",
+                    value=True,
+                    key=f"{prefix}:export_preview_axes",
+                )
+                show_export_anchors = anchor_col.checkbox(
+                    "Anchors",
+                    value=True,
+                    key=f"{prefix}:export_preview_anchors",
+                )
                 _show_pixel(
                     render_contact_sheet(
                         preview_crop.frames,
                         adjustments=centered.adjustments,
                         columns=min(6, len(centered.frames)),
                         origin_offset=(preview_crop.bbox[0], preview_crop.bbox[1]),
+                        show_cell_guides=show_export_cell_guides,
+                        show_center_axes=show_export_axes,
+                        show_anchor_guides=show_export_anchors,
+                        show_bbox=False,
+                        guide_padding=8
+                        if (
+                            show_export_cell_guides
+                            or show_export_axes
+                            or show_export_anchors
+                        )
+                        else 0,
                     ),
                     "Preview final con anchors y recorte",
-                    max_height=560,
+                    max_height=640,
                 )
         else:
             st.info("No hay frames centrados para exportar.")

@@ -7,6 +7,7 @@ from .engine import (
     auto_center_frames,
     checkerboard,
     export_sheet,
+    pad_frames_to_common_canvas,
     render_contact_sheet,
     render_frame_overlay,
     trim_transparent_frames,
@@ -35,7 +36,9 @@ from .models import (
 )
 from .segmentation import (
     SegmentationResult,
+    render_segmentation_guides,
     render_segmentation_preview,
+    render_segmentation_region_guides,
     resolve_segmentation_config,
     segment_sheet,
 )
@@ -65,10 +68,13 @@ __all__ = [
     "erase_with_brush",
     "export_sheet",
     "inspect_sheet",
+    "pad_frames_to_common_canvas",
     "render_contact_sheet",
     "render_frame_overlay",
     "render_selection_overlay",
+    "render_segmentation_guides",
     "render_segmentation_preview",
+    "render_segmentation_region_guides",
     "resolve_segmentation_config",
     "sample_pixel",
     "select_similar_pixels",

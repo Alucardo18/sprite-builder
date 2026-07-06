@@ -90,6 +90,38 @@ def resolve_segmentation_config(
     if cell_width <= 0 or cell_height <= 0:
         raise ValueError("Cell dimensions must be positive")
 
+    manual_cut_positions = tuple(int(value) for value in config.manual_cut_positions)
+    if manual_cut_positions:
+        if config.orientation not in {"horizontal", "vertical"}:
+            raise ValueError("Manual cut positions only apply to linear layouts")
+        expected_cuts = config.frame_count - 1
+        if len(manual_cut_positions) != expected_cuts:
+            raise ValueError(
+                "Manual cut positions must match the number of frame boundaries"
+            )
+        if list(manual_cut_positions) != sorted(manual_cut_positions):
+            raise ValueError("Manual cut positions must be sorted")
+        line_start = config.offset_x if config.orientation == "horizontal" else config.offset_y
+        line_end = (
+            config.offset_x
+            + cell_width * config.frame_count
+            + max(0, config.frame_count - 1) * config.spacing_x
+            if config.orientation == "horizontal"
+            else config.offset_y
+            + cell_height * config.frame_count
+            + max(0, config.frame_count - 1) * config.spacing_y
+        )
+        if expected_cuts:
+            lower = line_start + 1
+            upper = line_end - 1
+            if manual_cut_positions[0] < lower or manual_cut_positions[-1] > upper:
+                raise ValueError("Manual cut positions must stay within the sheet bounds")
+            if any(
+                right - left < 1
+                for left, right in zip(manual_cut_positions, manual_cut_positions[1:], strict=False)
+            ):
+                raise ValueError("Manual cut positions must be strictly increasing")
+
     resolved = SegmentationConfig(
         frame_count=config.frame_count,
         orientation=config.orientation,
@@ -101,6 +133,7 @@ def resolve_segmentation_config(
         offset_y=config.offset_y,
         spacing_x=config.spacing_x,
         spacing_y=config.spacing_y,
+        manual_cut_positions=manual_cut_positions,
     )
     return resolved, tuple(warnings)
 
@@ -142,12 +175,47 @@ def segment_sheet(
         int(pixels[0, 0, 2]),
     )
 
+    manual_cut_positions = tuple(int(value) for value in resolved.manual_cut_positions)
+    use_manual_cuts = bool(manual_cut_positions) and resolved.orientation in {
+        "horizontal",
+        "vertical",
+    }
+    if use_manual_cuts and len(manual_cut_positions) != resolved.frame_count - 1:
+        raise ValueError("Manual cut positions must match frame_count - 1")
+    if use_manual_cuts:
+        boundary_start = (
+            resolved.offset_x if resolved.orientation == "horizontal" else resolved.offset_y
+        )
+        boundary_end = (
+            resolved.offset_x
+            + resolved.cell_width * resolved.frame_count
+            + max(0, resolved.frame_count - 1) * resolved.spacing_x
+            if resolved.orientation == "horizontal"
+            else resolved.offset_y
+            + resolved.cell_height * resolved.frame_count
+            + max(0, resolved.frame_count - 1) * resolved.spacing_y
+        )
+        boundaries = (boundary_start, *manual_cut_positions, boundary_end)
+
     for index in range(resolved.frame_count):
-        row = index // resolved.columns
-        column = index % resolved.columns
-        x = resolved.offset_x + column * (resolved.cell_width + resolved.spacing_x)
-        y = resolved.offset_y + row * (resolved.cell_height + resolved.spacing_y)
-        region = (x, y, x + resolved.cell_width, y + resolved.cell_height)
+        if use_manual_cuts and resolved.orientation == "horizontal":
+            x0 = boundaries[index]
+            x1 = boundaries[index + 1]
+            y0 = resolved.offset_y
+            y1 = resolved.offset_y + resolved.cell_height
+            region = (x0, y0, x1, y1)
+        elif use_manual_cuts and resolved.orientation == "vertical":
+            y0 = boundaries[index]
+            y1 = boundaries[index + 1]
+            x0 = resolved.offset_x
+            x1 = resolved.offset_x + resolved.cell_width
+            region = (x0, y0, x1, y1)
+        else:
+            row = index // resolved.columns
+            column = index % resolved.columns
+            x = resolved.offset_x + column * (resolved.cell_width + resolved.spacing_x)
+            y = resolved.offset_y + row * (resolved.cell_height + resolved.spacing_y)
+            region = (x, y, x + resolved.cell_width, y + resolved.cell_height)
         if region[2] > rgba.width or region[3] > rgba.height:
             raise ValueError(
                 f"CELL_OVERFLOW frame={index} region={region} image={rgba.size}"
@@ -183,3 +251,32 @@ def render_segmentation_preview(
         draw.rectangle((x0 + 1, y0 + 1, x0 + 12, y0 + 9), fill=(10, 14, 25, 220))
         draw.text((x0 + 3, y0 + 1), str(index), fill=(255, 255, 255, 255))
     return preview
+
+
+def render_segmentation_guides(
+    image: ImageInput,
+    result: SegmentationResult,
+    *,
+    line_color: tuple[int, int, int, int] = (76, 224, 255, 255),
+) -> Image.Image:
+    return render_segmentation_region_guides(
+        _image(image).size,
+        result.regions,
+        line_color=line_color,
+    )
+
+
+def render_segmentation_region_guides(
+    image_size: tuple[int, int],
+    regions: tuple[tuple[int, int, int, int], ...],
+    *,
+    line_color: tuple[int, int, int, int] = (76, 224, 255, 255),
+) -> Image.Image:
+    guide = Image.new("RGBA", image_size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(guide)
+    for index, (x0, y0, x1, y1) in enumerate(regions):
+        draw.rectangle((x0, y0, x1 - 1, y1 - 1), outline=(8, 10, 18, 220), width=3)
+        draw.rectangle((x0, y0, x1 - 1, y1 - 1), outline=line_color, width=1)
+        draw.rectangle((x0 + 1, y0 + 1, x0 + 12, y0 + 9), fill=(10, 14, 25, 220))
+        draw.text((x0 + 3, y0 + 1), str(index), fill=(255, 255, 255, 255))
+    return guide

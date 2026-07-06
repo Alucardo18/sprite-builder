@@ -22,13 +22,18 @@ from sprite_builder.sheets import (
     encode_mask,
     erase_similar_pixels,
     erase_with_brush,
+    pad_frames_to_common_canvas,
+    render_contact_sheet,
+    render_frame_overlay,
     render_selection_overlay,
     select_similar_pixels,
     segment_sheet,
-    render_frame_overlay,
+    render_segmentation_region_guides,
     trim_transparent_frames,
 )
 from sprite_builder.ui.app import _clamp_manual_offsets_to_canvas
+from sprite_builder.ui.app import _normalized_segmentation_cut_positions
+from sprite_builder.ui.app import _safe_trim_transparent_frames
 from sprite_builder.ui.app import _handle_center_editor_event
 
 
@@ -58,6 +63,46 @@ def test_horizontal_segmentation_and_empty_detection() -> None:
     assert result.resolved_config.cell_height == 20
     assert result.regions[2] == (32, 0, 48, 20)
     assert not result.empty_frames
+
+
+def test_horizontal_segmentation_honours_manual_cut_positions() -> None:
+    result = segment_sheet(
+        _sheet(),
+        SegmentationConfig(
+            frame_count=4,
+            orientation="horizontal",
+            manual_cut_positions=(14, 30, 47),
+        ),
+        background_rgb=(0, 255, 0),
+    )
+    assert result.regions == (
+        (0, 0, 14, 20),
+        (14, 0, 30, 20),
+        (30, 0, 47, 20),
+        (47, 0, 64, 20),
+    )
+
+
+def test_segmentation_guides_are_independent_from_export_guides() -> None:
+    guide = np.asarray(
+        render_segmentation_region_guides(
+            (32, 20),
+            ((2, 2, 14, 16), (14, 2, 30, 16)),
+        )
+    )
+    assert tuple(guide[2, 2, :3]) == (76, 224, 255)
+    assert tuple(guide[14, 5, :3]) == (8, 10, 18)
+    assert guide[0, 0, 3] == 0
+
+
+def test_mismatched_manual_cut_positions_fall_back_to_auto() -> None:
+    config = SegmentationConfig(
+        frame_count=4,
+        orientation="horizontal",
+        manual_cut_positions=(12, 24),
+    )
+    positions = _normalized_segmentation_cut_positions(_sheet().size, config, config.manual_cut_positions)
+    assert positions == (16, 32, 48)
 
 
 def test_grid_segmentation_honours_offsets_and_spacing() -> None:
@@ -261,8 +306,77 @@ def test_auto_center_can_clamp_overflowing_frames_without_crashing() -> None:
         manual_offsets=[(8, 0)],
         overflow_strategy="clamp",
     )
-    assert result.frames[0].size == (60, 50)
-    assert result.adjustments[0].applied_translation[0] <= 2
+    assert result.frames[0].size == (76, 50)
+    alpha = np.asarray(result.frames[0])[:, :, 3]
+    assert np.where(alpha > 0)[1].max() == 75
+    assert result.adjustments[0].applied_translation[0] == 17
+
+
+def test_auto_center_clamp_expands_canvas_when_content_is_larger() -> None:
+    frame = Image.new("RGBA", (96, 64), (0, 0, 0, 0))
+    ImageDraw.Draw(frame).rectangle((10, 12, 79, 35), fill=(180, 90, 30, 255))
+    result = auto_center_frames(
+        [frame],
+        AutoCenterConfig(
+            method="bounding_box",
+            canvas_width=64,
+            canvas_height=48,
+            canonical_anchor=(32, 24),
+            confidence_threshold=0,
+        ),
+        overflow_strategy="clamp",
+    )
+    assert result.frames[0].size == (70, 48)
+    alpha = np.asarray(result.frames[0])[:, :, 3]
+    assert alpha.sum() > 0
+    assert np.where(alpha > 0)[1].max() == 69
+
+
+def test_auto_center_tolerates_mixed_frame_sizes_in_flow_prediction() -> None:
+    small = Image.new("RGBA", (48, 40), (0, 0, 0, 0))
+    large = Image.new("RGBA", (64, 56), (0, 0, 0, 0))
+    draw_small = ImageDraw.Draw(small)
+    draw_large = ImageDraw.Draw(large)
+    draw_small.rectangle((12, 8, 28, 30), fill=(180, 90, 30, 255))
+    draw_large.rectangle((18, 12, 40, 38), fill=(180, 90, 30, 255))
+    result = auto_center_frames(
+        [small, large],
+        AutoCenterConfig(
+            method="body",
+            canvas_width=80,
+            canvas_height=72,
+            canonical_anchor=(40, 36),
+            confidence_threshold=0,
+        ),
+        overflow_strategy="clamp",
+    )
+    assert len(result.adjustments) == 2
+    assert all(frame.size == (80, 72) for frame in result.frames)
+
+
+def test_preview_crop_pads_smaller_frames_to_largest_canvas() -> None:
+    a = Image.new("RGBA", (40, 30), (0, 0, 0, 0))
+    b = Image.new("RGBA", (52, 36), (0, 0, 0, 0))
+    ImageDraw.Draw(a).rectangle((4, 4, 12, 16), fill=(255, 128, 0, 255))
+    ImageDraw.Draw(b).rectangle((6, 6, 20, 22), fill=(0, 200, 255, 255))
+    result, warning = _safe_trim_transparent_frames(
+        [a, b],
+        ExportCropConfig(enabled=False, padding=2, alpha_threshold=8),
+    )
+    assert warning is None
+    assert result.source_size == (52, 36)
+    assert all(frame.size == (52, 36) for frame in result.frames)
+
+
+def test_pad_frames_to_common_canvas_preserves_pixels_without_scaling() -> None:
+    small = Image.new("RGBA", (10, 8), (0, 0, 0, 0))
+    large = Image.new("RGBA", (14, 12), (0, 0, 0, 0))
+    ImageDraw.Draw(small).rectangle((2, 1, 5, 5), fill=(255, 128, 0, 255))
+    padded = pad_frames_to_common_canvas([small, large])
+    assert all(frame.size == (14, 12) for frame in padded)
+    arr = np.asarray(padded[0])
+    assert tuple(arr[3, 3]) == (255, 128, 0, 255)
+    assert tuple(arr[10, 12]) == (0, 0, 0, 0)
 
 
 def test_manual_offset_clamp_respects_canvas_bounds() -> None:
@@ -366,6 +480,61 @@ def test_export_crop_trims_shared_transparency_and_offsets_guides() -> None:
         )
     )
     assert tuple(cropped_overlay[2, 2, :3]) == (255, 76, 160)
+
+
+def test_contact_sheet_can_show_cell_guides_and_axes() -> None:
+    frame = Image.new("RGBA", (12, 10), (0, 0, 0, 0))
+    adjustment = FrameAdjustment(
+        frame_index=0,
+        auto_anchor=(6, 5),
+        applied_translation=(0, 0),
+        body_bbox=(3, 3, 7, 7),
+    )
+    preview = np.asarray(
+        render_contact_sheet(
+            [frame],
+            adjustments=[adjustment],
+            columns=1,
+            scale=1,
+            show_cell_guides=True,
+            show_center_axes=True,
+            show_anchor_guides=True,
+            show_bbox=False,
+            guide_padding=2,
+        )
+    )
+    assert preview.shape[:2] == (14, 16)
+    assert tuple(preview[3, 3, :3]) == (91, 223, 255)
+    assert tuple(preview[7, 3, :3]) == (255, 255, 255)
+    assert tuple(preview[7, 8, :3]) == (255, 76, 160)
+    axes_only = np.asarray(
+        render_contact_sheet(
+            [frame],
+            adjustments=[adjustment],
+            columns=1,
+            scale=1,
+            show_cell_guides=False,
+            show_center_axes=True,
+            show_anchor_guides=False,
+            show_bbox=False,
+            guide_padding=2,
+        )
+    )
+    assert tuple(axes_only[3, 3, :3]) != (91, 223, 255)
+    assert tuple(axes_only[7, 8, :3]) == (255, 255, 255)
+    no_guides = np.asarray(
+        render_contact_sheet(
+            [frame],
+            adjustments=[adjustment],
+            columns=1,
+            scale=1,
+            show_cell_guides=False,
+            show_center_axes=False,
+            show_anchor_guides=False,
+            show_bbox=False,
+        )
+    )
+    assert tuple(no_guides[5, 6, :3]) != (255, 76, 160)
 
 
 def test_session_round_trip_stage_and_export(tmp_path: Path) -> None:

@@ -34,6 +34,20 @@ python -m pip install -e '.[ui]'
 sprite-builder ui
 ```
 
+## Arranque rápido de la UI
+
+Si solo quieres abrir la interfaz local, estos son los pasos mínimos:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[ui]'
+sprite-builder ui
+```
+
+La app abre en `http://127.0.0.1:8504/`. Si ese puerto ya está ocupado,
+detén el proceso anterior o usa otro puerto con `--port`.
+
 Consulte [README_UI.md](README_UI.md) para el flujo de segmentación, chroma,
 centrado, ajuste fino, sesiones y exportación manual a Godot.
 
