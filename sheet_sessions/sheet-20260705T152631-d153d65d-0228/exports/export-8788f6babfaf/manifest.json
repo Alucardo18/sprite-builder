@@ -1,0 +1,70 @@
+{
+  "alpha": true,
+  "attempt_id": "export-8788f6babfaf",
+  "cell_size": [
+    128,
+    128
+  ],
+  "contact_sheet": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/contact-sheet.png",
+  "exported_at": "2026-07-05T15:28:23.187498+00:00",
+  "frame_count": 4,
+  "godot_notes": "4 column(s), 1 row(s); use nearest filtering and lossless compression",
+  "layout": "horizontal",
+  "output_frames_dir": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/frames",
+  "output_png": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/sprite-sheet.png",
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/sprite-sheet.png",
+      "role": "output",
+      "sha256": "69c281b80ea31e13d578c487407fe0d3a9ded1976f850a1ffe30bd3af6b411d6",
+      "size_bytes": 13979
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/frames/frame_000.png",
+      "role": "output",
+      "sha256": "a50c06933d68817907b6e806f5ba0830d25f8a6f33fc74d556feb778aac48dc3",
+      "size_bytes": 4536
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/frames/frame_001.png",
+      "role": "output",
+      "sha256": "ffc125a5b8bb7bce931c8ff71b0932f86c956d61598319422a6e7250d046384c",
+      "size_bytes": 4530
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/frames/frame_002.png",
+      "role": "output",
+      "sha256": "095ded3d49a05121e6d8d9d9436e34ee3c32312c7b41cd5a9b8b4373e8c4de6c",
+      "size_bytes": 4648
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/frames/frame_003.png",
+      "role": "output",
+      "sha256": "4cc0bf79080bcea3d5454875242b8473bd4eb09a7cf1a31d04e3101328ff5db0",
+      "size_bytes": 4624
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/contact-sheet.png",
+      "role": "output",
+      "sha256": "8d31a513edb73b7cb36489ba9d5610b11c4380168cd9e199d1e358e1b1ee9748",
+      "size_bytes": 20894
+    },
+    {
+      "media_type": "application/octet-stream",
+      "path": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/preview.gif",
+      "role": "output",
+      "sha256": "e778711989de0459ce564d6d1f5d865b6fcd04279ec8fe89732eeb3c1772e375",
+      "size_bytes": 38459
+    }
+  ],
+  "preview_gif": "sheet_sessions/sheet-20260705T152631-d153d65d-0228/exports/export-8788f6babfaf/preview.gif",
+  "schema_version": "1.0",
+  "session_id": "sheet-20260705T152631-d153d65d-0228",
+  "sha256": "69c281b80ea31e13d578c487407fe0d3a9ded1976f850a1ffe30bd3af6b411d6"
+}

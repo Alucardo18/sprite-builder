@@ -1,0 +1,63 @@
+{
+  "cache_key": "f16fd073a4cec4ea5512d826fc03c80f4da1eb504cda80cf27accce1a7961864",
+  "config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 1,
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "created_at": "2026-07-05T16:00:12.004336+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T155936-f2660d45-11db/source/f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f.png",
+      "role": "source",
+      "sha256": "f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f",
+      "size_bytes": 1361501
+    }
+  ],
+  "metadata": {
+    "empty_frames": [],
+    "regions": [
+      [
+        0,
+        0,
+        1536,
+        1024
+      ]
+    ],
+    "resolved_config": {
+      "cell_height": 1024,
+      "cell_width": 1536,
+      "columns": 1,
+      "frame_count": 1,
+      "offset_x": 0,
+      "offset_y": 0,
+      "orientation": "horizontal",
+      "rows": 1,
+      "spacing_x": 0,
+      "spacing_y": 0
+    }
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T155936-f2660d45-11db/attempts/segmentation/f16fd073a4cec4ea5512d826fc03c80f4da1eb504cda80cf27accce1a7961864/frame_000.png",
+      "role": "output",
+      "sha256": "d4b7214f0dfa784b3af5bff5f469578c177fc7fdefebe3d7c2f2be6f61185cbd",
+      "size_bytes": 1304761
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260705T155936-f2660d45-11db",
+  "stage": "segmentation",
+  "status": "passed",
+  "warnings": []
+}

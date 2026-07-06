@@ -1,0 +1,59 @@
+schema_version: "1.0"
+character_id: tzucan
+identity:
+  name: Tzucan
+  archetype: jaguar_warrior
+  description: >-
+    Compact young Maya-inspired jaguar warrior with a large ceremonial jaguar
+    headdress, turquoise feather crest, warm brown skin, straight black hair,
+    gold collar, and red/turquoise/gold woven clothing.
+  immutable_features:
+    - golden-orange jaguar headdress with dark rosettes
+    - visible jaguar snout, black nose, white teeth, and small rounded ears
+    - large layered turquoise feather crest
+    - straight black hair and clean-shaven youthful face
+    - thick gold and dark collar with turquoise accents
+    - red, turquoise, gold, and dark vertical loincloth
+    - gold/turquoise wrist and upper-arm bands
+  forbidden_changes:
+    - living jaguar head replacing the ceremonial headdress
+    - materially different feather volume or crest silhouette
+    - facial hair, cape, footwear, or modern armor
+    - European fantasy motifs
+    - extra limbs, duplicated accessories, text, scenery, or weapon during walk
+
+proportions:
+  target_body_height_px: 74
+  head_to_body_ratio: 0.34
+  silhouette: compact_chibi
+  stance: upright_top_down_three_quarter
+
+palette:
+  file: characters/tzucan/palette.json
+  locked: true
+  tolerance_delta_e00: 8
+
+visual_rules:
+  medium: detailed_clustered_pixel_art
+  outline: crisp_dark_outline
+  lighting: upper_left
+  shading: clustered_hard_edged
+  anti_aliasing: prohibited_after_logical_scale
+  perspective: top_down_three_quarter
+  shadow: small_integrated_ground_shadow
+
+equipment:
+  default_weapon: none
+  weapon_palette: []
+  attachment_rules: {}
+
+anchors:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [64, 68]
+  canonical_points:
+    shoulder_left: null
+    shoulder_right: null
+    hip_left: null
+    hip_right: null
+  calibration_status: requires_human_confirmation
+

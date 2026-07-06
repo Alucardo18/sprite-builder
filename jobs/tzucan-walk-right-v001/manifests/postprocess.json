@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "job_id": "tzucan-walk-right-v001",
+  "canonical_source_body_height": 960,
+  "target_body_height": 74,
+  "frames": [
+    {
+      "source": "jobs/tzucan-walk-right-v001/raw/walk_right_000_candidate_00_b14976770715f1c859e1.png",
+      "background_rgb": [
+        16,
+        246,
+        22
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        317,
+        92,
+        866,
+        1078
+      ],
+      "output": "jobs/tzucan-walk-right-v001/processed/frame_000.png",
+      "logical_size": [
+        42,
+        76
+      ]
+    },
+    {
+      "source": "jobs/tzucan-walk-right-v001/raw/walk_right_001_candidate_00_a7c1a04a7570a6a0783d.png",
+      "background_rgb": [
+        13,
+        232,
+        35
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        318,
+        88,
+        865,
+        1071
+      ],
+      "output": "jobs/tzucan-walk-right-v001/processed/frame_001.png",
+      "logical_size": [
+        42,
+        76
+      ]
+    },
+    {
+      "source": "jobs/tzucan-walk-right-v001/raw/walk_right_002_candidate_00_524af8bb11fc22ea4fbe.png",
+      "background_rgb": [
+        6,
+        229,
+        39
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        313,
+        86,
+        858,
+        1070
+      ],
+      "output": "jobs/tzucan-walk-right-v001/processed/frame_002.png",
+      "logical_size": [
+        42,
+        76
+      ]
+    },
+    {
+      "source": "jobs/tzucan-walk-right-v001/raw/walk_right_003_candidate_00_906b00b04d3d4997cdea.png",
+      "background_rgb": [
+        23,
+        235,
+        38
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        316,
+        89,
+        862,
+        1072
+      ],
+      "output": "jobs/tzucan-walk-right-v001/processed/frame_003.png",
+      "logical_size": [
+        42,
+        76
+      ]
+    }
+  ]
+}

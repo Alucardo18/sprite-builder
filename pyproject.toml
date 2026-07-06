@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sprite-builder"
+version = "1.0.0"
+description = "AI-assisted, Godot-ready pixel-art sprite production pipeline"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = [
+  "PyYAML>=6.0.2",
+  "Pillow>=11.0",
+  "numpy>=2.0",
+  "opencv-python-headless>=4.10",
+  "scikit-image>=0.25",
+  "Jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+background = ["rembg>=2.0.61"]
+ui = ["streamlit>=1.52,<2"]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "hypothesis>=6.125",
+  "mypy>=1.14",
+  "types-PyYAML>=6.0.12",
+  "ruff>=0.9",
+]
+
+[project.scripts]
+sprite-builder = "sprite_builder.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sprite_builder"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["sprite_builder"]
+
+[[tool.mypy.overrides]]
+module = [
+  "sprite_builder.alignment.*",
+  "sprite_builder.consistency.*",
+  "sprite_builder.postprocess.*",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["streamlit", "streamlit.*"]
+ignore_missing_imports = true

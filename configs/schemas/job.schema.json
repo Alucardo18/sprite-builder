@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sprite-builder.local/schemas/job.schema.json",
+  "title": "Sprite Builder JobSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "job",
+    "character",
+    "animation",
+    "generation",
+    "render",
+    "alignment",
+    "export"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "job": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {"id": {"type": "string", "minLength": 1}}
+    },
+    "character": {
+      "type": "object",
+      "required": ["id", "bible"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "bible": {"type": "string"},
+        "references": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "animation": {
+      "type": "object",
+      "required": ["name", "directions", "frame_count"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "directions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": ["up", "down", "left", "right", "up_left", "up_right", "down_left", "down_right"]
+          }
+        },
+        "frame_count": {"type": "integer", "minimum": 1},
+        "fps": {"type": "number", "exclusiveMinimum": 0},
+        "loop": {"type": "boolean"},
+        "phases": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "generation": {
+      "type": "object",
+      "required": ["source_size", "candidates_per_frame"],
+      "properties": {
+        "source_size": {"$ref": "#/$defs/positivePair"},
+        "quality": {"enum": ["low", "medium", "high", "auto"]},
+        "candidates_per_frame": {"type": "integer", "minimum": 1, "maximum": 8},
+        "background": {
+          "type": "object",
+          "properties": {"color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"}}
+        },
+        "use_previous_accepted_frame": {"type": "boolean"}
+        ,
+        "seed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path"],
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "frame_index": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    },
+    "render": {
+      "type": "object",
+      "required": ["cell_size", "target_body_height_px"],
+      "properties": {
+        "cell_size": {"$ref": "#/$defs/positivePair"},
+        "target_body_height_px": {"type": "integer", "minimum": 1},
+        "palette_lock": {"type": "boolean"},
+        "dithering": {"type": "boolean"},
+        "integrated_shadow": {"type": "boolean"}
+      }
+    },
+    "alignment": {
+      "type": "object",
+      "required": ["method", "canonical_canvas_anchor"],
+      "properties": {
+        "method": {"const": "torso_hybrid_v1"},
+        "canonical_canvas_anchor": {"$ref": "#/$defs/positivePair"},
+        "confidence_review_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+        "allow_manual_override": {"type": "boolean"}
+      }
+    },
+    "export": {
+      "type": "object",
+      "required": ["formats", "output_dir"],
+      "properties": {
+        "formats": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"enum": ["individual", "horizontal", "grid", "godot"]}
+        },
+        "output_dir": {"type": "string"},
+        "godot": {
+          "type": "object",
+          "properties": {
+            "project_root": {"type": "string"},
+            "resource_dir": {"type": "string", "pattern": "^res://"}
+          }
+        }
+      }
+    },
+    "metadata": {"type": "object"}
+  },
+  "$defs": {
+    "positivePair": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer", "minimum": 1},
+        {"type": "integer", "minimum": 1}
+      ],
+      "items": false
+    }
+  }
+}

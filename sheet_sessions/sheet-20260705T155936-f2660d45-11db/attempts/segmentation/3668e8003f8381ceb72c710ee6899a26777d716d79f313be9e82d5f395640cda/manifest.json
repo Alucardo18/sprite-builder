@@ -1,0 +1,102 @@
+{
+  "cache_key": "3668e8003f8381ceb72c710ee6899a26777d716d79f313be9e82d5f395640cda",
+  "config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 4,
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "created_at": "2026-07-05T17:51:48.453644+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T155936-f2660d45-11db/source/f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f.png",
+      "role": "source",
+      "sha256": "f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f",
+      "size_bytes": 1361501
+    }
+  ],
+  "metadata": {
+    "empty_frames": [],
+    "regions": [
+      [
+        0,
+        0,
+        384,
+        1024
+      ],
+      [
+        384,
+        0,
+        768,
+        1024
+      ],
+      [
+        768,
+        0,
+        1152,
+        1024
+      ],
+      [
+        1152,
+        0,
+        1536,
+        1024
+      ]
+    ],
+    "resolved_config": {
+      "cell_height": 1024,
+      "cell_width": 384,
+      "columns": 4,
+      "frame_count": 4,
+      "offset_x": 0,
+      "offset_y": 0,
+      "orientation": "horizontal",
+      "rows": 1,
+      "spacing_x": 0,
+      "spacing_y": 0
+    }
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T155936-f2660d45-11db/attempts/segmentation/3668e8003f8381ceb72c710ee6899a26777d716d79f313be9e82d5f395640cda/frame_000.png",
+      "role": "output",
+      "sha256": "098f5a331356152722de6d52c9600394f394f82369799f039a963c4368204b8f",
+      "size_bytes": 248052
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T155936-f2660d45-11db/attempts/segmentation/3668e8003f8381ceb72c710ee6899a26777d716d79f313be9e82d5f395640cda/frame_001.png",
+      "role": "output",
+      "sha256": "1a5f8888b65194e51a52fca93d8fed44a9d76c7c130460758121393da510daaf",
+      "size_bytes": 323542
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T155936-f2660d45-11db/attempts/segmentation/3668e8003f8381ceb72c710ee6899a26777d716d79f313be9e82d5f395640cda/frame_002.png",
+      "role": "output",
+      "sha256": "4bb3993a6c2a1b08ee972c9aaea141c02528011726bd3c577b958f498314fb8d",
+      "size_bytes": 380077
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260705T155936-f2660d45-11db/attempts/segmentation/3668e8003f8381ceb72c710ee6899a26777d716d79f313be9e82d5f395640cda/frame_003.png",
+      "role": "output",
+      "sha256": "398a9bd1143ce1de5fa20fac8e5028253c803990813e9da1a156c01881c737a2",
+      "size_bytes": 365061
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260705T155936-f2660d45-11db",
+  "stage": "segmentation",
+  "status": "passed",
+  "warnings": []
+}

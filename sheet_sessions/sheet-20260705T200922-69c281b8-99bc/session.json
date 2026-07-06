@@ -1,0 +1,203 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      64,
+      70
+    ],
+    "canvas_height": 128,
+    "canvas_width": 128,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      0,
+      0,
+      0
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 1,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-07-05T20:09:22.695513+00:00",
+  "current_stage": "alignment",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": false,
+    "padding": 0
+  },
+  "export_manifest": null,
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        -3,
+        -26
+      ],
+      "auto_anchor": [
+        64.0,
+        70.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        43,
+        30,
+        83,
+        104
+      ],
+      "final_anchor": [
+        61,
+        44
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": -3,
+      "manual_offset_y": -26,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -16,
+        8
+      ],
+      "auto_anchor": [
+        64.0,
+        70.0
+      ],
+      "auto_confidence": 0.8284170084215899,
+      "body_bbox": [
+        43,
+        30,
+        83,
+        104
+      ],
+      "final_anchor": [
+        48,
+        78
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": -16,
+      "manual_offset_y": 8,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -4,
+        6
+      ],
+      "auto_anchor": [
+        64.0,
+        70.0
+      ],
+      "auto_confidence": 0.8389099358724968,
+      "body_bbox": [
+        43,
+        30,
+        83,
+        104
+      ],
+      "final_anchor": [
+        60,
+        76
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": -4,
+      "manual_offset_y": 6,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        10,
+        0
+      ],
+      "auto_anchor": [
+        64.0,
+        70.0
+      ],
+      "auto_confidence": 0.9001419982921846,
+      "body_bbox": [
+        43,
+        30,
+        83,
+        104
+      ],
+      "final_anchor": [
+        74,
+        70
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 10,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 1.0,
+    "border_rgb": [
+      0,
+      0,
+      0
+    ],
+    "has_alpha": true,
+    "height": 128,
+    "mode": "RGBA",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      0,
+      0,
+      0
+    ],
+    "uses_transparency": true,
+    "width": 512
+  },
+  "output_dir": "sheet_sessions/sheet-20260705T200922-69c281b8-99bc",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 4,
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260705T200922-69c281b8-99bc",
+  "source_image_path": "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/source/69c281b80ea31e13d578c487407fe0d3a9ded1976f850a1ffe30bd3af6b411d6.png",
+  "source_sha256": "69c281b80ea31e13d578c487407fe0d3a9ded1976f850a1ffe30bd3af6b411d6",
+  "stages": {
+    "alignment": {
+      "cache_key": "8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce",
+      "manifest": "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce/frame_000.png",
+        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce/frame_001.png",
+        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce/frame_002.png",
+        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce/frame_003.png"
+      ],
+      "status": "manual_review"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/source/69c281b80ea31e13d578c487407fe0d3a9ded1976f850a1ffe30bd3af6b411d6.png",
+      "sha256": "69c281b80ea31e13d578c487407fe0d3a9ded1976f850a1ffe30bd3af6b411d6",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-06T15:16:38.151598+00:00"
+}

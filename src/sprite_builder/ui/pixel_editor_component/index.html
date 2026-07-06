@@ -1,0 +1,1787 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sprite-builder pixel editor</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        color: white;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+
+      body {
+        width: 100%;
+      }
+
+      .root {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 16px;
+        border: 1px solid rgba(132, 225, 255, 0.18);
+        background: linear-gradient(135deg, rgba(13,18,31,0.92), rgba(22,28,44,0.92));
+        backdrop-filter: blur(18px) saturate(120%);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+      }
+
+      .toolgroup {
+        display: inline-flex;
+        gap: 6px;
+        padding-right: 6px;
+        border-right: 1px solid rgba(255,255,255,0.08);
+        margin-right: 2px;
+      }
+
+      .toolgroup:last-child {
+        border-right: 0;
+        margin-right: 0;
+        padding-right: 0;
+      }
+
+      .toolgroup[data-group="center"] {
+        display: none;
+      }
+
+      .toolgroup.guide-status {
+        gap: 8px;
+      }
+
+      body[data-mode="segmentation-center"] .toolgroup[data-group="background"] {
+        display: none;
+      }
+
+      body[data-mode="segmentation-center"] .toolgroup[data-group="center"] {
+        display: inline-flex;
+      }
+
+      button {
+        appearance: none;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: linear-gradient(120deg, rgba(91,223,255,0.12), rgba(124,92,255,0.18));
+        color: #fff;
+        border-radius: 12px;
+        padding: 8px 11px;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      button.active {
+        border-color: rgba(91,223,255,0.7);
+        background: linear-gradient(120deg, rgba(91,223,255,0.24), rgba(124,92,255,0.28));
+        box-shadow: 0 0 0 1px rgba(91,223,255,0.28) inset;
+      }
+
+      button:focus-visible {
+        outline: 2px solid rgba(91,223,255,0.9);
+        outline-offset: 2px;
+      }
+
+      .guide-settings {
+        position: relative;
+      }
+
+      .guide-settings > summary {
+        list-style: none;
+        cursor: pointer;
+        user-select: none;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: linear-gradient(120deg, rgba(91,223,255,0.12), rgba(124,92,255,0.18));
+        border-radius: 12px;
+        padding: 8px 11px;
+        font-size: 12px;
+      }
+
+      .guide-settings > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .guide-settings > summary:focus-visible {
+        outline: 2px solid rgba(91,223,255,0.9);
+        outline-offset: 2px;
+      }
+
+      .guide-menu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 8px);
+        z-index: 8;
+        display: grid;
+        gap: 9px;
+        min-width: 190px;
+        padding: 12px;
+        border: 1px solid rgba(132, 225, 255, 0.22);
+        border-radius: 14px;
+        background: rgba(13, 18, 31, 0.98);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.36);
+      }
+
+      .guide-menu label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .guide-menu input[type="range"] {
+        width: 105px;
+        accent-color: #5bdfff;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.08);
+        font-size: 12px;
+      }
+
+      .swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.35);
+        box-shadow: 0 0 0 1px rgba(0,0,0,0.3) inset;
+      }
+
+      .cursor-ring {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.92);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.35) inset,
+          0 0 0 1px rgba(91, 223, 255, 0.65);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        opacity: 0;
+        z-index: 3;
+      }
+
+      .cursor-ring.visible {
+        opacity: 1;
+      }
+
+      .cursor-ring.mode-crosshair {
+        border: 0;
+        box-shadow: none;
+        background:
+          linear-gradient(
+            to right,
+            transparent calc(50% - 1px),
+            rgba(255, 255, 255, 0.95) calc(50% - 1px),
+            rgba(255, 255, 255, 0.95) calc(50% + 1px),
+            transparent calc(50% + 1px)
+          ),
+          linear-gradient(
+            to bottom,
+            transparent calc(50% - 1px),
+            rgba(255, 255, 255, 0.95) calc(50% - 1px),
+            rgba(255, 255, 255, 0.95) calc(50% + 1px),
+            transparent calc(50% + 1px)
+          );
+      }
+
+      .cursor-ring.mode-crosshair.eyedropper {
+        background:
+          linear-gradient(
+            to right,
+            transparent calc(50% - 1px),
+            rgba(91, 223, 255, 0.98) calc(50% - 1px),
+            rgba(91, 223, 255, 0.98) calc(50% + 1px),
+            transparent calc(50% + 1px)
+          ),
+          linear-gradient(
+            to bottom,
+            transparent calc(50% - 1px),
+            rgba(91, 223, 255, 0.98) calc(50% - 1px),
+            rgba(91, 223, 255, 0.98) calc(50% + 1px),
+            transparent calc(50% + 1px)
+          );
+      }
+
+      .cursor-ring.mode-eraser {
+        border: 1px solid rgba(255, 196, 91, 0.95);
+        background: rgba(255, 196, 91, 0.07);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.45),
+          0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+          0 0 8px rgba(255, 196, 91, 0.15);
+      }
+
+      .cursor-dot {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 4px;
+        height: 4px;
+        margin-left: -2px;
+        margin-top: -2px;
+        border-radius: 999px;
+        background: rgba(91, 223, 255, 0.96);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.42);
+        pointer-events: none;
+        z-index: 4;
+        opacity: 0;
+      }
+
+      .cursor-dot.visible {
+        opacity: 1;
+      }
+
+      .stage {
+        width: 100%;
+        height: min(72vh, 900px);
+        min-height: 56vh;
+        overflow: auto;
+        border-radius: 18px;
+        border: 1px solid rgba(132, 225, 255, 0.2);
+        background-color: #222837;
+        background-image:
+          linear-gradient(45deg, #343b4b 25%, transparent 25%),
+          linear-gradient(-45deg, #343b4b 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #343b4b 75%),
+          linear-gradient(-45deg, transparent 75%, #343b4b 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,.2), inset 0 18px 42px rgba(0,0,0,.25);
+      }
+
+      .canvas-wrap {
+        position: relative;
+        display: inline-block;
+        margin: 18px;
+      }
+
+      .guides {
+        position: absolute;
+        left: 0;
+        top: 0;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 120ms ease;
+        z-index: 2;
+        overflow: hidden;
+        --guide-opacity: 0.86;
+      }
+
+      .guides.visible {
+        opacity: var(--guide-opacity);
+      }
+
+      .guides [hidden] {
+        display: none !important;
+      }
+
+      .guide-box {
+        position: absolute;
+        box-sizing: border-box;
+      }
+
+      .guide-box.target {
+        border: 1px dashed rgba(91, 223, 255, 1);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.92),
+          inset 0 0 0 1px rgba(0, 0, 0, 0.92);
+      }
+
+      .guide-box.frame {
+        border: 1px solid rgba(255, 92, 214, 1);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.92),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+      }
+
+      .guide-axis {
+        position: absolute;
+        display: block;
+      }
+
+      .guide-axis.vertical {
+        left: 50%;
+        top: 0;
+        width: 1px;
+        height: 100%;
+        transform: translateX(-50%);
+      }
+
+      .guide-axis.horizontal {
+        top: 50%;
+        left: 0;
+        width: 100%;
+        height: 1px;
+        transform: translateY(-50%);
+      }
+
+      .guide-box.target .guide-axis {
+        background: rgba(91, 223, 255, 1);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.82);
+      }
+
+      .guide-box.frame .guide-axis {
+        background: rgba(255, 92, 214, 1);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.82);
+      }
+
+      .guide-center {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 7px;
+        height: 7px;
+        margin-left: -3.5px;
+        margin-top: -3.5px;
+        border-radius: 999px;
+        background: currentColor;
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 1),
+          0 0 0 2px rgba(255, 255, 255, 0.72);
+      }
+
+      .guide-box.target .guide-center {
+        color: rgba(91, 223, 255, 1);
+      }
+
+      .guide-box.frame .guide-center {
+        color: rgba(255, 92, 214, 1);
+      }
+
+      .guide-label {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        padding: 2px 5px;
+        border-radius: 5px;
+        color: #fff;
+        background: rgba(7, 10, 18, 0.9);
+        box-shadow: 0 0 0 1px currentColor;
+        font: 600 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: nowrap;
+      }
+
+      .guide-box.target .guide-label {
+        color: rgba(91, 223, 255, 1);
+      }
+
+      .guide-box.frame .guide-label {
+        color: rgba(255, 92, 214, 1);
+      }
+
+      .guide-anchor {
+        position: absolute;
+        width: 11px;
+        height: 11px;
+        margin: -5.5px 0 0 -5.5px;
+        border-radius: 999px;
+        box-sizing: border-box;
+      }
+
+      .guide-anchor::before,
+      .guide-anchor::after {
+        content: "";
+        position: absolute;
+        background: currentColor;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.9);
+      }
+
+      .guide-anchor::before {
+        left: 5px;
+        top: -5px;
+        width: 1px;
+        height: 21px;
+      }
+
+      .guide-anchor::after {
+        left: -5px;
+        top: 5px;
+        width: 21px;
+        height: 1px;
+      }
+
+      .guide-anchor.target {
+        color: rgba(255, 196, 91, 1);
+        border: 2px solid rgba(255, 196, 91, 1);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 1);
+      }
+
+      .guide-anchor.current {
+        color: rgba(129, 255, 166, 1);
+        border: 2px solid rgba(129, 255, 166, 1);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 1);
+      }
+
+      .guide-ground {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 1px;
+        background: rgba(129, 255, 166, 1);
+        box-shadow:
+          0 -1px 0 rgba(0, 0, 0, 0.9),
+          0 1px 0 rgba(0, 0, 0, 0.9);
+      }
+
+      .guide-ground .guide-label {
+        top: -19px;
+        left: 6px;
+        color: rgba(129, 255, 166, 1);
+      }
+
+      canvas {
+        display: block;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        outline: none;
+        border-radius: 4px;
+        touch-action: none;
+      }
+
+      body[data-mode="segmentation-center"] canvas {
+        cursor: grab;
+      }
+
+      body[data-mode="segmentation-center"] canvas.dragging {
+        cursor: grabbing;
+      }
+
+      body[data-mode="background"] canvas {
+        cursor: none;
+      }
+
+      .overlay-note {
+        margin-top: 8px;
+        font-size: 12px;
+        line-height: 1.4;
+        color: rgba(220, 227, 245, 0.8);
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        padding: 1px 5px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="root">
+      <div class="toolbar" id="toolbar">
+        <div class="toolgroup" data-group="background">
+          <button data-action="tool" data-tool="wand" id="tool-wand">Wand</button>
+          <button data-action="tool" data-tool="eyedropper" id="tool-eyedropper">Eyedropper</button>
+          <button data-action="tool" data-tool="eraser" id="tool-eraser">Eraser</button>
+        </div>
+        <div class="toolgroup" data-group="background">
+          <button data-action="zoom-out" id="zoom-out">-</button>
+          <button data-action="zoom-in" id="zoom-in">+</button>
+          <button data-action="fit" id="fit">Fit</button>
+          <span class="pill" id="zoom-pill">Zoom 1x</span>
+        </div>
+        <div class="toolgroup" data-group="background">
+          <span class="pill"><span class="swatch" id="swatch"></span><span id="sample-text">No sample</span></span>
+        </div>
+        <div class="toolgroup" data-group="background">
+          <button data-action="brush-radius-down" id="brush-radius-down">Eraser -</button>
+          <button data-action="brush-radius-up" id="brush-radius-up">Eraser +</button>
+          <span class="pill">Radius <span id="brush-radius">5px</span></span>
+        </div>
+        <div class="toolgroup" data-group="center">
+          <button data-action="autocenter" id="autocenter">Auto center</button>
+          <button data-action="autocrop" id="autocrop">Auto crop</button>
+          <button data-action="reset-transform" id="reset-transform">Reset</button>
+          <button data-action="toggle-guides" id="toggle-guides">Guides</button>
+          <details class="guide-settings" id="guide-settings">
+            <summary aria-label="Guide layers">Layers</summary>
+            <div class="guide-menu">
+              <label><input type="checkbox" id="guide-target-layer" checked /> Cell target</label>
+              <label><input type="checkbox" id="guide-frame-layer" checked /> Moving frame</label>
+              <label><input type="checkbox" id="guide-current-anchor-layer" checked /> Current body anchor</label>
+              <label><input type="checkbox" id="guide-target-anchor-layer" checked /> Target body anchor</label>
+              <label><input type="checkbox" id="guide-ground-layer" /> Ground line</label>
+              <label><input type="checkbox" id="guide-anchor-delta-layer" checked /> Anchor delta</label>
+              <label>
+                Opacity
+                <input type="range" id="guide-opacity" min="10" max="100" step="5" value="85" />
+                <span id="guide-opacity-value">85%</span>
+              </label>
+            </div>
+          </details>
+        </div>
+        <div class="toolgroup" data-group="center">
+          <button data-action="zoom-out" id="zoom-out-center">-</button>
+          <button data-action="zoom-in" id="zoom-in-center">+</button>
+          <button data-action="fit" id="fit-center">Fit</button>
+          <span class="pill" id="zoom-pill-center">Zoom 1x</span>
+        </div>
+        <div class="toolgroup guide-status" data-group="center">
+          <span class="pill" id="mode-pill">Mode center</span>
+          <span class="pill" id="delta-pill" data-role="anchor-delta">ΔX 0 · ΔY 0</span>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <div class="canvas-wrap">
+          <div class="guides" id="guides" aria-hidden="true">
+            <div class="guide-box target" id="guide-target">
+              <span class="guide-axis vertical"></span>
+              <span class="guide-axis horizontal"></span>
+              <span class="guide-center"></span>
+              <span class="guide-label">CELL TARGET</span>
+            </div>
+            <div class="guide-box frame" id="guide-frame">
+              <span class="guide-axis vertical"></span>
+              <span class="guide-axis horizontal"></span>
+              <span class="guide-center"></span>
+              <span class="guide-label">MOVING FRAME</span>
+            </div>
+            <div class="guide-anchor target" id="guide-target-anchor"></div>
+            <div class="guide-anchor current" id="guide-current-anchor"></div>
+            <div class="guide-ground" id="guide-ground">
+              <span class="guide-label">GROUND</span>
+            </div>
+          </div>
+          <div class="cursor-ring" id="cursor-ring"></div>
+          <div class="cursor-dot" id="cursor-dot"></div>
+          <canvas id="editor" tabindex="0" aria-label="Pixel editor"></canvas>
+        </div>
+      </div>
+
+      <div class="overlay-note" id="overlay-note">
+        Click to interact. <code>I</code> eyedropper, <code>W</code> wand, <code>E</code> eraser,
+        <code>Shift</code> add,
+        <code>Alt/Option</code> subtract, <code>Esc</code> clear selection, <code>Delete</code>/<code>Backspace</code> erase.
+      </div>
+    </div>
+
+    <script>
+      const COMPONENT_READY = "streamlit:componentReady";
+      const SET_COMPONENT_VALUE = "streamlit:setComponentValue";
+      const SET_FRAME_HEIGHT = "streamlit:setFrameHeight";
+      const RENDER = "streamlit:render";
+
+      const canvas = document.getElementById("editor");
+      const context = canvas.getContext("2d");
+      context.imageSmoothingEnabled = false;
+      const stage = document.getElementById("stage");
+      const zoomPill = document.getElementById("zoom-pill");
+      const sampleText = document.getElementById("sample-text");
+      const swatch = document.getElementById("swatch");
+      const toolWand = document.getElementById("tool-wand");
+      const toolEyedropper = document.getElementById("tool-eyedropper");
+      const toolEraser = document.getElementById("tool-eraser");
+      const autocenterButton = document.getElementById("autocenter");
+      const autocropButton = document.getElementById("autocrop");
+      const resetTransformButton = document.getElementById("reset-transform");
+      const toggleGuidesButton = document.getElementById("toggle-guides");
+      const zoomOutButton = document.getElementById("zoom-out");
+      const zoomInButton = document.getElementById("zoom-in");
+      const fitButton = document.getElementById("fit");
+      const zoomOutCenterButton = document.getElementById("zoom-out-center");
+      const zoomInCenterButton = document.getElementById("zoom-in-center");
+      const fitCenterButton = document.getElementById("fit-center");
+      const guides = document.getElementById("guides");
+      const guideTarget = document.getElementById("guide-target");
+      const guideFrame = document.getElementById("guide-frame");
+      const guideTargetAnchor = document.getElementById("guide-target-anchor");
+      const guideCurrentAnchor = document.getElementById("guide-current-anchor");
+      const guideGround = document.getElementById("guide-ground");
+      const guideSettings = document.getElementById("guide-settings");
+      const guideTargetLayer = document.getElementById("guide-target-layer");
+      const guideFrameLayer = document.getElementById("guide-frame-layer");
+      const guideCurrentAnchorLayer = document.getElementById("guide-current-anchor-layer");
+      const guideTargetAnchorLayer = document.getElementById("guide-target-anchor-layer");
+      const guideGroundLayer = document.getElementById("guide-ground-layer");
+      const guideAnchorDeltaLayer = document.getElementById("guide-anchor-delta-layer");
+      const guideOpacity = document.getElementById("guide-opacity");
+      const guideOpacityValue = document.getElementById("guide-opacity-value");
+      const modePill = document.getElementById("mode-pill");
+      const deltaPill = document.getElementById("delta-pill");
+      const overlayNote = document.getElementById("overlay-note");
+      const cursorRing = document.getElementById("cursor-ring");
+      const cursorDot = document.getElementById("cursor-dot");
+
+      let state = {
+        image: null,
+        overlay: null,
+        width: 1,
+        height: 1,
+        zoom: 8,
+        tool: "wand",
+        mode: "background",
+        brushRadius: 5,
+        sample: null,
+        offsetX: 0,
+        offsetY: 0,
+        showGuides: false,
+        guideOpacity: 0.85,
+        showCellCenter: true,
+        showFrameGuide: true,
+        showBodyAnchor: true,
+        showTargetAnchor: true,
+        showGroundLine: false,
+        groundLineY: null,
+        currentAnchorX: null,
+        currentAnchorY: null,
+        targetAnchorX: null,
+        targetAnchorY: null,
+        anchorOffsetX: 0,
+        anchorOffsetY: 0,
+        showAnchorDelta: false,
+        allowDrag: false,
+        showAutocenter: true,
+        showAutocrop: true,
+        fitOnLoad: false,
+        fitToken: "",
+        fitAppliedToken: "",
+        homeOffsetX: 0,
+        homeOffsetY: 0,
+        initialized: false,
+        pointerPixelX: 0,
+        pointerPixelY: 0,
+        pointerVisible: false,
+        dragging: false,
+        strokePath: [],
+        dragStartX: 0,
+        dragStartY: 0,
+        dragOriginX: 0,
+        dragOriginY: 0,
+      };
+      let readySent = false;
+
+      function send(type, payload) {
+        window.parent.postMessage({ isStreamlitMessage: true, type, ...payload }, "*");
+      }
+
+      function sendReady() {
+        if (readySent) {
+          return;
+        }
+        readySent = true;
+        send(COMPONENT_READY, { apiVersion: 1 });
+      }
+
+      function emitValue(value) {
+        const nextValue = state.mode === "segmentation-center"
+          ? { ...value, zoom: state.zoom }
+          : value;
+        send(SET_COMPONENT_VALUE, { value: nextValue });
+      }
+
+      function setFrameHeight() {
+        const toolbarHeight = Math.ceil(document.getElementById("toolbar")?.getBoundingClientRect().height || 0);
+        const stageHeight = Math.ceil(stage.getBoundingClientRect().height || 0);
+        const noteHeight = Math.ceil(document.querySelector(".overlay-note")?.getBoundingClientRect().height || 0);
+        const height = Math.max(760, toolbarHeight + stageHeight + noteHeight + 32);
+        send(SET_FRAME_HEIGHT, { height });
+      }
+
+      function loadImage(url) {
+        return new Promise((resolve, reject) => {
+          if (!url) {
+            resolve(null);
+            return;
+          }
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+          image.src = url;
+        });
+      }
+
+      function normalizeTool(tool) {
+        return tool === "brush" ? "eraser" : tool;
+      }
+
+      function normalizeMode(mode) {
+        return mode === "segmentation-center" ? "segmentation-center" : "background";
+      }
+
+      function finiteNumber(value, fallback = null) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+      }
+
+      function hasOwn(object, property) {
+        return Object.prototype.hasOwnProperty.call(object, property);
+      }
+
+      function firstFinite(args, names, fallback = null) {
+        for (const name of names) {
+          if (hasOwn(args, name)) {
+            const value = finiteNumber(args[name], null);
+            if (value !== null) {
+              return value;
+            }
+          }
+        }
+        return fallback;
+      }
+
+      function setBoxGeometry(element, x, y, width, height) {
+        element.style.left = `${Math.round(x * state.zoom)}px`;
+        element.style.top = `${Math.round(y * state.zoom)}px`;
+        element.style.width = `${Math.max(1, Math.round(width * state.zoom))}px`;
+        element.style.height = `${Math.max(1, Math.round(height * state.zoom))}px`;
+      }
+
+      function setPointGeometry(element, x, y) {
+        element.style.left = `${Math.round((x + 0.5) * state.zoom)}px`;
+        element.style.top = `${Math.round((y + 0.5) * state.zoom)}px`;
+      }
+
+      function currentAnchorPosition() {
+        if (state.currentAnchorX === null || state.currentAnchorY === null) {
+          return null;
+        }
+        return {
+          x: state.currentAnchorX + (state.offsetX - state.anchorOffsetX),
+          y: state.currentAnchorY + (state.offsetY - state.anchorOffsetY),
+        };
+      }
+
+      function guideDelta() {
+        const currentAnchor = currentAnchorPosition();
+        const hasAnchorTarget = state.targetAnchorX !== null && state.targetAnchorY !== null;
+        if (state.showAnchorDelta && currentAnchor && hasAnchorTarget) {
+          const anchorDeltaX = Math.round(
+            state.currentAnchorX + state.offsetX - state.anchorOffsetX - state.targetAnchorX,
+          );
+          const anchorDeltaY = Math.round(
+            state.currentAnchorY + state.offsetY - state.anchorOffsetY - state.targetAnchorY,
+          );
+          return {
+            x: Math.round(currentAnchor.x - state.targetAnchorX),
+            y: Math.round(currentAnchor.y - state.targetAnchorY),
+            anchor: true,
+            anchorDeltaX,
+            anchorDeltaY,
+          };
+        }
+        return {
+          x: Math.round(state.offsetX - state.homeOffsetX),
+          y: Math.round(state.offsetY - state.homeOffsetY),
+          anchor: false,
+        };
+      }
+
+      function updateModeUI() {
+        const centerMode = state.mode === "segmentation-center";
+        document.body.dataset.mode = state.mode;
+        modePill.textContent = centerMode ? "Mode segmentation" : "Mode background";
+        guides.classList.toggle("visible", centerMode && state.showGuides);
+        guides.style.opacity = centerMode && state.showGuides ? String(state.guideOpacity) : "0";
+        toggleGuidesButton.textContent = state.showGuides ? "Guides on" : "Guides off";
+        toolWand.disabled = centerMode;
+        toolEyedropper.disabled = centerMode;
+        toolEraser.disabled = centerMode;
+        zoomOutButton.hidden = centerMode;
+        zoomInButton.hidden = centerMode;
+        fitButton.hidden = centerMode;
+        zoomOutButton.disabled = centerMode;
+        zoomInButton.disabled = centerMode;
+        fitButton.disabled = centerMode;
+        zoomOutCenterButton.hidden = !centerMode;
+        zoomInCenterButton.hidden = !centerMode;
+        fitCenterButton.hidden = !centerMode;
+        zoomOutCenterButton.disabled = !centerMode;
+        zoomInCenterButton.disabled = !centerMode;
+        fitCenterButton.disabled = !centerMode;
+        autocenterButton.hidden = !centerMode || !state.showAutocenter;
+        autocropButton.hidden = !centerMode || !state.showAutocrop;
+        resetTransformButton.hidden = !centerMode;
+        toggleGuidesButton.hidden = !centerMode;
+        guideSettings.hidden = !centerMode;
+        if (state.showAnchorDelta) {
+          deltaPill.hidden = !centerMode;
+        } else {
+          deltaPill.hidden = true;
+        }
+        autocenterButton.disabled = !centerMode;
+        autocropButton.disabled = !centerMode;
+        resetTransformButton.disabled = !centerMode;
+        toggleGuidesButton.disabled = false;
+        if (overlayNote) {
+          overlayNote.innerHTML = centerMode
+            ? "Drag the frame or use <code>← ↑ ↓ →</code> to move 1 px; hold <code>Shift</code> for 5 px. <code>A</code> auto center, <code>C</code> auto crop, <code>G</code> guides, <code>R</code> reset."
+            : "Click to interact. <code>I</code> eyedropper, <code>W</code> wand, <code>E</code> eraser, <code>Shift</code> add, <code>Alt/Option</code> subtract, <code>Esc</code> clear selection, <code>Delete</code>/<code>Backspace</code> erase.";
+        }
+      }
+
+      function setActiveTool(tool) {
+        const nextTool = normalizeTool(tool);
+        state.tool = nextTool;
+        if (nextTool !== "eraser") {
+          state.strokePath = [];
+        }
+        toolWand.classList.toggle("active", nextTool === "wand");
+        toolEyedropper.classList.toggle("active", nextTool === "eyedropper");
+        toolEraser.classList.toggle("active", nextTool === "eraser");
+        updateCursor();
+      }
+
+      function setMode(mode) {
+        state.mode = normalizeMode(mode);
+        if (state.mode === "background") {
+          state.offsetX = 0;
+          state.offsetY = 0;
+          state.allowDrag = false;
+        }
+        updateModeUI();
+        updateCursor();
+        draw();
+      }
+
+      function setObjectOffset(x, y, emit = false) {
+        state.offsetX = Math.round(Number.isFinite(x) ? x : 0);
+        state.offsetY = Math.round(Number.isFinite(y) ? y : 0);
+        draw();
+        if (emit) {
+          const delta = guideDelta();
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "transform",
+            action: "offset",
+            mode: state.mode,
+            offsetX: state.offsetX,
+            offsetY: state.offsetY,
+            deltaX: delta.x,
+            deltaY: delta.y,
+          });
+        }
+      }
+
+      function setGuidesVisible(visible, announce = false) {
+        state.showGuides = !!visible;
+        updateModeUI();
+        updateGuidesGeometry();
+        if (announce) {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "toggle-guides",
+            mode: state.mode,
+            showGuides: state.showGuides,
+          });
+        }
+      }
+
+      function setGuideOpacity(value, announce = false) {
+        state.guideOpacity = Math.max(0.1, Math.min(1, finiteNumber(value, 0.85)));
+        const percent = Math.round(state.guideOpacity * 100);
+        guides.style.setProperty("--guide-opacity", String(state.guideOpacity));
+        guides.style.opacity = state.mode === "segmentation-center" && state.showGuides
+          ? String(state.guideOpacity)
+          : "0";
+        guideOpacity.value = String(percent);
+        guideOpacityValue.textContent = `${percent}%`;
+        if (announce) {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "guide-opacity",
+            mode: state.mode,
+            guideOpacity: state.guideOpacity,
+          });
+        }
+      }
+
+      function setBrushRadius(value, announce = false) {
+        const next = Math.max(1, Math.min(48, Math.round(value)));
+        state.brushRadius = next;
+        document.getElementById("brush-radius").textContent = `${next}px`;
+        if (announce) {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "brush-radius",
+            brushRadius: next,
+          });
+        }
+        updateCursor();
+        setFrameHeight();
+      }
+
+      function updateCursor() {
+        const centerMode = state.mode === "segmentation-center";
+        const size = state.tool === "eraser"
+          ? Math.max(1, (state.brushRadius * 2 + 1) * state.zoom)
+          : Math.max(12, Math.round(state.zoom * 1.5));
+        cursorRing.style.width = `${size}px`;
+        cursorRing.style.height = `${size}px`;
+        const centerX = state.pointerPixelX * state.zoom + state.zoom / 2;
+        const centerY = state.pointerPixelY * state.zoom + state.zoom / 2;
+        cursorRing.style.left = `${centerX}px`;
+        cursorRing.style.top = `${centerY}px`;
+        cursorDot.style.left = `${centerX}px`;
+        cursorDot.style.top = `${centerY}px`;
+        const visible = state.pointerVisible;
+        const crosshair = state.tool === "wand" || state.tool === "eyedropper";
+        const eraser = state.tool === "eraser";
+        cursorRing.classList.toggle("visible", visible);
+        cursorDot.classList.toggle("visible", visible && crosshair && !centerMode);
+        cursorRing.classList.toggle("mode-crosshair", crosshair);
+        cursorRing.classList.toggle("mode-eraser", eraser);
+        cursorRing.classList.toggle("eyedropper", state.tool === "eyedropper");
+        cursorRing.classList.toggle("wand", state.tool === "wand");
+        canvas.classList.toggle("dragging", centerMode && state.dragging);
+        canvas.style.cursor = centerMode ? (state.dragging ? "grabbing" : "grab") : "none";
+      }
+
+      function updateGuidesGeometry() {
+        const centerMode = state.mode === "segmentation-center";
+        const overlayWidth = state.overlay?.width || state.width;
+        const overlayHeight = state.overlay?.height || state.height;
+        guides.style.left = "0px";
+        guides.style.top = "0px";
+        guides.style.width = `${Math.max(1, Math.round(state.width * state.zoom))}px`;
+        guides.style.height = `${Math.max(1, Math.round(state.height * state.zoom))}px`;
+        if (!centerMode) {
+          return;
+        }
+
+        setBoxGeometry(
+          guideTarget,
+          state.homeOffsetX,
+          state.homeOffsetY,
+          overlayWidth,
+          overlayHeight,
+        );
+        setBoxGeometry(
+          guideFrame,
+          state.offsetX,
+          state.offsetY,
+          overlayWidth,
+          overlayHeight,
+        );
+        guideTarget.hidden = !state.showCellCenter;
+        guideFrame.hidden = !state.showFrameGuide;
+
+        const currentAnchor = currentAnchorPosition();
+        const hasCurrentAnchor = !!currentAnchor;
+        const hasTargetAnchor = state.targetAnchorX !== null && state.targetAnchorY !== null;
+        guideCurrentAnchor.hidden = !state.showBodyAnchor || !hasCurrentAnchor;
+        guideTargetAnchor.hidden = !state.showTargetAnchor || !hasTargetAnchor;
+        if (hasCurrentAnchor) {
+          const currentAnchorScreenX = (
+            state.currentAnchorX + state.offsetX - state.anchorOffsetX + 0.5
+          ) * state.zoom;
+          const currentAnchorScreenY = (
+            state.currentAnchorY + state.offsetY - state.anchorOffsetY + 0.5
+          ) * state.zoom;
+          setPointGeometry(guideCurrentAnchor, currentAnchor.x, currentAnchor.y);
+          guideCurrentAnchor.dataset.screenX = String(Math.round(currentAnchorScreenX));
+          guideCurrentAnchor.dataset.screenY = String(Math.round(currentAnchorScreenY));
+        }
+        if (hasTargetAnchor) {
+          const targetAnchorScreenX = (state.targetAnchorX + 0.5) * state.zoom;
+          const targetAnchorScreenY = (state.targetAnchorY + 0.5) * state.zoom;
+          setPointGeometry(
+            guideTargetAnchor,
+            state.targetAnchorX,
+            state.targetAnchorY
+          );
+          guideTargetAnchor.dataset.screenX = String(Math.round(targetAnchorScreenX));
+          guideTargetAnchor.dataset.screenY = String(Math.round(targetAnchorScreenY));
+        }
+
+        const fallbackGround = state.homeOffsetY + overlayHeight - 1;
+        const groundY = state.groundLineY === null ? fallbackGround : state.groundLineY;
+        guideGround.hidden = !state.showGroundLine;
+        guideGround.style.top = `${Math.round((groundY + 0.5) * state.zoom)}px`;
+
+        const delta = guideDelta();
+        deltaPill.textContent = `${delta.anchor ? "Anchor " : ""}ΔX ${delta.x} · ΔY ${delta.y}`;
+        deltaPill.title = delta.anchor
+          ? "Current body anchor relative to target body anchor"
+          : "Moving frame relative to its target cell";
+
+        guideTargetLayer.checked = state.showCellCenter;
+        guideFrameLayer.checked = state.showFrameGuide;
+        guideCurrentAnchorLayer.checked = state.showBodyAnchor;
+        guideTargetAnchorLayer.checked = state.showTargetAnchor;
+        guideGroundLayer.checked = state.showGroundLine;
+        guideAnchorDeltaLayer.checked = state.showAnchorDelta;
+      }
+
+      function focusViewportOnOverlay() {
+        if (state.mode !== "segmentation-center") {
+          return;
+        }
+        const overlayWidth = Math.max(1, Math.round((state.overlay?.width || state.width) * state.zoom));
+        const overlayHeight = Math.max(1, Math.round((state.overlay?.height || state.height) * state.zoom));
+        const targetLeft = Math.max(
+          0,
+          Math.round(state.offsetX * state.zoom + overlayWidth / 2 - stage.clientWidth / 2),
+        );
+        const targetTop = Math.max(
+          0,
+          Math.round(state.offsetY * state.zoom + overlayHeight / 2 - stage.clientHeight / 2),
+        );
+        stage.scrollLeft = targetLeft;
+        stage.scrollTop = targetTop;
+      }
+
+      function scheduleViewportFocus() {
+        requestAnimationFrame(focusViewportOnOverlay);
+      }
+
+      function setZoom(value, announce = false) {
+        const next = Math.max(1, Math.min(40, Math.round(value)));
+        state.zoom = next;
+        canvas.style.width = `${state.width * next}px`;
+        canvas.style.height = `${state.height * next}px`;
+        zoomPill.textContent = `Zoom ${next}x`;
+        const centerPill = document.getElementById("zoom-pill-center");
+        if (centerPill) {
+          centerPill.textContent = `Zoom ${next}x`;
+        }
+        if (announce) {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "zoom",
+            zoom: next,
+          });
+        }
+        setFrameHeight();
+        requestAnimationFrame(updateCursor);
+        requestAnimationFrame(updateGuidesGeometry);
+      }
+
+      function computeFitZoom() {
+        const viewportWidth = Math.max(1, stage.clientWidth - 36);
+        const viewportHeight = Math.max(1, stage.clientHeight - 36);
+        const zoomX = viewportWidth / state.width;
+        const zoomY = viewportHeight / state.height;
+        return Math.max(1, Math.min(40, Math.floor(Math.min(zoomX, zoomY))));
+      }
+
+      function updateSample(sample) {
+        if (!sample) {
+          state.sample = null;
+          sampleText.textContent = "No sample";
+          swatch.style.background = "transparent";
+          return;
+        }
+        state.sample = sample;
+        const [r, g, b, a] = sample;
+        sampleText.textContent = `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("").toUpperCase()} · A ${a}`;
+        swatch.style.background = `rgb(${r}, ${g}, ${b})`;
+      }
+
+      function draw() {
+        canvas.width = state.width;
+        canvas.height = state.height;
+        context.imageSmoothingEnabled = false;
+        context.clearRect(0, 0, state.width, state.height);
+        if (state.image) {
+          context.drawImage(state.image, 0, 0);
+        }
+        if (state.overlay) {
+          context.drawImage(state.overlay, state.offsetX, state.offsetY);
+        }
+        updateGuidesGeometry();
+      }
+
+      function redraw() {
+        draw();
+        updateModeUI();
+        setZoom(state.zoom);
+        setActiveTool(state.tool);
+        setBrushRadius(state.brushRadius);
+        setGuideOpacity(state.guideOpacity);
+        updateSample(state.sample);
+        requestAnimationFrame(setFrameHeight);
+        requestAnimationFrame(updateCursor);
+      }
+
+      function pointerToPixel(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.min(
+          state.width - 1,
+          Math.max(0, Math.floor(((event.clientX - rect.left) / rect.width) * state.width)),
+        );
+        const y = Math.min(
+          state.height - 1,
+          Math.max(0, Math.floor(((event.clientY - rect.top) / rect.height) * state.height)),
+        );
+        return { x, y };
+      }
+
+      function modifiers(event) {
+        return {
+          shiftKey: !!event.shiftKey,
+          altKey: !!event.altKey,
+          metaKey: !!event.metaKey,
+          ctrlKey: !!event.ctrlKey,
+        };
+      }
+
+      function focusCanvas() {
+        canvas.focus();
+      }
+
+      function emitPointer(event, type) {
+        const point = pointerToPixel(event);
+        state.pointerPixelX = point.x;
+        state.pointerPixelY = point.y;
+        state.pointerVisible = true;
+        updateCursor();
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type,
+          tool: state.tool,
+          button: event.button,
+          x: point.x,
+          y: point.y,
+          brushRadius: state.brushRadius,
+          dragging: type === "pointermove",
+          ...modifiers(event),
+        });
+      }
+
+      function emitDrag(event, action, point) {
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "transform",
+          action,
+          mode: state.mode,
+          tool: "move",
+          x: point.x,
+          y: point.y,
+          pointerX: point.x,
+          pointerY: point.y,
+          startX: state.dragStartX,
+          startY: state.dragStartY,
+          offsetX: state.offsetX,
+          offsetY: state.offsetY,
+          deltaX: state.offsetX - state.dragOriginX,
+          deltaY: state.offsetY - state.dragOriginY,
+          dragging: action !== "end",
+          ...modifiers(event),
+        });
+      }
+
+      function pointHitsOverlay(point) {
+        if (state.mode !== "segmentation-center" || !state.allowDrag) {
+          return false;
+        }
+        const overlayWidth = state.overlay?.width || state.width;
+        const overlayHeight = state.overlay?.height || state.height;
+        return (
+          point.x >= state.offsetX
+          && point.x < state.offsetX + overlayWidth
+          && point.y >= state.offsetY
+          && point.y < state.offsetY + overlayHeight
+        );
+      }
+
+      function emitStroke(event) {
+        if (!state.strokePath.length) {
+          return;
+        }
+        const lastPoint = state.strokePath[state.strokePath.length - 1];
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "pointer",
+          tool: "eraser",
+          button: event.button,
+          x: lastPoint.x,
+          y: lastPoint.y,
+          path: state.strokePath.map((point) => [point.x, point.y]),
+          brushRadius: state.brushRadius,
+          dragging: false,
+          ...modifiers(event),
+        });
+      }
+
+      canvas.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+      });
+
+      canvas.addEventListener("pointerenter", (event) => {
+        state.pointerVisible = true;
+        const point = pointerToPixel(event);
+        state.pointerPixelX = point.x;
+        state.pointerPixelY = point.y;
+        updateCursor();
+      });
+
+      canvas.addEventListener("pointerdown", (event) => {
+        focusCanvas();
+        state.dragging = event.button === 0 || (event.buttons & 1) === 1;
+        if (canvas.setPointerCapture) {
+          try {
+            canvas.setPointerCapture(event.pointerId);
+          } catch (error) {
+            console.warn("pointer capture failed", error);
+          }
+        }
+        const point = pointerToPixel(event);
+        state.pointerPixelX = point.x;
+        state.pointerPixelY = point.y;
+        state.pointerVisible = true;
+        updateCursor();
+        if (state.mode === "segmentation-center" && state.allowDrag && pointHitsOverlay(point)) {
+          state.dragStartX = point.x;
+          state.dragStartY = point.y;
+          state.dragOriginX = state.offsetX;
+          state.dragOriginY = state.offsetY;
+          event.preventDefault();
+          return;
+        }
+        if (state.mode === "segmentation-center") {
+          event.preventDefault();
+          return;
+        }
+        if (state.tool === "eraser") {
+          state.strokePath = [point];
+          updateCursor();
+          event.preventDefault();
+          return;
+        }
+        emitPointer(event, "pointerdown");
+        event.preventDefault();
+      });
+
+      canvas.addEventListener("pointermove", (event) => {
+        state.pointerVisible = true;
+        const point = pointerToPixel(event);
+        if (state.mode === "segmentation-center" && state.allowDrag && state.dragging && (event.buttons & 1)) {
+          const nextX = state.dragOriginX + (point.x - state.dragStartX);
+          const nextY = state.dragOriginY + (point.y - state.dragStartY);
+          state.pointerPixelX = point.x;
+          state.pointerPixelY = point.y;
+          setObjectOffset(nextX, nextY);
+          updateCursor();
+        } else if (state.mode === "segmentation-center") {
+          state.pointerPixelX = point.x;
+          state.pointerPixelY = point.y;
+          updateCursor();
+        } else if (state.dragging && state.tool === "eraser" && (event.buttons & 1)) {
+          const last = state.strokePath[state.strokePath.length - 1];
+          state.pointerPixelX = point.x;
+          state.pointerPixelY = point.y;
+          if (!last || last.x !== point.x || last.y !== point.y) {
+            state.strokePath.push(point);
+          }
+          updateCursor();
+        } else {
+          state.pointerPixelX = point.x;
+          state.pointerPixelY = point.y;
+          updateCursor();
+        }
+        event.preventDefault();
+      });
+
+      canvas.addEventListener("pointerup", (event) => {
+        const point = pointerToPixel(event);
+        state.pointerPixelX = point.x;
+        state.pointerPixelY = point.y;
+        if (state.tool === "eraser") {
+          const last = state.strokePath[state.strokePath.length - 1];
+          if (!last || last.x !== point.x || last.y !== point.y) {
+            state.strokePath.push(point);
+          }
+          emitStroke(event);
+          state.strokePath = [];
+        } else if (state.mode === "segmentation-center" && state.allowDrag) {
+          emitDrag(event, "end", point);
+        }
+        state.dragging = false;
+        state.pointerVisible = true;
+        updateCursor();
+        event.preventDefault();
+      });
+
+      canvas.addEventListener("pointercancel", () => {
+        const point = { x: state.pointerPixelX, y: state.pointerPixelY };
+        if (state.mode === "segmentation-center" && state.allowDrag && state.dragging) {
+          emitDrag({ button: 0, shiftKey: false, altKey: false, metaKey: false, ctrlKey: false }, "cancel", point);
+        }
+        state.dragging = false;
+        state.strokePath = [];
+        state.pointerVisible = false;
+        updateCursor();
+      });
+
+      canvas.addEventListener("pointerleave", () => {
+        if (!state.dragging) {
+          state.strokePath = [];
+          state.pointerVisible = false;
+          updateCursor();
+        }
+      });
+
+      canvas.addEventListener("wheel", (event) => {
+        if (!event.ctrlKey) {
+          return;
+        }
+        event.preventDefault();
+        const delta = event.deltaY < 0 ? 1 : -1;
+        setZoom(state.zoom + delta, state.mode !== "segmentation-center");
+      }, { passive: false });
+
+      canvas.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "i" && state.mode !== "segmentation-center") {
+          setActiveTool("eyedropper");
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "tool",
+            tool: "eyedropper",
+          });
+          event.preventDefault();
+          return;
+        }
+        if (key === "w" && state.mode !== "segmentation-center") {
+          setActiveTool("wand");
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "tool",
+            tool: "wand",
+          });
+          event.preventDefault();
+          return;
+        }
+        if (key === "e" && state.mode !== "segmentation-center") {
+          setActiveTool("eraser");
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "tool",
+            tool: "eraser",
+          });
+          event.preventDefault();
+          return;
+        }
+        if (key === "g") {
+          setGuidesVisible(!state.showGuides, true);
+          event.preventDefault();
+          return;
+        }
+        if (key === "a" && state.mode === "segmentation-center") {
+          setObjectOffset(state.homeOffsetX, state.homeOffsetY);
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "autocenter",
+            mode: state.mode,
+            offsetX: state.homeOffsetX,
+            offsetY: state.homeOffsetY,
+          });
+          event.preventDefault();
+          return;
+        }
+        if (key === "c" && state.mode === "segmentation-center") {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "autocrop",
+            mode: state.mode,
+          });
+          event.preventDefault();
+          return;
+        }
+        if (key === "r" && state.mode === "segmentation-center") {
+          setObjectOffset(state.homeOffsetX, state.homeOffsetY);
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "reset-transform",
+            mode: state.mode,
+            offsetX: state.homeOffsetX,
+            offsetY: state.homeOffsetY,
+          });
+          event.preventDefault();
+          return;
+        }
+        if (
+          state.mode === "segmentation-center"
+          && state.allowDrag
+          && key.startsWith("arrow")
+          && ["arrowleft", "arrowright", "arrowup", "arrowdown"].includes(key)
+        ) {
+          const step = event.shiftKey ? 5 : 1;
+          const deltaX = key === "arrowleft" ? -step : key === "arrowright" ? step : 0;
+          const deltaY = key === "arrowup" ? -step : key === "arrowdown" ? step : 0;
+          setObjectOffset(state.offsetX + deltaX, state.offsetY + deltaY, true);
+          event.preventDefault();
+          return;
+        }
+        if (state.mode === "segmentation-center") {
+          return;
+        }
+        if (key === "[") {
+          setBrushRadius(state.brushRadius - 1, true);
+          event.preventDefault();
+          return;
+        }
+        if (key === "]") {
+          setBrushRadius(state.brushRadius + 1, true);
+          event.preventDefault();
+          return;
+        }
+        if (key === "escape") {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "key",
+            key: "Escape",
+            ...modifiers(event),
+          });
+          event.preventDefault();
+          return;
+        }
+        if (key === "backspace" || key === "delete") {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "key",
+            key: event.key,
+            ...modifiers(event),
+          });
+          event.preventDefault();
+        }
+      });
+
+      document.getElementById("toolbar").addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) {
+          return;
+        }
+        const action = button.dataset.action;
+        if (action === "tool") {
+          const tool = button.dataset.tool || "wand";
+          setActiveTool(tool);
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "tool",
+            tool,
+          });
+          focusCanvas();
+          return;
+        }
+        if (action === "brush-radius-up") {
+          setBrushRadius(state.brushRadius + 1, true);
+          focusCanvas();
+          return;
+        }
+        if (action === "brush-radius-down") {
+          setBrushRadius(state.brushRadius - 1, true);
+          focusCanvas();
+          return;
+        }
+        if (action === "zoom-in") {
+          setZoom(state.zoom + 1, state.mode !== "segmentation-center");
+          focusCanvas();
+          return;
+        }
+        if (action === "zoom-out") {
+          setZoom(state.zoom - 1, state.mode !== "segmentation-center");
+          focusCanvas();
+          return;
+        }
+        if (action === "fit") {
+          setZoom(computeFitZoom(), state.mode !== "segmentation-center");
+          scheduleViewportFocus();
+          focusCanvas();
+          return;
+        }
+        if (action === "autocenter") {
+          setObjectOffset(state.homeOffsetX, state.homeOffsetY);
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "autocenter",
+            mode: state.mode,
+            offsetX: state.homeOffsetX,
+            offsetY: state.homeOffsetY,
+          });
+          focusCanvas();
+          return;
+        }
+        if (action === "autocrop") {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "autocrop",
+            mode: state.mode,
+          });
+          focusCanvas();
+          return;
+        }
+        if (action === "reset-transform") {
+          setObjectOffset(state.homeOffsetX, state.homeOffsetY);
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "reset-transform",
+            mode: state.mode,
+            offsetX: state.homeOffsetX,
+            offsetY: state.homeOffsetY,
+          });
+          focusCanvas();
+          return;
+        }
+        if (action === "toggle-guides") {
+          setGuidesVisible(!state.showGuides, true);
+          focusCanvas();
+        }
+      });
+
+      guideTargetLayer.addEventListener("change", () => {
+        state.showCellCenter = guideTargetLayer.checked;
+        updateGuidesGeometry();
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "toolbar",
+          action: "toggle-cell-center",
+          mode: state.mode,
+          showCellCenter: state.showCellCenter,
+        });
+        focusCanvas();
+      });
+
+      guideFrameLayer.addEventListener("change", () => {
+        state.showFrameGuide = guideFrameLayer.checked;
+        updateGuidesGeometry();
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "toolbar",
+          action: "toggle-frame-guide",
+          mode: state.mode,
+          showFrameGuide: state.showFrameGuide,
+        });
+        focusCanvas();
+      });
+
+      guideCurrentAnchorLayer.addEventListener("change", () => {
+        state.showBodyAnchor = guideCurrentAnchorLayer.checked;
+        updateGuidesGeometry();
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "toolbar",
+          action: "toggle-body-anchor",
+          mode: state.mode,
+          showBodyAnchor: state.showBodyAnchor,
+        });
+        focusCanvas();
+      });
+
+      guideTargetAnchorLayer.addEventListener("change", () => {
+        state.showTargetAnchor = guideTargetAnchorLayer.checked;
+        updateGuidesGeometry();
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "toolbar",
+          action: "toggle-target-anchor",
+          mode: state.mode,
+          showTargetAnchor: state.showTargetAnchor,
+        });
+        focusCanvas();
+      });
+
+      guideGroundLayer.addEventListener("change", () => {
+        state.showGroundLine = guideGroundLayer.checked;
+        updateGuidesGeometry();
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "toolbar",
+          action: "toggle-ground-line",
+          mode: state.mode,
+          showGroundLine: state.showGroundLine,
+        });
+        focusCanvas();
+      });
+
+      guideAnchorDeltaLayer.addEventListener("change", () => {
+        state.showAnchorDelta = guideAnchorDeltaLayer.checked;
+        updateModeUI();
+        updateGuidesGeometry();
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "toolbar",
+          action: "toggle-anchor-delta",
+          mode: state.mode,
+          showAnchorDelta: state.showAnchorDelta,
+        });
+        focusCanvas();
+      });
+
+      guideOpacity.addEventListener("input", () => {
+        setGuideOpacity(finiteNumber(guideOpacity.value, 85) / 100);
+      });
+
+      guideOpacity.addEventListener("change", () => {
+        setGuideOpacity(finiteNumber(guideOpacity.value, 85) / 100, true);
+        focusCanvas();
+      });
+
+      window.addEventListener("message", async (event) => {
+        const message = event.data;
+        if (!message || message.type !== RENDER) {
+          return;
+        }
+        const args = message.args || {};
+        state.width = Math.max(1, Number(args.width || 1));
+        state.height = Math.max(1, Number(args.height || 1));
+        state.tool = normalizeTool(String(args.tool || state.tool || "wand"));
+        setMode(String(args.mode || state.mode || "background"));
+        state.brushRadius = Math.max(1, Math.round(Number(args.brushRadius || state.brushRadius || 5)));
+        state.sample = Array.isArray(args.sample) ? args.sample.slice(0, 4) : null;
+        if (Object.prototype.hasOwnProperty.call(args, "offsetX")) {
+          state.offsetX = Math.round(Number(args.offsetX || 0));
+        }
+        if (Object.prototype.hasOwnProperty.call(args, "offsetY")) {
+          state.offsetY = Math.round(Number(args.offsetY || 0));
+        }
+        if (Object.prototype.hasOwnProperty.call(args, "homeOffsetX")) {
+          state.homeOffsetX = Math.round(Number(args.homeOffsetX || 0));
+        } else {
+          state.homeOffsetX = state.offsetX;
+        }
+        if (Object.prototype.hasOwnProperty.call(args, "homeOffsetY")) {
+          state.homeOffsetY = Math.round(Number(args.homeOffsetY || 0));
+        } else {
+          state.homeOffsetY = state.offsetY;
+        }
+        if (Object.prototype.hasOwnProperty.call(args, "showGuides")) {
+          state.showGuides = !!args.showGuides;
+        }
+        if (hasOwn(args, "guideOpacity")) {
+          const rawOpacity = finiteNumber(args.guideOpacity, state.guideOpacity);
+          state.guideOpacity = Math.max(0.1, Math.min(1, rawOpacity > 1 ? rawOpacity / 100 : rawOpacity));
+        }
+        if (hasOwn(args, "showCellCenter")) {
+          state.showCellCenter = !!args.showCellCenter;
+        } else if (hasOwn(args, "showTargetGuide")) {
+          state.showCellCenter = !!args.showTargetGuide;
+        }
+        if (hasOwn(args, "showFrameGuide")) {
+          state.showFrameGuide = !!args.showFrameGuide;
+        }
+        if (hasOwn(args, "showBodyAnchor")) {
+          state.showBodyAnchor = !!args.showBodyAnchor;
+        } else if (hasOwn(args, "showAnchorGuides")) {
+          state.showBodyAnchor = !!args.showAnchorGuides;
+        }
+        if (hasOwn(args, "showTargetAnchor")) {
+          state.showTargetAnchor = !!args.showTargetAnchor;
+        } else if (hasOwn(args, "showAnchorGuides")) {
+          state.showTargetAnchor = !!args.showAnchorGuides;
+        }
+        if (hasOwn(args, "showGroundLine")) {
+          state.showGroundLine = !!args.showGroundLine;
+        }
+        state.groundLineY = firstFinite(args, ["groundLineY"], null);
+        const currentAnchor = args.currentAnchor || args.bodyAnchor || args.currentBodyAnchor || {};
+        const targetAnchor = args.targetAnchor || args.targetBodyAnchor || {};
+        state.currentAnchorX = firstFinite(
+          args,
+          ["currentAnchorX", "bodyAnchorX", "currentBodyAnchorX"],
+          finiteNumber(currentAnchor.x, null),
+        );
+        state.currentAnchorY = firstFinite(
+          args,
+          ["currentAnchorY", "bodyAnchorY", "currentBodyAnchorY"],
+          finiteNumber(currentAnchor.y, null),
+        );
+        state.targetAnchorX = firstFinite(
+          args,
+          ["targetAnchorX", "targetBodyAnchorX"],
+          finiteNumber(targetAnchor.x, null),
+        );
+        state.targetAnchorY = firstFinite(
+          args,
+          ["targetAnchorY", "targetBodyAnchorY"],
+          finiteNumber(targetAnchor.y, null),
+        );
+        if (hasOwn(args, "showAnchorDelta")) {
+          state.showAnchorDelta = !!args.showAnchorDelta;
+        }
+        state.anchorOffsetX = state.offsetX;
+        state.anchorOffsetY = state.offsetY;
+        if (Object.prototype.hasOwnProperty.call(args, "allowDrag")) {
+          state.allowDrag = !!args.allowDrag;
+        }
+        if (Object.prototype.hasOwnProperty.call(args, "showAutocenter")) {
+          state.showAutocenter = !!args.showAutocenter;
+        }
+        if (Object.prototype.hasOwnProperty.call(args, "showAutocrop")) {
+          state.showAutocrop = !!args.showAutocrop;
+        }
+        if (Object.prototype.hasOwnProperty.call(args, "fitOnLoad")) {
+          state.fitOnLoad = !!args.fitOnLoad;
+        }
+        if (Object.prototype.hasOwnProperty.call(args, "fitToken")) {
+          state.fitToken = String(args.fitToken || "");
+        }
+        try {
+          let focusAfterRender = false;
+          state.image = await loadImage(args.image || null);
+          state.overlay = await loadImage(args.overlay || null);
+          if (state.mode === "segmentation-center" && state.fitOnLoad && state.fitToken && state.fitToken !== state.fitAppliedToken) {
+            state.fitAppliedToken = state.fitToken;
+            state.zoom = computeFitZoom();
+            state.initialized = true;
+            focusAfterRender = true;
+          } else if (!state.initialized) {
+            state.zoom = Math.max(1, Math.round(Number(args.zoom || state.zoom || 8)));
+            state.initialized = true;
+          }
+          redraw();
+          setZoom(state.zoom, false);
+          if (focusAfterRender) {
+            scheduleViewportFocus();
+          }
+        } catch (error) {
+          console.error("pixel editor render failed", error);
+        }
+      });
+
+      window.addEventListener("DOMContentLoaded", () => {
+        sendReady();
+        setFrameHeight();
+      });
+      window.addEventListener("load", () => {
+        sendReady();
+        setFrameHeight();
+      });
+      setTimeout(() => {
+        sendReady();
+        setFrameHeight();
+      }, 50);
+    </script>
+  </body>
+</html>

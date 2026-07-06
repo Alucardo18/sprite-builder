@@ -1,0 +1,22 @@
+schema_version: "1.0"
+workspace_root: "."
+paths:
+  jobs: jobs
+  exports: exports
+  characters: characters
+  prompts: prompts
+orchestration:
+  max_regeneration_attempts_per_frame: 2
+  stop_on_manual_review: true
+  verify_artifact_hashes: true
+quality:
+  drift_pass_max: 14
+  drift_review_max: 29
+  torso_anchor_auto_accept: 0.85
+  torso_anchor_review: 0.65
+defaults:
+  cell_size: [128, 128]
+  fps: 8
+  palette_delta_e00: 8
+  candidates_per_frame: 1
+

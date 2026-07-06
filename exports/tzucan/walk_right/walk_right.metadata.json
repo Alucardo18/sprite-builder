@@ -1,0 +1,208 @@
+{
+  "schema_version": "1.0",
+  "animation": "walk_right",
+  "fps": 8.0,
+  "loop": true,
+  "sheet": {
+    "path": "/Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/exports/tzucan/walk_right/walk_right.png",
+    "size": [
+      512,
+      128
+    ],
+    "cell_size": [
+      128,
+      128
+    ],
+    "layout": {
+      "type": "horizontal",
+      "columns": 4,
+      "rows": 1
+    }
+  },
+  "frames": [
+    {
+      "index": 0,
+      "source": "automatic",
+      "source_sha256": "3296524e74d17041a757c44d54cfb1cad02b3a3407593097ebf2459593a6e7eb",
+      "region": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "duration_seconds": 0.125,
+      "frame": 0,
+      "direction": "right",
+      "direction_frame": 0,
+      "auto": [
+        64.0,
+        66.22
+      ],
+      "torso_anchor": [
+        64,
+        68
+      ],
+      "canvas_pivot": [
+        64,
+        68
+      ],
+      "godot_offset": [
+        0.0,
+        -4.0
+      ],
+      "foot_anchor": [
+        64.5,
+        102.0
+      ],
+      "foreground_bbox": [
+        44,
+        29,
+        84,
+        103
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.8041414499282837,
+      "template_score": 1.0,
+      "flow_inlier_ratio": 0.0,
+      "manual_review": false
+    },
+    {
+      "index": 1,
+      "source": "automatic",
+      "source_sha256": "94b1787ae56fb9b22f8955ad298d7702de4c205dadb2e0be2663f7ed1e790c3f",
+      "region": [
+        128,
+        0,
+        128,
+        128
+      ],
+      "duration_seconds": 0.125,
+      "frame": 1,
+      "direction": "right",
+      "direction_frame": 1,
+      "auto": [
+        64.0,
+        66.22
+      ],
+      "torso_anchor": [
+        64,
+        68
+      ],
+      "canvas_pivot": [
+        64,
+        68
+      ],
+      "godot_offset": [
+        0.0,
+        -4.0
+      ],
+      "foot_anchor": [
+        66.0,
+        102.0
+      ],
+      "foreground_bbox": [
+        44,
+        29,
+        84,
+        103
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.8735933990416406,
+      "template_score": 0.9028469324111938,
+      "flow_inlier_ratio": 1.0,
+      "manual_review": false
+    },
+    {
+      "index": 2,
+      "source": "automatic",
+      "source_sha256": "848789b347e1e7c727021c3649ba18e48a333c240284a07fe69306ba17f27d7b",
+      "region": [
+        256,
+        0,
+        128,
+        128
+      ],
+      "duration_seconds": 0.125,
+      "frame": 2,
+      "direction": "right",
+      "direction_frame": 2,
+      "auto": [
+        64.0,
+        66.22
+      ],
+      "torso_anchor": [
+        64,
+        68
+      ],
+      "canvas_pivot": [
+        64,
+        68
+      ],
+      "godot_offset": [
+        0.0,
+        -4.0
+      ],
+      "foot_anchor": [
+        66.0,
+        102.0
+      ],
+      "foreground_bbox": [
+        44,
+        29,
+        84,
+        103
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.9052818015714649,
+      "template_score": 0.9213723540306091,
+      "flow_inlier_ratio": 1.0,
+      "manual_review": false
+    },
+    {
+      "index": 3,
+      "source": "automatic",
+      "source_sha256": "b6f10f831c2e36db33f4cf6e3e78c3f817d4ec3470a8f5c9a66aae21791fe7f6",
+      "region": [
+        384,
+        0,
+        128,
+        128
+      ],
+      "duration_seconds": 0.125,
+      "frame": 3,
+      "direction": "right",
+      "direction_frame": 3,
+      "auto": [
+        64.0,
+        66.22
+      ],
+      "torso_anchor": [
+        64,
+        68
+      ],
+      "canvas_pivot": [
+        64,
+        68
+      ],
+      "godot_offset": [
+        0.0,
+        -4.0
+      ],
+      "foot_anchor": [
+        64.5,
+        102.0
+      ],
+      "foreground_bbox": [
+        44,
+        29,
+        84,
+        103
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.917456823316548,
+      "template_score": 0.925135612487793,
+      "flow_inlier_ratio": 1.0,
+      "manual_review": false
+    }
+  ]
+}

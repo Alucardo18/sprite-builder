@@ -1,0 +1,10 @@
+schema_version: "1.0"
+batch:
+  id: tzucan-mobile-core-v001
+
+# Counts are derived: 1 character, 2 animation jobs.
+characters:
+  - id: tzucan
+    jobs:
+      - configs/examples/tzucan_walk_right.yaml
+      - configs/examples/tzucan_idle_right.yaml

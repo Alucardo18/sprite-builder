@@ -1,0 +1,8 @@
+; Minimal project used only to parse exported SpriteFrames in smoke tests.
+config_version=5
+
+[application]
+config/name="sprite-builder export smoke test"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"

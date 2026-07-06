@@ -1,0 +1,184 @@
+{
+  "source": "/Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/textures/sprites/player/walk/caminarBalamDerecha.png",
+  "image_size": [
+    1659,
+    948
+  ],
+  "content_bbox": [
+    121,
+    243,
+    1489,
+    679
+  ],
+  "component_bboxes": [
+    [
+      121,
+      243,
+      371,
+      675
+    ],
+    [
+      497,
+      251,
+      741,
+      675
+    ],
+    [
+      876,
+      249,
+      1117,
+      666
+    ],
+    [
+      1252,
+      251,
+      1489,
+      679
+    ]
+  ],
+  "frame_bboxes": [
+    [
+      121,
+      243,
+      371,
+      675
+    ],
+    [
+      497,
+      251,
+      741,
+      675
+    ],
+    [
+      876,
+      249,
+      1117,
+      666
+    ],
+    [
+      1252,
+      251,
+      1489,
+      679
+    ]
+  ],
+  "palette": [
+    {
+      "hex": "#13110D",
+      "rgb": [
+        19,
+        17,
+        13
+      ],
+      "weight": 0.257337
+    },
+    {
+      "hex": "#833C10",
+      "rgb": [
+        131,
+        60,
+        16
+      ],
+      "weight": 0.103856
+    },
+    {
+      "hex": "#E28832",
+      "rgb": [
+        226,
+        136,
+        50
+      ],
+      "weight": 0.097397
+    },
+    {
+      "hex": "#AF5D19",
+      "rgb": [
+        175,
+        93,
+        25
+      ],
+      "weight": 0.092005
+    },
+    {
+      "hex": "#1F3F3E",
+      "rgb": [
+        31,
+        63,
+        62
+      ],
+      "weight": 0.081223
+    },
+    {
+      "hex": "#23706E",
+      "rgb": [
+        35,
+        112,
+        110
+      ],
+      "weight": 0.078886
+    },
+    {
+      "hex": "#4D240B",
+      "rgb": [
+        77,
+        36,
+        11
+      ],
+      "weight": 0.067807
+    },
+    {
+      "hex": "#F8AA1B",
+      "rgb": [
+        248,
+        170,
+        27
+      ],
+      "weight": 0.061947
+    },
+    {
+      "hex": "#2BABA3",
+      "rgb": [
+        43,
+        171,
+        163
+      ],
+      "weight": 0.049828
+    },
+    {
+      "hex": "#998673",
+      "rgb": [
+        153,
+        134,
+        115
+      ],
+      "weight": 0.048819
+    },
+    {
+      "hex": "#F7FAF9",
+      "rgb": [
+        247,
+        250,
+        249
+      ],
+      "weight": 0.036767
+    },
+    {
+      "hex": "#DDC599",
+      "rgb": [
+        221,
+        197,
+        153
+      ],
+      "weight": 0.024127
+    }
+  ],
+  "proportions": {
+    "content_width_ratio": 0.824593,
+    "content_height_ratio": 0.459916,
+    "foreground_occupancy": 0.187721,
+    "mean_frame_width_px": 243.0,
+    "mean_frame_height_px": 425.25,
+    "mean_frame_aspect_ratio": 0.571463
+  },
+  "background_removed": false
+}

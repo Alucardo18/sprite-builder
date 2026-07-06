@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sprite-builder.local/schemas/sheet-session.schema.json",
+  "title": "Sprite Builder Sheet Processing Session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session_id",
+    "source_image_path",
+    "source_sha256",
+    "created_at",
+    "updated_at",
+    "current_stage",
+    "output_dir",
+    "inspection",
+    "segmentation_config",
+    "background_removal_config",
+    "auto_center_config",
+    "frame_adjustments",
+    "stages"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "session_id": {"type": "string", "minLength": 1},
+    "source_image_path": {"type": "string", "minLength": 1},
+    "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "created_at": {"type": "string"},
+    "updated_at": {"type": "string"},
+    "current_stage": {
+      "enum": ["source", "segmentation", "background", "alignment", "export"]
+    },
+    "output_dir": {"type": "string", "minLength": 1},
+    "inspection": {
+      "type": "object",
+      "required": [
+        "width",
+        "height",
+        "mode",
+        "has_alpha",
+        "uses_transparency",
+        "top_left_rgb",
+        "border_rgb",
+        "solid_background_likely",
+        "background_confidence"
+      ],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1},
+        "mode": {"type": "string"},
+        "has_alpha": {"type": "boolean"},
+        "uses_transparency": {"type": "boolean"},
+        "top_left_rgb": {"$ref": "#/$defs/rgb"},
+        "border_rgb": {"$ref": "#/$defs/rgb"},
+        "solid_background_likely": {"type": "boolean"},
+        "background_confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "segmentation_config": {
+      "type": "object",
+      "required": [
+        "frame_count",
+        "orientation",
+        "rows",
+        "columns",
+        "cell_width",
+        "cell_height",
+        "offset_x",
+        "offset_y",
+        "spacing_x",
+        "spacing_y"
+      ],
+      "properties": {
+        "frame_count": {"type": "integer", "minimum": 1},
+        "orientation": {"enum": ["horizontal", "vertical", "grid"]},
+        "rows": {"type": "integer", "minimum": 1},
+        "columns": {"type": "integer", "minimum": 1},
+        "cell_width": {"type": ["integer", "null"], "minimum": 1},
+        "cell_height": {"type": ["integer", "null"], "minimum": 1},
+        "offset_x": {"type": "integer", "minimum": 0},
+        "offset_y": {"type": "integer", "minimum": 0},
+        "spacing_x": {"type": "integer", "minimum": 0},
+        "spacing_y": {"type": "integer", "minimum": 0}
+      }
+    },
+    "background_removal_config": {
+      "type": "object",
+      "required": [
+        "mode",
+        "color",
+        "tolerance",
+        "color_space",
+        "border_connected_only",
+        "cleanup_enabled",
+        "fringe_cleanup_strength",
+        "remove_near_transparent",
+        "near_transparent_threshold",
+        "preserve_outline"
+      ],
+      "properties": {
+        "mode": {"const": "chroma"},
+        "color": {"$ref": "#/$defs/rgb"},
+        "tolerance": {"type": "number", "minimum": 0},
+        "color_space": {"enum": ["rgb", "lab"]},
+        "border_connected_only": {"type": "boolean"},
+        "cleanup_enabled": {"type": "boolean"},
+        "fringe_cleanup_strength": {"type": "integer", "minimum": 0},
+        "remove_near_transparent": {"type": "boolean"},
+        "near_transparent_threshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "preserve_outline": {"type": "boolean"}
+      }
+    },
+    "auto_center_config": {
+      "type": "object",
+      "required": [
+        "method",
+        "canvas_width",
+        "canvas_height",
+        "canonical_anchor",
+        "confidence_threshold",
+        "ignore_outliers",
+        "anchor_strategy"
+      ],
+      "properties": {
+        "method": {"enum": ["body", "bounding_box"]},
+        "canvas_width": {"type": "integer", "minimum": 1},
+        "canvas_height": {"type": "integer", "minimum": 1},
+        "canonical_anchor": {"$ref": "#/$defs/numberPair"},
+        "confidence_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+        "ignore_outliers": {"type": "boolean"},
+        "anchor_strategy": {"type": "string"}
+      }
+    },
+    "frame_adjustments": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/frameAdjustment"}
+    },
+    "stages": {"type": "object"},
+    "export_manifest": {"type": ["object", "null"]}
+  },
+  "$defs": {
+    "rgb": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer", "minimum": 0, "maximum": 255},
+        {"type": "integer", "minimum": 0, "maximum": 255},
+        {"type": "integer", "minimum": 0, "maximum": 255}
+      ],
+      "items": false
+    },
+    "numberPair": {
+      "type": "array",
+      "prefixItems": [{"type": "number"}, {"type": "number"}],
+      "items": false
+    },
+    "frameAdjustment": {
+      "type": "object",
+      "required": [
+        "frame_index",
+        "auto_anchor",
+        "auto_confidence",
+        "manual_offset_x",
+        "manual_offset_y",
+        "final_anchor",
+        "applied_translation",
+        "body_bbox",
+        "locked",
+        "notes",
+        "manual_review"
+      ],
+      "properties": {
+        "frame_index": {"type": "integer", "minimum": 0},
+        "auto_anchor": {"$ref": "#/$defs/numberPair"},
+        "auto_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "manual_offset_x": {"type": "integer"},
+        "manual_offset_y": {"type": "integer"},
+        "final_anchor": {"$ref": "#/$defs/numberPair"},
+        "applied_translation": {"$ref": "#/$defs/numberPair"},
+        "body_bbox": {
+          "type": "array",
+          "prefixItems": [
+            {"type": "integer"},
+            {"type": "integer"},
+            {"type": "integer"},
+            {"type": "integer"}
+          ],
+          "items": false
+        },
+        "locked": {"type": "boolean"},
+        "notes": {"type": "string"},
+        "manual_review": {"type": "boolean"}
+      }
+    }
+  }
+}

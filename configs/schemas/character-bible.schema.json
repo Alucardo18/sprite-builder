@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sprite-builder.local/schemas/character-bible.schema.json",
+  "title": "Sprite Builder Character Bible",
+  "type": "object",
+  "required": ["schema_version", "character_id", "identity", "palette", "visual_rules"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "character_id": {"type": "string", "minLength": 1},
+    "identity": {
+      "type": "object",
+      "required": ["name", "archetype", "immutable_features", "forbidden_changes"]
+    },
+    "proportions": {"type": "object"},
+    "palette": {
+      "type": "object",
+      "required": ["file", "locked", "tolerance_delta_e00"]
+    },
+    "visual_rules": {"type": "object"},
+    "equipment": {"type": "object"},
+    "anchors": {"type": "object"}
+  }
+}
+

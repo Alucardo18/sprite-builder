@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0",
+  "job_id": "tzucan-walk-right-v001",
+  "frames": [
+    {
+      "frame": 0,
+      "direction": "right",
+      "direction_frame": 0,
+      "auto": [
+        64.0,
+        66.22
+      ],
+      "torso_anchor": [
+        64,
+        68
+      ],
+      "canvas_pivot": [
+        64,
+        68
+      ],
+      "godot_offset": [
+        0.0,
+        -4.0
+      ],
+      "foot_anchor": [
+        64.5,
+        102.0
+      ],
+      "foreground_bbox": [
+        44,
+        29,
+        84,
+        103
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.8041414499282837,
+      "template_score": 1.0,
+      "flow_inlier_ratio": 0.0,
+      "source": "automatic",
+      "manual_review": false
+    },
+    {
+      "frame": 1,
+      "direction": "right",
+      "direction_frame": 1,
+      "auto": [
+        64.0,
+        66.22
+      ],
+      "torso_anchor": [
+        64,
+        68
+      ],
+      "canvas_pivot": [
+        64,
+        68
+      ],
+      "godot_offset": [
+        0.0,
+        -4.0
+      ],
+      "foot_anchor": [
+        66.0,
+        102.0
+      ],
+      "foreground_bbox": [
+        44,
+        29,
+        84,
+        103
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.8735933990416406,
+      "template_score": 0.9028469324111938,
+      "flow_inlier_ratio": 1.0,
+      "source": "automatic",
+      "manual_review": false
+    },
+    {
+      "frame": 2,
+      "direction": "right",
+      "direction_frame": 2,
+      "auto": [
+        64.0,
+        66.22
+      ],
+      "torso_anchor": [
+        64,
+        68
+      ],
+      "canvas_pivot": [
+        64,
+        68
+      ],
+      "godot_offset": [
+        0.0,
+        -4.0
+      ],
+      "foot_anchor": [
+        66.0,
+        102.0
+      ],
+      "foreground_bbox": [
+        44,
+        29,
+        84,
+        103
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.9052818015714649,
+      "template_score": 0.9213723540306091,
+      "flow_inlier_ratio": 1.0,
+      "source": "automatic",
+      "manual_review": false
+    },
+    {
+      "frame": 3,
+      "direction": "right",
+      "direction_frame": 3,
+      "auto": [
+        64.0,
+        66.22
+      ],
+      "torso_anchor": [
+        64,
+        68
+      ],
+      "canvas_pivot": [
+        64,
+        68
+      ],
+      "godot_offset": [
+        0.0,
+        -4.0
+      ],
+      "foot_anchor": [
+        64.5,
+        102.0
+      ],
+      "foreground_bbox": [
+        44,
+        29,
+        84,
+        103
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.917456823316548,
+      "template_score": 0.925135612487793,
+      "flow_inlier_ratio": 1.0,
+      "source": "automatic",
+      "manual_review": false
+    }
+  ]
+}

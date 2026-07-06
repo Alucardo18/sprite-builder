@@ -1,0 +1,22 @@
+{
+  "animation": "idle",
+  "candidate_index": 0,
+  "character_id": "tzucan",
+  "direction": "right",
+  "frame_index": 3,
+  "job_id": "tzucan-idle-right-v001",
+  "output_filename": "idle_right_003_candidate_00_4cedd70b39d209d75dca.png",
+  "phase": "breathe_out",
+  "prompt_path": "jobs/tzucan-idle-right-v001/generation/prompts/right_003_1cfe05d653ce.txt",
+  "quality": "medium",
+  "reference_paths": [
+    "/Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/textures/sprites/player/walk/caminarBalamDerecha.png"
+  ],
+  "request_id": "4cedd70b39d209d75dca",
+  "schema_version": "1.0",
+  "source_size": [
+    1024,
+    1024
+  ],
+  "status": "prepared"
+}

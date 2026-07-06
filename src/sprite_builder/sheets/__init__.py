@@ -1,0 +1,77 @@
+"""Reusable core for processing existing sprite sheets."""
+
+from .engine import (
+    CenteringResult,
+    ExportCropResult,
+    apply_background_removal,
+    auto_center_frames,
+    checkerboard,
+    export_sheet,
+    render_contact_sheet,
+    render_frame_overlay,
+    trim_transparent_frames,
+)
+from .inspect import inspect_sheet
+from .manual import (
+    apply_manual_background_edits,
+    clear_selection,
+    combine_selection_masks,
+    decode_mask,
+    encode_mask,
+    erase_similar_pixels,
+    erase_with_brush,
+    render_selection_overlay,
+    sample_pixel,
+    select_similar_pixels,
+)
+from .models import (
+    AutoCenterConfig,
+    BackgroundRemovalConfig,
+    ExportCropConfig,
+    FrameAdjustment,
+    SegmentationConfig,
+    SheetInspection,
+    SheetProcessingSession,
+)
+from .segmentation import (
+    SegmentationResult,
+    render_segmentation_preview,
+    resolve_segmentation_config,
+    segment_sheet,
+)
+from .session import SheetSessionStore
+
+__all__ = [
+    "AutoCenterConfig",
+    "BackgroundRemovalConfig",
+    "CenteringResult",
+    "ExportCropConfig",
+    "ExportCropResult",
+    "FrameAdjustment",
+    "SegmentationConfig",
+    "SegmentationResult",
+    "SheetInspection",
+    "SheetProcessingSession",
+    "SheetSessionStore",
+    "apply_background_removal",
+    "apply_manual_background_edits",
+    "auto_center_frames",
+    "checkerboard",
+    "clear_selection",
+    "combine_selection_masks",
+    "decode_mask",
+    "encode_mask",
+    "erase_similar_pixels",
+    "erase_with_brush",
+    "export_sheet",
+    "inspect_sheet",
+    "render_contact_sheet",
+    "render_frame_overlay",
+    "render_selection_overlay",
+    "render_segmentation_preview",
+    "resolve_segmentation_config",
+    "sample_pixel",
+    "select_similar_pixels",
+    "segment_sheet",
+    "trim_transparent_frames",
+]

@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "character_id": "tzucan",
+  "locked": true,
+  "colors": [
+    {"name": "outline", "hex": "#151918", "role": "outline"},
+    {"name": "hair", "hex": "#202626", "role": "hair"},
+    {"name": "jaguar_shadow", "hex": "#9A4B16", "role": "headdress"},
+    {"name": "jaguar_mid", "hex": "#D97913", "role": "headdress"},
+    {"name": "jaguar_gold", "hex": "#F5A617", "role": "headdress"},
+    {"name": "gold_shadow", "hex": "#8C5709", "role": "jewelry"},
+    {"name": "gold", "hex": "#EFA914", "role": "jewelry"},
+    {"name": "skin_shadow", "hex": "#87451F", "role": "skin"},
+    {"name": "skin_mid", "hex": "#C87538", "role": "skin"},
+    {"name": "skin_light", "hex": "#E99B59", "role": "skin"},
+    {"name": "feather_dark", "hex": "#075559", "role": "feathers"},
+    {"name": "feather_mid", "hex": "#078A88", "role": "feathers"},
+    {"name": "feather_light", "hex": "#44C7BA", "role": "feathers"},
+    {"name": "cloth_red", "hex": "#9C3020", "role": "cloth"},
+    {"name": "cloth_turquoise", "hex": "#079B98", "role": "cloth"},
+    {"name": "cloth_cream", "hex": "#E7D2A7", "role": "cloth"},
+    {"name": "eye_white", "hex": "#F7EFE2", "role": "eyes_teeth"},
+    {"name": "shadow", "hex": "#A79C90", "role": "ground_shadow"}
+  ]
+}

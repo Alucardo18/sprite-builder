@@ -1,0 +1,35 @@
+GOAL
+Create one source image for a production 2D top-down roguelike RPG animation.
+Animation: walk. Direction: right.
+Frame 4 of 4. Pose phase: recovery.
+
+CHARACTER CANON
+Compact young Maya-inspired jaguar warrior with a large ceremonial jaguar headdress, turquoise feather crest, warm brown skin, straight black hair, gold collar, and red/turquoise/gold woven clothing.
+
+IMMUTABLE FEATURES
+- golden-orange jaguar headdress with dark rosettes
+- visible jaguar snout, black nose, white teeth, and small rounded ears
+- large layered turquoise feather crest
+- straight black hair and clean-shaven youthful face
+- thick gold and dark collar with turquoise accents
+- red, turquoise, gold, and dark vertical loincloth
+- gold/turquoise wrist and upper-arm bands
+
+POSE AND CONTINUITY
+Readable walk-cycle pose; stable upright torso; move only limbs required by the phase.
+Keep the torso stable and preserve the exact apparent body scale of the references.
+Show the complete character and shadow without cropping.
+
+VISUAL STYLE
+medium: detailed_clustered_pixel_art; outline: crisp_dark_outline; lighting: upper_left; shading: clustered_hard_edged; anti_aliasing: prohibited_after_logical_scale; perspective: top_down_three_quarter; shadow: small_integrated_ground_shadow
+
+COMPOSITION
+One character only on a flat uniform #00FF00 background.
+Leave a large clean margin. No text, scenery, borders, panels, gradients, or extra objects.
+
+PROHIBITED CHANGES
+- living jaguar head replacing the ceremonial headdress
+- materially different feather volume or crest silhouette
+- facial hair, cape, footwear, or modern armor
+- European fantasy motifs
+- extra limbs, duplicated accessories, text, scenery, or weapon during walk

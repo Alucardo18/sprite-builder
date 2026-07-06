@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sprite-builder.local/schemas/artifact-manifest.schema.json",
+  "title": "Sprite Builder Artifact Manifest",
+  "type": "object",
+  "required": ["schema_version", "job_id", "stage", "status", "cache_key", "inputs", "outputs"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "job_id": {"type": "string"},
+    "stage": {
+      "enum": ["character", "generation", "consistency", "postprocess", "alignment", "export"]
+    },
+    "status": {"enum": ["pending", "running", "passed", "manual_review", "failed"]},
+    "cache_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact"}},
+    "outputs": {"type": "array", "items": {"$ref": "#/$defs/artifact"}},
+    "metrics": {"type": "object", "additionalProperties": {"type": "number"}},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "manual_review": {"type": "boolean"},
+    "created_at": {"type": "string"}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["path", "sha256", "size_bytes", "media_type", "role"],
+      "properties": {
+        "path": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "media_type": {"type": "string"},
+        "role": {"type": "string"}
+      }
+    }
+  }
+}
+
