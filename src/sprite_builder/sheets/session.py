@@ -385,8 +385,6 @@ class SheetSessionStore:
         export_gif: bool = False,
         fps: float = 8.0,
     ) -> dict[str, Any]:
-        if any(item.manual_review for item in session.frame_adjustments):
-            raise ValueError("Cannot export while frame anchors require manual review")
         cropped = trim_transparent_frames(frames, session.export_crop_config)
         identity = stable_digest(
             {

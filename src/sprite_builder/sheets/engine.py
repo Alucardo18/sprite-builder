@@ -69,16 +69,32 @@ def apply_background_removal(
     )
 
 
+def pad_frames_to_common_canvas(
+    frames: Sequence[Image.Image],
+) -> tuple[Image.Image, ...]:
+    if not frames:
+        raise ValueError("At least one frame is required")
+    rgba_frames = tuple(frame.convert("RGBA") for frame in frames)
+    max_width = max(frame.width for frame in rgba_frames)
+    max_height = max(frame.height for frame in rgba_frames)
+    if all(frame.size == (max_width, max_height) for frame in rgba_frames):
+        return rgba_frames
+    padded: list[Image.Image] = []
+    for frame in rgba_frames:
+        canvas = Image.new("RGBA", (max_width, max_height), (0, 0, 0, 0))
+        canvas.paste(frame, (0, 0))
+        padded.append(canvas)
+    return tuple(padded)
+
+
 def trim_transparent_frames(
     frames: Sequence[Image.Image],
     config: ExportCropConfig,
 ) -> ExportCropResult:
     if not frames:
         raise ValueError("At least one frame is required")
-    rgba_frames = tuple(frame.convert("RGBA") for frame in frames)
+    rgba_frames = pad_frames_to_common_canvas(frames)
     source_size = rgba_frames[0].size
-    if any(frame.size != source_size for frame in rgba_frames[1:]):
-        raise ValueError("Frame sizes differ; crop tuning requires a consistent canvas")
     if not config.enabled:
         return ExportCropResult(rgba_frames, (0, 0, source_size[0], source_size[1]), source_size)
     if config.padding < 0:
@@ -197,6 +213,9 @@ def auto_center_frames(
     else:
         raise ValueError(f"Unsupported center method: {config.method}")
 
+    applied_translations: list[tuple[int, int]] | None = None
+    canvas_shift_x = 0
+    canvas_shift_y = 0
     if overflow_strategy == "strict":
         aligned = align_frames_by_anchor(
             frames,
@@ -207,32 +226,46 @@ def auto_center_frames(
         )
     elif overflow_strategy == "clamp":
         aligned = []
-        canvas_width = config.canvas_width
-        canvas_height = config.canvas_height
-        for index, (frame, detection, manual, bbox) in enumerate(
-            zip(frames, detections, offsets, bboxes, strict=True)
-        ):
+        applied_translations = []
+        frame_data = []
+        min_canvas_x = 0
+        min_canvas_y = 0
+        max_canvas_x = config.canvas_width
+        max_canvas_y = config.canvas_height
+        for index, frame in enumerate(frames):
             arr = np.asarray(frame.convert("RGBA"))
             alpha_points = np.argwhere(arr[:, :, 3] > 0)
             if not len(alpha_points):
                 raise ValueError(f"Frame {index} is empty")
             y0, x0 = alpha_points.min(axis=0)
             y1, x1 = alpha_points.max(axis=0) + 1
-            anchor = detection.anchor
-            ideal_dx = round(config.canonical_anchor[0] - anchor[0]) + int(manual[0])
-            ideal_dy = round(config.canonical_anchor[1] - anchor[1]) + int(manual[1])
-            min_dx = -int(x0)
-            max_dx = canvas_width - int(x1)
-            min_dy = -int(y0)
-            max_dy = canvas_height - int(y1)
-            if min_dx > max_dx or min_dy > max_dy:
-                raise OverflowError(
-                    f"CELL_OVERFLOW frame={index} translated_bbox="
-                    f"{(int(x0) + ideal_dx, int(y0) + ideal_dy, int(x1) + ideal_dx, int(y1) + ideal_dy)} "
-                    f"canvas={(canvas_width, canvas_height)}"
+            detection = detections[index]
+            manual = offsets[index]
+            ideal_dx = round(config.canonical_anchor[0] - detection.anchor[0]) + int(manual[0])
+            ideal_dy = round(config.canonical_anchor[1] - detection.anchor[1]) + int(manual[1])
+            translated_x0 = int(x0) + ideal_dx
+            translated_y0 = int(y0) + ideal_dy
+            translated_x1 = int(x1) + ideal_dx
+            translated_y1 = int(y1) + ideal_dy
+            min_canvas_x = min(min_canvas_x, translated_x0)
+            min_canvas_y = min(min_canvas_y, translated_y0)
+            max_canvas_x = max(max_canvas_x, translated_x1)
+            max_canvas_y = max(max_canvas_y, translated_y1)
+            frame_data.append(
+                (
+                    arr,
+                    ideal_dx,
+                    ideal_dy,
                 )
-            dx = max(min_dx, min(max_dx, ideal_dx))
-            dy = max(min_dy, min(max_dy, ideal_dy))
+            )
+        canvas_shift_x = -min_canvas_x
+        canvas_shift_y = -min_canvas_y
+        canvas_width = max_canvas_x - min_canvas_x
+        canvas_height = max_canvas_y - min_canvas_y
+        for arr, ideal_dx, ideal_dy in frame_data:
+            dx = ideal_dx + canvas_shift_x
+            dy = ideal_dy + canvas_shift_y
+            applied_translations.append((dx, dy))
             canvas = np.zeros((canvas_height, canvas_width, 4), np.uint8)
             yy, xx = np.where(arr[:, :, 3] > 0)
             if len(yy):
@@ -258,14 +291,12 @@ def auto_center_frames(
     ):
         dx = round(config.canonical_anchor[0] - detection.anchor[0]) + offset[0]
         dy = round(config.canonical_anchor[1] - detection.anchor[1]) + offset[1]
-        if overflow_strategy == "clamp":
-            x0, y0, x1, y1 = bbox
-            dx = max(-x0, min(config.canvas_width - x1, dx))
-            dy = max(-y0, min(config.canvas_height - y1, dy))
+        if applied_translations is not None:
+            dx, dy = applied_translations[index]
         transformed = (detection.anchor[0] + dx, detection.anchor[1] + dy)
         expected = (
-            config.canonical_anchor[0] + offset[0],
-            config.canonical_anchor[1] + offset[1],
+            config.canonical_anchor[0] + offset[0] + canvas_shift_x,
+            config.canonical_anchor[1] + offset[1] + canvas_shift_y,
         )
         residuals.append(float(np.linalg.norm(np.subtract(transformed, expected))))
         if index:
@@ -344,6 +375,8 @@ def render_frame_overlay(
     *,
     scale: int = 4,
     show_bbox: bool = True,
+    show_center_axes: bool = True,
+    show_frame_border: bool = True,
     origin_offset: tuple[int, int] = (0, 0),
 ) -> Image.Image:
     if scale < 1:
@@ -353,9 +386,10 @@ def render_frame_overlay(
     preview.alpha_composite(rgba)
     draw = ImageDraw.Draw(preview)
     origin_x, origin_y = origin_offset
-    center = (rgba.width // 2, rgba.height // 2)
-    draw.line((center[0], 0, center[0], rgba.height - 1), fill=(255, 255, 255, 150), width=1)
-    draw.line((0, center[1], rgba.width - 1, center[1]), fill=(255, 255, 255, 150), width=1)
+    if show_center_axes:
+        center = (rgba.width // 2, rgba.height // 2)
+        draw.line((center[0], 0, center[0], rgba.height - 1), fill=(255, 255, 255, 150), width=1)
+        draw.line((0, center[1], rgba.width - 1, center[1]), fill=(255, 255, 255, 150), width=1)
     if adjustment is not None:
         target_x = round(
             adjustment.auto_anchor[0] + adjustment.applied_translation[0] - origin_x
@@ -382,7 +416,8 @@ def render_frame_overlay(
                 outline=(255, 190, 72, 255),
                 width=1,
             )
-    draw.rectangle((0, 0, rgba.width - 1, rgba.height - 1), outline=(91, 223, 255, 255))
+    if show_frame_border:
+        draw.rectangle((0, 0, rgba.width - 1, rgba.height - 1), outline=(91, 223, 255, 255))
     return preview.resize((rgba.width * scale, rgba.height * scale), Image.Resampling.NEAREST)
 
 
@@ -393,6 +428,11 @@ def render_contact_sheet(
     columns: int = 4,
     scale: int = 2,
     origin_offset: tuple[int, int] = (0, 0),
+    show_cell_guides: bool = False,
+    show_center_axes: bool = False,
+    show_anchor_guides: bool = True,
+    show_bbox: bool = True,
+    guide_padding: int = 0,
 ) -> Image.Image:
     if not frames:
         raise ValueError("At least one frame is required")
@@ -401,23 +441,100 @@ def render_contact_sheet(
     width = max(frame.width for frame in frames)
     height = max(frame.height for frame in frames)
     rows = ceil(len(frames) / columns)
+    padding = max(0, int(guide_padding)) * scale
     output = Image.new(
         "RGBA",
-        (columns * width * scale, rows * height * scale),
+        (
+            columns * width * scale + padding * 2,
+            rows * height * scale + padding * 2,
+        ),
         (18, 22, 32, 255),
     )
     for index, frame in enumerate(frames):
         adjustment = adjustments[index] if adjustments else None
         rendered = render_frame_overlay(
             frame,
-            adjustment,
+            None,
             scale=scale,
             origin_offset=origin_offset,
+            show_bbox=show_bbox,
+            show_center_axes=False,
+            show_frame_border=False,
         )
-        x = (index % columns) * width * scale
-        y = (index // columns) * height * scale
+        x = padding + (index % columns) * width * scale
+        y = padding + (index // columns) * height * scale
         output.alpha_composite(rendered, (x, y))
-        ImageDraw.Draw(output).text((x + 4, y + 3), str(index), fill=(255, 255, 255, 255))
+        draw = ImageDraw.Draw(output)
+        draw.text((x + 4, y + 3), str(index), fill=(255, 255, 255, 255))
+    if show_cell_guides or show_center_axes or show_anchor_guides:
+        guided = output.convert("RGB")
+        guide_draw = ImageDraw.Draw(guided)
+        for index, _frame in enumerate(frames):
+            adjustment = adjustments[index] if adjustments else None
+            x = padding + (index % columns) * width * scale
+            y = padding + (index // columns) * height * scale
+            cell_x1 = x + width * scale - 1
+            cell_y1 = y + height * scale - 1
+            axis_x = x + (width // 2) * scale
+            axis_y = y + (height // 2) * scale
+            if show_cell_guides:
+                guide_draw.rectangle(
+                    (x + 1, y + 1, cell_x1 - 1, cell_y1 - 1),
+                    outline=(91, 223, 255),
+                    width=max(1, min(2, scale)),
+                )
+            if show_center_axes:
+                axis_width = max(2, min(3, scale + 1))
+                guide_draw.line(
+                    (axis_x, y + 1, axis_x, cell_y1 - 1),
+                    fill=(255, 255, 255),
+                    width=axis_width,
+                )
+                guide_draw.line(
+                    (x + 1, axis_y, cell_x1 - 1, axis_y),
+                    fill=(255, 255, 255),
+                    width=axis_width,
+                )
+            if show_anchor_guides and adjustment is not None:
+                anchor_x = x + round(
+                    (
+                        adjustment.auto_anchor[0]
+                        + adjustment.applied_translation[0]
+                        - origin_offset[0]
+                    )
+                    * scale
+                )
+                anchor_y = y + round(
+                    (
+                        adjustment.auto_anchor[1]
+                        + adjustment.applied_translation[1]
+                        - origin_offset[1]
+                    )
+                    * scale
+                )
+                radius = max(3, 4 * scale)
+                anchor_width = max(2, min(3, scale + 1))
+                guide_draw.line(
+                    (anchor_x - radius, anchor_y, anchor_x + radius, anchor_y),
+                    fill=(7, 8, 14),
+                    width=anchor_width + 2,
+                )
+                guide_draw.line(
+                    (anchor_x, anchor_y - radius, anchor_x, anchor_y + radius),
+                    fill=(7, 8, 14),
+                    width=anchor_width + 2,
+                )
+                guide_draw.line(
+                    (anchor_x - radius, anchor_y, anchor_x + radius, anchor_y),
+                    fill=(255, 76, 160),
+                    width=anchor_width,
+                )
+                guide_draw.line(
+                    (anchor_x, anchor_y - radius, anchor_x, anchor_y + radius),
+                    fill=(255, 76, 160),
+                    width=anchor_width,
+                )
+        output = guided.convert("RGBA")
     return output
 
 

@@ -74,6 +74,18 @@
         display: inline-flex;
       }
 
+      body[data-mode="segmentation-cut"] .toolgroup[data-group="background"] {
+        display: none;
+      }
+
+      body[data-mode="segmentation-cut"] .toolgroup[data-group="center"] {
+        display: none;
+      }
+
+      body[data-mode="segmentation-cut"] .toolgroup[data-group="cut"] {
+        display: inline-flex;
+      }
+
       button {
         appearance: none;
         border: 1px solid rgba(255,255,255,0.12);
@@ -455,6 +467,58 @@
         color: rgba(129, 255, 166, 1);
       }
 
+      .cut-guides {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 120ms ease;
+        z-index: 3;
+      }
+
+      .cut-guides.visible {
+        opacity: 1;
+      }
+
+      .cut-boundary {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: rgba(76, 224, 255, 0.95);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85);
+      }
+
+      .cut-boundary .cut-handle {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 14px;
+        transform: translateX(-50%);
+        pointer-events: auto;
+        cursor: col-resize;
+      }
+
+      .cut-boundary .cut-handle::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        transform: translateX(-50%);
+        background: rgba(255, 196, 91, 0.16);
+      }
+
+      .cut-boundary.active {
+        background: rgba(255, 196, 91, 1);
+      }
+
+      .cut-boundary.active .cut-handle::before {
+        background: rgba(255, 196, 91, 0.34);
+      }
+
       canvas {
         display: block;
         image-rendering: pixelated;
@@ -546,6 +610,13 @@
           <span class="pill" id="mode-pill">Mode center</span>
           <span class="pill" id="delta-pill" data-role="anchor-delta">ΔX 0 · ΔY 0</span>
         </div>
+        <div class="toolgroup guide-status" data-group="cut">
+          <button data-action="zoom-out" id="zoom-out-cut">-</button>
+          <button data-action="zoom-in" id="zoom-in-cut">+</button>
+          <button data-action="fit" id="fit-cut">Auto fit</button>
+          <span class="pill" id="zoom-pill-cut">Zoom 1x</span>
+          <span class="pill" id="cut-mode-pill">Mode cut</span>
+        </div>
       </div>
 
       <div class="stage" id="stage">
@@ -568,6 +639,7 @@
             <div class="guide-ground" id="guide-ground">
               <span class="guide-label">GROUND</span>
             </div>
+            <div class="cut-guides" id="cut-guides" aria-hidden="true"></div>
           </div>
           <div class="cursor-ring" id="cursor-ring"></div>
           <div class="cursor-dot" id="cursor-dot"></div>
@@ -608,6 +680,9 @@
       const zoomOutCenterButton = document.getElementById("zoom-out-center");
       const zoomInCenterButton = document.getElementById("zoom-in-center");
       const fitCenterButton = document.getElementById("fit-center");
+      const zoomOutCutButton = document.getElementById("zoom-out-cut");
+      const zoomInCutButton = document.getElementById("zoom-in-cut");
+      const fitCutButton = document.getElementById("fit-cut");
       const guides = document.getElementById("guides");
       const guideTarget = document.getElementById("guide-target");
       const guideFrame = document.getElementById("guide-frame");
@@ -621,9 +696,12 @@
       const guideTargetAnchorLayer = document.getElementById("guide-target-anchor-layer");
       const guideGroundLayer = document.getElementById("guide-ground-layer");
       const guideAnchorDeltaLayer = document.getElementById("guide-anchor-delta-layer");
+      const cutGuides = document.getElementById("cut-guides");
       const guideOpacity = document.getElementById("guide-opacity");
       const guideOpacityValue = document.getElementById("guide-opacity-value");
       const modePill = document.getElementById("mode-pill");
+      const cutModePill = document.getElementById("cut-mode-pill");
+      const zoomPillCut = document.getElementById("zoom-pill-cut");
       const deltaPill = document.getElementById("delta-pill");
       const overlayNote = document.getElementById("overlay-note");
       const cursorRing = document.getElementById("cursor-ring");
@@ -662,6 +740,12 @@
         fitOnLoad: false,
         fitToken: "",
         fitAppliedToken: "",
+        frameToken: "",
+        activeFrameToken: "",
+        cutPositions: [],
+        cutDraggingIndex: -1,
+        cutActivePointerId: null,
+        allowCutDrag: false,
         homeOffsetX: 0,
         homeOffsetY: 0,
         initialized: false,
@@ -675,6 +759,7 @@
         dragOriginX: 0,
         dragOriginY: 0,
       };
+      const frameStateByToken = new Map();
       let readySent = false;
 
       function send(type, payload) {
@@ -722,7 +807,13 @@
       }
 
       function normalizeMode(mode) {
-        return mode === "segmentation-center" ? "segmentation-center" : "background";
+        if (mode === "segmentation-center") {
+          return "segmentation-center";
+        }
+        if (mode === "segmentation-cut") {
+          return "segmentation-cut";
+        }
+        return "background";
       }
 
       function finiteNumber(value, fallback = null) {
@@ -795,10 +886,15 @@
 
       function updateModeUI() {
         const centerMode = state.mode === "segmentation-center";
+        const cutMode = state.mode === "segmentation-cut";
         document.body.dataset.mode = state.mode;
-        modePill.textContent = centerMode ? "Mode segmentation" : "Mode background";
+        modePill.textContent = centerMode ? "Mode segmentation" : cutMode ? "Mode cut" : "Mode background";
+        if (cutModePill) {
+          cutModePill.textContent = cutMode ? "Free adjust" : "Mode cut";
+        }
         guides.classList.toggle("visible", centerMode && state.showGuides);
         guides.style.opacity = centerMode && state.showGuides ? String(state.guideOpacity) : "0";
+        cutGuides.classList.toggle("visible", cutMode);
         toggleGuidesButton.textContent = state.showGuides ? "Guides on" : "Guides off";
         toolWand.disabled = centerMode;
         toolEyedropper.disabled = centerMode;
@@ -815,6 +911,15 @@
         zoomOutCenterButton.disabled = !centerMode;
         zoomInCenterButton.disabled = !centerMode;
         fitCenterButton.disabled = !centerMode;
+        zoomOutCutButton.hidden = !cutMode;
+        zoomInCutButton.hidden = !cutMode;
+        fitCutButton.hidden = !cutMode;
+        zoomOutCutButton.disabled = !cutMode;
+        zoomInCutButton.disabled = !cutMode;
+        fitCutButton.disabled = !cutMode;
+        if (zoomPillCut) {
+          zoomPillCut.textContent = `Zoom ${state.zoom}x`;
+        }
         autocenterButton.hidden = !centerMode || !state.showAutocenter;
         autocropButton.hidden = !centerMode || !state.showAutocrop;
         resetTransformButton.hidden = !centerMode;
@@ -829,9 +934,19 @@
         autocropButton.disabled = !centerMode;
         resetTransformButton.disabled = !centerMode;
         toggleGuidesButton.disabled = false;
+        if (cutMode) {
+          zoomOutButton.hidden = true;
+          zoomInButton.hidden = true;
+          fitButton.hidden = true;
+          zoomOutCenterButton.hidden = true;
+          zoomInCenterButton.hidden = true;
+          fitCenterButton.hidden = true;
+        }
         if (overlayNote) {
           overlayNote.innerHTML = centerMode
             ? "Drag the frame or use <code>← ↑ ↓ →</code> to move 1 px; hold <code>Shift</code> for 5 px. <code>A</code> auto center, <code>C</code> auto crop, <code>G</code> guides, <code>R</code> reset."
+            : cutMode
+              ? "Drag the vertical cut handles. Use the sheet panel to auto cut or enable free adjust."
             : "Click to interact. <code>I</code> eyedropper, <code>W</code> wand, <code>E</code> eraser, <code>Shift</code> add, <code>Alt/Option</code> subtract, <code>Esc</code> clear selection, <code>Delete</code>/<code>Backspace</code> erase.";
         }
       }
@@ -855,6 +970,10 @@
           state.offsetY = 0;
           state.allowDrag = false;
         }
+        if (state.mode !== "segmentation-cut") {
+          state.cutDraggingIndex = -1;
+          state.cutActivePointerId = null;
+        }
         updateModeUI();
         updateCursor();
         draw();
@@ -877,6 +996,58 @@
             deltaY: delta.y,
           });
         }
+      }
+
+      function captureFrameState() {
+        return {
+          zoom: state.zoom,
+          offsetX: state.offsetX,
+          offsetY: state.offsetY,
+          tool: state.tool,
+          brushRadius: state.brushRadius,
+          showGuides: state.showGuides,
+          guideOpacity: state.guideOpacity,
+          showCellCenter: state.showCellCenter,
+          showFrameGuide: state.showFrameGuide,
+          showBodyAnchor: state.showBodyAnchor,
+          showTargetAnchor: state.showTargetAnchor,
+          showGroundLine: state.showGroundLine,
+          groundLineY: state.groundLineY,
+          showAnchorDelta: state.showAnchorDelta,
+          allowDrag: state.allowDrag,
+          showAutocenter: state.showAutocenter,
+          showAutocrop: state.showAutocrop,
+          cutPositions: state.cutPositions.slice(),
+          allowCutDrag: state.allowCutDrag,
+        };
+      }
+
+      function restoreFrameState(snapshot, args) {
+        if (!snapshot) {
+          return false;
+        }
+        state.zoom = Math.max(1, Math.round(Number(snapshot.zoom || args.zoom || state.zoom || 8)));
+        state.offsetX = Math.round(Number.isFinite(snapshot.offsetX) ? snapshot.offsetX : state.offsetX);
+        state.offsetY = Math.round(Number.isFinite(snapshot.offsetY) ? snapshot.offsetY : state.offsetY);
+        state.tool = normalizeTool(String(snapshot.tool || args.tool || state.tool || "wand"));
+        state.brushRadius = Math.max(1, Math.round(Number(snapshot.brushRadius || args.brushRadius || state.brushRadius || 5)));
+        state.showGuides = !!snapshot.showGuides;
+        state.guideOpacity = Math.max(0.1, Math.min(1, Number(snapshot.guideOpacity || state.guideOpacity || 0.85)));
+        state.showCellCenter = !!snapshot.showCellCenter;
+        state.showFrameGuide = !!snapshot.showFrameGuide;
+        state.showBodyAnchor = !!snapshot.showBodyAnchor;
+        state.showTargetAnchor = !!snapshot.showTargetAnchor;
+        state.showGroundLine = !!snapshot.showGroundLine;
+        state.groundLineY = Number.isFinite(snapshot.groundLineY) ? snapshot.groundLineY : null;
+        state.showAnchorDelta = !!snapshot.showAnchorDelta;
+        state.allowDrag = !!snapshot.allowDrag;
+        state.showAutocenter = !!snapshot.showAutocenter;
+        state.showAutocrop = !!snapshot.showAutocrop;
+        state.cutPositions = Array.isArray(snapshot.cutPositions)
+          ? snapshot.cutPositions.map((value) => Math.round(Number(value)))
+          : state.cutPositions;
+        state.allowCutDrag = !!snapshot.allowCutDrag;
+        return true;
       }
 
       function setGuidesVisible(visible, announce = false) {
@@ -932,6 +1103,7 @@
 
       function updateCursor() {
         const centerMode = state.mode === "segmentation-center";
+        const cutMode = state.mode === "segmentation-cut";
         const size = state.tool === "eraser"
           ? Math.max(1, (state.brushRadius * 2 + 1) * state.zoom)
           : Math.max(12, Math.round(state.zoom * 1.5));
@@ -946,14 +1118,14 @@
         const visible = state.pointerVisible;
         const crosshair = state.tool === "wand" || state.tool === "eyedropper";
         const eraser = state.tool === "eraser";
-        cursorRing.classList.toggle("visible", visible);
-        cursorDot.classList.toggle("visible", visible && crosshair && !centerMode);
+        cursorRing.classList.toggle("visible", visible && !cutMode);
+        cursorDot.classList.toggle("visible", visible && crosshair && !centerMode && !cutMode);
         cursorRing.classList.toggle("mode-crosshair", crosshair);
         cursorRing.classList.toggle("mode-eraser", eraser);
         cursorRing.classList.toggle("eyedropper", state.tool === "eyedropper");
         cursorRing.classList.toggle("wand", state.tool === "wand");
         canvas.classList.toggle("dragging", centerMode && state.dragging);
-        canvas.style.cursor = centerMode ? (state.dragging ? "grabbing" : "grab") : "none";
+        canvas.style.cursor = centerMode ? (state.dragging ? "grabbing" : "grab") : cutMode ? "default" : "none";
       }
 
       function updateGuidesGeometry() {
@@ -1032,6 +1204,92 @@
         guideAnchorDeltaLayer.checked = state.showAnchorDelta;
       }
 
+      function cutSpan() {
+        const start = Math.round(Math.max(0, Number(state.offsetX || 0)));
+        return {
+          start,
+          end: Math.max(start + 1, Math.round(state.width)),
+          top: Math.round(Math.max(0, Number(state.offsetY || 0))),
+          bottom: Math.max(Math.round(Math.max(0, Number(state.offsetY || 0))) + 1, Math.round(state.height)),
+        };
+      }
+
+      function normalizedCutPositions() {
+        return state.cutPositions
+          .map((value) => Math.round(Number(value)))
+          .filter((value) => Number.isFinite(value));
+      }
+
+      function updateCutGuidesGeometry() {
+        const positions = normalizedCutPositions();
+        cutGuides.replaceChildren();
+        const span = cutSpan();
+        positions.forEach((position, index) => {
+          const line = document.createElement("div");
+          line.className = "cut-boundary";
+          line.dataset.index = String(index);
+          line.style.left = `${Math.round(position * state.zoom)}px`;
+          line.style.top = `${Math.round(span.top * state.zoom)}px`;
+          line.style.height = `${Math.max(1, Math.round((span.bottom - span.top) * state.zoom))}px`;
+          const handle = document.createElement("div");
+          handle.className = "cut-handle";
+          handle.dataset.index = String(index);
+          if (!state.allowCutDrag) {
+            handle.style.pointerEvents = "none";
+            handle.style.cursor = "default";
+          } else {
+            handle.addEventListener("pointerdown", (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              const pointer = pointerToPixel(event);
+              state.cutDraggingIndex = index;
+              state.cutActivePointerId = event.pointerId;
+              handle.setPointerCapture?.(event.pointerId);
+              handle.classList.add("dragging");
+              const next = updateCutPosition(index, pointer.x);
+              emitCutState(event, "move", next);
+            });
+          }
+          line.appendChild(handle);
+          cutGuides.appendChild(line);
+        });
+      }
+
+      function updateCutPosition(index, nextX) {
+        const positions = normalizedCutPositions();
+        const span = cutSpan();
+        const min = index === 0 ? span.start + 1 : positions[index - 1] + 1;
+        const max = index === positions.length - 1 ? span.end - 1 : positions[index + 1] - 1;
+        const clamped = Math.max(min, Math.min(max, Math.round(nextX)));
+        positions[index] = clamped;
+        state.cutPositions = positions;
+        updateCutGuidesGeometry();
+        return positions;
+      }
+
+      function emitCutState(event, action, positions) {
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "cut",
+          action,
+          cutIndex: state.cutDraggingIndex,
+          cutPositions: positions.map((value) => Math.round(value)),
+          allowCutDrag: state.allowCutDrag,
+          ...modifiers(event),
+        });
+      }
+
+      function endCutDrag(event) {
+        if (state.cutDraggingIndex < 0) {
+          return;
+        }
+        const positions = normalizedCutPositions();
+        emitCutState(event, "end", positions);
+        state.cutDraggingIndex = -1;
+        state.cutActivePointerId = null;
+        updateCutGuidesGeometry();
+      }
+
       function focusViewportOnOverlay() {
         if (state.mode !== "segmentation-center") {
           return;
@@ -1075,6 +1333,7 @@
         setFrameHeight();
         requestAnimationFrame(updateCursor);
         requestAnimationFrame(updateGuidesGeometry);
+        requestAnimationFrame(updateCutGuidesGeometry);
       }
 
       function computeFitZoom() {
@@ -1122,6 +1381,7 @@
         updateSample(state.sample);
         requestAnimationFrame(setFrameHeight);
         requestAnimationFrame(updateCursor);
+        requestAnimationFrame(updateCutGuidesGeometry);
       }
 
       function pointerToPixel(event) {
@@ -1238,6 +1498,10 @@
 
       canvas.addEventListener("pointerdown", (event) => {
         focusCanvas();
+        if (state.mode === "segmentation-cut") {
+          event.preventDefault();
+          return;
+        }
         state.dragging = event.button === 0 || (event.buttons & 1) === 1;
         if (canvas.setPointerCapture) {
           try {
@@ -1276,6 +1540,13 @@
       canvas.addEventListener("pointermove", (event) => {
         state.pointerVisible = true;
         const point = pointerToPixel(event);
+        if (state.mode === "segmentation-cut") {
+          state.pointerPixelX = point.x;
+          state.pointerPixelY = point.y;
+          updateCursor();
+          event.preventDefault();
+          return;
+        }
         if (state.mode === "segmentation-center" && state.allowDrag && state.dragging && (event.buttons & 1)) {
           const nextX = state.dragOriginX + (point.x - state.dragStartX);
           const nextY = state.dragOriginY + (point.y - state.dragStartY);
@@ -1307,6 +1578,10 @@
         const point = pointerToPixel(event);
         state.pointerPixelX = point.x;
         state.pointerPixelY = point.y;
+        if (state.mode === "segmentation-cut") {
+          event.preventDefault();
+          return;
+        }
         if (state.tool === "eraser") {
           const last = state.strokePath[state.strokePath.length - 1];
           if (!last || last.x !== point.x || last.y !== point.y) {
@@ -1332,6 +1607,39 @@
         state.strokePath = [];
         state.pointerVisible = false;
         updateCursor();
+      });
+
+      document.addEventListener("pointermove", (event) => {
+        if (state.mode !== "segmentation-cut" || !state.allowCutDrag || state.cutDraggingIndex < 0) {
+          return;
+        }
+        if (state.cutActivePointerId !== null && event.pointerId !== state.cutActivePointerId) {
+          return;
+        }
+        const pointer = pointerToPixel(event);
+        const positions = updateCutPosition(state.cutDraggingIndex, pointer.x);
+        emitCutState(event, "move", positions);
+        event.preventDefault();
+      });
+
+      document.addEventListener("pointerup", (event) => {
+        if (state.mode !== "segmentation-cut" || state.cutDraggingIndex < 0) {
+          return;
+        }
+        if (state.cutActivePointerId !== null && event.pointerId !== state.cutActivePointerId) {
+          return;
+        }
+        endCutDrag(event);
+      });
+
+      document.addEventListener("pointercancel", (event) => {
+        if (state.mode !== "segmentation-cut" || state.cutDraggingIndex < 0) {
+          return;
+        }
+        if (state.cutActivePointerId !== null && event.pointerId !== state.cutActivePointerId) {
+          return;
+        }
+        endCutDrag(event);
       });
 
       canvas.addEventListener("pointerleave", () => {
@@ -1441,6 +1749,9 @@
           return;
         }
         if (state.mode === "segmentation-center") {
+          return;
+        }
+        if (state.mode === "segmentation-cut") {
           return;
         }
         if (key === "[") {
@@ -1654,6 +1965,12 @@
           return;
         }
         const args = message.args || {};
+        if (Object.prototype.hasOwnProperty.call(args, "frameToken")) {
+          state.frameToken = String(args.frameToken || "");
+        }
+        if (state.activeFrameToken && state.activeFrameToken !== state.frameToken) {
+          frameStateByToken.set(state.activeFrameToken, captureFrameState());
+        }
         state.width = Math.max(1, Number(args.width || 1));
         state.height = Math.max(1, Number(args.height || 1));
         state.tool = normalizeTool(String(args.tool || state.tool || "wand"));
@@ -1735,6 +2052,9 @@
         if (Object.prototype.hasOwnProperty.call(args, "allowDrag")) {
           state.allowDrag = !!args.allowDrag;
         }
+        if (hasOwn(args, "allowCutDrag")) {
+          state.allowCutDrag = !!args.allowCutDrag;
+        }
         if (Object.prototype.hasOwnProperty.call(args, "showAutocenter")) {
           state.showAutocenter = !!args.showAutocenter;
         }
@@ -1747,10 +2067,21 @@
         if (Object.prototype.hasOwnProperty.call(args, "fitToken")) {
           state.fitToken = String(args.fitToken || "");
         }
+        if (hasOwn(args, "cutPositions") && Array.isArray(args.cutPositions)) {
+          state.cutPositions = args.cutPositions.map((value) => Math.round(Number(value)));
+        }
         try {
           let focusAfterRender = false;
           state.image = await loadImage(args.image || null);
           state.overlay = await loadImage(args.overlay || null);
+          const frameChanged = state.frameToken !== state.activeFrameToken;
+          if (frameChanged) {
+            state.activeFrameToken = state.frameToken;
+            const restored = restoreFrameState(frameStateByToken.get(state.frameToken), args);
+            if (!restored && state.mode === "segmentation-center") {
+              state.zoom = Math.max(1, Math.round(Number(args.zoom || state.zoom || 8)));
+            }
+          }
           if (state.mode === "segmentation-center" && state.fitOnLoad && state.fitToken && state.fitToken !== state.fitAppliedToken) {
             state.fitAppliedToken = state.fitToken;
             state.zoom = computeFitZoom();

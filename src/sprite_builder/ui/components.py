@@ -75,6 +75,9 @@ def pixel_editor(
     show_autocrop: bool = True,
     fit_on_load: bool = False,
     fit_token: str = "",
+    frame_token: str = "",
+    cut_positions: tuple[int, ...] | list[int] | None = None,
+    allow_cut_drag: bool = False,
     key: str,
 ) -> dict[str, Any] | None:
     image_uri = image_data_uri(image)
@@ -109,6 +112,9 @@ def pixel_editor(
         showAutocrop=bool(show_autocrop),
         fitOnLoad=bool(fit_on_load),
         fitToken=str(fit_token),
+        frameToken=str(frame_token),
+        cutPositions=None if cut_positions is None else [int(value) for value in cut_positions],
+        allowCutDrag=bool(allow_cut_drag),
         key=key,
         default=None,
     )

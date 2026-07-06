@@ -51,11 +51,17 @@ class SegmentationConfig:
     offset_y: int = 0
     spacing_x: int = 0
     spacing_y: int = 0
+    manual_cut_positions: tuple[int, ...] = ()
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> SegmentationConfig:
         width = value.get("cell_width")
         height = value.get("cell_height")
+        raw_cuts = value.get("manual_cut_positions", ())
+        if isinstance(raw_cuts, (list, tuple)):
+            manual_cut_positions = tuple(int(item) for item in raw_cuts)
+        else:
+            manual_cut_positions = ()
         return cls(
             frame_count=int(value.get("frame_count", 1)),
             orientation=str(value.get("orientation", "horizontal")),  # type: ignore[arg-type]
@@ -67,6 +73,7 @@ class SegmentationConfig:
             offset_y=int(value.get("offset_y", 0)),
             spacing_x=int(value.get("spacing_x", 0)),
             spacing_y=int(value.get("spacing_y", 0)),
+            manual_cut_positions=manual_cut_positions,
         )
 
     def to_dict(self) -> dict[str, Any]:

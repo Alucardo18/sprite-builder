@@ -12,10 +12,15 @@ from sprite_builder.ui import components
 COMPONENT_HTML = (
     Path(components.__file__).parent / "pixel_editor_component" / "index.html"
 )
+UI_APP = Path(components.__file__).resolve().parent / "app.py"
 
 
 def _component_source() -> str:
     return COMPONENT_HTML.read_text(encoding="utf-8")
+
+
+def _ui_app_source() -> str:
+    return UI_APP.read_text(encoding="utf-8")
 
 
 def test_pixel_editor_forwards_manual_guide_contract(monkeypatch) -> None:
@@ -72,6 +77,9 @@ def test_pixel_editor_guide_defaults_are_backward_compatible() -> None:
     assert signature.parameters["target_anchor_x"].default is None
     assert signature.parameters["target_anchor_y"].default is None
     assert signature.parameters["show_anchor_delta"].default is True
+    assert signature.parameters["frame_token"].default == ""
+    assert signature.parameters["cut_positions"].default is None
+    assert signature.parameters["allow_cut_drag"].default is False
 
 
 def test_component_receives_every_manual_guide_prop() -> None:
@@ -88,11 +96,54 @@ def test_component_receives_every_manual_guide_prop() -> None:
         "targetAnchorX",
         "targetAnchorY",
         "showAnchorDelta",
+        "frameToken",
+        "cutPositions",
+        "allowCutDrag",
     ):
         assert f'"{prop}"' in source, f"{prop} is not read from Streamlit render args"
         assert re.search(rf"\bstate\.{prop}\b", source), (
             f"{prop} is received but is not part of component state"
         )
+
+
+def test_center_canvas_uses_a_stable_component_key() -> None:
+    source = _ui_app_source()
+
+    assert 'if st.button(\n                "Fijar frame",' in source
+    assert 'key=f"{prefix}:center_pixel_editor"' in source
+    assert 'key=f"{prefix}:center_pixel_editor:{selected}"' not in source
+    assert "frame_token=(" in source
+    assert "preview_source = centered" in source
+
+
+def test_sheet_canvas_exposes_free_adjust_controls() -> None:
+    source = _ui_app_source()
+
+    assert '"Auto cut"' in source
+    assert '"Free adjust"' in source
+    assert 'mode="segmentation-cut"' in source
+    assert 'cut_positions=st.session_state[f"{prefix}:segmentation_cut_positions"]' in source
+    assert 'segmentation_free_adjust_widget' in source
+    assert 'segmentation_cut_zoom_widget_sync' in source
+
+
+def test_cut_canvas_exposes_zoom_and_fit_controls() -> None:
+    source = _component_source()
+
+    assert 'id="zoom-out-cut"' in source
+    assert 'id="zoom-in-cut"' in source
+    assert 'id="fit-cut"' in source
+    assert 'id="zoom-pill-cut"' in source
+
+
+def test_center_canvas_persists_state_per_frame_token() -> None:
+    source = _component_source()
+
+    assert "frameStateByToken" in source
+    assert "captureFrameState" in source
+    assert "restoreFrameState" in source
+    assert "activeFrameToken" in source
+    assert "frameToken" in source
 
 
 def test_manual_anchor_guides_keep_target_fixed_and_move_current_with_offset() -> None:
