@@ -35,6 +35,7 @@ def test_pixel_editor_forwards_manual_guide_contract(monkeypatch) -> None:
         Image.new("RGBA", (16, 12)),
         tool="drag",
         mode="segmentation-center",
+        paint_color=(12, 34, 56, 255),
         show_guides=True,
         guide_opacity=0.45,
         show_cell_center=False,
@@ -61,6 +62,48 @@ def test_pixel_editor_forwards_manual_guide_contract(monkeypatch) -> None:
     assert captured["targetAnchorX"] == 8
     assert captured["targetAnchorY"] == 7
     assert captured["showAnchorDelta"] is True
+    assert captured["paintColor"] == (12, 34, 56, 255)
+
+
+def test_pixel_editor_forwards_the_layer_frame_matrix(monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_component(**kwargs: Any) -> None:
+        captured.update(kwargs)
+        return None
+
+    monkeypatch.setattr(components, "_PIXEL_EDITOR", fake_component)
+    components.pixel_editor(
+        Image.new("RGBA", (16, 12)),
+        tool="pencil",
+        mode="layer-edit",
+        studio_layers=(
+            {
+                "layerId": "retouch",
+                "name": "Retoque",
+                "visible": True,
+                "locked": False,
+                "cels": (True, True, False),
+            },
+        ),
+        active_layer_id="retouch",
+        active_frame=1,
+        frame_count=3,
+        key="studio-contract",
+    )
+
+    assert captured["studioLayers"] == [
+        {
+            "layerId": "retouch",
+            "name": "Retoque",
+            "visible": True,
+            "locked": False,
+            "cels": (True, True, False),
+        }
+    ]
+    assert captured["activeLayerId"] == "retouch"
+    assert captured["activeFrame"] == 1
+    assert captured["frameCount"] == 3
 
 
 def test_pixel_editor_guide_defaults_are_backward_compatible() -> None:
@@ -119,12 +162,81 @@ def test_center_canvas_uses_a_stable_component_key() -> None:
 def test_sheet_canvas_exposes_free_adjust_controls() -> None:
     source = _ui_app_source()
 
-    assert '"Auto cut"' in source
-    assert '"Free adjust"' in source
+    assert '"Cortes automáticos"' in source
+    assert '"Ajuste manual"' in source
     assert 'mode="segmentation-cut"' in source
     assert 'cut_positions=st.session_state[f"{prefix}:segmentation_cut_positions"]' in source
     assert 'segmentation_free_adjust_widget' in source
-    assert 'segmentation_cut_zoom_widget_sync' in source
+
+
+def test_pixel_editor_toolbar_uses_svg_icons_and_accessible_names() -> None:
+    source = _component_source()
+
+    for icon in (
+        "icon-wand",
+        "icon-eyedropper",
+        "icon-eraser",
+        "icon-zoom-in",
+        "icon-zoom-out",
+        "icon-fit",
+        "icon-pencil",
+        "icon-move",
+    ):
+        assert f'id="{icon}"' in source
+    assert 'aria-label="Acercar"' in source
+    assert 'aria-label="Alejar"' in source
+    assert 'title="Varita (W)"' in source
+
+
+def test_pixel_editor_supports_layer_edit_tools_and_events() -> None:
+    source = _component_source()
+
+    assert 'mode === "layer-edit"' in source
+    assert 'data-tool="pencil"' in source
+    assert 'data-tool="move"' in source
+    assert 'type: "edit-batch"' in source
+    assert "pendingEdits" in source
+    assert "previewStroke" in source
+    assert 'color: state.paintColor' in source
+
+
+def test_studio_timeline_selects_cels_and_reorders_layers() -> None:
+    source = _component_source()
+
+    assert 'emitStudio("select-layer"' in source
+    assert 'emitStudio("select-cel"' in source
+    assert 'emitStudio("reorder-layer"' in source
+    assert 'row.draggable = state.studioLayers.length > 1' in source
+    assert 'button.timeline-cel' in source
+
+
+def test_layer_eyedropper_accepts_the_canvas_click_event() -> None:
+    source = _ui_app_source()
+
+    assert 'event_type in {"pointer", "pointerdown"} and tool == "eyedropper"' in source
+    assert 'layer_editor_color_picker_sync' in source
+
+
+def test_component_events_do_not_force_a_second_streamlit_rerun() -> None:
+    source = _ui_app_source()
+
+    for handler in (
+        "_handle_segmentation_cut_event",
+        "_handle_background_editor_event",
+        "_handle_layer_editor_event",
+        "_handle_center_editor_event",
+    ):
+        start = source.index(f"changed = {handler}")
+        window = source[start : start + 500]
+        assert "st.rerun()" not in window
+
+
+def test_background_editor_keeps_zoom_and_tools_in_the_canvas_toolbar() -> None:
+    source = _ui_app_source()
+
+    assert '"Zoom 100%"' not in source
+    assert '"Modo editor ancho"' not in source
+    assert '"Lienzo amplio"' in source
 
 
 def test_cut_canvas_exposes_zoom_and_fit_controls() -> None:
@@ -244,13 +356,11 @@ def test_component_guide_layer_changes_are_published_for_persistence() -> None:
     assert frame_listener and "toggle-frame-guide" in frame_listener.group(1)
 
 
-def test_center_zoom_is_local_until_the_next_manual_event() -> None:
+def test_canvas_zoom_is_local_and_does_not_trigger_a_rerun() -> None:
     source = _component_source()
 
-    local_only = r"state\.mode\s*!==\s*[\"']segmentation-center[\"']"
-    assert len(
-        re.findall(rf"setZoom\([^;]+,\s*{local_only}\s*\)", source)
-    ) >= 4
+    assert source.count("setZoom(state.zoom + 1, false)") >= 1
+    assert source.count("setZoom(state.zoom - 1, false)") >= 1
     emit_value = re.search(
         r"function\s+emitValue\(value\)\s*\{([\s\S]*?)\n\s{6}\}",
         source,

@@ -222,6 +222,7 @@ class SheetProcessingSession:
     export_crop_config: ExportCropConfig
     auto_center_config: AutoCenterConfig
     frame_adjustments: list[FrameAdjustment] = field(default_factory=list)
+    layer_document: dict[str, Any] | None = None
     stages: dict[str, dict[str, Any]] = field(default_factory=dict)
     export_manifest: dict[str, Any] | None = None
 
@@ -268,6 +269,11 @@ class SheetProcessingSession:
                 FrameAdjustment.from_dict(item)
                 for item in adjustments
             ],
+            layer_document=(
+                dict(value["layer_document"])
+                if isinstance(value.get("layer_document"), Mapping)
+                else None
+            ),
             stages=dict(value.get("stages", {})),
             export_manifest=(
                 dict(value["export_manifest"])
@@ -292,6 +298,7 @@ class SheetProcessingSession:
             "export_crop_config": self.export_crop_config.to_dict(),
             "auto_center_config": self.auto_center_config.to_dict(),
             "frame_adjustments": [item.to_dict() for item in self.frame_adjustments],
+            "layer_document": self.layer_document,
             "stages": self.stages,
             "export_manifest": self.export_manifest,
         }

@@ -5,11 +5,12 @@ from __future__ import annotations
 import base64
 import html
 import io
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from PIL import Image
 import streamlit.components.v1 as components
+from PIL import Image
 
 _PIXEL_EDITOR = components.declare_component(
     "sprite_builder_pixel_editor",
@@ -51,6 +52,7 @@ def pixel_editor(
     *,
     overlay: Image.Image | None = None,
     sample: tuple[int, int, int, int] | None = None,
+    paint_color: tuple[int, int, int, int] | None = None,
     tool: str,
     mode: str = "background",
     brush_radius: int = 5,
@@ -78,11 +80,15 @@ def pixel_editor(
     frame_token: str = "",
     cut_positions: tuple[int, ...] | list[int] | None = None,
     allow_cut_drag: bool = False,
+    studio_layers: Sequence[Mapping[str, Any]] | None = None,
+    active_layer_id: str | None = None,
+    active_frame: int = 0,
+    frame_count: int = 0,
     key: str,
 ) -> dict[str, Any] | None:
     image_uri = image_data_uri(image)
     overlay_uri = image_data_uri(overlay) if overlay is not None else None
-    return _PIXEL_EDITOR(
+    result = _PIXEL_EDITOR(
         image=image_uri,
         overlay=overlay_uri,
         width=image.width,
@@ -91,6 +97,7 @@ def pixel_editor(
         tool=tool,
         mode=mode,
         sample=sample,
+        paintColor=paint_color if paint_color is not None else sample,
         brushRadius=max(1, int(brush_radius)),
         offsetX=int(offset_x),
         offsetY=int(offset_y),
@@ -115,6 +122,11 @@ def pixel_editor(
         frameToken=str(frame_token),
         cutPositions=None if cut_positions is None else [int(value) for value in cut_positions],
         allowCutDrag=bool(allow_cut_drag),
+        studioLayers=None if studio_layers is None else [dict(layer) for layer in studio_layers],
+        activeLayerId=None if active_layer_id is None else str(active_layer_id),
+        activeFrame=max(0, int(active_frame)),
+        frameCount=max(0, int(frame_count)),
         key=key,
         default=None,
     )
+    return cast(dict[str, Any] | None, result)

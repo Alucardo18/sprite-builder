@@ -13,6 +13,13 @@ from .engine import (
     trim_transparent_frames,
 )
 from .inspect import inspect_sheet
+from .layers import (
+    LayeredSpriteDocument,
+    SpriteCel,
+    SpriteLayer,
+    composite_document_frames,
+    paint_cel_stroke,
+)
 from .manual import (
     apply_manual_background_edits,
     clear_selection,
@@ -51,17 +58,21 @@ __all__ = [
     "ExportCropConfig",
     "ExportCropResult",
     "FrameAdjustment",
+    "LayeredSpriteDocument",
     "SegmentationConfig",
     "SegmentationResult",
     "SheetInspection",
     "SheetProcessingSession",
     "SheetSessionStore",
+    "SpriteCel",
+    "SpriteLayer",
     "apply_background_removal",
     "apply_manual_background_edits",
     "auto_center_frames",
     "checkerboard",
     "clear_selection",
     "combine_selection_masks",
+    "composite_document_frames",
     "decode_mask",
     "encode_mask",
     "erase_similar_pixels",
@@ -69,6 +80,7 @@ __all__ = [
     "export_sheet",
     "inspect_sheet",
     "pad_frames_to_common_canvas",
+    "paint_cel_stroke",
     "render_contact_sheet",
     "render_frame_overlay",
     "render_selection_overlay",

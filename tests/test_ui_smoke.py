@@ -39,6 +39,30 @@ def test_streamlit_app_opens_with_all_workflow_tabs(
     assert [tab.label for tab in test_app.tabs] == [
         "Sheet",
         "Background",
+        "Studio",
         "Segmentación + Auto Center",
         "Export",
     ]
+
+
+def test_studio_keeps_the_canvas_dominant_and_separates_publication() -> None:
+    source = Path(app.__file__).read_text(encoding="utf-8")
+
+    assert 'publish_col, canvas_col = st.columns((1.05, 4.95)' in source
+    assert '"Publicar capas para Auto Center"' in source
+    assert '"pendiente de publicar a Auto Center"' in source
+    assert "studio_layers=studio_layers" in source
+    assert "active_layer_id=active_layer_id" in source
+    # Pixel edits revise the document, but must not force the component to fit
+    # and remount just because the revision number changed.
+    assert 'f"{prefix}:layers:{document.document_id}:{document.revision}:"' not in source
+
+
+def test_studio_component_events_select_and_reorder_the_layer_matrix() -> None:
+    source = Path(app.__file__).read_text(encoding="utf-8")
+
+    assert 'if event_type == "studio":' in source
+    assert 'if action == "select-cel":' in source
+    assert 'if action == "reorder-layer":' in source
+    assert 'reason="reorder-layer-drag"' in source
+    assert 'if changed and event and event.get("type") == "studio":' in source

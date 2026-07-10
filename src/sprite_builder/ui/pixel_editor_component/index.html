@@ -35,8 +35,8 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
+        gap: 7px;
+        padding: 8px 10px;
         border-radius: 16px;
         border: 1px solid rgba(132, 225, 255, 0.18);
         background: linear-gradient(135deg, rgba(13,18,31,0.92), rgba(22,28,44,0.92));
@@ -46,8 +46,9 @@
 
       .toolgroup {
         display: inline-flex;
+        align-items: center;
         gap: 6px;
-        padding-right: 6px;
+        padding-right: 8px;
         border-right: 1px solid rgba(255,255,255,0.08);
         margin-right: 2px;
       }
@@ -58,7 +59,8 @@
         padding-right: 0;
       }
 
-      .toolgroup[data-group="center"] {
+      .toolgroup[data-group="center"],
+      .toolgroup[data-group="cut"] {
         display: none;
       }
 
@@ -91,8 +93,13 @@
         border: 1px solid rgba(255,255,255,0.12);
         background: linear-gradient(120deg, rgba(91,223,255,0.12), rgba(124,92,255,0.18));
         color: #fff;
-        border-radius: 12px;
-        padding: 8px 11px;
+        min-width: 36px;
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        padding: 7px 9px;
         font: inherit;
         font-size: 12px;
         cursor: pointer;
@@ -103,6 +110,47 @@
         border-color: rgba(91,223,255,0.7);
         background: linear-gradient(120deg, rgba(91,223,255,0.24), rgba(124,92,255,0.28));
         box-shadow: 0 0 0 1px rgba(91,223,255,0.28) inset;
+      }
+
+      button.icon-button {
+        position: relative;
+        gap: 5px;
+        padding: 7px;
+      }
+
+      button.tool-button {
+        min-width: 42px;
+      }
+
+      button.icon-button .icon {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      button.icon-button .icon.fill-icon {
+        fill: currentColor;
+        stroke: none;
+      }
+
+      button.icon-button .shortcut {
+        position: absolute;
+        right: 3px;
+        bottom: 2px;
+        color: rgba(220, 227, 245, 0.68);
+        font: 700 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .toolbar-label {
+        margin: 0 2px 0 1px;
+        color: rgba(220, 227, 245, 0.62);
+        font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: .08em;
+        text-transform: uppercase;
       }
 
       button:focus-visible {
@@ -121,7 +169,13 @@
         border: 1px solid rgba(255,255,255,0.12);
         background: linear-gradient(120deg, rgba(91,223,255,0.12), rgba(124,92,255,0.18));
         border-radius: 12px;
-        padding: 8px 11px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        box-sizing: border-box;
+        padding: 7px;
         font-size: 12px;
       }
 
@@ -132,6 +186,16 @@
       .guide-settings > summary:focus-visible {
         outline: 2px solid rgba(91,223,255,0.9);
         outline-offset: 2px;
+      }
+
+      .guide-settings > summary .icon {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
 
       .guide-menu {
@@ -166,7 +230,9 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 8px 10px;
+        min-height: 36px;
+        box-sizing: border-box;
+        padding: 7px 9px;
         border-radius: 12px;
         background: rgba(255,255,255,0.05);
         border: 1px solid rgba(255,255,255,0.08);
@@ -179,6 +245,41 @@
         border-radius: 999px;
         border: 1px solid rgba(255,255,255,0.35);
         box-shadow: 0 0 0 1px rgba(0,0,0,0.3) inset;
+      }
+
+      .pill .icon {
+        width: 15px;
+        height: 15px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .icon-sprite {
+        position: absolute;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+      }
+
+      @media (max-width: 620px) {
+        .toolbar-label,
+        .guide-status,
+        .sample-pill {
+          display: none !important;
+        }
+
+        .toolbar {
+          gap: 4px;
+          padding: 7px;
+        }
+
+        .toolgroup {
+          gap: 4px;
+          padding-right: 4px;
+        }
       }
 
       .cursor-ring {
@@ -547,6 +648,301 @@
         color: rgba(220, 227, 245, 0.8);
       }
 
+      /*
+       * Studio deliberately switches from a "control above a preview" layout to
+       * a small application workspace.  The host owns its surrounding panels;
+       * inside the component the stage gets every remaining pixel and tools stay
+       * beside (not above) the artwork, like a pixel editor should.
+       */
+      .studio-timeline {
+        display: none;
+      }
+
+      body[data-mode="layer-edit"] .root {
+        display: grid;
+        grid-template-columns: 62px minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto auto;
+        column-gap: 10px;
+        row-gap: 8px;
+        min-height: 0;
+      }
+
+      body[data-mode="layer-edit"] .toolbar {
+        position: relative;
+        top: auto;
+        grid-column: 1;
+        grid-row: 1 / span 3;
+        align-self: stretch;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        gap: 8px;
+        min-width: 0;
+        padding: 8px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        border-radius: 16px;
+      }
+
+      body[data-mode="layer-edit"] .toolbar .toolgroup {
+        flex-direction: column;
+        width: 100%;
+        gap: 6px;
+        margin: 0;
+        padding: 0 0 8px;
+        border-right: 0;
+        border-bottom: 1px solid rgba(255,255,255,0.09);
+      }
+
+      body[data-mode="layer-edit"] .toolbar .toolgroup:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+      }
+
+      body[data-mode="layer-edit"] .toolbar .toolbar-label,
+      body[data-mode="layer-edit"] .toolbar .shortcut,
+      body[data-mode="layer-edit"] .toolbar .sample-pill .pill > span:not(.swatch),
+      body[data-mode="layer-edit"] .toolbar .toolgroup .pill > svg + span {
+        display: none;
+      }
+
+      body[data-mode="layer-edit"] .toolbar button,
+      body[data-mode="layer-edit"] .toolbar .pill {
+        width: 42px;
+        min-width: 42px;
+        min-height: 42px;
+        padding: 7px;
+        box-sizing: border-box;
+      }
+
+      body[data-mode="layer-edit"] .toolbar .pill {
+        justify-content: center;
+      }
+
+      body[data-mode="layer-edit"] .toolbar .sample-pill .pill {
+        background: rgba(255,255,255,0.07);
+      }
+
+      body[data-mode="layer-edit"] .toolbar #zoom-pill .icon,
+      body[data-mode="layer-edit"] .toolbar #brush-radius .icon {
+        display: none;
+      }
+
+      body[data-mode="layer-edit"] .toolbar #zoom-pill > span:last-child,
+      body[data-mode="layer-edit"] .toolbar #brush-radius > span:last-child {
+        display: inline;
+        color: rgba(220, 227, 245, 0.82);
+        font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      body[data-mode="layer-edit"] .toolbar #commit-edits #pending-edits {
+        display: none;
+      }
+
+      body[data-mode="layer-edit"] .toolbar #commit-edits[data-pending]:not([data-pending="0"])::after {
+        content: attr(data-pending);
+        position: absolute;
+        right: 2px;
+        bottom: 2px;
+        min-width: 12px;
+        height: 12px;
+        padding: 0 2px;
+        border-radius: 999px;
+        color: #111826;
+        background: #ffc45b;
+        font: 800 8px/12px ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      body[data-mode="layer-edit"] .toolbar .swatch {
+        width: 19px;
+        height: 19px;
+      }
+
+      body[data-mode="layer-edit"] .stage {
+        grid-column: 2;
+        grid-row: 1;
+        width: auto;
+        height: clamp(640px, 76vh, 1040px);
+        min-height: 0;
+        min-width: 0;
+        display: grid;
+        place-items: center;
+        box-sizing: border-box;
+        padding: 24px;
+        border-radius: 18px;
+        background-size: 18px 18px;
+      }
+
+      body[data-mode="layer-edit"] .canvas-wrap {
+        flex: 0 0 auto;
+        margin: 0;
+      }
+
+      body[data-mode="layer-edit"] .studio-timeline:not([hidden]) {
+        grid-column: 2;
+        grid-row: 2;
+        display: grid;
+        gap: 7px;
+        min-width: 0;
+        padding: 9px 11px;
+        border: 1px solid rgba(132, 225, 255, 0.17);
+        border-radius: 14px;
+        background: rgba(13, 18, 31, 0.74);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+      }
+
+      body[data-mode="layer-edit"] .overlay-note {
+        grid-column: 2;
+        grid-row: 3;
+        margin: 0 4px;
+      }
+
+      .timeline-heading,
+      .timeline-row,
+      .timeline-cels {
+        display: flex;
+        align-items: center;
+      }
+
+      .timeline-heading {
+        justify-content: space-between;
+        gap: 12px;
+        color: rgba(220, 227, 245, 0.68);
+        font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+
+      .timeline-rows {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+        max-height: 112px;
+        overflow: auto;
+      }
+
+      .timeline-row {
+        position: relative;
+        gap: 8px;
+        min-width: max-content;
+        border-radius: 8px;
+      }
+
+      .timeline-row[draggable="true"] {
+        cursor: grab;
+      }
+
+      .timeline-row.dragging {
+        opacity: .45;
+      }
+
+      .timeline-row.drop-target {
+        box-shadow: 0 -2px 0 rgba(255, 196, 91, 0.9);
+      }
+
+      .timeline-row.active .timeline-layer-name {
+        color: #dff9ff;
+        background: rgba(91, 223, 255, 0.13);
+        border-color: rgba(91, 223, 255, 0.32);
+      }
+
+      button.timeline-layer-name {
+        appearance: none;
+        min-width: 128px;
+        min-height: 24px;
+        justify-content: flex-start;
+        display: inline-flex;
+        align-items: center;
+        width: 128px;
+        height: 24px;
+        padding: 0 8px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 7px;
+        color: rgba(220, 227, 245, 0.78);
+        background: rgba(255,255,255,0.035);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      button.timeline-layer-name:focus-visible,
+      button.timeline-cel:focus-visible {
+        outline: 2px solid rgba(255, 196, 91, 0.96);
+        outline-offset: 1px;
+      }
+
+      .timeline-cels {
+        gap: 3px;
+      }
+
+      button.timeline-cel {
+        appearance: none;
+        display: block;
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
+        min-height: 24px;
+        padding: 0;
+        box-sizing: border-box;
+        border: 1px solid rgba(255,255,255,0.09);
+        border-radius: 5px;
+        background: rgba(255,255,255,0.035);
+        cursor: pointer;
+      }
+
+      .timeline-cel.has-cel {
+        background: linear-gradient(135deg, rgba(124,92,255,.42), rgba(91,223,255,.26));
+        border-color: rgba(132, 225, 255, 0.28);
+      }
+
+      .timeline-cel.current {
+        border-color: rgba(255, 196, 91, 0.94);
+        box-shadow: 0 0 0 1px rgba(255, 196, 91, 0.3) inset;
+      }
+
+      @media (max-width: 720px) {
+        body[data-mode="layer-edit"] .root {
+          display: flex;
+          gap: 8px;
+        }
+
+        body[data-mode="layer-edit"] .toolbar {
+          position: sticky;
+          top: 0;
+          flex-direction: row;
+          flex-wrap: wrap;
+          width: auto;
+          max-height: none;
+          overflow: visible;
+        }
+
+        body[data-mode="layer-edit"] .toolbar .toolgroup {
+          flex-direction: row;
+          width: auto;
+          margin-right: 2px;
+          padding: 0 6px 0 0;
+          border-right: 1px solid rgba(255,255,255,0.09);
+          border-bottom: 0;
+        }
+
+        body[data-mode="layer-edit"] .toolbar .toolgroup:last-child {
+          padding-right: 0;
+          border-right: 0;
+        }
+
+        body[data-mode="layer-edit"] .stage {
+          width: 100%;
+          height: min(68vh, 760px);
+          min-height: 54vh;
+        }
+
+        body[data-mode="layer-edit"] .studio-timeline:not([hidden]),
+        body[data-mode="layer-edit"] .overlay-note {
+          width: auto;
+        }
+      }
+
       code {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 11px;
@@ -557,43 +953,67 @@
     </style>
   </head>
   <body>
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="icon-wand" viewBox="0 0 24 24"><path d="M6 21 21 6l-3-3L3 18l3 3"/><path d="m15 6 3 3M9 3a2 2 0 0 0 2 2a2 2 0 0 0-2 2a2 2 0 0 0-2-2a2 2 0 0 0 2-2M19 13a2 2 0 0 0 2 2a2 2 0 0 0-2 2a2 2 0 0 0-2-2a2 2 0 0 0 2-2"/></symbol>
+      <symbol id="icon-eyedropper" viewBox="0 0 16 16"><path d="M13.354.646a1.207 1.207 0 0 0-1.708 0L8.5 3.793l-.646-.647a.5.5 0 1 0-.708.708L8.293 5 1.146 12.146A.5.5 0 0 0 1 12.5v1.793l-.854.853a.5.5 0 1 0 .708.707L1.707 15H3.5a.5.5 0 0 0 .354-.146L11 7.707l1.146 1.147a.5.5 0 0 0 .708-.708l-.647-.646 3.147-3.146a1.207 1.207 0 0 0 0-1.708zM2 12.707l7-7L10.293 7l-7 7H2z"/></symbol>
+      <symbol id="icon-pencil" viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5a2.828 2.828 0 1 0-4-4L4 16v4"/><path d="m13.5 6.5 4 4"/></symbol>
+      <symbol id="icon-move" viewBox="0 0 24 24"><path d="m18 9 3 3-3 3m-3-3h6M6 9l-3 3 3 3m-3-3h6m0 6 3 3 3-3m-3-3v6m3-15-3-3-3 3m3 3V3"/></symbol>
+      <symbol id="icon-eraser" viewBox="0 0 24 24"><path d="m20 20H7.5a2 2 0 0 1-1.4-.6l-2.5-2.5a2 2 0 0 1 0-2.8l8.7-8.7a2 2 0 0 1 2.8 0l5.3 5.3a2 2 0 0 1 0 2.8L14 20"/><path d="m6 14 5 5"/></symbol>
+      <symbol id="icon-zoom-in" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.5 4.5M10.8 7.8v6M7.8 10.8h6"/></symbol>
+      <symbol id="icon-zoom-out" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.5 4.5M7.8 10.8h6"/></symbol>
+      <symbol id="icon-fit" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/><path d="m8 8-5-5m13 5 5-5m-5 13 5 5M8 16l-5 5"/></symbol>
+      <symbol id="icon-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="icon-center" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+      <symbol id="icon-crop" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/></symbol>
+      <symbol id="icon-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></symbol>
+      <symbol id="icon-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></symbol>
+      <symbol id="icon-cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="m8.2 7.4 10.3 9.2M8.2 16.6l3.9-3.5M14.4 11l4.1-3.6"/></symbol>
+      <symbol id="icon-save" viewBox="0 0 24 24"><path d="M5 3h12l3 3v15H4V4a1 1 0 0 1 1-1Z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></symbol>
+    </svg>
     <div class="root">
       <div class="toolbar" id="toolbar">
         <div class="toolgroup" data-group="background">
-          <button data-action="tool" data-tool="wand" id="tool-wand">Wand</button>
-          <button data-action="tool" data-tool="eyedropper" id="tool-eyedropper">Eyedropper</button>
-          <button data-action="tool" data-tool="eraser" id="tool-eraser">Eraser</button>
+          <span class="toolbar-label">Herramientas</span>
+          <button class="icon-button tool-button" data-action="tool" data-tool="wand" id="tool-wand" title="Varita (W)" aria-label="Varita, atajo W" aria-pressed="true"><svg class="icon"><use href="#icon-wand"></use></svg><span class="shortcut">W</span></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="pencil" id="tool-pencil" title="Lápiz (P)" aria-label="Lápiz, atajo P" aria-pressed="false" hidden><svg class="icon"><use href="#icon-pencil"></use></svg><span class="shortcut">P</span></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="eyedropper" id="tool-eyedropper" title="Cuentagotas (I)" aria-label="Cuentagotas, atajo I" aria-pressed="false"><svg class="icon fill-icon"><use href="#icon-eyedropper"></use></svg><span class="shortcut">I</span></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="eraser" id="tool-eraser" title="Borrador (E)" aria-label="Borrador, atajo E" aria-pressed="false"><svg class="icon"><use href="#icon-eraser"></use></svg><span class="shortcut">E</span></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="move" id="tool-move" title="Mover cel (M)" aria-label="Mover cel, atajo M" aria-pressed="false" hidden><svg class="icon"><use href="#icon-move"></use></svg><span class="shortcut">M</span></button>
         </div>
         <div class="toolgroup" data-group="background">
-          <button data-action="zoom-out" id="zoom-out">-</button>
-          <button data-action="zoom-in" id="zoom-in">+</button>
-          <button data-action="fit" id="fit">Fit</button>
-          <span class="pill" id="zoom-pill">Zoom 1x</span>
+          <button class="icon-button" data-action="zoom-out" id="zoom-out" title="Alejar" aria-label="Alejar"><svg class="icon"><use href="#icon-zoom-out"></use></svg></button>
+          <span class="pill" id="zoom-pill" title="Nivel de zoom"><svg class="icon"><use href="#icon-zoom-in"></use></svg><span>1×</span></span>
+          <button class="icon-button" data-action="zoom-in" id="zoom-in" title="Acercar" aria-label="Acercar"><svg class="icon"><use href="#icon-zoom-in"></use></svg></button>
+          <button class="icon-button" data-action="fit" id="fit" title="Ajustar al lienzo" aria-label="Ajustar al lienzo"><svg class="icon"><use href="#icon-fit"></use></svg></button>
         </div>
-        <div class="toolgroup" data-group="background">
+        <div class="toolgroup sample-pill" data-group="background">
           <span class="pill"><span class="swatch" id="swatch"></span><span id="sample-text">No sample</span></span>
         </div>
         <div class="toolgroup" data-group="background">
-          <button data-action="brush-radius-down" id="brush-radius-down">Eraser -</button>
-          <button data-action="brush-radius-up" id="brush-radius-up">Eraser +</button>
-          <span class="pill">Radius <span id="brush-radius">5px</span></span>
+          <button class="icon-button" data-action="brush-radius-down" id="brush-radius-down" title="Reducir radio del borrador ([)" aria-label="Reducir radio del borrador"><svg class="icon"><use href="#icon-minus"></use></svg></button>
+          <span class="pill" title="Radio del borrador"><svg class="icon"><use href="#icon-eraser"></use></svg><span id="brush-radius">5 px</span></span>
+          <button class="icon-button" data-action="brush-radius-up" id="brush-radius-up" title="Aumentar radio del borrador (])" aria-label="Aumentar radio del borrador"><svg class="icon"><use href="#icon-plus"></use></svg></button>
+        </div>
+        <div class="toolgroup" data-group="background" id="commit-group">
+          <button class="icon-button" data-action="commit-edits" id="commit-edits" title="Guardar trazos pendientes (⌘/Ctrl + Enter)" aria-label="Guardar trazos pendientes"><svg class="icon"><use href="#icon-save"></use></svg><span id="pending-edits">Guardar</span></button>
         </div>
         <div class="toolgroup" data-group="center">
-          <button data-action="autocenter" id="autocenter">Auto center</button>
-          <button data-action="autocrop" id="autocrop">Auto crop</button>
-          <button data-action="reset-transform" id="reset-transform">Reset</button>
-          <button data-action="toggle-guides" id="toggle-guides">Guides</button>
+          <button class="icon-button" data-action="autocenter" id="autocenter" title="Centrar automáticamente (A)" aria-label="Centrar automáticamente"><svg class="icon"><use href="#icon-center"></use></svg></button>
+          <button class="icon-button" data-action="autocrop" id="autocrop" title="Activar recorte inteligente (C)" aria-label="Activar recorte inteligente"><svg class="icon"><use href="#icon-crop"></use></svg></button>
+          <button class="icon-button" data-action="reset-transform" id="reset-transform" title="Restablecer posición (R)" aria-label="Restablecer posición"><svg class="icon"><use href="#icon-reset"></use></svg></button>
+          <button class="icon-button" data-action="toggle-guides" id="toggle-guides" title="Mostrar u ocultar guías (G)" aria-label="Mostrar u ocultar guías" aria-pressed="false"><svg class="icon"><use href="#icon-layers"></use></svg></button>
           <details class="guide-settings" id="guide-settings">
-            <summary aria-label="Guide layers">Layers</summary>
+            <summary aria-label="Capas de guía" title="Capas de guía"><svg class="icon"><use href="#icon-layers"></use></svg></summary>
             <div class="guide-menu">
-              <label><input type="checkbox" id="guide-target-layer" checked /> Cell target</label>
-              <label><input type="checkbox" id="guide-frame-layer" checked /> Moving frame</label>
-              <label><input type="checkbox" id="guide-current-anchor-layer" checked /> Current body anchor</label>
-              <label><input type="checkbox" id="guide-target-anchor-layer" checked /> Target body anchor</label>
-              <label><input type="checkbox" id="guide-ground-layer" /> Ground line</label>
-              <label><input type="checkbox" id="guide-anchor-delta-layer" checked /> Anchor delta</label>
+              <label><input type="checkbox" id="guide-target-layer" checked /> Celda destino</label>
+              <label><input type="checkbox" id="guide-frame-layer" checked /> Frame móvil</label>
+              <label><input type="checkbox" id="guide-current-anchor-layer" checked /> Anchor corporal actual</label>
+              <label><input type="checkbox" id="guide-target-anchor-layer" checked /> Anchor corporal destino</label>
+              <label><input type="checkbox" id="guide-ground-layer" /> Línea de suelo</label>
+              <label><input type="checkbox" id="guide-anchor-delta-layer" checked /> Delta del anchor</label>
               <label>
-                Opacity
+                Opacidad
                 <input type="range" id="guide-opacity" min="10" max="100" step="5" value="85" />
                 <span id="guide-opacity-value">85%</span>
               </label>
@@ -601,21 +1021,21 @@
           </details>
         </div>
         <div class="toolgroup" data-group="center">
-          <button data-action="zoom-out" id="zoom-out-center">-</button>
-          <button data-action="zoom-in" id="zoom-in-center">+</button>
-          <button data-action="fit" id="fit-center">Fit</button>
-          <span class="pill" id="zoom-pill-center">Zoom 1x</span>
+          <button class="icon-button" data-action="zoom-out" id="zoom-out-center" title="Alejar" aria-label="Alejar"><svg class="icon"><use href="#icon-zoom-out"></use></svg></button>
+          <span class="pill" id="zoom-pill-center" title="Nivel de zoom"><svg class="icon"><use href="#icon-zoom-in"></use></svg><span>1×</span></span>
+          <button class="icon-button" data-action="zoom-in" id="zoom-in-center" title="Acercar" aria-label="Acercar"><svg class="icon"><use href="#icon-zoom-in"></use></svg></button>
+          <button class="icon-button" data-action="fit" id="fit-center" title="Ajustar al lienzo" aria-label="Ajustar al lienzo"><svg class="icon"><use href="#icon-fit"></use></svg></button>
         </div>
         <div class="toolgroup guide-status" data-group="center">
-          <span class="pill" id="mode-pill">Mode center</span>
+          <span class="pill" id="mode-pill">Centrado</span>
           <span class="pill" id="delta-pill" data-role="anchor-delta">ΔX 0 · ΔY 0</span>
         </div>
         <div class="toolgroup guide-status" data-group="cut">
-          <button data-action="zoom-out" id="zoom-out-cut">-</button>
-          <button data-action="zoom-in" id="zoom-in-cut">+</button>
-          <button data-action="fit" id="fit-cut">Auto fit</button>
-          <span class="pill" id="zoom-pill-cut">Zoom 1x</span>
-          <span class="pill" id="cut-mode-pill">Mode cut</span>
+          <button class="icon-button" data-action="zoom-out" id="zoom-out-cut" title="Alejar" aria-label="Alejar"><svg class="icon"><use href="#icon-zoom-out"></use></svg></button>
+          <span class="pill" id="zoom-pill-cut" title="Nivel de zoom"><svg class="icon"><use href="#icon-zoom-in"></use></svg><span>1×</span></span>
+          <button class="icon-button" data-action="zoom-in" id="zoom-in-cut" title="Acercar" aria-label="Acercar"><svg class="icon"><use href="#icon-zoom-in"></use></svg></button>
+          <button class="icon-button" data-action="fit" id="fit-cut" title="Ajustar al lienzo" aria-label="Ajustar al lienzo"><svg class="icon"><use href="#icon-fit"></use></svg></button>
+          <span class="pill" id="cut-mode-pill"><svg class="icon"><use href="#icon-cut"></use></svg><span>Cortes</span></span>
         </div>
       </div>
 
@@ -647,6 +1067,14 @@
         </div>
       </div>
 
+      <div class="studio-timeline" id="studio-timeline" hidden aria-label="Timeline de capas">
+        <div class="timeline-heading">
+          <span>Timeline</span>
+          <span id="timeline-summary"></span>
+        </div>
+        <div class="timeline-rows" id="timeline-rows"></div>
+      </div>
+
       <div class="overlay-note" id="overlay-note">
         Click to interact. <code>I</code> eyedropper, <code>W</code> wand, <code>E</code> eraser,
         <code>Shift</code> add,
@@ -668,8 +1096,10 @@
       const sampleText = document.getElementById("sample-text");
       const swatch = document.getElementById("swatch");
       const toolWand = document.getElementById("tool-wand");
+      const toolPencil = document.getElementById("tool-pencil");
       const toolEyedropper = document.getElementById("tool-eyedropper");
       const toolEraser = document.getElementById("tool-eraser");
+      const toolMove = document.getElementById("tool-move");
       const autocenterButton = document.getElementById("autocenter");
       const autocropButton = document.getElementById("autocrop");
       const resetTransformButton = document.getElementById("reset-transform");
@@ -706,6 +1136,12 @@
       const overlayNote = document.getElementById("overlay-note");
       const cursorRing = document.getElementById("cursor-ring");
       const cursorDot = document.getElementById("cursor-dot");
+      const commitGroup = document.getElementById("commit-group");
+      const commitEditsButton = document.getElementById("commit-edits");
+      const pendingEdits = document.getElementById("pending-edits");
+      const studioTimeline = document.getElementById("studio-timeline");
+      const timelineSummary = document.getElementById("timeline-summary");
+      const timelineRows = document.getElementById("timeline-rows");
 
       let state = {
         image: null,
@@ -717,6 +1153,7 @@
         mode: "background",
         brushRadius: 5,
         sample: null,
+        paintColor: [255, 255, 255, 255],
         offsetX: 0,
         offsetY: 0,
         showGuides: false,
@@ -754,13 +1191,20 @@
         pointerVisible: false,
         dragging: false,
         strokePath: [],
+        pendingEdits: [],
         dragStartX: 0,
         dragStartY: 0,
         dragOriginX: 0,
         dragOriginY: 0,
+        studioLayers: [],
+        activeLayerId: "",
+        activeFrame: 0,
+        frameCount: 0,
       };
       const frameStateByToken = new Map();
       let readySent = false;
+      let studioDragLayerId = "";
+      let suppressStudioClick = false;
 
       function send(type, payload) {
         window.parent.postMessage({ isStreamlitMessage: true, type, ...payload }, "*");
@@ -784,8 +1228,9 @@
       function setFrameHeight() {
         const toolbarHeight = Math.ceil(document.getElementById("toolbar")?.getBoundingClientRect().height || 0);
         const stageHeight = Math.ceil(stage.getBoundingClientRect().height || 0);
+        const timelineHeight = Math.ceil(studioTimeline?.getBoundingClientRect().height || 0);
         const noteHeight = Math.ceil(document.querySelector(".overlay-note")?.getBoundingClientRect().height || 0);
-        const height = Math.max(760, toolbarHeight + stageHeight + noteHeight + 32);
+        const height = Math.max(760, toolbarHeight + stageHeight + timelineHeight + noteHeight + 32);
         send(SET_FRAME_HEIGHT, { height });
       }
 
@@ -812,6 +1257,9 @@
         }
         if (mode === "segmentation-cut") {
           return "segmentation-cut";
+        }
+        if (mode === "layer-edit") {
+          return "layer-edit";
         }
         return "background";
       }
@@ -887,18 +1335,28 @@
       function updateModeUI() {
         const centerMode = state.mode === "segmentation-center";
         const cutMode = state.mode === "segmentation-cut";
+        const layerMode = state.mode === "layer-edit";
         document.body.dataset.mode = state.mode;
-        modePill.textContent = centerMode ? "Mode segmentation" : cutMode ? "Mode cut" : "Mode background";
+        modePill.textContent = centerMode ? "Centrado" : cutMode ? "Cortes" : layerMode ? "Capas" : "Fondo";
         if (cutModePill) {
-          cutModePill.textContent = cutMode ? "Free adjust" : "Mode cut";
+          setPillValue(cutModePill, cutMode ? "Cortes" : "Bloqueado");
         }
         guides.classList.toggle("visible", centerMode && state.showGuides);
         guides.style.opacity = centerMode && state.showGuides ? String(state.guideOpacity) : "0";
         cutGuides.classList.toggle("visible", cutMode);
-        toggleGuidesButton.textContent = state.showGuides ? "Guides on" : "Guides off";
-        toolWand.disabled = centerMode;
-        toolEyedropper.disabled = centerMode;
-        toolEraser.disabled = centerMode;
+        toggleGuidesButton.setAttribute("aria-pressed", String(state.showGuides));
+        toggleGuidesButton.title = state.showGuides
+          ? "Ocultar guías (G)"
+          : "Mostrar guías (G)";
+        toolWand.hidden = layerMode;
+        toolPencil.hidden = !layerMode;
+        toolMove.hidden = !layerMode;
+        toolWand.disabled = centerMode || cutMode;
+        toolPencil.disabled = !layerMode;
+        toolEyedropper.disabled = centerMode || cutMode;
+        toolEraser.disabled = centerMode || cutMode;
+        toolMove.disabled = !layerMode;
+        commitGroup.hidden = centerMode || cutMode;
         zoomOutButton.hidden = centerMode;
         zoomInButton.hidden = centerMode;
         fitButton.hidden = centerMode;
@@ -918,7 +1376,7 @@
         zoomInCutButton.disabled = !cutMode;
         fitCutButton.disabled = !cutMode;
         if (zoomPillCut) {
-          zoomPillCut.textContent = `Zoom ${state.zoom}x`;
+          setPillValue(zoomPillCut, `${state.zoom}×`);
         }
         autocenterButton.hidden = !centerMode || !state.showAutocenter;
         autocropButton.hidden = !centerMode || !state.showAutocrop;
@@ -944,22 +1402,31 @@
         }
         if (overlayNote) {
           overlayNote.innerHTML = centerMode
-            ? "Drag the frame or use <code>← ↑ ↓ →</code> to move 1 px; hold <code>Shift</code> for 5 px. <code>A</code> auto center, <code>C</code> auto crop, <code>G</code> guides, <code>R</code> reset."
+            ? "Arrastra el frame o usa <code>← ↑ ↓ →</code> para mover 1 px; mantén <code>Shift</code> para 5 px. <code>A</code> centra, <code>C</code> activa recorte, <code>G</code> muestra guías y <code>R</code> restablece."
             : cutMode
-              ? "Drag the vertical cut handles. Use the sheet panel to auto cut or enable free adjust."
-            : "Click to interact. <code>I</code> eyedropper, <code>W</code> wand, <code>E</code> eraser, <code>Shift</code> add, <code>Alt/Option</code> subtract, <code>Esc</code> clear selection, <code>Delete</code>/<code>Backspace</code> erase.";
+              ? "Activa el ajuste libre en el panel lateral y arrastra las líneas de corte."
+              : layerMode
+                ? "<code>P</code> lápiz · <code>E</code> borrador · <code>I</code> cuentagotas · <code>M</code> mueve el cel · <code>[</code>/<code>]</code> cambia el radio."
+                : "<code>W</code> varita · <code>I</code> cuentagotas · <code>E</code> borrador · <code>Shift</code> suma · <code>Alt/Option</code> resta · <code>Esc</code> limpia · <code>Delete</code> borra.";
         }
       }
 
       function setActiveTool(tool) {
         const nextTool = normalizeTool(tool);
         state.tool = nextTool;
-        if (nextTool !== "eraser") {
+        if (nextTool !== "eraser" && nextTool !== "pencil") {
           state.strokePath = [];
         }
         toolWand.classList.toggle("active", nextTool === "wand");
+        toolPencil.classList.toggle("active", nextTool === "pencil");
         toolEyedropper.classList.toggle("active", nextTool === "eyedropper");
         toolEraser.classList.toggle("active", nextTool === "eraser");
+        toolMove.classList.toggle("active", nextTool === "move");
+        toolWand.setAttribute("aria-pressed", String(nextTool === "wand"));
+        toolPencil.setAttribute("aria-pressed", String(nextTool === "pencil"));
+        toolEyedropper.setAttribute("aria-pressed", String(nextTool === "eyedropper"));
+        toolEraser.setAttribute("aria-pressed", String(nextTool === "eraser"));
+        toolMove.setAttribute("aria-pressed", String(nextTool === "move"));
         updateCursor();
       }
 
@@ -1098,12 +1565,12 @@
           });
         }
         updateCursor();
-        setFrameHeight();
       }
 
       function updateCursor() {
         const centerMode = state.mode === "segmentation-center";
         const cutMode = state.mode === "segmentation-cut";
+        const layerMove = state.mode === "layer-edit" && state.tool === "move";
         const size = state.tool === "eraser"
           ? Math.max(1, (state.brushRadius * 2 + 1) * state.zoom)
           : Math.max(12, Math.round(state.zoom * 1.5));
@@ -1116,7 +1583,7 @@
         cursorDot.style.left = `${centerX}px`;
         cursorDot.style.top = `${centerY}px`;
         const visible = state.pointerVisible;
-        const crosshair = state.tool === "wand" || state.tool === "eyedropper";
+        const crosshair = state.tool === "wand" || state.tool === "eyedropper" || state.tool === "pencil";
         const eraser = state.tool === "eraser";
         cursorRing.classList.toggle("visible", visible && !cutMode);
         cursorDot.classList.toggle("visible", visible && crosshair && !centerMode && !cutMode);
@@ -1125,7 +1592,11 @@
         cursorRing.classList.toggle("eyedropper", state.tool === "eyedropper");
         cursorRing.classList.toggle("wand", state.tool === "wand");
         canvas.classList.toggle("dragging", centerMode && state.dragging);
-        canvas.style.cursor = centerMode ? (state.dragging ? "grabbing" : "grab") : cutMode ? "default" : "none";
+        canvas.style.cursor = centerMode || layerMove
+          ? (state.dragging ? "grabbing" : "grab")
+          : cutMode
+            ? "default"
+            : "none";
       }
 
       function updateGuidesGeometry() {
@@ -1317,10 +1788,10 @@
         state.zoom = next;
         canvas.style.width = `${state.width * next}px`;
         canvas.style.height = `${state.height * next}px`;
-        zoomPill.textContent = `Zoom ${next}x`;
+        setPillValue(zoomPill, `${next}×`);
         const centerPill = document.getElementById("zoom-pill-center");
         if (centerPill) {
-          centerPill.textContent = `Zoom ${next}x`;
+          setPillValue(centerPill, `${next}×`);
         }
         if (announce) {
           emitValue({
@@ -1330,7 +1801,6 @@
             zoom: next,
           });
         }
-        setFrameHeight();
         requestAnimationFrame(updateCursor);
         requestAnimationFrame(updateGuidesGeometry);
         requestAnimationFrame(updateCutGuidesGeometry);
@@ -1347,7 +1817,7 @@
       function updateSample(sample) {
         if (!sample) {
           state.sample = null;
-          sampleText.textContent = "No sample";
+          sampleText.textContent = "Sin muestra";
           swatch.style.background = "transparent";
           return;
         }
@@ -1355,6 +1825,218 @@
         const [r, g, b, a] = sample;
         sampleText.textContent = `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("").toUpperCase()} · A ${a}`;
         swatch.style.background = `rgb(${r}, ${g}, ${b})`;
+      }
+
+      function updatePendingEdits() {
+        const count = state.pendingEdits.length;
+        pendingEdits.textContent = count ? `Guardar ${count}` : "Guardar";
+        commitEditsButton.classList.toggle("active", count > 0);
+        commitEditsButton.dataset.pending = String(count);
+        commitEditsButton.disabled = count === 0;
+      }
+
+      function normalizeStudioLayers(value) {
+        const source = Array.isArray(value)
+          ? value
+          : Array.isArray(value?.layers)
+            ? value.layers
+            : [];
+        return source.map((entry, index) => {
+          const layer = entry && typeof entry === "object" ? entry : {};
+          return {
+            id: String(layer.id ?? layer.layerId ?? layer.key ?? index),
+            name: String(layer.name ?? layer.label ?? `Capa ${index + 1}`),
+            visible: layer.visible !== false,
+            locked: layer.locked === true,
+            frames: layer.frames ?? layer.cels ?? layer.cells ?? null,
+          };
+        });
+      }
+
+      function studioLayerFrameCount(layer) {
+        if (Array.isArray(layer.frames)) {
+          return layer.frames.length;
+        }
+        if (layer.frames && typeof layer.frames === "object") {
+          return Object.keys(layer.frames)
+            .map((key) => Number(key))
+            .filter((key) => Number.isFinite(key) && key >= 0)
+            .reduce((maximum, key) => Math.max(maximum, key + 1), 0);
+        }
+        return 0;
+      }
+
+      function studioLayerHasCel(layer, frameIndex) {
+        if (Array.isArray(layer.frames)) {
+          const cel = layer.frames[frameIndex];
+          return cel !== undefined && cel !== null && cel !== false;
+        }
+        if (layer.frames && typeof layer.frames === "object") {
+          const cel = layer.frames[frameIndex] ?? layer.frames[String(frameIndex)];
+          return cel !== undefined && cel !== null && cel !== false;
+        }
+        return false;
+      }
+
+      function emitStudio(action, payload) {
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "studio",
+          action,
+          ...payload,
+        });
+      }
+
+      function selectStudioLayer(layerId) {
+        if (!layerId || state.activeLayerId === layerId) {
+          return;
+        }
+        state.activeLayerId = layerId;
+        renderStudioTimeline();
+        emitStudio("select-layer", { layerId });
+      }
+
+      function selectStudioCel(layerId, frameIndex) {
+        if (!layerId || (state.activeLayerId === layerId && state.activeFrame === frameIndex)) {
+          return;
+        }
+        state.activeLayerId = layerId;
+        state.activeFrame = frameIndex;
+        renderStudioTimeline();
+        emitStudio("select-cel", { layerId, frameIndex });
+      }
+
+      function clearStudioDragState() {
+        studioDragLayerId = "";
+        timelineRows.querySelectorAll(".timeline-row.dragging, .timeline-row.drop-target")
+          .forEach((row) => row.classList.remove("dragging", "drop-target"));
+      }
+
+      function renderStudioTimeline() {
+        const hasLayerTimeline = state.mode === "layer-edit" && state.studioLayers.length > 0;
+        studioTimeline.hidden = !hasLayerTimeline;
+        if (!hasLayerTimeline) {
+          timelineSummary.textContent = "";
+          timelineRows.replaceChildren();
+          return;
+        }
+
+        const inferredFrameCount = state.studioLayers.reduce(
+          (maximum, layer) => Math.max(maximum, studioLayerFrameCount(layer)),
+          0,
+        );
+        const frameCount = Math.max(1, state.frameCount, inferredFrameCount, state.activeFrame + 1);
+        const visibleFrameCount = Math.min(frameCount, 48);
+        timelineSummary.textContent = `Frame ${state.activeFrame + 1} / ${frameCount}`;
+        timelineRows.replaceChildren();
+
+        state.studioLayers.forEach((layer) => {
+          const row = document.createElement("div");
+          row.className = "timeline-row";
+          row.dataset.layerId = layer.id;
+          row.draggable = state.studioLayers.length > 1;
+          row.setAttribute("aria-roledescription", "fila de capa reordenable");
+          row.setAttribute("aria-label", `Capa ${layer.name}. Arrastra para reordenar.`);
+          row.classList.toggle("active", layer.id === state.activeLayerId);
+
+          row.addEventListener("dragstart", (event) => {
+            if (event.target instanceof Element && event.target.closest(".timeline-cel")) {
+              event.preventDefault();
+              return;
+            }
+            studioDragLayerId = layer.id;
+            row.classList.add("dragging");
+            event.dataTransfer?.setData("text/plain", layer.id);
+            if (event.dataTransfer) {
+              event.dataTransfer.effectAllowed = "move";
+            }
+          });
+          row.addEventListener("dragover", (event) => {
+            if (!studioDragLayerId || studioDragLayerId === layer.id) {
+              return;
+            }
+            event.preventDefault();
+            if (event.dataTransfer) {
+              event.dataTransfer.dropEffect = "move";
+            }
+            row.classList.add("drop-target");
+          });
+          row.addEventListener("dragleave", (event) => {
+            if (!(event.relatedTarget instanceof Node) || !row.contains(event.relatedTarget)) {
+              row.classList.remove("drop-target");
+            }
+          });
+          row.addEventListener("drop", (event) => {
+            event.preventDefault();
+            const sourceLayerId = studioDragLayerId || event.dataTransfer?.getData("text/plain") || "";
+            const targetLayerId = layer.id;
+            clearStudioDragState();
+            if (!sourceLayerId || sourceLayerId === targetLayerId) {
+              return;
+            }
+            suppressStudioClick = true;
+            window.setTimeout(() => {
+              suppressStudioClick = false;
+            }, 0);
+            emitStudio("reorder-layer", { layerId: sourceLayerId, targetLayerId });
+          });
+          row.addEventListener("dragend", clearStudioDragState);
+
+          const name = document.createElement("button");
+          name.type = "button";
+          name.className = "timeline-layer-name";
+          name.title = `${layer.name}${layer.locked ? " · bloqueada" : ""}`;
+          name.setAttribute("aria-pressed", String(layer.id === state.activeLayerId));
+          name.setAttribute("aria-label", `Seleccionar capa ${layer.name}`);
+          name.textContent = `${layer.visible ? "●" : "○"} ${layer.name}${layer.locked ? " · 🔒" : ""}`;
+          name.addEventListener("click", () => {
+            if (suppressStudioClick) {
+              suppressStudioClick = false;
+              return;
+            }
+            selectStudioLayer(layer.id);
+          });
+          row.appendChild(name);
+
+          const cels = document.createElement("div");
+          cels.className = "timeline-cels";
+          for (let frameIndex = 0; frameIndex < visibleFrameCount; frameIndex += 1) {
+            const cel = document.createElement("button");
+            cel.type = "button";
+            cel.className = "timeline-cel";
+            const hasCel = studioLayerHasCel(layer, frameIndex);
+            cel.classList.toggle("has-cel", hasCel);
+            cel.classList.toggle("current", frameIndex === state.activeFrame);
+            cel.title = `Frame ${frameIndex + 1}${hasCel ? " · cel" : " · vacío"}`;
+            cel.setAttribute(
+              "aria-label",
+              `Seleccionar frame ${frameIndex + 1} de la capa ${layer.name}${hasCel ? " con cel" : " vacío"}`,
+            );
+            cel.setAttribute(
+              "aria-pressed",
+              String(layer.id === state.activeLayerId && frameIndex === state.activeFrame),
+            );
+            cel.addEventListener("click", () => {
+              if (suppressStudioClick) {
+                suppressStudioClick = false;
+                return;
+              }
+              selectStudioCel(layer.id, frameIndex);
+            });
+            cels.appendChild(cel);
+          }
+          row.appendChild(cels);
+          timelineRows.appendChild(row);
+        });
+      }
+
+      function setPillValue(pill, value) {
+        const valueElement = pill.querySelector("span:last-child");
+        if (valueElement) {
+          valueElement.textContent = value;
+          return;
+        }
+        pill.textContent = value;
       }
 
       function draw() {
@@ -1374,11 +2056,13 @@
       function redraw() {
         draw();
         updateModeUI();
+        renderStudioTimeline();
         setZoom(state.zoom);
         setActiveTool(state.tool);
         setBrushRadius(state.brushRadius);
         setGuideOpacity(state.guideOpacity);
         updateSample(state.sample);
+        updatePendingEdits();
         requestAnimationFrame(setFrameHeight);
         requestAnimationFrame(updateCursor);
         requestAnimationFrame(updateCutGuidesGeometry);
@@ -1469,19 +2153,56 @@
         if (!state.strokePath.length) {
           return;
         }
-        const lastPoint = state.strokePath[state.strokePath.length - 1];
-        emitValue({
-          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          type: "pointer",
-          tool: "eraser",
-          button: event.button,
-          x: lastPoint.x,
-          y: lastPoint.y,
+        state.pendingEdits.push({
+          tool: state.tool,
           path: state.strokePath.map((point) => [point.x, point.y]),
           brushRadius: state.brushRadius,
-          dragging: false,
-          ...modifiers(event),
+          color: state.paintColor,
         });
+        updatePendingEdits();
+      }
+
+      function previewStroke(from, to) {
+        const radius = Math.max(0, state.brushRadius - 1);
+        context.save();
+        context.imageSmoothingEnabled = false;
+        context.globalCompositeOperation = state.tool === "eraser" ? "destination-out" : "source-over";
+        const [r, g, b, a = 255] = state.paintColor;
+        context.strokeStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+        context.fillStyle = context.strokeStyle;
+        context.lineWidth = radius * 2 + 1;
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.beginPath();
+        context.moveTo(from.x + 0.5, from.y + 0.5);
+        context.lineTo(to.x + 0.5, to.y + 0.5);
+        context.stroke();
+        if (from.x === to.x && from.y === to.y) {
+          context.beginPath();
+          context.arc(from.x + 0.5, from.y + 0.5, Math.max(0.5, radius + 0.5), 0, Math.PI * 2);
+          context.fill();
+        }
+        context.restore();
+      }
+
+      function sampleCanvas(point) {
+        const sampled = Array.from(context.getImageData(point.x, point.y, 1, 1).data);
+        state.paintColor = sampled;
+        updateSample(sampled);
+      }
+
+      function commitPendingEdits() {
+        if (!state.pendingEdits.length) {
+          return;
+        }
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "edit-batch",
+          edits: state.pendingEdits,
+          sample: state.paintColor,
+        });
+        state.pendingEdits = [];
+        updatePendingEdits();
       }
 
       canvas.addEventListener("contextmenu", (event) => {
@@ -1523,13 +2244,27 @@
           event.preventDefault();
           return;
         }
+        if (state.mode === "layer-edit" && state.tool === "move") {
+          state.dragStartX = point.x;
+          state.dragStartY = point.y;
+          state.dragOriginX = state.offsetX;
+          state.dragOriginY = state.offsetY;
+          event.preventDefault();
+          return;
+        }
         if (state.mode === "segmentation-center") {
           event.preventDefault();
           return;
         }
-        if (state.tool === "eraser") {
+        if (state.tool === "eraser" || (state.mode === "layer-edit" && state.tool === "pencil")) {
           state.strokePath = [point];
+          previewStroke(point, point);
           updateCursor();
+          event.preventDefault();
+          return;
+        }
+        if (state.tool === "eyedropper") {
+          sampleCanvas(point);
           event.preventDefault();
           return;
         }
@@ -1554,16 +2289,28 @@
           state.pointerPixelY = point.y;
           setObjectOffset(nextX, nextY);
           updateCursor();
+        } else if (state.mode === "layer-edit" && state.tool === "move" && state.dragging && (event.buttons & 1)) {
+          const nextX = state.dragOriginX + (point.x - state.dragStartX);
+          const nextY = state.dragOriginY + (point.y - state.dragStartY);
+          state.pointerPixelX = point.x;
+          state.pointerPixelY = point.y;
+          setObjectOffset(nextX, nextY);
+          updateCursor();
         } else if (state.mode === "segmentation-center") {
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
           updateCursor();
-        } else if (state.dragging && state.tool === "eraser" && (event.buttons & 1)) {
+        } else if (
+          state.dragging
+          && (state.tool === "eraser" || (state.mode === "layer-edit" && state.tool === "pencil"))
+          && (event.buttons & 1)
+        ) {
           const last = state.strokePath[state.strokePath.length - 1];
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
           if (!last || last.x !== point.x || last.y !== point.y) {
             state.strokePath.push(point);
+            previewStroke(last || point, point);
           }
           updateCursor();
         } else {
@@ -1582,14 +2329,17 @@
           event.preventDefault();
           return;
         }
-        if (state.tool === "eraser") {
+        if (state.tool === "eraser" || (state.mode === "layer-edit" && state.tool === "pencil")) {
           const last = state.strokePath[state.strokePath.length - 1];
           if (!last || last.x !== point.x || last.y !== point.y) {
             state.strokePath.push(point);
+            previewStroke(last || point, point);
           }
           emitStroke(event);
           state.strokePath = [];
         } else if (state.mode === "segmentation-center" && state.allowDrag) {
+          emitDrag(event, "end", point);
+        } else if (state.mode === "layer-edit" && state.tool === "move") {
           emitDrag(event, "end", point);
         }
         state.dragging = false;
@@ -1600,7 +2350,10 @@
 
       canvas.addEventListener("pointercancel", () => {
         const point = { x: state.pointerPixelX, y: state.pointerPixelY };
-        if (state.mode === "segmentation-center" && state.allowDrag && state.dragging) {
+        if (
+          (state.mode === "segmentation-center" && state.allowDrag && state.dragging)
+          || (state.mode === "layer-edit" && state.tool === "move" && state.dragging)
+        ) {
           emitDrag({ button: 0, shiftKey: false, altKey: false, metaKey: false, ctrlKey: false }, "cancel", point);
         }
         state.dragging = false;
@@ -1656,41 +2409,38 @@
         }
         event.preventDefault();
         const delta = event.deltaY < 0 ? 1 : -1;
-        setZoom(state.zoom + delta, state.mode !== "segmentation-center");
+        setZoom(state.zoom + delta, false);
       }, { passive: false });
 
       canvas.addEventListener("keydown", (event) => {
         const key = event.key.toLowerCase();
+        if ((event.metaKey || event.ctrlKey) && key === "enter") {
+          commitPendingEdits();
+          event.preventDefault();
+          return;
+        }
+        if (key === "p" && state.mode === "layer-edit") {
+          setActiveTool("pencil");
+          event.preventDefault();
+          return;
+        }
+        if (key === "m" && state.mode === "layer-edit") {
+          setActiveTool("move");
+          event.preventDefault();
+          return;
+        }
         if (key === "i" && state.mode !== "segmentation-center") {
           setActiveTool("eyedropper");
-          emitValue({
-            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-            type: "toolbar",
-            action: "tool",
-            tool: "eyedropper",
-          });
           event.preventDefault();
           return;
         }
         if (key === "w" && state.mode !== "segmentation-center") {
           setActiveTool("wand");
-          emitValue({
-            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-            type: "toolbar",
-            action: "tool",
-            tool: "wand",
-          });
           event.preventDefault();
           return;
         }
         if (key === "e" && state.mode !== "segmentation-center") {
           setActiveTool("eraser");
-          emitValue({
-            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-            type: "toolbar",
-            action: "tool",
-            tool: "eraser",
-          });
           event.preventDefault();
           return;
         }
@@ -1755,12 +2505,12 @@
           return;
         }
         if (key === "[") {
-          setBrushRadius(state.brushRadius - 1, true);
+          setBrushRadius(state.brushRadius - 1, false);
           event.preventDefault();
           return;
         }
         if (key === "]") {
-          setBrushRadius(state.brushRadius + 1, true);
+          setBrushRadius(state.brushRadius + 1, false);
           event.preventDefault();
           return;
         }
@@ -1786,7 +2536,9 @@
       });
 
       document.getElementById("toolbar").addEventListener("click", (event) => {
-        const button = event.target.closest("button[data-action]");
+        const button = event.composedPath().find(
+          (target) => target instanceof HTMLElement && target.matches("button[data-action]"),
+        ) || event.target.closest?.("button[data-action]");
         if (!button) {
           return;
         }
@@ -1794,37 +2546,36 @@
         if (action === "tool") {
           const tool = button.dataset.tool || "wand";
           setActiveTool(tool);
-          emitValue({
-            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-            type: "toolbar",
-            action: "tool",
-            tool,
-          });
+          focusCanvas();
+          return;
+        }
+        if (action === "commit-edits") {
+          commitPendingEdits();
           focusCanvas();
           return;
         }
         if (action === "brush-radius-up") {
-          setBrushRadius(state.brushRadius + 1, true);
+          setBrushRadius(state.brushRadius + 1, false);
           focusCanvas();
           return;
         }
         if (action === "brush-radius-down") {
-          setBrushRadius(state.brushRadius - 1, true);
+          setBrushRadius(state.brushRadius - 1, false);
           focusCanvas();
           return;
         }
         if (action === "zoom-in") {
-          setZoom(state.zoom + 1, state.mode !== "segmentation-center");
+          setZoom(state.zoom + 1, false);
           focusCanvas();
           return;
         }
         if (action === "zoom-out") {
-          setZoom(state.zoom - 1, state.mode !== "segmentation-center");
+          setZoom(state.zoom - 1, false);
           focusCanvas();
           return;
         }
         if (action === "fit") {
-          setZoom(computeFitZoom(), state.mode !== "segmentation-center");
+          setZoom(computeFitZoom(), false);
           scheduleViewportFocus();
           focusCanvas();
           return;
@@ -1968,6 +2719,18 @@
         if (Object.prototype.hasOwnProperty.call(args, "frameToken")) {
           state.frameToken = String(args.frameToken || "");
         }
+        if (hasOwn(args, "studioLayers")) {
+          state.studioLayers = normalizeStudioLayers(args.studioLayers);
+        }
+        if (hasOwn(args, "activeLayerId")) {
+          state.activeLayerId = String(args.activeLayerId ?? "");
+        }
+        if (hasOwn(args, "activeFrame")) {
+          state.activeFrame = Math.max(0, Math.round(finiteNumber(args.activeFrame, 0)));
+        }
+        if (hasOwn(args, "frameCount")) {
+          state.frameCount = Math.max(0, Math.round(finiteNumber(args.frameCount, 0)));
+        }
         if (state.activeFrameToken && state.activeFrameToken !== state.frameToken) {
           frameStateByToken.set(state.activeFrameToken, captureFrameState());
         }
@@ -1977,6 +2740,9 @@
         setMode(String(args.mode || state.mode || "background"));
         state.brushRadius = Math.max(1, Math.round(Number(args.brushRadius || state.brushRadius || 5)));
         state.sample = Array.isArray(args.sample) ? args.sample.slice(0, 4) : null;
+        state.paintColor = Array.isArray(args.paintColor)
+          ? args.paintColor.slice(0, 4)
+          : (state.sample || state.paintColor);
         if (Object.prototype.hasOwnProperty.call(args, "offsetX")) {
           state.offsetX = Math.round(Number(args.offsetX || 0));
         }
@@ -2082,7 +2848,12 @@
               state.zoom = Math.max(1, Math.round(Number(args.zoom || state.zoom || 8)));
             }
           }
-          if (state.mode === "segmentation-center" && state.fitOnLoad && state.fitToken && state.fitToken !== state.fitAppliedToken) {
+          if (
+            (state.mode === "segmentation-center" || state.mode === "layer-edit")
+            && state.fitOnLoad
+            && state.fitToken
+            && state.fitToken !== state.fitAppliedToken
+          ) {
             state.fitAppliedToken = state.fitToken;
             state.zoom = computeFitZoom();
             state.initialized = true;

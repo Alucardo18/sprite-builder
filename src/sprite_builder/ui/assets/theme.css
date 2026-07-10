@@ -19,6 +19,21 @@ html, body, [data-testid="stAppViewContainer"] {
   color: var(--sb-text);
 }
 
+/* Editing is the primary job of this app.  Streamlit's default block width is
+   comfortable for a dashboard but needlessly constrains a sprite canvas. */
+[data-testid="stAppViewContainer"] > .main,
+[data-testid="stAppViewContainer"] > .main > div {
+  min-width: 0;
+  max-width: none;
+}
+
+[data-testid="stMainBlockContainer"],
+[data-testid="stAppViewContainer"] .block-container {
+  width: 100%;
+  max-width: none;
+  padding: 1rem 1.5rem 3rem;
+}
+
 [data-testid="stHeader"] {
   background: rgba(8, 11, 19, .55);
   backdrop-filter: blur(18px);
@@ -40,6 +55,18 @@ html, body, [data-testid="stAppViewContainer"] {
   background: linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
   box-shadow: 0 18px 55px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255,255,255,.08);
   backdrop-filter: blur(18px) saturate(120%);
+}
+
+[data-testid="stExpander"] {
+  border: 1px solid var(--sb-border);
+  border-radius: 14px;
+  background: rgba(255,255,255,.035);
+  overflow: hidden;
+}
+
+[data-testid="stExpander"] summary {
+  color: #e8edfb;
+  font-weight: 650;
 }
 
 h1, h2, h3 {
@@ -162,6 +189,129 @@ p, label, [data-testid="stCaptionContainer"] {
   background: rgba(255,255,255,.04);
   color: #dce3f5;
   font-size: .78rem;
+}
+
+.editor-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: .1rem .05rem .75rem;
+}
+
+.editor-heading h4 {
+  margin: .12rem 0 0;
+  color: var(--sb-text);
+  font-size: 1rem;
+}
+
+.editor-kicker {
+  color: var(--sb-cyan);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.editor-hint {
+  color: var(--sb-muted);
+  font-size: .76rem;
+  text-align: right;
+}
+
+.studio-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  margin: .1rem 0 .9rem;
+}
+
+.studio-summary span {
+  padding: .38rem .6rem;
+  border: 1px solid rgba(91, 223, 255, .16);
+  border-radius: 999px;
+  background: rgba(91, 223, 255, .055);
+  color: #dbe9ff;
+  font: 700 .7rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.studio-workspace {
+  margin: .15rem 0 .7rem;
+}
+
+.studio-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+  padding: .7rem .85rem;
+  margin-bottom: .75rem;
+  border: 1px solid rgba(91, 223, 255, .18);
+  border-radius: 14px;
+  background: linear-gradient(100deg, rgba(91,223,255,.08), rgba(157,124,255,.09));
+}
+
+.studio-toolbar-title {
+  color: var(--sb-text);
+  font-weight: 760;
+}
+
+.studio-toolbar-copy {
+  margin-top: .12rem;
+  color: var(--sb-muted);
+  font-size: .78rem;
+}
+
+.studio-dock-label {
+  display: grid;
+  grid-template-columns: 2.35rem 2.35rem minmax(0, 1fr);
+  gap: .3rem;
+  margin: .15rem .15rem .45rem;
+  color: var(--sb-muted);
+  font-size: .66rem;
+  font-weight: 750;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.studio-canvas-shell {
+  min-width: 0;
+}
+
+.studio-timeline {
+  margin-top: .85rem;
+  padding: .8rem;
+  border: 1px solid var(--sb-border);
+  border-radius: 16px;
+  background: rgba(8, 12, 22, .34);
+}
+
+.studio-pipeline-note {
+  margin: .2rem 0 .75rem;
+  color: var(--sb-muted);
+  font-size: .78rem;
+}
+
+@media (max-width: 760px) {
+  [data-testid="stMainBlockContainer"],
+  [data-testid="stAppViewContainer"] .block-container {
+    padding-left: .8rem;
+    padding-right: .8rem;
+  }
+
+  .editor-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .editor-hint {
+    text-align: left;
+  }
+
+  .studio-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 #MainMenu, footer { visibility: hidden; }
