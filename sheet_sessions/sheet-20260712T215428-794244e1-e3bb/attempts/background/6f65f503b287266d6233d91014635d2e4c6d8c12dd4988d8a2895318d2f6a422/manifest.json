@@ -1,0 +1,97 @@
+{
+  "cache_key": "6f65f503b287266d6233d91014635d2e4c6d8c12dd4988d8a2895318d2f6a422",
+  "config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 150.0
+  },
+  "created_at": "2026-07-12T22:05:50.423910+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/source/794244e115c42324ae976e99beb7f854fa2a468146ea004441a9dff4c7cf1715.png",
+      "role": "source",
+      "sha256": "794244e115c42324ae976e99beb7f854fa2a468146ea004441a9dff4c7cf1715",
+      "size_bytes": 1274838
+    }
+  ],
+  "metadata": {
+    "manual_edit_operations": {
+      "0": [
+        {
+          "bbox": [
+            488,
+            814,
+            490,
+            820
+          ],
+          "kind": "erase_mask",
+          "rows": [
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                1,
+                2
+              ]
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/attempts/background/6f65f503b287266d6233d91014635d2e4c6d8c12dd4988d8a2895318d2f6a422/frame_000.png",
+      "role": "output",
+      "sha256": "cef8c2e577dfb99670f01b555c0ef9ab370c2ac5aa09a11e525a890f4957ac21",
+      "size_bytes": 1431934
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260712T215428-794244e1-e3bb",
+  "stage": "background",
+  "status": "passed",
+  "warnings": []
+}

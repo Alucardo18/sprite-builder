@@ -1,0 +1,63 @@
+{
+  "cache_key": "79f954fdc8c4115727930d3771a8e67842f309ab227d6448daf2181bc9b43743",
+  "config": {
+    "canvas_height": 1024,
+    "canvas_width": 481,
+    "layer_document_cache_key": "5c4e2347f2a8dd7d71524cd78d87d4bfa270d35870c461a63bdfbe0bbebdd498"
+  },
+  "created_at": "2026-07-09T23:36:52.484316+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/source/f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f.png",
+      "role": "source",
+      "sha256": "f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f",
+      "size_bytes": 1361501
+    }
+  ],
+  "metadata": {
+    "layer_document": {
+      "cache_key": "5c4e2347f2a8dd7d71524cd78d87d4bfa270d35870c461a63bdfbe0bbebdd498",
+      "document_id": "sprite-393e68851968",
+      "manifest": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/layers/5c4e2347f2a8dd7d71524cd78d87d4bfa270d35870c461a63bdfbe0bbebdd498/manifest.json",
+      "revision": 4
+    },
+    "reason": "publish-to-pipeline"
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/artwork/79f954fdc8c4115727930d3771a8e67842f309ab227d6448daf2181bc9b43743/frame_000.png",
+      "role": "output",
+      "sha256": "c88ff5db27ad64d1b258424637dacddc4322f4a614efe6ac7c9d0675ec1d5796",
+      "size_bytes": 134606
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/artwork/79f954fdc8c4115727930d3771a8e67842f309ab227d6448daf2181bc9b43743/frame_001.png",
+      "role": "output",
+      "sha256": "7a77f95d4f3d7f0e6332d0f7ac0caacd9b6e9b56461bf6293913284219b3a16e",
+      "size_bytes": 192935
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/artwork/79f954fdc8c4115727930d3771a8e67842f309ab227d6448daf2181bc9b43743/frame_002.png",
+      "role": "output",
+      "sha256": "334258d0bb2af59ffe466f30e8c70332a5699a0faeb60e3f239b6d65f6757b08",
+      "size_bytes": 260773
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/artwork/79f954fdc8c4115727930d3771a8e67842f309ab227d6448daf2181bc9b43743/frame_003.png",
+      "role": "output",
+      "sha256": "51f7064e1c15c27d877785b0a285e63694ddd43cf50b88c345d8a29d9c4f7503",
+      "size_bytes": 294943
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260706T221816-f2660d45-76be",
+  "stage": "artwork",
+  "status": "passed",
+  "warnings": []
+}

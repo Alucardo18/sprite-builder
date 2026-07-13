@@ -1,0 +1,313 @@
+{
+  "cache_key": "1a01e4ac1520fd877e91d6c46e5116d2a2274a5c513da131ca863308e091b8df",
+  "config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      252,
+      252,
+      252
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 135.0
+  },
+  "created_at": "2026-07-12T20:47:39.621366+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/source/61c867338710ee112bcf3c1c8b8f5beaee5b13ef4cf8137393b19aad196a11d7.png",
+      "role": "source",
+      "sha256": "61c867338710ee112bcf3c1c8b8f5beaee5b13ef4cf8137393b19aad196a11d7",
+      "size_bytes": 1385215
+    }
+  ],
+  "metadata": {
+    "manual_edit_operations": {
+      "0": [
+        {
+          "bbox": [
+            486,
+            571,
+            490,
+            588
+          ],
+          "kind": "erase_mask",
+          "rows": [
+            [
+              [
+                0,
+                4
+              ]
+            ],
+            [
+              [
+                0,
+                4
+              ]
+            ],
+            [
+              [
+                0,
+                4
+              ]
+            ],
+            [
+              [
+                0,
+                4
+              ]
+            ],
+            [
+              [
+                0,
+                4
+              ]
+            ],
+            [
+              [
+                0,
+                4
+              ]
+            ],
+            [
+              [
+                0,
+                4
+              ]
+            ],
+            [
+              [
+                0,
+                4
+              ]
+            ],
+            [
+              [
+                0,
+                4
+              ]
+            ],
+            [
+              [
+                0,
+                4
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                2
+              ]
+            ]
+          ]
+        },
+        {
+          "bbox": [
+            730,
+            1041,
+            733,
+            1045
+          ],
+          "kind": "erase_mask",
+          "rows": [
+            [
+              [
+                0,
+                3
+              ]
+            ],
+            [
+              [
+                0,
+                3
+              ]
+            ],
+            [
+              [
+                0,
+                3
+              ]
+            ],
+            [
+              [
+                0,
+                1
+              ]
+            ]
+          ]
+        },
+        {
+          "bbox": [
+            730,
+            1041,
+            733,
+            1046
+          ],
+          "kind": "erase_mask",
+          "rows": [
+            [
+              [
+                0,
+                3
+              ]
+            ],
+            [
+              [
+                0,
+                3
+              ]
+            ],
+            [
+              [
+                0,
+                3
+              ]
+            ],
+            [
+              [
+                0,
+                1
+              ]
+            ],
+            [
+              [
+                0,
+                1
+              ]
+            ]
+          ]
+        },
+        {
+          "bbox": [
+            729,
+            1040,
+            731,
+            1042
+          ],
+          "kind": "erase_mask",
+          "rows": [
+            [
+              [
+                1,
+                2
+              ]
+            ],
+            [
+              [
+                0,
+                1
+              ]
+            ]
+          ]
+        },
+        {
+          "bbox": [
+            733,
+            1039,
+            735,
+            1040
+          ],
+          "kind": "erase_mask",
+          "rows": [
+            [
+              [
+                0,
+                2
+              ]
+            ]
+          ]
+        },
+        {
+          "bbox": [
+            733,
+            1038,
+            734,
+            1039
+          ],
+          "kind": "erase_mask",
+          "rows": [
+            [
+              [
+                0,
+                1
+              ]
+            ]
+          ]
+        },
+        {
+          "bbox": [
+            736,
+            1037,
+            737,
+            1038
+          ],
+          "kind": "erase_mask",
+          "rows": [
+            [
+              [
+                0,
+                1
+              ]
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/attempts/background/1a01e4ac1520fd877e91d6c46e5116d2a2274a5c513da131ca863308e091b8df/frame_000.png",
+      "role": "output",
+      "sha256": "03bcec3778dd56580d391e10797290b9e29524993cdb8a683deb97b03f5f9109",
+      "size_bytes": 1563233
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260712T174415-61c86733-fc05",
+  "stage": "background",
+  "status": "passed",
+  "warnings": []
+}

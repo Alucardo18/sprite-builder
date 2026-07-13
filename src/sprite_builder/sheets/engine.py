@@ -37,6 +37,12 @@ class CenteringResult:
 
 
 @dataclass(frozen=True, slots=True)
+class CenteringAnalysis:
+    detections: tuple[AnchorDetection, ...]
+    bboxes: tuple[tuple[int, int, int, int], ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ExportCropResult:
     frames: tuple[Image.Image, ...]
     bbox: tuple[int, int, int, int]
@@ -182,28 +188,12 @@ def _body_detections(
     return detections, bboxes
 
 
-def auto_center_frames(
+def analyze_center_frames(
     frames: Sequence[Image.Image],
     config: AutoCenterConfig,
-    *,
-    manual_offsets: Sequence[tuple[int, int]] | None = None,
-    locked: Sequence[bool] | None = None,
-    notes: Sequence[str] | None = None,
-    overflow_strategy: OverflowStrategy = "strict",
-) -> CenteringResult:
+) -> CenteringAnalysis:
     if not frames:
         raise ValueError("At least one frame is required")
-    if config.canvas_width <= 0 or config.canvas_height <= 0:
-        raise ValueError("Canvas dimensions must be positive")
-    if not 0 <= config.confidence_threshold <= 1:
-        raise ValueError("Confidence threshold must be between 0 and 1")
-
-    offsets = tuple(manual_offsets or ((0, 0),) * len(frames))
-    locks = tuple(locked or (False,) * len(frames))
-    frame_notes = tuple(notes or ("",) * len(frames))
-    if not (len(offsets) == len(locks) == len(frame_notes) == len(frames)):
-        raise ValueError("Frame adjustment counts differ")
-
     if config.method == "body":
         detections, bboxes = _body_detections(frames)
     elif config.method == "bounding_box":
@@ -212,6 +202,31 @@ def auto_center_frames(
         bboxes = [item[1] for item in pairs]
     else:
         raise ValueError(f"Unsupported center method: {config.method}")
+    return CenteringAnalysis(tuple(detections), tuple(bboxes))
+
+
+def _apply_centering(
+    frames: Sequence[Image.Image],
+    config: AutoCenterConfig,
+    analysis: CenteringAnalysis,
+    *,
+    manual_offsets: Sequence[tuple[int, int]] | None = None,
+    locked: Sequence[bool] | None = None,
+    notes: Sequence[str] | None = None,
+    overflow_strategy: OverflowStrategy = "strict",
+    target_anchor: tuple[float, float] | None = None,
+) -> CenteringResult:
+    offsets = tuple(manual_offsets or ((0, 0),) * len(frames))
+    locks = tuple(locked or (False,) * len(frames))
+    frame_notes = tuple(notes or ("",) * len(frames))
+    if not (len(offsets) == len(locks) == len(frame_notes) == len(frames)):
+        raise ValueError("Frame adjustment counts differ")
+    if len(analysis.detections) != len(frames) or len(analysis.bboxes) != len(frames):
+        raise ValueError("Frame analysis counts differ")
+
+    detections = analysis.detections
+    bboxes = analysis.bboxes
+    target = config.canonical_anchor if target_anchor is None else tuple(map(float, target_anchor))
 
     applied_translations: list[tuple[int, int]] | None = None
     canvas_shift_x = 0
@@ -221,7 +236,7 @@ def auto_center_frames(
             frames,
             detections,
             canvas_size=(config.canvas_width, config.canvas_height),
-            target_anchor=config.canonical_anchor,
+            target_anchor=target,
             manual_offsets=offsets,
         )
     elif overflow_strategy == "clamp":
@@ -241,8 +256,8 @@ def auto_center_frames(
             y1, x1 = alpha_points.max(axis=0) + 1
             detection = detections[index]
             manual = offsets[index]
-            ideal_dx = round(config.canonical_anchor[0] - detection.anchor[0]) + int(manual[0])
-            ideal_dy = round(config.canonical_anchor[1] - detection.anchor[1]) + int(manual[1])
+            ideal_dx = round(target[0] - detection.anchor[0]) + int(manual[0])
+            ideal_dy = round(target[1] - detection.anchor[1]) + int(manual[1])
             translated_x0 = int(x0) + ideal_dx
             translated_y0 = int(y0) + ideal_dy
             translated_x1 = int(x1) + ideal_dx
@@ -251,13 +266,7 @@ def auto_center_frames(
             min_canvas_y = min(min_canvas_y, translated_y0)
             max_canvas_x = max(max_canvas_x, translated_x1)
             max_canvas_y = max(max_canvas_y, translated_y1)
-            frame_data.append(
-                (
-                    arr,
-                    ideal_dx,
-                    ideal_dy,
-                )
-            )
+            frame_data.append((arr, ideal_dx, ideal_dy))
         canvas_shift_x = -min_canvas_x
         canvas_shift_y = -min_canvas_y
         canvas_width = max_canvas_x - min_canvas_x
@@ -289,14 +298,14 @@ def auto_center_frames(
     for index, (detection, offset, bbox) in enumerate(
         zip(detections, offsets, bboxes, strict=True)
     ):
-        dx = round(config.canonical_anchor[0] - detection.anchor[0]) + offset[0]
-        dy = round(config.canonical_anchor[1] - detection.anchor[1]) + offset[1]
+        dx = round(target[0] - detection.anchor[0]) + offset[0]
+        dy = round(target[1] - detection.anchor[1]) + offset[1]
         if applied_translations is not None:
             dx, dy = applied_translations[index]
         transformed = (detection.anchor[0] + dx, detection.anchor[1] + dy)
         expected = (
-            config.canonical_anchor[0] + offset[0] + canvas_shift_x,
-            config.canonical_anchor[1] + offset[1] + canvas_shift_y,
+            target[0] + offset[0] + canvas_shift_x,
+            target[1] + offset[1] + canvas_shift_y,
         )
         residuals.append(float(np.linalg.norm(np.subtract(transformed, expected))))
         if index:
@@ -323,10 +332,7 @@ def auto_center_frames(
                 locked=locks[index],
                 notes=frame_notes[index],
                 manual_review=(
-                    (
-                        detection.confidence < config.confidence_threshold
-                        or overflow_strategy == "clamp"
-                    )
+                    detection.confidence < config.confidence_threshold
                     and not locks[index]
                 ),
             )
@@ -347,6 +353,36 @@ def auto_center_frames(
         "mean_confidence": float(np.mean([item.auto_confidence for item in adjustments])),
     }
     return CenteringResult(tuple(aligned), tuple(adjustments), jitter, status)
+
+
+def auto_center_frames(
+    frames: Sequence[Image.Image],
+    config: AutoCenterConfig,
+    *,
+    manual_offsets: Sequence[tuple[int, int]] | None = None,
+    locked: Sequence[bool] | None = None,
+    notes: Sequence[str] | None = None,
+    overflow_strategy: OverflowStrategy = "strict",
+    analysis: CenteringAnalysis | None = None,
+    target_anchor: tuple[float, float] | None = None,
+) -> CenteringResult:
+    if not frames:
+        raise ValueError("At least one frame is required")
+    if config.canvas_width <= 0 or config.canvas_height <= 0:
+        raise ValueError("Canvas dimensions must be positive")
+    if not 0 <= config.confidence_threshold <= 1:
+        raise ValueError("Confidence threshold must be between 0 and 1")
+    analysis = analysis or analyze_center_frames(frames, config)
+    return _apply_centering(
+        frames,
+        config,
+        analysis,
+        manual_offsets=manual_offsets,
+        locked=locked,
+        notes=notes,
+        overflow_strategy=overflow_strategy,
+        target_anchor=target_anchor,
+    )
 
 
 def checkerboard(
@@ -469,29 +505,56 @@ def render_contact_sheet(
     if show_cell_guides or show_center_axes or show_anchor_guides:
         guided = output.convert("RGB")
         guide_draw = ImageDraw.Draw(guided)
+        cell_width = width * scale
+        cell_height = height * scale
+        if show_cell_guides:
+            guide_width = max(1, min(2, scale))
+            grid_left = padding
+            grid_top = padding
+            grid_right = padding + columns * cell_width - 1
+            grid_bottom = padding + rows * cell_height - 1
+            # Draw one continuous grid instead of inset rectangles per frame. Inset
+            # rectangles left dark gaps at every shared edge and clipped the outer
+            # cuts, which made enabled guides look incomplete in Export.
+            for column in range(columns + 1):
+                grid_x = (
+                    grid_right
+                    if column == columns
+                    else grid_left + column * cell_width
+                )
+                guide_draw.line(
+                    (grid_x, grid_top, grid_x, grid_bottom),
+                    fill=(91, 223, 255),
+                    width=guide_width,
+                )
+            for row in range(rows + 1):
+                grid_y = (
+                    grid_bottom
+                    if row == rows
+                    else grid_top + row * cell_height
+                )
+                guide_draw.line(
+                    (grid_left, grid_y, grid_right, grid_y),
+                    fill=(91, 223, 255),
+                    width=guide_width,
+                )
         for index, _frame in enumerate(frames):
             adjustment = adjustments[index] if adjustments else None
-            x = padding + (index % columns) * width * scale
-            y = padding + (index // columns) * height * scale
-            cell_x1 = x + width * scale - 1
-            cell_y1 = y + height * scale - 1
+            x = padding + (index % columns) * cell_width
+            y = padding + (index // columns) * cell_height
+            cell_x1 = x + cell_width - 1
+            cell_y1 = y + cell_height - 1
             axis_x = x + (width // 2) * scale
             axis_y = y + (height // 2) * scale
-            if show_cell_guides:
-                guide_draw.rectangle(
-                    (x + 1, y + 1, cell_x1 - 1, cell_y1 - 1),
-                    outline=(91, 223, 255),
-                    width=max(1, min(2, scale)),
-                )
             if show_center_axes:
                 axis_width = max(2, min(3, scale + 1))
                 guide_draw.line(
-                    (axis_x, y + 1, axis_x, cell_y1 - 1),
+                    (axis_x, y, axis_x, cell_y1),
                     fill=(255, 255, 255),
                     width=axis_width,
                 )
                 guide_draw.line(
-                    (x + 1, axis_y, cell_x1 - 1, axis_y),
+                    (x, axis_y, cell_x1, axis_y),
                     fill=(255, 255, 255),
                     width=axis_width,
                 )

@@ -1,0 +1,24 @@
+{
+  "animation": "walk",
+  "candidate_index": 0,
+  "character_id": "tzucan",
+  "direction": "up",
+  "frame_index": 3,
+  "job_id": "tzucan-walk-north-v001",
+  "output_filename": "walk_up_003_candidate_00_96d178d1151d10cc321c.png",
+  "phase": "recovery",
+  "prompt_path": "jobs/tzucan-walk-north-v001/generation/prompts/up_003_31821cba3ce2.txt",
+  "quality": "medium",
+  "reference_paths": [
+    "/var/folders/f5/cqm56341731fj474ff6t_rqc0000gn/T/codex-clipboard-8f970433-f624-4dfd-93af-b8197e59ad9e.png"
+  ],
+  "request_id": "96d178d1151d10cc321c",
+  "schema_version": "1.0",
+  "seed_source_path": null,
+  "source_kind": "generated",
+  "source_size": [
+    1024,
+    1024
+  ],
+  "status": "prepared"
+}

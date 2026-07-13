@@ -35,6 +35,7 @@ def test_pixel_editor_forwards_manual_guide_contract(monkeypatch) -> None:
         Image.new("RGBA", (16, 12)),
         tool="drag",
         mode="segmentation-center",
+        paint_color=(12, 34, 56, 255),
         show_guides=True,
         guide_opacity=0.45,
         show_cell_center=False,
@@ -61,6 +62,48 @@ def test_pixel_editor_forwards_manual_guide_contract(monkeypatch) -> None:
     assert captured["targetAnchorX"] == 8
     assert captured["targetAnchorY"] == 7
     assert captured["showAnchorDelta"] is True
+    assert captured["paintColor"] == (12, 34, 56, 255)
+
+
+def test_pixel_editor_forwards_the_layer_frame_matrix(monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_component(**kwargs: Any) -> None:
+        captured.update(kwargs)
+        return None
+
+    monkeypatch.setattr(components, "_PIXEL_EDITOR", fake_component)
+    components.pixel_editor(
+        Image.new("RGBA", (16, 12)),
+        tool="pencil",
+        mode="layer-edit",
+        studio_layers=(
+            {
+                "layerId": "retouch",
+                "name": "Retoque",
+                "visible": True,
+                "locked": False,
+                "cels": (True, True, False),
+            },
+        ),
+        active_layer_id="retouch",
+        active_frame=1,
+        frame_count=3,
+        key="studio-contract",
+    )
+
+    assert captured["studioLayers"] == [
+        {
+            "layerId": "retouch",
+            "name": "Retoque",
+            "visible": True,
+            "locked": False,
+            "cels": (True, True, False),
+        }
+    ]
+    assert captured["activeLayerId"] == "retouch"
+    assert captured["activeFrame"] == 1
+    assert captured["frameCount"] == 3
 
 
 def test_pixel_editor_guide_defaults_are_backward_compatible() -> None:
@@ -119,12 +162,165 @@ def test_center_canvas_uses_a_stable_component_key() -> None:
 def test_sheet_canvas_exposes_free_adjust_controls() -> None:
     source = _ui_app_source()
 
-    assert '"Auto cut"' in source
-    assert '"Free adjust"' in source
+    assert '"Cortes automáticos"' in source
+    assert '"Ajuste manual"' in source
     assert 'mode="segmentation-cut"' in source
     assert 'cut_positions=st.session_state[f"{prefix}:segmentation_cut_positions"]' in source
     assert 'segmentation_free_adjust_widget' in source
-    assert 'segmentation_cut_zoom_widget_sync' in source
+    assert 'cut_positions_x=st.session_state.get(' in source
+    assert 'cut_positions_y=st.session_state.get(' in source
+    assert source.index('free_adjust_enabled =') < source.index('mode="segmentation-cut"')
+
+
+def test_cut_canvas_supports_vertical_and_horizontal_handles() -> None:
+    source = _component_source()
+
+    assert "cutPositionsX" in source
+    assert "cutPositionsY" in source
+    assert 'cut-boundary${axis === "y" ? " horizontal" : ""}' in source
+    assert 'cursor: row-resize' in source
+    assert 'cutAxis: state.cutDraggingAxis' in source
+
+
+def test_cut_drag_only_syncs_with_streamlit_when_the_drag_ends() -> None:
+    source = _component_source()
+
+    pointer_move = source[source.index('document.addEventListener("pointermove"') :]
+    pointer_move = pointer_move[: pointer_move.index('document.addEventListener("pointerup"')]
+    assert "updateCutGhostPosition(" in pointer_move
+    assert "commitCutPosition(" not in pointer_move
+    assert "emitCutState(" not in pointer_move
+    assert 'emitCutState(event, "end", positionsForAxis)' in source
+    assert "state.cutCommitPending = {" in source
+    assert "pendingAcknowledged" in source
+    assert "pendingExpired" in source
+
+
+def test_sheet_cut_commit_immediately_reruns_with_confirmed_state() -> None:
+    source = _ui_app_source()
+
+    handler = source[source.index("changed = _handle_segmentation_cut_event(") :]
+    handler = handler[: handler.index("else:\n            with st.container", 1)]
+    assert 'event.get("type") == "cut"' in handler
+    assert 'event.get("action") == "end"' in handler
+    assert "st.rerun()" in handler
+
+
+def test_cut_drag_uses_a_transient_half_opacity_ghost() -> None:
+    source = _component_source()
+
+    assert "const guideOverlayVisible = cutMode || (centerMode && state.showGuides)" in source
+    assert 'guides.style.opacity = cutMode\n          ? "1"' in source
+    assert 'guides.style.opacity = state.mode === "segmentation-cut"\n          ? "1"' in source
+    assert ".cut-boundary.ghost" in source
+    assert "background: rgba(255, 196, 91, 0.5)" in source
+    assert "width: 3px" in source
+    assert ".cut-ghost-label" in source
+    assert 'label.textContent = `${axis.toUpperCase()} ${clamped}px`' in source
+    assert 'ghost.className = `cut-boundary ghost${axis === "y" ? " horizontal" : ""}`' in source
+    assert "state.cutGhostPosition = clamped" in source
+    assert "removeCutGhost();" in source
+    assert "endCutDrag(event, false);" in source
+
+
+def test_pixel_editor_toolbar_uses_svg_icons_and_accessible_names() -> None:
+    source = _component_source()
+
+    for icon in (
+        "icon-wand",
+        "icon-eyedropper",
+        "icon-eraser",
+        "icon-zoom-in",
+        "icon-zoom-out",
+        "icon-fit",
+        "icon-pencil",
+        "icon-move",
+    ):
+        assert f'id="{icon}"' in source
+    assert 'aria-label="Acercar"' in source
+    assert 'aria-label="Alejar"' in source
+    assert 'title="Varita (W)"' in source
+
+
+def test_pixel_editor_supports_layer_edit_tools_and_events() -> None:
+    source = _component_source()
+
+    assert 'mode === "layer-edit"' in source
+    assert 'data-tool="pencil"' in source
+    assert 'data-tool="move"' in source
+    assert 'type: "edit-batch"' in source
+    assert "pendingEdits" in source
+    assert "previewStroke" in source
+    assert 'color: state.paintColor' in source
+    assert "drawPendingEdits();" in source
+    assert "imageUrl === state.imageUrl ? state.image : loadImage(imageUrl)" in source
+    assert 'state.mode === "layer-edit"' in source
+    assert "state.moveBase" in source
+
+
+def test_pixel_editor_supports_studio_crop_tools() -> None:
+    source = _component_source()
+    app_source = _ui_app_source()
+
+    for tool in ("crop_lasso", "crop_rect", "crop_ellipse"):
+        assert f'data-tool="{tool}"' in source
+        assert f'nextTool === "{tool}"' in source
+        assert f'"{tool}"' in app_source
+    assert 'type: isSelectionTool(state.tool) ? "selection" : "crop"' in source
+    assert "drawCropPreview" in source
+    assert "emitCrop" in source
+    assert "isShapeTool(state.tool)" in source
+    assert "_extract_layer_piece(image, mask)" in app_source
+    assert 'layer_editor_floating_selection' in app_source
+    assert 'type: "floating-transform"' in source
+    assert "drawFloatingSelection" in source
+    assert "floating_selection=floating_piece" in app_source
+    assert "_layer_crop_mask_from_event" in app_source
+    assert "_crop_target_layer_id" in app_source
+    assert "_opaque_crop_mask" in app_source
+
+
+def test_studio_timeline_selects_cels_and_reorders_layers() -> None:
+    source = _component_source()
+
+    assert 'emitStudio("select-layer"' in source
+    assert 'emitStudio("select-cel"' in source
+    assert 'emitStudio("reorder-layer"' in source
+    assert 'row.draggable = state.studioLayers.length > 1' in source
+    assert 'button.timeline-cel' in source
+
+
+def test_layer_eyedropper_accepts_the_canvas_click_event() -> None:
+    source = _ui_app_source()
+
+    assert 'event_type in {"pointer", "pointerdown"} and tool == "eyedropper"' in source
+    assert 'layer_editor_color_picker_sync' in source
+
+
+def test_component_events_do_not_force_a_second_streamlit_rerun() -> None:
+    source = _ui_app_source()
+
+    for handler in (
+        "_handle_segmentation_cut_event",
+        "_handle_background_editor_event",
+        "_handle_center_editor_event",
+    ):
+        start = source.index(f"changed = {handler}")
+        window = source[start : start + 500]
+        assert "st.rerun()" not in window
+
+    # Crop and cancel need an immediate refresh so the component receives the
+    # temporary floating selection instead of a stale flattened canvas.
+    assert '"selection-command",' in source
+    assert '"floating-selection",' in source
+
+
+def test_background_editor_keeps_zoom_and_tools_in_the_canvas_toolbar() -> None:
+    source = _ui_app_source()
+
+    assert '"Zoom 100%"' not in source
+    assert '"Modo editor ancho"' not in source
+    assert '"Lienzo amplio"' in source
 
 
 def test_cut_canvas_exposes_zoom_and_fit_controls() -> None:
@@ -244,13 +440,11 @@ def test_component_guide_layer_changes_are_published_for_persistence() -> None:
     assert frame_listener and "toggle-frame-guide" in frame_listener.group(1)
 
 
-def test_center_zoom_is_local_until_the_next_manual_event() -> None:
+def test_canvas_zoom_is_local_and_does_not_trigger_a_rerun() -> None:
     source = _component_source()
 
-    local_only = r"state\.mode\s*!==\s*[\"']segmentation-center[\"']"
-    assert len(
-        re.findall(rf"setZoom\([^;]+,\s*{local_only}\s*\)", source)
-    ) >= 4
+    assert source.count("setZoom(state.zoom + 1, false)") >= 1
+    assert source.count("setZoom(state.zoom - 1, false)") >= 1
     emit_value = re.search(
         r"function\s+emitValue\(value\)\s*\{([\s\S]*?)\n\s{6}\}",
         source,
@@ -258,3 +452,107 @@ def test_center_zoom_is_local_until_the_next_manual_event() -> None:
     assert emit_value
     assert 'state.mode === "segmentation-center"' in emit_value.group(1)
     assert "zoom: state.zoom" in emit_value.group(1)
+
+
+def test_component_coalesces_drag_redraws_and_cursor_updates() -> None:
+    source = _component_source()
+
+    assert "function scheduleDraw()" in source
+    assert "drawFrameId = requestAnimationFrame" in source
+    assert "function scheduleCursorUpdate()" in source
+    assert "cursorFrameId = requestAnimationFrame" in source
+    assert "state.floatingSelectionY = nextY;\n            scheduleDraw();" in source
+    assert "state.cropPath.push(point);\n            scheduleDraw();" in source
+
+
+def test_component_ignores_stale_async_renders_and_optimistic_props() -> None:
+    source = _component_source()
+
+    assert "const renderId = ++latestRenderId" in source
+    assert "await Promise.all([" in source
+    assert "if (renderId !== latestRenderId)" in source
+    for pending_state in (
+        "transformCommitPending",
+        "floatingTransformPending",
+        "committedEditsPending",
+        "studioSelectionPending",
+        "studioOrderPending",
+    ):
+        assert f"state.{pending_state}" in source
+    assert "transformAcknowledged" in source
+    assert "floatingAcknowledged" in source
+    assert "selectionAcknowledged" in source
+    assert 'pendingTransform.mode === "segmentation-center"' in source
+    assert "(args.overlay || null) !== pendingTransform.overlayUrl" in source
+    assert "(args.image || null) !== pendingTransform.imageUrl" in source
+
+
+def test_pending_edits_are_scoped_to_frame_and_layer_context() -> None:
+    source = _component_source()
+
+    assert "pendingEditsByContext" in source
+    assert "function editContextKey(" in source
+    assert "function switchPendingEditContext(nextContext)" in source
+    assert "pendingEditsByContext.set(activeEditContext, {" in source
+    assert "edits: state.pendingEdits.slice()" in source
+    assert "redo: state.pendingRedoEdits.slice()" in source
+    assert "switchPendingEditContext(editContextKey());" in source
+
+
+def test_history_controls_support_server_and_pending_edit_undo_redo() -> None:
+    source = _component_source()
+
+    assert 'data-action="undo"' in source
+    assert 'data-action="redo"' in source
+    assert 'key === "z"' in source
+    assert 'key === "y"' in source
+    assert 'type: "history"' in source
+    assert 'state.pendingRedoEdits.push(state.pendingEdits.pop())' in source
+    assert 'state.pendingEdits.push(state.pendingRedoEdits.pop())' in source
+    assert "state.canUndo = !!args.canUndo" in source
+    assert "state.canRedo = !!args.canRedo" in source
+
+
+def test_component_exposes_selection_clipboard_pixel_tools_and_local_playback() -> None:
+    source = _component_source()
+    app_source = _ui_app_source()
+
+    for tool in ("select_lasso", "select_rect", "select_ellipse", "fill", "replace_color"):
+        assert f'data-tool="{tool}"' in source
+        assert f'"{tool}"' in app_source
+    for action in ("copy", "cut", "paste", "select-all", "deselect"):
+        assert f'"{action}"' in source
+    assert 'type: "pixel-action"' in source
+    assert 'data-pixel-action="scale-2x"' in source
+    assert 'data-pixel-action="scale-half"' in source
+    assert "event.shiftKey && state.lastStrokePoint" in source
+    assert '"Bloquear transparencia"' in app_source
+    assert '"Simetría horizontal"' in app_source
+    assert "function nudgeObject(deltaX, deltaY)" in source
+    assert "}, 80);" in source
+    assert "function togglePlayback()" in source
+    assert "state.animationFrames" in source
+    assert "composite_document_frame(" in app_source
+
+
+def test_pointer_cancel_restores_the_local_transform_origin() -> None:
+    source = _component_source()
+
+    cancel = source[source.index('canvas.addEventListener("pointercancel"') :]
+    cancel = cancel[: cancel.index('document.addEventListener("pointermove"')]
+    assert "state.offsetX = state.dragOriginX" in cancel
+    assert "state.offsetY = state.dragOriginY" in cancel
+    assert "state.transformCommitPending = null" in cancel
+    assert 'emitDrag({ button: 0' in cancel
+
+
+def test_redraw_does_not_repeat_canvas_or_timeline_work() -> None:
+    source = _component_source()
+
+    redraw = source[source.index("function redraw()") : source.index("function pointerToPixel")]
+    assert redraw.count("draw();") == 1
+    assert "setActiveTool(state.tool, false)" in redraw
+    assert "studioTimelineSignature" in source
+    assert "if (!force && signature === studioTimelineSignature)" in source
+    assert "cutGuidesSignature" in source
+    assert "if (!force && signature === cutGuidesSignature)" in source

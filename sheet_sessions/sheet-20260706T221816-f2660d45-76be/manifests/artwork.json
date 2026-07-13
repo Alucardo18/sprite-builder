@@ -1,0 +1,71 @@
+{
+  "cache_key": "955a916b2fb60d9990a92e13403d609f6d1be9de6115b41c1370bba153c92b80",
+  "config": {
+    "canvas_height": 1024,
+    "canvas_width": 482,
+    "layer_document_cache_key": "8ac23186da9681b36663203cc449be4f92069316fea904f9d5de2ad6e77473f8"
+  },
+  "created_at": "2026-07-10T14:45:29.673795+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/source/f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f.png",
+      "role": "source",
+      "sha256": "f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f",
+      "size_bytes": 1361501
+    },
+    {
+      "media_type": "application/json",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/layers/8ac23186da9681b36663203cc449be4f92069316fea904f9d5de2ad6e77473f8/manifest.json",
+      "role": "layer_document_manifest",
+      "sha256": "fabe837d67b9acf4d56786a4fd37c6ee5e61581aef160786c201531700b85d98",
+      "size_bytes": 11145
+    }
+  ],
+  "metadata": {
+    "layer_document": {
+      "cache_key": "8ac23186da9681b36663203cc449be4f92069316fea904f9d5de2ad6e77473f8",
+      "document_id": "sprite-c1993e8fb0b0",
+      "manifest": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/layers/8ac23186da9681b36663203cc449be4f92069316fea904f9d5de2ad6e77473f8/manifest.json",
+      "manifest_sha256": "fabe837d67b9acf4d56786a4fd37c6ee5e61581aef160786c201531700b85d98",
+      "revision": 8
+    },
+    "reason": "publish-to-pipeline"
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/artwork/955a916b2fb60d9990a92e13403d609f6d1be9de6115b41c1370bba153c92b80/frame_000.png",
+      "role": "output",
+      "sha256": "1e6f7ff1005bf6d250a3f43fb691530a0459b655a802a30b0bd0bc18d0132780",
+      "size_bytes": 108687
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/artwork/955a916b2fb60d9990a92e13403d609f6d1be9de6115b41c1370bba153c92b80/frame_001.png",
+      "role": "output",
+      "sha256": "cb1501af949944d4b2c5890129147b3c768f85d61d8db923be59d1885f5ec0f0",
+      "size_bytes": 192913
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/artwork/955a916b2fb60d9990a92e13403d609f6d1be9de6115b41c1370bba153c92b80/frame_002.png",
+      "role": "output",
+      "sha256": "4ce6037f237bbf9cca19e23058c32eb038734bca22da96e783c450e912df6f75",
+      "size_bytes": 260865
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/artwork/955a916b2fb60d9990a92e13403d609f6d1be9de6115b41c1370bba153c92b80/frame_003.png",
+      "role": "output",
+      "sha256": "292b0251cf23445d39f4737b0158e4e652bbefd4562531630cd7ae666a972519",
+      "size_bytes": 295014
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260706T221816-f2660d45-76be",
+  "stage": "artwork",
+  "status": "passed",
+  "warnings": []
+}

@@ -1,0 +1,721 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      156,
+      172
+    ],
+    "canvas_height": 313,
+    "canvas_width": 313,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 150.0
+  },
+  "created_at": "2026-07-12T21:54:28.887481+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": true,
+    "padding": 11
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-65308f23a4c9",
+    "cell_size": [
+      203,
+      274
+    ],
+    "contact_sheet": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/contact-sheet.png",
+    "crop": {
+      "alpha_threshold": 8,
+      "bbox": [
+        52,
+        39,
+        255,
+        313
+      ],
+      "enabled": true,
+      "padding": 11,
+      "source_size": [
+        313,
+        313
+      ]
+    },
+    "exported_at": "2026-07-12T22:06:35.159417+00:00",
+    "frame_count": 16,
+    "godot_notes": "4 column(s), 4 row(s); use nearest filtering and lossless compression",
+    "layout": "grid",
+    "output_frames_dir": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames",
+    "output_png": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/sprite-sheet.png",
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/sprite-sheet.png",
+        "role": "output",
+        "sha256": "6f3f9fe3a4f271e8db0685e78bcdbe75b90fef187865cd04f657331a20b8ff5d",
+        "size_bytes": 882751
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_000.png",
+        "role": "output",
+        "sha256": "15e0bc84240c0be585d45ee5a86a45a8edd4f297624b0586ec3403bf980a6091",
+        "size_bytes": 58419
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_001.png",
+        "role": "output",
+        "sha256": "dc59ae4ba05d4134acd24d331d324655fc0d14f4be5b2dca15f14e7f76b791c4",
+        "size_bytes": 57872
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_002.png",
+        "role": "output",
+        "sha256": "3970782c17b8a907a61ba2a1983dc77701f8544051e4e8ae1d5be212648e8d14",
+        "size_bytes": 57420
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_003.png",
+        "role": "output",
+        "sha256": "d00f863f2487c9b9460da77e1ee25e8db98680aee1a69453c74336cea944692f",
+        "size_bytes": 57396
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_004.png",
+        "role": "output",
+        "sha256": "05796889b033a542bb07a9b33fff20253a2fa4a4b572be97ba2df81c2809c448",
+        "size_bytes": 51947
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_005.png",
+        "role": "output",
+        "sha256": "d3758e07c81d75f5a8f9e1f8a9216566bb7891b288880e6d430cc3863774e447",
+        "size_bytes": 52124
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_006.png",
+        "role": "output",
+        "sha256": "a32826f82dbb7555ac4b776a5f591c718b261a54645ce38ce835d289aa724354",
+        "size_bytes": 51796
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_007.png",
+        "role": "output",
+        "sha256": "99f2261fa99c81dfa82ed11593e108fa77d45fe413b1a37ea7fb0dda79ca313b",
+        "size_bytes": 52260
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_008.png",
+        "role": "output",
+        "sha256": "79051020812ef8fdf6b7959d4e526a628a4f93725fe4b647620420122d61e148",
+        "size_bytes": 56678
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_009.png",
+        "role": "output",
+        "sha256": "c87d1f96e6b8eaa0d2be8313bf2c18e6499fc48ac2a8d23ccacaf2a31123d44d",
+        "size_bytes": 54218
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_010.png",
+        "role": "output",
+        "sha256": "6bdd29c520dd2a5ee20b71278b04425aeac5ab24d8a4b80a0fd033514156b546",
+        "size_bytes": 56071
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_011.png",
+        "role": "output",
+        "sha256": "0d25c31924fa4bc4aeeaf2b90d7895ccae250597c87eec91c9f84d559eec091b",
+        "size_bytes": 55775
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_012.png",
+        "role": "output",
+        "sha256": "012d28aa3b39babab37874c125f995cd19f004dcc4e151290923e276cb65822e",
+        "size_bytes": 58419
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_013.png",
+        "role": "output",
+        "sha256": "e1a7c0230bfe389f95fdca9e515529ac321c72522ed4985ed03fd07aa1ecd501",
+        "size_bytes": 57100
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_014.png",
+        "role": "output",
+        "sha256": "82aaae0d82620fd518cd76f7f500000a4f8d0100a1ef28d14a87ab79c8eda51e",
+        "size_bytes": 58677
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_015.png",
+        "role": "output",
+        "sha256": "6a22d804d8f3c6b717881cde905652bcf3a6bf0f2eecc580aa65eeeb9e43908a",
+        "size_bytes": 57267
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/contact-sheet.png",
+        "role": "output",
+        "sha256": "f02038462962285e25fb73e8ac555746790a9c6346786960c51a2806ed6f282c",
+        "size_bytes": 1101700
+      }
+    ],
+    "preview_gif": null,
+    "schema_version": "1.0",
+    "session_id": "sheet-20260712T215428-794244e1-e3bb",
+    "sha256": "6f3f9fe3a4f271e8db0685e78bcdbe75b90fef187865cd04f657331a20b8ff5d"
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        -52,
+        -4
+      ],
+      "auto_anchor": [
+        208.0,
+        176.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        136,
+        60,
+        285,
+        298
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        18,
+        -3
+      ],
+      "auto_anchor": [
+        138.0,
+        175.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        68,
+        60,
+        215,
+        298
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        16,
+        -4
+      ],
+      "auto_anchor": [
+        140.0,
+        176.0
+      ],
+      "auto_confidence": 0.8095696705157092,
+      "body_bbox": [
+        72,
+        60,
+        216,
+        299
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        12,
+        -4
+      ],
+      "auto_anchor": [
+        144.0,
+        176.0
+      ],
+      "auto_confidence": 0.8050622252143353,
+      "body_bbox": [
+        75,
+        60,
+        221,
+        300
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -53,
+        35
+      ],
+      "auto_anchor": [
+        209.0,
+        137.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        126,
+        23,
+        273,
+        254
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        17,
+        34
+      ],
+      "auto_anchor": [
+        139.0,
+        138.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        57,
+        23,
+        203,
+        256
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        17,
+        31
+      ],
+      "auto_anchor": [
+        139.0,
+        141.0
+      ],
+      "auto_confidence": 0.6860469530512683,
+      "body_bbox": [
+        59,
+        23,
+        205,
+        256
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 6,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        12,
+        30
+      ],
+      "auto_anchor": [
+        144.0,
+        142.0
+      ],
+      "auto_confidence": 0.6489292342668008,
+      "body_bbox": [
+        64,
+        23,
+        211,
+        256
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 7,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -59,
+        46
+      ],
+      "auto_anchor": [
+        215.0,
+        126.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        126,
+        25,
+        295,
+        254
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 8,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        22,
+        51
+      ],
+      "auto_anchor": [
+        134.0,
+        121.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        51,
+        25,
+        211,
+        254
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 9,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        18,
+        50
+      ],
+      "auto_anchor": [
+        138.0,
+        122.0
+      ],
+      "auto_confidence": 0.5326537520538493,
+      "body_bbox": [
+        54,
+        25,
+        218,
+        254
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 10,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        20,
+        53
+      ],
+      "auto_anchor": [
+        136.0,
+        119.0
+      ],
+      "auto_confidence": 0.5481506726233449,
+      "body_bbox": [
+        43,
+        25,
+        209,
+        254
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 11,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -67,
+        12
+      ],
+      "auto_anchor": [
+        223.0,
+        160.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        142,
+        38,
+        310,
+        273
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 12,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        22,
+        26
+      ],
+      "auto_anchor": [
+        134.0,
+        146.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        55,
+        38,
+        222,
+        272
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 13,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        17,
+        26
+      ],
+      "auto_anchor": [
+        139.0,
+        146.0
+      ],
+      "auto_confidence": 0.4881091982166598,
+      "body_bbox": [
+        54,
+        38,
+        221,
+        273
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 14,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        24,
+        27
+      ],
+      "auto_anchor": [
+        132.0,
+        145.0
+      ],
+      "auto_confidence": 0.5046629771659331,
+      "body_bbox": [
+        44,
+        38,
+        212,
+        273
+      ],
+      "final_anchor": [
+        156.0,
+        172.0
+      ],
+      "frame_index": 15,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 0.3766959297685555,
+    "border_rgb": [
+      254,
+      254,
+      254
+    ],
+    "has_alpha": false,
+    "height": 1254,
+    "mode": "RGB",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      254,
+      253,
+      255
+    ],
+    "uses_transparency": false,
+    "width": 1254
+  },
+  "layer_document": null,
+  "output_dir": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 4,
+    "frame_count": 16,
+    "manual_cut_positions": [],
+    "manual_cut_positions_x": [
+      349,
+      625,
+      899
+    ],
+    "manual_cut_positions_y": [
+      307,
+      577,
+      841
+    ],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "grid",
+    "rows": 4,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260712T215428-794244e1-e3bb",
+  "source_image_path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/source/794244e115c42324ae976e99beb7f854fa2a468146ea004441a9dff4c7cf1715.png",
+  "source_sha256": "794244e115c42324ae976e99beb7f854fa2a468146ea004441a9dff4c7cf1715",
+  "stages": {
+    "background": {
+      "cache_key": "6f65f503b287266d6233d91014635d2e4c6d8c12dd4988d8a2895318d2f6a422",
+      "manifest": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/attempts/background/6f65f503b287266d6233d91014635d2e4c6d8c12dd4988d8a2895318d2f6a422/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/attempts/background/6f65f503b287266d6233d91014635d2e4c6d8c12dd4988d8a2895318d2f6a422/frame_000.png"
+      ],
+      "status": "passed"
+    },
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/sprite-sheet.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_000.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_001.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_002.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_003.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_004.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_005.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_006.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_007.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_008.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_009.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_010.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_011.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_012.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_013.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_014.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/frames/frame_015.png",
+        "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/exports/export-65308f23a4c9/contact-sheet.png"
+      ],
+      "status": "passed"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260712T215428-794244e1-e3bb/source/794244e115c42324ae976e99beb7f854fa2a468146ea004441a9dff4c7cf1715.png",
+      "sha256": "794244e115c42324ae976e99beb7f854fa2a468146ea004441a9dff4c7cf1715",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-12T22:06:35.160614+00:00"
+}

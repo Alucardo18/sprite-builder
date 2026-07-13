@@ -38,8 +38,8 @@
   "frame_adjustments": [
     {
       "applied_translation": [
-        -3,
-        -26
+        -13,
+        -8
       ],
       "auto_anchor": [
         64.0,
@@ -53,20 +53,20 @@
         104
       ],
       "final_anchor": [
-        61,
-        44
+        51,
+        62
       ],
       "frame_index": 0,
       "locked": false,
-      "manual_offset_x": -3,
-      "manual_offset_y": -26,
+      "manual_offset_x": -13,
+      "manual_offset_y": -8,
       "manual_review": true,
       "notes": ""
     },
     {
       "applied_translation": [
-        -16,
-        8
+        -8,
+        24
       ],
       "auto_anchor": [
         64.0,
@@ -80,20 +80,20 @@
         104
       ],
       "final_anchor": [
-        48,
-        78
+        56,
+        96
       ],
       "frame_index": 1,
       "locked": false,
-      "manual_offset_x": -16,
-      "manual_offset_y": 8,
+      "manual_offset_x": -8,
+      "manual_offset_y": 26,
       "manual_review": true,
       "notes": ""
     },
     {
       "applied_translation": [
-        -4,
-        6
+        20,
+        -30
       ],
       "auto_anchor": [
         64.0,
@@ -107,13 +107,13 @@
         104
       ],
       "final_anchor": [
-        60,
-        76
+        84,
+        38
       ],
       "frame_index": 2,
       "locked": false,
-      "manual_offset_x": -4,
-      "manual_offset_y": 6,
+      "manual_offset_x": 20,
+      "manual_offset_y": -32,
       "manual_review": true,
       "notes": ""
     },
@@ -183,13 +183,13 @@
   "source_sha256": "69c281b80ea31e13d578c487407fe0d3a9ded1976f850a1ffe30bd3af6b411d6",
   "stages": {
     "alignment": {
-      "cache_key": "8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce",
-      "manifest": "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce/manifest.json",
+      "cache_key": "cf26f2fbd4688221ad8b7a07b649e699fb75e5253cbda015cebc4048f08e974f",
+      "manifest": "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/cf26f2fbd4688221ad8b7a07b649e699fb75e5253cbda015cebc4048f08e974f/manifest.json",
       "outputs": [
-        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce/frame_000.png",
-        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce/frame_001.png",
-        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce/frame_002.png",
-        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/8df9e190beb11bb417715bce36952f249d9f53a76787714aed7c7800a27da7ce/frame_003.png"
+        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/cf26f2fbd4688221ad8b7a07b649e699fb75e5253cbda015cebc4048f08e974f/frame_000.png",
+        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/cf26f2fbd4688221ad8b7a07b649e699fb75e5253cbda015cebc4048f08e974f/frame_001.png",
+        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/cf26f2fbd4688221ad8b7a07b649e699fb75e5253cbda015cebc4048f08e974f/frame_002.png",
+        "sheet_sessions/sheet-20260705T200922-69c281b8-99bc/attempts/alignment/cf26f2fbd4688221ad8b7a07b649e699fb75e5253cbda015cebc4048f08e974f/frame_003.png"
       ],
       "status": "manual_review"
     },
@@ -199,5 +199,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-07-06T15:16:38.151598+00:00"
+  "updated_at": "2026-07-06T20:50:01.937177+00:00"
 }

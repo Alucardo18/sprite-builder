@@ -1,0 +1,49 @@
+schema_version: "1.0"
+job:
+  id: tzucan-walk-north-v001
+
+character:
+  id: tzucan
+  bible: characters/tzucan/bible.yaml
+  references:
+    - /var/folders/f5/cqm56341731fj474ff6t_rqc0000gn/T/codex-clipboard-8f970433-f624-4dfd-93af-b8197e59ad9e.png
+
+animation:
+  name: walk
+  directions: [up]
+  frame_count: 4
+  fps: 8
+  loop: true
+  phases: [contact_left, passing_left, contact_right, recovery]
+
+generation:
+  source_size: [1024, 1024]
+  quality: medium
+  candidates_per_frame: 1
+  background:
+    color: "#00FF00"
+  use_previous_accepted_frame: true
+
+render:
+  cell_size: [128, 128]
+  target_body_height_px: 74
+  palette_lock: true
+  dithering: false
+  integrated_shadow: true
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [64, 68]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+export:
+  formats: [individual, horizontal, godot]
+  output_dir: exports/tzucan/walk_north
+  godot:
+    project_root: /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot
+    resource_dir: res://assets/textures/sprites/player/walk/generated
+
+metadata:
+  cultural_review_required: true
+  reference_layout: four_horizontal_poses

@@ -52,16 +52,28 @@ class SegmentationConfig:
     spacing_x: int = 0
     spacing_y: int = 0
     manual_cut_positions: tuple[int, ...] = ()
+    manual_cut_positions_x: tuple[int, ...] = ()
+    manual_cut_positions_y: tuple[int, ...] = ()
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> SegmentationConfig:
         width = value.get("cell_width")
         height = value.get("cell_height")
         raw_cuts = value.get("manual_cut_positions", ())
+        raw_cuts_x = value.get("manual_cut_positions_x", ())
+        raw_cuts_y = value.get("manual_cut_positions_y", ())
         if isinstance(raw_cuts, (list, tuple)):
             manual_cut_positions = tuple(int(item) for item in raw_cuts)
         else:
             manual_cut_positions = ()
+        if isinstance(raw_cuts_x, (list, tuple)):
+            manual_cut_positions_x = tuple(int(item) for item in raw_cuts_x)
+        else:
+            manual_cut_positions_x = ()
+        if isinstance(raw_cuts_y, (list, tuple)):
+            manual_cut_positions_y = tuple(int(item) for item in raw_cuts_y)
+        else:
+            manual_cut_positions_y = ()
         return cls(
             frame_count=int(value.get("frame_count", 1)),
             orientation=str(value.get("orientation", "horizontal")),  # type: ignore[arg-type]
@@ -74,6 +86,8 @@ class SegmentationConfig:
             spacing_x=int(value.get("spacing_x", 0)),
             spacing_y=int(value.get("spacing_y", 0)),
             manual_cut_positions=manual_cut_positions,
+            manual_cut_positions_x=manual_cut_positions_x,
+            manual_cut_positions_y=manual_cut_positions_y,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -222,6 +236,7 @@ class SheetProcessingSession:
     export_crop_config: ExportCropConfig
     auto_center_config: AutoCenterConfig
     frame_adjustments: list[FrameAdjustment] = field(default_factory=list)
+    layer_document: dict[str, Any] | None = None
     stages: dict[str, dict[str, Any]] = field(default_factory=dict)
     export_manifest: dict[str, Any] | None = None
 
@@ -268,6 +283,11 @@ class SheetProcessingSession:
                 FrameAdjustment.from_dict(item)
                 for item in adjustments
             ],
+            layer_document=(
+                dict(value["layer_document"])
+                if isinstance(value.get("layer_document"), Mapping)
+                else None
+            ),
             stages=dict(value.get("stages", {})),
             export_manifest=(
                 dict(value["export_manifest"])
@@ -292,6 +312,7 @@ class SheetProcessingSession:
             "export_crop_config": self.export_crop_config.to_dict(),
             "auto_center_config": self.auto_center_config.to_dict(),
             "frame_adjustments": [item.to_dict() for item in self.frame_adjustments],
+            "layer_document": self.layer_document,
             "stages": self.stages,
             "export_manifest": self.export_manifest,
         }

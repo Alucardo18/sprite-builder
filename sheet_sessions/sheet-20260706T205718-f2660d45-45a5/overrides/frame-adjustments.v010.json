@@ -1,0 +1,115 @@
+{
+  "created_at": "2026-07-06T22:11:34.829796+00:00",
+  "frames": [
+    {
+      "applied_translation": [
+        31,
+        -17
+      ],
+      "auto_anchor": [
+        161.0,
+        580.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        66,
+        300,
+        296,
+        747
+      ],
+      "final_anchor": [
+        192,
+        563
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        33,
+        -24
+      ],
+      "auto_anchor": [
+        159.0,
+        587.0
+      ],
+      "auto_confidence": 0.7203066655416186,
+      "body_bbox": [
+        31,
+        255,
+        320,
+        773
+      ],
+      "final_anchor": [
+        192,
+        563
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        25,
+        -18
+      ],
+      "auto_anchor": [
+        165.0,
+        574.0
+      ],
+      "auto_confidence": 0.49926567928392307,
+      "body_bbox": [
+        23,
+        197,
+        358,
+        795
+      ],
+      "final_anchor": [
+        190,
+        556
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": -2,
+      "manual_offset_y": -7,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -5,
+        -25
+      ],
+      "auto_anchor": [
+        152.0,
+        587.0
+      ],
+      "auto_confidence": 0.4832285282292166,
+      "body_bbox": [
+        5,
+        242,
+        387,
+        808
+      ],
+      "final_anchor": [
+        361,
+        562
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 169,
+      "manual_offset_y": -1,
+      "manual_review": true,
+      "notes": ""
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260706T205718-f2660d45-45a5"
+}
