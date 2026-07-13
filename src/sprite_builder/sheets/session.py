@@ -908,14 +908,18 @@ class SheetSessionStore:
         export_contact_sheet: bool = True,
         export_gif: bool = False,
         fps: float = 8.0,
+        allow_manual_review: bool = False,
     ) -> dict[str, Any]:
         alignment = session.stages.get("alignment")
+        validation_warnings: list[str] = []
         if not alignment or alignment.get("status") != "passed":
-            raise ValueError("EXPORT_BLOCKED: alignment stage must be passed")
+            validation_warnings.append("alignment stage is not passed")
         if len(session.frame_adjustments) != len(frames):
             raise ValueError("EXPORT_BLOCKED: frame adjustments do not match frames")
         if any(item.manual_review for item in session.frame_adjustments):
-            raise ValueError("EXPORT_BLOCKED: alignment contains manual_review frames")
+            validation_warnings.append("alignment contains manual_review frames")
+        if validation_warnings and not allow_manual_review:
+            raise ValueError("EXPORT_BLOCKED: " + "; ".join(validation_warnings))
         cropped = trim_transparent_frames(frames, session.export_crop_config)
         identity = stable_digest(
             {
@@ -928,6 +932,7 @@ class SheetSessionStore:
                 "crop_enabled": session.export_crop_config.enabled,
                 "crop_padding": session.export_crop_config.padding,
                 "crop_alpha_threshold": session.export_crop_config.alpha_threshold,
+                "validation_warnings": validation_warnings,
             }
         )[:12]
         attempt_id = f"export-{identity}"
@@ -1008,6 +1013,8 @@ class SheetSessionStore:
             "cell_size": list(result.cell_size),
             "frame_count": len(cropped.frames),
             "alpha": True,
+            "status": "manual_review" if validation_warnings else "passed",
+            "validation_warnings": validation_warnings,
             "sha256": sha256_file(result.output_path),
             "crop": {
                 "enabled": session.export_crop_config.enabled,
@@ -1030,7 +1037,7 @@ class SheetSessionStore:
         session.export_manifest = manifest
         session.current_stage = "export"
         session.stages["export"] = {
-            "status": "passed",
+            "status": "manual_review" if validation_warnings else "passed",
             "manifest": str((directory / "manifest.json").relative_to(self.workspace)),
             "outputs": [record["path"] for record in records],
         }

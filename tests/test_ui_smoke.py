@@ -58,13 +58,14 @@ def test_studio_keeps_the_canvas_dominant_and_separates_publication() -> None:
     assert 'f"{prefix}:layers:{document.document_id}:{document.revision}:"' not in source
 
 
-def test_export_requires_a_current_passed_alignment() -> None:
+def test_export_allows_an_explicit_manual_review_override() -> None:
     source = Path(app.__file__).read_text(encoding="utf-8")
 
     assert "_alignment_export_readiness(" in source
-    assert 'disabled=not export_ready' in source
+    assert '"Exportar con advertencias"' in source
+    assert "allow_manual_review=True" in source
     assert '"Anchor revisado y aprobado"' in source
-    assert "if manifest and export_ready:" in source
+    assert "if manifest:" in source
 
 
 def test_studio_component_events_select_and_reorder_the_layer_matrix() -> None:

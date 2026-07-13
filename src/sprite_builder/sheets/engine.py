@@ -469,6 +469,7 @@ def render_contact_sheet(
     show_anchor_guides: bool = True,
     show_bbox: bool = True,
     guide_padding: int = 0,
+    guide_display_width: int | None = None,
 ) -> Image.Image:
     if not frames:
         raise ValueError("At least one frame is required")
@@ -485,6 +486,17 @@ def render_contact_sheet(
             rows * height * scale + padding * 2,
         ),
         (18, 22, 32, 255),
+    )
+    minimum_visible_guide_width = (
+        max(
+            1,
+            ceil(
+                2
+                * max(1.0, output.width / max(1, int(guide_display_width)))
+            ),
+        )
+        if guide_display_width is not None
+        else 1
     )
     for index, frame in enumerate(frames):
         adjustment = adjustments[index] if adjustments else None
@@ -507,58 +519,12 @@ def render_contact_sheet(
         guide_draw = ImageDraw.Draw(guided)
         cell_width = width * scale
         cell_height = height * scale
-        if show_cell_guides:
-            guide_width = max(1, min(2, scale))
-            grid_left = padding
-            grid_top = padding
-            grid_right = padding + columns * cell_width - 1
-            grid_bottom = padding + rows * cell_height - 1
-            # Draw one continuous grid instead of inset rectangles per frame. Inset
-            # rectangles left dark gaps at every shared edge and clipped the outer
-            # cuts, which made enabled guides look incomplete in Export.
-            for column in range(columns + 1):
-                grid_x = (
-                    grid_right
-                    if column == columns
-                    else grid_left + column * cell_width
-                )
-                guide_draw.line(
-                    (grid_x, grid_top, grid_x, grid_bottom),
-                    fill=(91, 223, 255),
-                    width=guide_width,
-                )
-            for row in range(rows + 1):
-                grid_y = (
-                    grid_bottom
-                    if row == rows
-                    else grid_top + row * cell_height
-                )
-                guide_draw.line(
-                    (grid_left, grid_y, grid_right, grid_y),
-                    fill=(91, 223, 255),
-                    width=guide_width,
-                )
-        for index, _frame in enumerate(frames):
-            adjustment = adjustments[index] if adjustments else None
-            x = padding + (index % columns) * cell_width
-            y = padding + (index // columns) * cell_height
-            cell_x1 = x + cell_width - 1
-            cell_y1 = y + cell_height - 1
-            axis_x = x + (width // 2) * scale
-            axis_y = y + (height // 2) * scale
-            if show_center_axes:
-                axis_width = max(2, min(3, scale + 1))
-                guide_draw.line(
-                    (axis_x, y, axis_x, cell_y1),
-                    fill=(255, 255, 255),
-                    width=axis_width,
-                )
-                guide_draw.line(
-                    (x, axis_y, cell_x1, axis_y),
-                    fill=(255, 255, 255),
-                    width=axis_width,
-                )
-            if show_anchor_guides and adjustment is not None:
+        anchor_centers: list[tuple[int, int]] = []
+        if show_anchor_guides and adjustments is not None:
+            for index, _frame in enumerate(frames):
+                adjustment = adjustments[index]
+                x = padding + (index % columns) * cell_width
+                y = padding + (index // columns) * cell_height
                 anchor_x = x + round(
                     (
                         adjustment.auto_anchor[0]
@@ -575,6 +541,7 @@ def render_contact_sheet(
                     )
                     * scale
                 )
+                anchor_centers.append((anchor_x, anchor_y))
                 radius = max(3, 4 * scale)
                 anchor_width = max(2, min(3, scale + 1))
                 guide_draw.line(
@@ -596,6 +563,67 @@ def render_contact_sheet(
                     (anchor_x, anchor_y - radius, anchor_x, anchor_y + radius),
                     fill=(255, 76, 160),
                     width=anchor_width,
+                )
+        if show_center_axes:
+            axis_width = max(
+                2,
+                min(3, scale + 1),
+                minimum_visible_guide_width,
+            )
+            grid_left = padding
+            grid_top = padding
+            grid_right = padding + columns * cell_width - 1
+            grid_bottom = padding + rows * cell_height - 1
+            # Render axes as continuous sheet-wide guides. There is exactly one
+            # vertical Y axis per column and one horizontal X axis per row.
+            for column in range(columns):
+                axis_x = grid_left + column * cell_width + (width // 2) * scale
+                guide_draw.line(
+                    (axis_x, grid_top, axis_x, grid_bottom),
+                    fill=(255, 255, 255),
+                    width=axis_width,
+                )
+            for row in range(rows):
+                axis_y = grid_top + row * cell_height + (height // 2) * scale
+                guide_draw.line(
+                    (grid_left, axis_y, grid_right, axis_y),
+                    fill=(255, 255, 255),
+                    width=axis_width,
+                )
+        # Keep the anchor identifiable at an axis intersection without allowing
+        # its dark outline to erase a complete X/Y guide after crop changes.
+        for anchor_x, anchor_y in anchor_centers:
+            guide_draw.point((anchor_x, anchor_y), fill=(255, 76, 160))
+        if show_cell_guides:
+            guide_width = max(
+                1,
+                min(2, scale),
+                minimum_visible_guide_width,
+            )
+            grid_left = padding
+            grid_top = padding
+            grid_right = padding + columns * cell_width - 1
+            grid_bottom = padding + rows * cell_height - 1
+            # Draw cuts after axes so a thick Y axis cannot cover the final
+            # boundary and make one grid line disappear from the preview.
+            guide_draw.rectangle(
+                (grid_left, grid_top, grid_right, grid_bottom),
+                outline=(91, 223, 255),
+                width=guide_width,
+            )
+            for column in range(1, columns):
+                grid_x = grid_left + column * cell_width
+                guide_draw.line(
+                    (grid_x, grid_top, grid_x, grid_bottom),
+                    fill=(91, 223, 255),
+                    width=guide_width,
+                )
+            for row in range(1, rows):
+                grid_y = grid_top + row * cell_height
+                guide_draw.line(
+                    (grid_left, grid_y, grid_right, grid_y),
+                    fill=(91, 223, 255),
+                    width=guide_width,
                 )
         output = guided.convert("RGBA")
     return output

@@ -1339,6 +1339,18 @@ def _normalized_segmentation_cut_positions(
     return raw
 
 
+def _effective_segmentation_frame_count(
+    orientation: str,
+    requested_frame_count: int,
+    rows: int,
+    columns: int,
+) -> int:
+    """Use every visible grid cell while preserving linear frame counts."""
+    if orientation == "grid":
+        return max(1, int(rows)) * max(1, int(columns))
+    return max(1, int(requested_frame_count))
+
+
 def _normalized_grid_cut_positions(
     source_size: tuple[int, int],
     config: SegmentationConfig,
@@ -2442,6 +2454,7 @@ def _render_export_preview_fragment(
             show_anchor_guides=show_anchors,
             show_bbox=False,
             guide_padding=8 if (show_cell_guides or show_axes or show_anchors) else 0,
+            guide_display_width=820,
         ),
         "Preview final con anchors y recorte",
         max_height=640,
@@ -2664,16 +2677,6 @@ def main() -> None:
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Segmentación")
-    frame_count = int(
-        st.sidebar.number_input(
-            "Número de frames",
-            min_value=1,
-            max_value=512,
-            value=session.segmentation_config.frame_count,
-            step=1,
-            key=f"{session.session_id}:frame_count",
-        )
-    )
     orientation_labels = {
         "Horizontal": "horizontal",
         "Vertical": "vertical",
@@ -2707,6 +2710,35 @@ def main() -> None:
             key=f"{session.session_id}:columns",
         )
     )
+    if orientation == "grid":
+        requested_frame_count = session.segmentation_config.frame_count
+        frame_count = _effective_segmentation_frame_count(
+            orientation,
+            requested_frame_count,
+            rows,
+            columns,
+        )
+        st.sidebar.metric("Número de frames", frame_count)
+        st.sidebar.caption(
+            f"Grid completo: {rows} filas × {columns} columnas = {frame_count} frames"
+        )
+    else:
+        requested_frame_count = int(
+            st.sidebar.number_input(
+                "Número de frames",
+                min_value=1,
+                max_value=512,
+                value=session.segmentation_config.frame_count,
+                step=1,
+                key=f"{session.session_id}:frame_count",
+            )
+        )
+        frame_count = _effective_segmentation_frame_count(
+            orientation,
+            requested_frame_count,
+            rows,
+            columns,
+        )
     auto_cell = st.sidebar.toggle(
         "Auto-calcular tamaño de celda",
         value=session.segmentation_config.cell_width is None,
@@ -4954,7 +4986,8 @@ def main() -> None:
                     if layout == "grid":
                         st.caption(
                             "Layout heredado: "
-                            f"grid {segmentation_config.rows} × {segmentation_config.columns}"
+                            f"grid {segmentation_config.columns} × {segmentation_config.rows} "
+                            "(columnas × filas)"
                         )
                     else:
                         st.caption(f"Layout heredado: {layout}")
@@ -5034,10 +5067,13 @@ def main() -> None:
                 if review_count:
                     st.warning(
                         f"{review_count} frame(s) siguen marcados como revisión. "
-                        "Aprueba sus anchors y guarda Auto Center antes de exportar."
+                        "Puedes exportar bajo tu criterio; el manifest conservará esta alerta."
                     )
                 if not export_ready:
-                    st.error(export_block_reason)
+                    st.warning(
+                        f"Validación de emergencia: {export_block_reason} "
+                        "La exportación está permitida y quedará marcada como manual_review."
+                    )
                 preview_crop, preview_crop_warning = _safe_trim_transparent_frames(
                     export_frames_source,
                     session.export_crop_config,
@@ -5048,10 +5084,9 @@ def main() -> None:
                         "tamaños distintos. La exportación seguirá usando el canvas de cada frame."
                     )
                 if st.button(
-                    "Exportar sprite .png",
+                    "Exportar sprite .png" if export_ready else "Exportar con advertencias",
                     type="primary",
                     width="stretch",
-                    disabled=not export_ready,
                     key=f"{session.session_id}:export",
                 ):
                     session.segmentation_config = segmentation_config
@@ -5068,6 +5103,7 @@ def main() -> None:
                         export_contact_sheet=include_contact,
                         export_gif=include_gif,
                         fps=fps,
+                        allow_manual_review=True,
                     )
                     st.session_state[f"{session.session_id}:last_export"] = manifest
                     st.success("Exportación terminada y manifest guardado.")
@@ -5075,7 +5111,7 @@ def main() -> None:
                     f"{session.session_id}:last_export",
                     session.export_manifest,
                 )
-                if manifest and export_ready:
+                if manifest:
                     png_path = workspace / manifest["output_png"]
                     if png_path.is_file():
                         st.download_button(
@@ -5095,11 +5131,6 @@ def main() -> None:
                         file_name="sprite-sheet.manifest.json",
                         mime="application/json",
                         width="stretch",
-                    )
-                elif manifest:
-                    st.caption(
-                        "La exportación anterior se conserva como historial, pero sus "
-                        "descargas permanecen ocultas hasta validar la alineación actual."
                     )
             with preview_col:
                 preview_columns = _export_preview_columns(

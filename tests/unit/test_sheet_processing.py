@@ -36,6 +36,7 @@ from sprite_builder.sheets import (
 from sprite_builder.ui.app import _clamp_manual_offsets_to_canvas
 from sprite_builder.ui.app import _normalized_segmentation_cut_positions
 from sprite_builder.ui.app import _normalized_grid_cut_positions
+from sprite_builder.ui.app import _effective_segmentation_frame_count
 from sprite_builder.ui.app import _safe_trim_transparent_frames
 from sprite_builder.ui.app import _handle_center_editor_event
 from sprite_builder.ui.app import _export_preview_columns
@@ -68,6 +69,24 @@ def test_export_preview_columns_match_the_output_layout() -> None:
     assert _export_preview_columns("vertical", 16, None) == 1
     assert _export_preview_columns("grid", 16, 4) == 4
     assert _export_preview_columns("grid", 3, 8) == 3
+
+
+def test_grid_ui_uses_every_visible_cell_as_a_frame() -> None:
+    assert _effective_segmentation_frame_count("grid", 16, 5, 4) == 20
+    assert _effective_segmentation_frame_count("grid", 1, 4, 5) == 20
+    assert _effective_segmentation_frame_count("horizontal", 16, 5, 4) == 16
+
+    result = segment_sheet(
+        Image.new("RGBA", (40, 50), (255, 0, 255, 255)),
+        SegmentationConfig(
+            frame_count=_effective_segmentation_frame_count("grid", 16, 5, 4),
+            orientation="grid",
+            rows=5,
+            columns=4,
+        ),
+    )
+    assert len(result.frames) == 20
+    assert result.regions[-1] == (30, 40, 40, 50)
 
 
 def test_horizontal_segmentation_and_empty_detection() -> None:
@@ -800,9 +819,142 @@ def test_contact_sheet_grid_and_x_axes_are_continuous_across_cells() -> None:
     # Shared cuts span the complete sheet instead of leaving gaps between cells.
     assert tuple(preview[1, 8, :3]) == (91, 223, 255)
     assert tuple(preview[8, 1, :3]) == (91, 223, 255)
-    # Each horizontal X axis reaches both sides of the shared cut.
+    # The X axis reaches the cut, while the cut itself remains visible on top.
     assert tuple(preview[4, 7, :3]) == (255, 255, 255)
-    assert tuple(preview[4, 8, :3]) == (255, 255, 255)
+    assert tuple(preview[4, 8, :3]) == (91, 223, 255)
+
+
+def test_contact_sheet_5x4_shows_every_grid_boundary_and_y_axis() -> None:
+    frames = [Image.new("RGBA", (4, 4), (0, 0, 0, 0)) for _ in range(20)]
+    preview = np.asarray(
+        render_contact_sheet(
+            frames,
+            columns=5,
+            scale=1,
+            show_cell_guides=True,
+            show_center_axes=True,
+            show_anchor_guides=False,
+            show_bbox=False,
+            guide_padding=2,
+        )
+    )
+
+    cyan = (91, 223, 255)
+    white = (255, 255, 255)
+    for x in (2, 6, 10, 14, 18, 21):
+        assert tuple(preview[2, x, :3]) == cyan
+    for y in (2, 6, 10, 14, 17):
+        assert tuple(preview[y, 3, :3]) == cyan
+    for x in (4, 8, 12, 16, 20):
+        assert tuple(preview[3, x, :3]) == white
+
+
+def test_crop_padding_never_hides_5x4_y_axes() -> None:
+    frames: list[Image.Image] = []
+    adjustments: list[FrameAdjustment] = []
+    for index in range(20):
+        frame = Image.new("RGBA", (24, 24), (0, 0, 0, 0))
+        ImageDraw.Draw(frame).rectangle((7, 6, 16, 17), fill=(180, 90, 30, 255))
+        frames.append(frame)
+        adjustments.append(
+            FrameAdjustment(
+                frame_index=index,
+                auto_anchor=(12, 12),
+                applied_translation=(0, 0),
+                body_bbox=(7, 6, 17, 18),
+            )
+        )
+
+    for crop_padding in (0, 2, 5):
+        crop = trim_transparent_frames(
+            frames,
+            ExportCropConfig(enabled=True, padding=crop_padding, alpha_threshold=8),
+        )
+        preview = np.asarray(
+            render_contact_sheet(
+                crop.frames,
+                adjustments=adjustments,
+                columns=5,
+                scale=2,
+                origin_offset=(crop.bbox[0], crop.bbox[1]),
+                show_cell_guides=True,
+                show_center_axes=True,
+                show_anchor_guides=True,
+                show_bbox=False,
+                guide_padding=8,
+            )
+        )
+        cell_width = crop.frames[0].width * 2
+        axis_y = 8 * 2 + 3
+        expected_axes = [
+            8 * 2 + column * cell_width + (crop.frames[0].width // 2) * 2
+            for column in range(5)
+        ]
+        assert all(tuple(preview[axis_y, x, :3]) == (255, 255, 255) for x in expected_axes)
+
+
+def test_large_crop_preview_keeps_guides_visible_after_downscaling() -> None:
+    frames: list[Image.Image] = []
+    for _ in range(20):
+        frame = Image.new("RGBA", (300, 240), (0, 0, 0, 0))
+        ImageDraw.Draw(frame).rectangle((80, 50, 219, 189), fill=(180, 90, 30, 255))
+        frames.append(frame)
+    crop = trim_transparent_frames(
+        frames,
+        ExportCropConfig(enabled=True, padding=70, alpha_threshold=8),
+    )
+    preview = render_contact_sheet(
+        crop.frames,
+        columns=5,
+        scale=2,
+        show_cell_guides=True,
+        show_center_axes=True,
+        show_anchor_guides=False,
+        show_bbox=False,
+        guide_padding=8,
+        guide_display_width=820,
+    )
+
+    source = np.asarray(preview)[:, :, :3]
+    expected_width = (2 * preview.width + 819) // 820
+    cell_width = crop.frames[0].width * 2
+    sample_y = 8 * 2 + 12
+    for column in range(5):
+        axis_x = 8 * 2 + column * cell_width + (crop.frames[0].width // 2) * 2
+        run_start = axis_x - expected_width // 2
+        white_run = np.all(
+            source[sample_y, run_start : run_start + expected_width, :]
+            == (255, 255, 255),
+            axis=1,
+        )
+        assert int(white_run.sum()) >= expected_width - 1
+
+
+def test_export_can_preserve_manual_review_as_an_emergency_warning(tmp_path: Path) -> None:
+    store = SheetSessionStore(tmp_path)
+    session = store.create(_png_bytes(Image.new("RGBA", (4, 4), (0, 0, 0, 0))))
+    session.stages["alignment"] = {"status": "manual_review"}
+    session.frame_adjustments = [
+        FrameAdjustment(
+            frame_index=0,
+            auto_anchor=(2, 2),
+            applied_translation=(0, 0),
+            body_bbox=(1, 1, 3, 3),
+            manual_review=True,
+        )
+    ]
+    store.save(session)
+
+    manifest = store.export(
+        session,
+        [Image.new("RGBA", (4, 4), (0, 0, 0, 0))],
+        allow_manual_review=True,
+    )
+
+    assert manifest["status"] == "manual_review"
+    assert len(manifest["validation_warnings"]) == 2
+    assert (tmp_path / manifest["output_png"]).is_file()
+    assert session.stages["export"]["status"] == "manual_review"
 
 
 def test_session_round_trip_stage_and_export(tmp_path: Path) -> None:
