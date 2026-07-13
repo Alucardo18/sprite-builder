@@ -242,7 +242,11 @@ def render_selection_overlay(
     mask_u8 = mask.astype(np.uint8)
     kernel = np.ones((3, 3), np.uint8)
     edges = cv2.morphologyEx(mask_u8, cv2.MORPH_GRADIENT, kernel).astype(bool)
-    overlay[edges] = np.array((255, 255, 255, 255), dtype=np.uint8)
+    rows, columns = np.indices((height, width))
+    light_ants = edges & (((rows + columns) // 2) % 2 == 0)
+    dark_ants = edges & ~light_ants
+    overlay[light_ants] = np.array((255, 255, 255, 255), dtype=np.uint8)
+    overlay[dark_ants] = np.array((12, 16, 24, 255), dtype=np.uint8)
     return Image.fromarray(overlay, "RGBA")
 
 

@@ -471,6 +471,35 @@ class SheetSessionStore:
             raise FileNotFoundError("This session has no layer document")
         return self._load_layer_document_attempt(session, pointer)
 
+    def restore_layer_document_attempt(
+        self,
+        session: SheetProcessingSession,
+        pointer: Mapping[str, Any],
+    ) -> LayeredSpriteDocument:
+        """Restore an immutable layer attempt after verifying all of its artifacts.
+
+        Undo/redo moves the session pointer between existing immutable attempts.  The
+        attempt loader verifies the manifest and every cel SHA-256 before the pointer
+        is published, so history never turns an unchecked cache entry into live state.
+        """
+
+        restored, _ = self._load_layer_document_attempt(session, pointer)
+        manifest_value = pointer.get("manifest")
+        cache_key = str(pointer.get("cache_key", ""))
+        if not isinstance(manifest_value, str) or not manifest_value or not cache_key:
+            raise ArtifactIntegrityError("Layer history pointer is incomplete")
+        manifest_path = self._workspace_artifact_path(
+            manifest_value,
+            label="Layer history manifest",
+        )
+        session.layer_document = self._layer_document_pointer(
+            manifest_path,
+            restored,
+            cache_key=cache_key,
+        )
+        self.save(session)
+        return restored
+
     def save_layer_document(
         self,
         session: SheetProcessingSession,
@@ -880,6 +909,13 @@ class SheetSessionStore:
         export_gif: bool = False,
         fps: float = 8.0,
     ) -> dict[str, Any]:
+        alignment = session.stages.get("alignment")
+        if not alignment or alignment.get("status") != "passed":
+            raise ValueError("EXPORT_BLOCKED: alignment stage must be passed")
+        if len(session.frame_adjustments) != len(frames):
+            raise ValueError("EXPORT_BLOCKED: frame adjustments do not match frames")
+        if any(item.manual_review for item in session.frame_adjustments):
+            raise ValueError("EXPORT_BLOCKED: alignment contains manual_review frames")
         cropped = trim_transparent_frames(frames, session.export_crop_config)
         identity = stable_digest(
             {

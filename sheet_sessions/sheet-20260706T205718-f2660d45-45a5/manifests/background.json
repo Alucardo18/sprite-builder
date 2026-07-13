@@ -1,0 +1,242 @@
+{
+  "cache_key": "2276a84549b5eb1b4875799a0f4062940f3e0863a101b08b38cd3e9bb184aa1b",
+  "config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 1,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-07-06T21:00:08.337408+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T205718-f2660d45-45a5/source/f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f.png",
+      "role": "source",
+      "sha256": "f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f",
+      "size_bytes": 1361501
+    }
+  ],
+  "metadata": {
+    "manual_edit_operations": {
+      "0": [
+        {
+          "kind": "erase_brush",
+          "path": [
+            [
+              178,
+              124
+            ]
+          ],
+          "point": [
+            178,
+            124
+          ],
+          "radius": 12
+        },
+        {
+          "kind": "erase_brush",
+          "path": [
+            [
+              164,
+              151
+            ],
+            [
+              165,
+              151
+            ],
+            [
+              166,
+              150
+            ],
+            [
+              168,
+              147
+            ],
+            [
+              168,
+              146
+            ],
+            [
+              168,
+              145
+            ],
+            [
+              168,
+              136
+            ],
+            [
+              168,
+              130
+            ],
+            [
+              169,
+              131
+            ],
+            [
+              171,
+              135
+            ],
+            [
+              175,
+              147
+            ],
+            [
+              176,
+              150
+            ],
+            [
+              176,
+              152
+            ],
+            [
+              176,
+              154
+            ],
+            [
+              176,
+              155
+            ],
+            [
+              174,
+              154
+            ],
+            [
+              172,
+              152
+            ],
+            [
+              172,
+              151
+            ],
+            [
+              172,
+              150
+            ],
+            [
+              173,
+              149
+            ],
+            [
+              174,
+              148
+            ],
+            [
+              175,
+              148
+            ],
+            [
+              176,
+              148
+            ],
+            [
+              177,
+              148
+            ],
+            [
+              178,
+              148
+            ],
+            [
+              179,
+              149
+            ],
+            [
+              179,
+              150
+            ],
+            [
+              179,
+              151
+            ]
+          ],
+          "point": [
+            179,
+            151
+          ],
+          "radius": 12
+        },
+        {
+          "kind": "erase_brush",
+          "path": [
+            [
+              174,
+              151
+            ]
+          ],
+          "point": [
+            174,
+            151
+          ],
+          "radius": 12
+        },
+        {
+          "kind": "erase_brush",
+          "path": [
+            [
+              535,
+              142
+            ]
+          ],
+          "point": [
+            535,
+            142
+          ],
+          "radius": 25
+        },
+        {
+          "kind": "erase_brush",
+          "path": [
+            [
+              885,
+              141
+            ]
+          ],
+          "point": [
+            885,
+            141
+          ],
+          "radius": 25
+        },
+        {
+          "kind": "erase_brush",
+          "path": [
+            [
+              1265,
+              137
+            ]
+          ],
+          "point": [
+            1265,
+            137
+          ],
+          "radius": 25
+        }
+      ]
+    }
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T205718-f2660d45-45a5/attempts/background/2276a84549b5eb1b4875799a0f4062940f3e0863a101b08b38cd3e9bb184aa1b/frame_000.png",
+      "role": "output",
+      "sha256": "2e0830f2fa18d44ed3bb8e231e3f24a483ca593b469f7626fc0f99fc661e0d03",
+      "size_bytes": 1311582
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260706T205718-f2660d45-45a5",
+  "stage": "background",
+  "status": "passed",
+  "warnings": []
+}

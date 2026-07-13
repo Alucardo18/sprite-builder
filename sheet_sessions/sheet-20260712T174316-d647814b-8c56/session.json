@@ -1,0 +1,85 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      627,
+      627
+    ],
+    "canvas_height": 1254,
+    "canvas_width": 1254,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      0,
+      0,
+      0
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 1,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-07-12T17:43:16.719502+00:00",
+  "current_stage": "source",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": false,
+    "padding": 0
+  },
+  "export_manifest": null,
+  "frame_adjustments": [],
+  "inspection": {
+    "background_confidence": 0.7619712689545092,
+    "border_rgb": [
+      0,
+      0,
+      0
+    ],
+    "has_alpha": false,
+    "height": 1254,
+    "mode": "RGB",
+    "solid_background_likely": true,
+    "top_left_rgb": [
+      0,
+      0,
+      0
+    ],
+    "uses_transparency": false,
+    "width": 1254
+  },
+  "layer_document": null,
+  "output_dir": "sheet_sessions/sheet-20260712T174316-d647814b-8c56",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 1,
+    "manual_cut_positions": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260712T174316-d647814b-8c56",
+  "source_image_path": "sheet_sessions/sheet-20260712T174316-d647814b-8c56/source/d647814bf073994d930ba8ffa6be0ec6ad469feb090f88c08753fc12a8580252.png",
+  "source_sha256": "d647814bf073994d930ba8ffa6be0ec6ad469feb090f88c08753fc12a8580252",
+  "stages": {
+    "source": {
+      "path": "sheet_sessions/sheet-20260712T174316-d647814b-8c56/source/d647814bf073994d930ba8ffa6be0ec6ad469feb090f88c08753fc12a8580252.png",
+      "sha256": "d647814bf073994d930ba8ffa6be0ec6ad469feb090f88c08753fc12a8580252",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-12T17:43:16.719592+00:00"
+}

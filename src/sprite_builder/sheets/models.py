@@ -52,16 +52,28 @@ class SegmentationConfig:
     spacing_x: int = 0
     spacing_y: int = 0
     manual_cut_positions: tuple[int, ...] = ()
+    manual_cut_positions_x: tuple[int, ...] = ()
+    manual_cut_positions_y: tuple[int, ...] = ()
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> SegmentationConfig:
         width = value.get("cell_width")
         height = value.get("cell_height")
         raw_cuts = value.get("manual_cut_positions", ())
+        raw_cuts_x = value.get("manual_cut_positions_x", ())
+        raw_cuts_y = value.get("manual_cut_positions_y", ())
         if isinstance(raw_cuts, (list, tuple)):
             manual_cut_positions = tuple(int(item) for item in raw_cuts)
         else:
             manual_cut_positions = ()
+        if isinstance(raw_cuts_x, (list, tuple)):
+            manual_cut_positions_x = tuple(int(item) for item in raw_cuts_x)
+        else:
+            manual_cut_positions_x = ()
+        if isinstance(raw_cuts_y, (list, tuple)):
+            manual_cut_positions_y = tuple(int(item) for item in raw_cuts_y)
+        else:
+            manual_cut_positions_y = ()
         return cls(
             frame_count=int(value.get("frame_count", 1)),
             orientation=str(value.get("orientation", "horizontal")),  # type: ignore[arg-type]
@@ -74,6 +86,8 @@ class SegmentationConfig:
             spacing_x=int(value.get("spacing_x", 0)),
             spacing_y=int(value.get("spacing_y", 0)),
             manual_cut_positions=manual_cut_positions,
+            manual_cut_positions_x=manual_cut_positions_x,
+            manual_cut_positions_y=manual_cut_positions_y,
         )
 
     def to_dict(self) -> dict[str, Any]:

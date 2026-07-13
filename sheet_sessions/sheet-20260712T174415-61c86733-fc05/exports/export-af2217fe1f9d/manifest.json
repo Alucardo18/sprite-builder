@@ -1,0 +1,162 @@
+{
+  "alpha": true,
+  "attempt_id": "export-af2217fe1f9d",
+  "cell_size": [
+    193,
+    299
+  ],
+  "contact_sheet": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/contact-sheet.png",
+  "crop": {
+    "alpha_threshold": 8,
+    "bbox": [
+      60,
+      14,
+      253,
+      313
+    ],
+    "enabled": true,
+    "padding": 10,
+    "source_size": [
+      313,
+      313
+    ]
+  },
+  "exported_at": "2026-07-12T18:26:15.802628+00:00",
+  "frame_count": 16,
+  "godot_notes": "4 column(s), 4 row(s); use nearest filtering and lossless compression",
+  "layout": "grid",
+  "output_frames_dir": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames",
+  "output_png": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/sprite-sheet.png",
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/sprite-sheet.png",
+      "role": "output",
+      "sha256": "aa448cf399b306fc5fefb7baca57bb495ed1d370b6c0565fecbb6a8e691603ce",
+      "size_bytes": 930742
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_000.png",
+      "role": "output",
+      "sha256": "48f3ae2fe1baa35391201639c8c66f521a247964e993c89adeb0c3982aa31ac3",
+      "size_bytes": 67254
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_001.png",
+      "role": "output",
+      "sha256": "83c246a769cdcf643dabff1f141a8f72c8211064cffecc9e65cf0e8d922a3962",
+      "size_bytes": 67260
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_002.png",
+      "role": "output",
+      "sha256": "fee341155357210dd26bed8e1a79da1e8cd7029f8412788ab6bd8c83db2f6dc5",
+      "size_bytes": 66175
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_003.png",
+      "role": "output",
+      "sha256": "6f8ccbe3976d2d58638a1ac852687dbe60a1aae5ff98576725e97d26b727cb35",
+      "size_bytes": 65979
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_004.png",
+      "role": "output",
+      "sha256": "bb288d56645b06804857c440040a4bf93832c3311d495a34c7c1f3fc333273e4",
+      "size_bytes": 54252
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_005.png",
+      "role": "output",
+      "sha256": "b03265bd817fd52729180e304299baf6f7e416773690d9be9ea9c5fcd37f5030",
+      "size_bytes": 53509
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_006.png",
+      "role": "output",
+      "sha256": "1508bb3da11ff4ad27baed00b261f4710eeae4c0a4c1667a56aee82e016b0e5c",
+      "size_bytes": 53035
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_007.png",
+      "role": "output",
+      "sha256": "a51d5f5fa8254d045f7ca1e8bfe21cb4a5b0d8f73bae4af1d7d2bf20f9d36ba3",
+      "size_bytes": 53035
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_008.png",
+      "role": "output",
+      "sha256": "2763464a585a948011109f3703b04396c32048d67a702de7765b5e53e565e425",
+      "size_bytes": 56968
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_009.png",
+      "role": "output",
+      "sha256": "e47717b398b04c8a53e1677f47227f53a572a3fd56e238acc907dd9207855948",
+      "size_bytes": 56940
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_010.png",
+      "role": "output",
+      "sha256": "837d60e109808430d6e42ff8c62305663f6562e7a6d981d1da8da6da2cfeca60",
+      "size_bytes": 56491
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_011.png",
+      "role": "output",
+      "sha256": "3bfeb13621499c5414e90b41d13a3e132e5e5048cd08eadb1665d7ec6a2f7f5b",
+      "size_bytes": 56185
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_012.png",
+      "role": "output",
+      "sha256": "0e65f085c5a529bfe6fdb77594e773cb6403d836c1e2f47e2b6c0b30ae891ee0",
+      "size_bytes": 59483
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_013.png",
+      "role": "output",
+      "sha256": "f10967113d16e1be392ef29d87345aab7adc581caf010cd279e3e6ccb97734aa",
+      "size_bytes": 59699
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_014.png",
+      "role": "output",
+      "sha256": "91a8684d0bd03d241d8984979a5ce2df0f553e2b5d476594ef48b18721b3cea2",
+      "size_bytes": 58853
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/frames/frame_015.png",
+      "role": "output",
+      "sha256": "89801d6d4bbb9d62dd626396065d157880e9280225dd397a3deb08d90cad68f0",
+      "size_bytes": 58950
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260712T174415-61c86733-fc05/exports/export-af2217fe1f9d/contact-sheet.png",
+      "role": "output",
+      "sha256": "5795276f5ee050f3b04ae93ad78171125db1273d2248fedc8e4745aa7ea41248",
+      "size_bytes": 1165874
+    }
+  ],
+  "preview_gif": null,
+  "schema_version": "1.0",
+  "session_id": "sheet-20260712T174415-61c86733-fc05",
+  "sha256": "aa448cf399b306fc5fefb7baca57bb495ed1d370b6c0565fecbb6a8e691603ce"
+}

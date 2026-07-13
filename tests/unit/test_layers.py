@@ -11,8 +11,17 @@ from sprite_builder.sheets import (
     SheetSessionStore,
     SpriteCel,
     SpriteLayer,
+    composite_document_frame,
     composite_document_frames,
+    delete_document_frame,
+    duplicate_document_frame,
+    fill_cel_selection,
+    move_document_frame,
+    outline_cel_pixels,
     paint_cel_stroke,
+    remove_isolated_pixels,
+    replace_cel_color,
+    transform_cel_selection,
 )
 
 
@@ -78,6 +87,72 @@ def test_document_expansion_adds_transparent_space_without_rescaling() -> None:
     assert source.size == (4, 2)
 
 
+def test_pixel_tools_preserve_geometry_and_exact_colors() -> None:
+    import numpy as np
+
+    image = Image.new("RGBA", (7, 7), (0, 0, 0, 0))
+    image.putpixel((2, 3), (100, 80, 60, 255))
+    image.putpixel((3, 3), (100, 80, 60, 255))
+    mask = np.zeros((7, 7), dtype=bool)
+    mask[2:5, 1:5] = True
+
+    filled = fill_cel_selection(image, mask, (10, 20, 30, 255))
+    assert filled.size == image.size
+    assert filled.getpixel((1, 2)) == (10, 20, 30, 255)
+    replaced = replace_cel_color(
+        filled,
+        (10, 20, 30, 255),
+        (220, 40, 90, 255),
+        mask=mask,
+    )
+    assert replaced.getpixel((4, 4)) == (220, 40, 90, 255)
+
+    transformed, transformed_mask = transform_cel_selection(
+        replaced,
+        mask,
+        "flip-horizontal",
+    )
+    assert transformed.size == image.size
+    assert transformed_mask.shape == mask.shape
+    scaled, scaled_mask = transform_cel_selection(replaced, mask, "scale-2x")
+    assert scaled.size == image.size
+    assert scaled_mask.shape == mask.shape
+    outlined = outline_cel_pixels(image, (255, 0, 0, 255), radius=1)
+    assert outlined.getpixel((1, 3)) == (255, 0, 0, 255)
+    isolated = Image.new("RGBA", (5, 5), (0, 0, 0, 0))
+    isolated.putpixel((2, 2), (255, 255, 255, 255))
+    cleaned = remove_isolated_pixels(isolated, minimum_neighbors=1)
+    assert cleaned.getpixel((2, 2))[3] == 0
+
+
+def test_single_frame_compositor_and_timeline_frame_operations() -> None:
+    layer = SpriteLayer("body", "Body", role="body")
+    document = LayeredSpriteDocument(
+        schema_version="1.0",
+        document_id="timeline-test",
+        canvas_width=4,
+        canvas_height=4,
+        frame_count=2,
+        layers=(layer,),
+        cels=(SpriteCel("body", 0, "", ""), SpriteCel("body", 1, "", "")),
+    )
+    red = Image.new("RGBA", (4, 4), (255, 0, 0, 255))
+    blue = Image.new("RGBA", (4, 4), (0, 0, 255, 255))
+    images = {("body", 0): red, ("body", 1): blue}
+    assert composite_document_frame(document, images, 1).tobytes() == (
+        composite_document_frames(document, images)[1].tobytes()
+    )
+
+    duplicated, duplicate_images = duplicate_document_frame(document, images, 0)
+    assert duplicated.frame_count == 3
+    assert duplicate_images[("body", 1)].getpixel((0, 0)) == (255, 0, 0, 255)
+    moved, moved_images = move_document_frame(duplicated, duplicate_images, 2, 0)
+    assert moved_images[("body", 0)].getpixel((0, 0)) == (0, 0, 255, 255)
+    deleted, deleted_images = delete_document_frame(moved, moved_images, 1)
+    assert deleted.frame_count == 2
+    assert set(deleted_images) == {("body", 0), ("body", 1)}
+
+
 def test_layer_document_round_trip_publishes_flattened_artwork(tmp_path) -> None:
     source = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
     source.putpixel((2, 3), (180, 90, 30, 255))
@@ -104,6 +179,25 @@ def test_layer_document_round_trip_publishes_flattened_artwork(tmp_path) -> None
     artwork = Image.open(store.stage_paths(reopened, "artwork")[0]).convert("RGBA")
     assert artwork.getpixel((2, 3)) == (180, 90, 30, 255)
     assert artwork.getpixel((4, 5)) == (70, 220, 130, 255)
+
+
+def test_layer_history_restores_a_verified_immutable_attempt(tmp_path) -> None:
+    source = Image.new("RGBA", (6, 6), (0, 0, 0, 0))
+    store = SheetSessionStore(tmp_path)
+    session = store.create(_png_bytes(source), source_name="hero.png")
+    store.create_layer_document(session, [source])
+    first_pointer = dict(session.layer_document or {})
+    document, images = store.load_layer_document(session)
+
+    images[("retouch", 0)].putpixel((3, 4), (255, 90, 40, 255))
+    store.save_layer_document(session, document.revised(), images, reason="paint")
+    assert session.layer_document != first_pointer
+
+    restored = store.restore_layer_document_attempt(session, first_pointer)
+    restored_document, restored_images = store.load_layer_document(session)
+    assert restored.document_id == restored_document.document_id
+    assert session.layer_document["cache_key"] == first_pointer["cache_key"]  # type: ignore[index]
+    assert restored_images[("retouch", 0)].getpixel((3, 4)) == (0, 0, 0, 0)
 
 
 def test_publishing_distinct_layer_attempts_replaces_artwork_lineage_and_invalidates_downstream(

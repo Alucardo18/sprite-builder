@@ -372,8 +372,8 @@
 
       .stage {
         width: 100%;
-        height: min(72vh, 900px);
-        min-height: 56vh;
+        height: clamp(380px, 68vh, 900px);
+        min-height: 0;
         overflow: auto;
         border-radius: 18px;
         border: 1px solid rgba(132, 225, 255, 0.2);
@@ -590,6 +590,15 @@
         box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85);
       }
 
+      .cut-boundary.horizontal {
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: auto;
+        width: auto;
+        height: 1px;
+      }
+
       .cut-boundary .cut-handle {
         position: absolute;
         left: 50%;
@@ -599,6 +608,17 @@
         transform: translateX(-50%);
         pointer-events: auto;
         cursor: col-resize;
+      }
+
+      .cut-boundary.horizontal .cut-handle {
+        left: 0;
+        right: 0;
+        top: 50%;
+        bottom: auto;
+        width: auto;
+        height: 14px;
+        transform: translateY(-50%);
+        cursor: row-resize;
       }
 
       .cut-boundary .cut-handle::before {
@@ -612,12 +632,61 @@
         background: rgba(255, 196, 91, 0.16);
       }
 
+      .cut-boundary.horizontal .cut-handle::before {
+        left: 0;
+        right: 0;
+        top: 50%;
+        bottom: auto;
+        width: auto;
+        height: 3px;
+        transform: translateY(-50%);
+      }
+
       .cut-boundary.active {
         background: rgba(255, 196, 91, 1);
       }
 
       .cut-boundary.active .cut-handle::before {
         background: rgba(255, 196, 91, 0.34);
+      }
+
+      .cut-boundary.ghost {
+        width: 3px;
+        margin-left: -1px;
+        pointer-events: none;
+        background: rgba(255, 196, 91, 0.5);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.92),
+          0 0 10px rgba(255, 196, 91, 0.48);
+        z-index: 6;
+        will-change: left, top;
+      }
+
+      .cut-boundary.ghost.horizontal {
+        width: auto;
+        height: 3px;
+        margin-left: 0;
+        margin-top: -1px;
+      }
+
+      .cut-ghost-label {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        padding: 3px 6px;
+        border: 1px solid rgba(255, 196, 91, 0.8);
+        border-radius: 4px;
+        background: rgba(7, 8, 14, 0.92);
+        color: rgba(255, 222, 160, 1);
+        font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+      }
+
+      .cut-boundary.ghost.horizontal .cut-ghost-label {
+        top: 8px;
+        left: 8px;
       }
 
       canvas {
@@ -762,7 +831,7 @@
         grid-column: 2;
         grid-row: 1;
         width: auto;
-        height: clamp(640px, 76vh, 1040px);
+        height: clamp(440px, 68vh, 920px);
         min-height: 0;
         min-width: 0;
         display: grid;
@@ -901,6 +970,11 @@
         box-shadow: 0 0 0 1px rgba(255, 196, 91, 0.3) inset;
       }
 
+      .timeline-cel.selected {
+        background: linear-gradient(135deg, rgba(255,196,91,.45), rgba(124,92,255,.36));
+        border-color: rgba(255, 214, 130, 0.8);
+      }
+
       @media (max-width: 720px) {
         body[data-mode="layer-edit"] .root {
           display: flex;
@@ -933,8 +1007,8 @@
 
         body[data-mode="layer-edit"] .stage {
           width: 100%;
-          height: min(68vh, 760px);
-          min-height: 54vh;
+          height: clamp(340px, 62vh, 680px);
+          min-height: 0;
         }
 
         body[data-mode="layer-edit"] .studio-timeline:not([hidden]),
@@ -959,6 +1033,9 @@
       <symbol id="icon-pencil" viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5a2.828 2.828 0 1 0-4-4L4 16v4"/><path d="m13.5 6.5 4 4"/></symbol>
       <symbol id="icon-move" viewBox="0 0 24 24"><path d="m18 9 3 3-3 3m-3-3h6M6 9l-3 3 3 3m-3-3h6m0 6 3 3 3-3m-3-3v6m3-15-3-3-3 3m3 3V3"/></symbol>
       <symbol id="icon-eraser" viewBox="0 0 24 24"><path d="m20 20H7.5a2 2 0 0 1-1.4-.6l-2.5-2.5a2 2 0 0 1 0-2.8l8.7-8.7a2 2 0 0 1 2.8 0l5.3 5.3a2 2 0 0 1 0 2.8L14 20"/><path d="m6 14 5 5"/></symbol>
+      <symbol id="icon-lasso" viewBox="0 0 24 24"><path d="M7 5c-3 1.6-4.5 4.1-3.8 6.4C4.2 14.8 9 16.5 14 15.5c4.6-.9 7.7-3.7 6.9-6.3-.7-2.4-4.5-3.7-8.7-3.2"/><path d="M8 15.5 4 21h7l3-5.5"/><path d="M10 5.4 13 3"/></symbol>
+      <symbol id="icon-rect" viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="12" rx="1.5"/></symbol>
+      <symbol id="icon-ellipse" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="7" ry="5"/></symbol>
       <symbol id="icon-zoom-in" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.5 4.5M10.8 7.8v6M7.8 10.8h6"/></symbol>
       <symbol id="icon-zoom-out" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.5 4.5M7.8 10.8h6"/></symbol>
       <symbol id="icon-fit" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/><path d="m8 8-5-5m13 5 5-5m-5 13 5 5M8 16l-5 5"/></symbol>
@@ -970,9 +1047,15 @@
       <symbol id="icon-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></symbol>
       <symbol id="icon-cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="m8.2 7.4 10.3 9.2M8.2 16.6l3.9-3.5M14.4 11l4.1-3.6"/></symbol>
       <symbol id="icon-save" viewBox="0 0 24 24"><path d="M5 3h12l3 3v15H4V4a1 1 0 0 1 1-1Z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></symbol>
+      <symbol id="icon-undo" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/></symbol>
+      <symbol id="icon-redo" viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/></symbol>
     </svg>
     <div class="root">
       <div class="toolbar" id="toolbar">
+        <div class="toolgroup" data-group="history">
+          <button class="icon-button" data-action="undo" id="history-undo" title="Deshacer (⌘/Ctrl + Z)" aria-label="Deshacer" disabled><svg class="icon"><use href="#icon-undo"></use></svg></button>
+          <button class="icon-button" data-action="redo" id="history-redo" title="Rehacer (⌘/Ctrl + Shift + Z)" aria-label="Rehacer" disabled><svg class="icon"><use href="#icon-redo"></use></svg></button>
+        </div>
         <div class="toolgroup" data-group="background">
           <span class="toolbar-label">Herramientas</span>
           <button class="icon-button tool-button" data-action="tool" data-tool="wand" id="tool-wand" title="Varita (W)" aria-label="Varita, atajo W" aria-pressed="true"><svg class="icon"><use href="#icon-wand"></use></svg><span class="shortcut">W</span></button>
@@ -980,6 +1063,23 @@
           <button class="icon-button tool-button" data-action="tool" data-tool="eyedropper" id="tool-eyedropper" title="Cuentagotas (I)" aria-label="Cuentagotas, atajo I" aria-pressed="false"><svg class="icon fill-icon"><use href="#icon-eyedropper"></use></svg><span class="shortcut">I</span></button>
           <button class="icon-button tool-button" data-action="tool" data-tool="eraser" id="tool-eraser" title="Borrador (E)" aria-label="Borrador, atajo E" aria-pressed="false"><svg class="icon"><use href="#icon-eraser"></use></svg><span class="shortcut">E</span></button>
           <button class="icon-button tool-button" data-action="tool" data-tool="move" id="tool-move" title="Mover cel (M)" aria-label="Mover cel, atajo M" aria-pressed="false" hidden><svg class="icon"><use href="#icon-move"></use></svg><span class="shortcut">M</span></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="crop_lasso" id="tool-crop-lasso" title="Recorte lazo (L)" aria-label="Recorte lazo, atajo L" aria-pressed="false" hidden><svg class="icon"><use href="#icon-lasso"></use></svg><span class="shortcut">L</span></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="crop_rect" id="tool-crop-rect" title="Recorte rectangular (R)" aria-label="Recorte rectangular, atajo R" aria-pressed="false" hidden><svg class="icon"><use href="#icon-rect"></use></svg><span class="shortcut">R</span></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="crop_ellipse" id="tool-crop-ellipse" title="Recorte elíptico (O)" aria-label="Recorte elíptico, atajo O" aria-pressed="false" hidden><svg class="icon"><use href="#icon-ellipse"></use></svg><span class="shortcut">O</span></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="select_lasso" id="tool-select-lasso" title="Selección lazo" aria-label="Selección lazo" aria-pressed="false" hidden><svg class="icon"><use href="#icon-lasso"></use></svg></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="select_rect" id="tool-select-rect" title="Selección rectangular" aria-label="Selección rectangular" aria-pressed="false" hidden><svg class="icon"><use href="#icon-rect"></use></svg></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="select_ellipse" id="tool-select-ellipse" title="Selección elíptica" aria-label="Selección elíptica" aria-pressed="false" hidden><svg class="icon"><use href="#icon-ellipse"></use></svg></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="fill" id="tool-fill" title="Cubeta" aria-label="Cubeta" aria-pressed="false" hidden><svg class="icon"><use href="#icon-pencil"></use></svg></button>
+          <button class="icon-button tool-button" data-action="tool" data-tool="replace_color" id="tool-replace-color" title="Reemplazar color" aria-label="Reemplazar color" aria-pressed="false" hidden><svg class="icon fill-icon"><use href="#icon-eyedropper"></use></svg></button>
+        </div>
+        <div class="toolgroup" data-group="pixel-actions" hidden>
+          <button class="icon-button" data-action="pixel-action" data-pixel-action="flip-horizontal" title="Voltear horizontal" aria-label="Voltear horizontal"><svg class="icon"><use href="#icon-reset"></use></svg></button>
+          <button class="icon-button" data-action="pixel-action" data-pixel-action="flip-vertical" title="Voltear vertical" aria-label="Voltear vertical"><svg class="icon"><use href="#icon-reset"></use></svg></button>
+          <button class="icon-button" data-action="pixel-action" data-pixel-action="rotate-cw" title="Rotar 90°" aria-label="Rotar 90 grados"><svg class="icon"><use href="#icon-reset"></use></svg></button>
+          <button class="icon-button" data-action="pixel-action" data-pixel-action="scale-2x" title="Escalar selección 2× nearest-neighbor" aria-label="Escalar selección al doble"><svg class="icon"><use href="#icon-plus"></use></svg></button>
+          <button class="icon-button" data-action="pixel-action" data-pixel-action="scale-half" title="Reducir selección ½ nearest-neighbor" aria-label="Reducir selección a la mitad"><svg class="icon"><use href="#icon-minus"></use></svg></button>
+          <button class="icon-button" data-action="pixel-action" data-pixel-action="outline" title="Contorno de 1 px" aria-label="Crear contorno"><svg class="icon"><use href="#icon-layers"></use></svg></button>
+          <button class="icon-button" data-action="pixel-action" data-pixel-action="cleanup-isolated" title="Limpiar píxeles aislados" aria-label="Limpiar píxeles aislados"><svg class="icon"><use href="#icon-eraser"></use></svg></button>
         </div>
         <div class="toolgroup" data-group="background">
           <button class="icon-button" data-action="zoom-out" id="zoom-out" title="Alejar" aria-label="Alejar"><svg class="icon"><use href="#icon-zoom-out"></use></svg></button>
@@ -1070,6 +1170,7 @@
       <div class="studio-timeline" id="studio-timeline" hidden aria-label="Timeline de capas">
         <div class="timeline-heading">
           <span>Timeline</span>
+          <button type="button" id="timeline-play" aria-label="Reproducir animación" title="Reproducir animación">▶</button>
           <span id="timeline-summary"></span>
         </div>
         <div class="timeline-rows" id="timeline-rows"></div>
@@ -1100,6 +1201,15 @@
       const toolEyedropper = document.getElementById("tool-eyedropper");
       const toolEraser = document.getElementById("tool-eraser");
       const toolMove = document.getElementById("tool-move");
+      const toolCropLasso = document.getElementById("tool-crop-lasso");
+      const toolCropRect = document.getElementById("tool-crop-rect");
+      const toolCropEllipse = document.getElementById("tool-crop-ellipse");
+      const toolSelectLasso = document.getElementById("tool-select-lasso");
+      const toolSelectRect = document.getElementById("tool-select-rect");
+      const toolSelectEllipse = document.getElementById("tool-select-ellipse");
+      const toolFill = document.getElementById("tool-fill");
+      const toolReplaceColor = document.getElementById("tool-replace-color");
+      const pixelActionsGroup = document.querySelector('[data-group="pixel-actions"]');
       const autocenterButton = document.getElementById("autocenter");
       const autocropButton = document.getElementById("autocrop");
       const resetTransformButton = document.getElementById("reset-transform");
@@ -1142,10 +1252,17 @@
       const studioTimeline = document.getElementById("studio-timeline");
       const timelineSummary = document.getElementById("timeline-summary");
       const timelineRows = document.getElementById("timeline-rows");
+      const timelinePlayButton = document.getElementById("timeline-play");
+      const historyUndoButton = document.getElementById("history-undo");
+      const historyRedoButton = document.getElementById("history-redo");
 
       let state = {
         image: null,
+        imageUrl: null,
         overlay: null,
+        overlayUrl: null,
+        moveBase: null,
+        moveBaseUrl: null,
         width: 1,
         height: 1,
         zoom: 8,
@@ -1180,8 +1297,16 @@
         frameToken: "",
         activeFrameToken: "",
         cutPositions: [],
+        cutPositionsX: [],
+        cutPositionsY: [],
         cutDraggingIndex: -1,
+        cutDraggingAxis: "x",
         cutActivePointerId: null,
+        cutDragOriginPosition: null,
+        cutGhostPosition: null,
+        cutGhostElement: null,
+        cutCommitPending: null,
+        transformCommitPending: null,
         allowCutDrag: false,
         homeOffsetX: 0,
         homeOffsetY: 0,
@@ -1191,7 +1316,12 @@
         pointerVisible: false,
         dragging: false,
         strokePath: [],
+        lastStrokePoint: null,
+        cropStart: null,
+        cropPath: [],
         pendingEdits: [],
+        pendingRedoEdits: [],
+        committedEditsPending: null,
         dragStartX: 0,
         dragStartY: 0,
         dragOriginX: 0,
@@ -1200,11 +1330,160 @@
         activeLayerId: "",
         activeFrame: 0,
         frameCount: 0,
+        selectedFrames: [],
+        floatingSelection: null,
+        floatingSelectionUrl: null,
+        floatingHighlight: null,
+        floatingHighlightUrl: null,
+        floatingSelectionX: 0,
+        floatingSelectionY: 0,
+        floatingSelectionStartX: 0,
+        floatingSelectionStartY: 0,
+        floatingSelectionBounds: null,
+        floatingTransformPending: null,
+        studioSelectionPending: null,
+        studioOrderPending: null,
+        serverTool: null,
+        serverBrushRadius: null,
+        canUndo: false,
+        canRedo: false,
+        undoLabel: "",
+        redoLabel: "",
+        animationFrames: [],
+        animationFrameUrls: [],
+        animationFps: 8,
+        animationDurations: [],
+        playbackIndex: 0,
+        playbackTimer: 0,
+        nudgeTimer: 0,
       };
       const frameStateByToken = new Map();
+      const pendingEditsByContext = new Map();
       let readySent = false;
       let studioDragLayerId = "";
       let suppressStudioClick = false;
+      let latestRenderId = 0;
+      let drawFrameId = 0;
+      let cursorFrameId = 0;
+      let studioTimelineSignature = "";
+      let cutGuidesSignature = "";
+      let activeEditContext = "";
+
+      function editContextKey(
+        frameToken = state.frameToken,
+        layerId = state.activeLayerId,
+        frameIndex = state.activeFrame,
+      ) {
+        return `${frameToken}::${layerId}::${frameIndex}`;
+      }
+
+      function switchPendingEditContext(nextContext) {
+        if (!nextContext || nextContext === activeEditContext) {
+          return;
+        }
+        if (activeEditContext) {
+          pendingEditsByContext.set(activeEditContext, {
+            edits: state.pendingEdits.slice(),
+            redo: state.pendingRedoEdits.slice(),
+          });
+        }
+        const pendingContext = pendingEditsByContext.get(nextContext);
+        state.pendingEdits = Array.isArray(pendingContext)
+          ? pendingContext.slice()
+          : (pendingContext?.edits || []).slice();
+        state.pendingRedoEdits = Array.isArray(pendingContext)
+          ? []
+          : (pendingContext?.redo || []).slice();
+        state.committedEditsPending = null;
+        activeEditContext = nextContext;
+        updatePendingEdits();
+      }
+
+      function scheduleDraw() {
+        if (drawFrameId) {
+          return;
+        }
+        drawFrameId = requestAnimationFrame(() => {
+          drawFrameId = 0;
+          draw();
+        });
+      }
+
+      function stopPlayback() {
+        if (state.playbackTimer) {
+          clearInterval(state.playbackTimer);
+          state.playbackTimer = 0;
+        }
+        timelinePlayButton.textContent = "▶";
+        timelinePlayButton.setAttribute("aria-label", "Reproducir animación");
+        scheduleDraw();
+      }
+
+      function togglePlayback() {
+        if (state.playbackTimer) {
+          stopPlayback();
+          return;
+        }
+        if (!state.animationFrames.length) {
+          return;
+        }
+        state.playbackIndex = Math.max(0, Math.min(state.animationFrames.length - 1, state.activeFrame));
+        timelinePlayButton.textContent = "■";
+        timelinePlayButton.setAttribute("aria-label", "Detener animación");
+        const advance = () => {
+          if (!state.playbackTimer) {
+            return;
+          }
+          state.playbackIndex = (state.playbackIndex + 1) % state.animationFrames.length;
+          scheduleDraw();
+          const duration = state.animationDurations[state.playbackIndex]
+            || Math.round(1000 / state.animationFps);
+          state.playbackTimer = setTimeout(advance, Math.max(16, duration));
+        };
+        const firstDuration = state.animationDurations[state.playbackIndex]
+          || Math.round(1000 / state.animationFps);
+        state.playbackTimer = setTimeout(advance, Math.max(16, firstDuration));
+        scheduleDraw();
+      }
+
+      function nudgeObject(deltaX, deltaY) {
+        setObjectOffset(state.offsetX + deltaX, state.offsetY + deltaY, false);
+        if (state.nudgeTimer) {
+          clearTimeout(state.nudgeTimer);
+        }
+        state.nudgeTimer = setTimeout(() => {
+          state.nudgeTimer = 0;
+          state.transformCommitPending = {
+            offsetX: state.offsetX,
+            offsetY: state.offsetY,
+            mode: state.mode,
+            overlayUrl: state.overlayUrl,
+            imageUrl: state.imageUrl,
+            frameToken: state.frameToken,
+            createdAt: Date.now(),
+          };
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "transform",
+            action: "end",
+            mode: state.mode,
+            tool: state.tool,
+            offsetX: state.offsetX,
+            offsetY: state.offsetY,
+            keyboard: true,
+          });
+        }, 80);
+      }
+
+      function scheduleCursorUpdate() {
+        if (cursorFrameId) {
+          return;
+        }
+        cursorFrameId = requestAnimationFrame(() => {
+          cursorFrameId = 0;
+          updateCursor();
+        });
+      }
 
       function send(type, payload) {
         window.parent.postMessage({ isStreamlitMessage: true, type, ...payload }, "*");
@@ -1225,12 +1504,47 @@
         send(SET_COMPONENT_VALUE, { value: nextValue });
       }
 
+      function emitHistory(action) {
+        if (action === "undo" && state.pendingEdits.length) {
+          state.pendingRedoEdits.push(state.pendingEdits.pop());
+          updatePendingEdits();
+          draw();
+          return;
+        }
+        if (action === "redo" && state.pendingRedoEdits.length) {
+          state.pendingEdits.push(state.pendingRedoEdits.pop());
+          updatePendingEdits();
+          draw();
+          return;
+        }
+        if ((action === "undo" && !state.canUndo) || (action === "redo" && !state.canRedo)) {
+          return;
+        }
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "history",
+          action,
+          mode: state.mode,
+        });
+      }
+
+      function updateHistoryControls() {
+        historyUndoButton.disabled = !state.canUndo && state.pendingEdits.length === 0;
+        historyRedoButton.disabled = !state.canRedo && state.pendingRedoEdits.length === 0;
+        historyUndoButton.title = state.undoLabel
+          ? `Deshacer ${state.undoLabel} (⌘/Ctrl + Z)`
+          : "Deshacer (⌘/Ctrl + Z)";
+        historyRedoButton.title = state.redoLabel
+          ? `Rehacer ${state.redoLabel} (⌘/Ctrl + Shift + Z)`
+          : "Rehacer (⌘/Ctrl + Shift + Z)";
+      }
+
       function setFrameHeight() {
         const toolbarHeight = Math.ceil(document.getElementById("toolbar")?.getBoundingClientRect().height || 0);
         const stageHeight = Math.ceil(stage.getBoundingClientRect().height || 0);
         const timelineHeight = Math.ceil(studioTimeline?.getBoundingClientRect().height || 0);
         const noteHeight = Math.ceil(document.querySelector(".overlay-note")?.getBoundingClientRect().height || 0);
-        const height = Math.max(760, toolbarHeight + stageHeight + timelineHeight + noteHeight + 32);
+        const height = Math.max(480, toolbarHeight + stageHeight + timelineHeight + noteHeight + 32);
         send(SET_FRAME_HEIGHT, { height });
       }
 
@@ -1341,8 +1655,13 @@
         if (cutModePill) {
           setPillValue(cutModePill, cutMode ? "Cortes" : "Bloqueado");
         }
-        guides.classList.toggle("visible", centerMode && state.showGuides);
-        guides.style.opacity = centerMode && state.showGuides ? String(state.guideOpacity) : "0";
+        const guideOverlayVisible = cutMode || (centerMode && state.showGuides);
+        guides.classList.toggle("visible", guideOverlayVisible);
+        guides.style.opacity = cutMode
+          ? "1"
+          : centerMode && state.showGuides
+            ? String(state.guideOpacity)
+            : "0";
         cutGuides.classList.toggle("visible", cutMode);
         toggleGuidesButton.setAttribute("aria-pressed", String(state.showGuides));
         toggleGuidesButton.title = state.showGuides
@@ -1351,11 +1670,28 @@
         toolWand.hidden = layerMode;
         toolPencil.hidden = !layerMode;
         toolMove.hidden = !layerMode;
+        toolCropLasso.hidden = !layerMode;
+        toolCropRect.hidden = !layerMode;
+        toolCropEllipse.hidden = !layerMode;
+        toolSelectLasso.hidden = !layerMode;
+        toolSelectRect.hidden = !layerMode;
+        toolSelectEllipse.hidden = !layerMode;
+        toolFill.hidden = !layerMode;
+        toolReplaceColor.hidden = !layerMode;
+        pixelActionsGroup.hidden = !layerMode;
         toolWand.disabled = centerMode || cutMode;
         toolPencil.disabled = !layerMode;
         toolEyedropper.disabled = centerMode || cutMode;
         toolEraser.disabled = centerMode || cutMode;
         toolMove.disabled = !layerMode;
+        toolCropLasso.disabled = !layerMode;
+        toolCropRect.disabled = !layerMode;
+        toolCropEllipse.disabled = !layerMode;
+        toolSelectLasso.disabled = !layerMode;
+        toolSelectRect.disabled = !layerMode;
+        toolSelectEllipse.disabled = !layerMode;
+        toolFill.disabled = !layerMode;
+        toolReplaceColor.disabled = !layerMode;
         commitGroup.hidden = centerMode || cutMode;
         zoomOutButton.hidden = centerMode;
         zoomInButton.hidden = centerMode;
@@ -1406,31 +1742,66 @@
             : cutMode
               ? "Activa el ajuste libre en el panel lateral y arrastra las líneas de corte."
               : layerMode
-                ? "<code>P</code> lápiz · <code>E</code> borrador · <code>I</code> cuentagotas · <code>M</code> mueve el cel · <code>[</code>/<code>]</code> cambia el radio."
+                ? "<code>P</code> lápiz · <code>E</code> borrador · <code>I</code> cuentagotas · <code>M</code> mueve · selección y clipboard usan los atajos estándar."
                 : "<code>W</code> varita · <code>I</code> cuentagotas · <code>E</code> borrador · <code>Shift</code> suma · <code>Alt/Option</code> resta · <code>Esc</code> limpia · <code>Delete</code> borra.";
         }
       }
 
-      function setActiveTool(tool) {
+      function isCropTool(tool) {
+        return tool === "crop_lasso" || tool === "crop_rect" || tool === "crop_ellipse";
+      }
+
+      function isSelectionTool(tool) {
+        return tool === "select_lasso" || tool === "select_rect" || tool === "select_ellipse";
+      }
+
+      function isShapeTool(tool) {
+        return isCropTool(tool) || isSelectionTool(tool);
+      }
+
+      function setActiveTool(tool, redrawCanvas = true) {
         const nextTool = normalizeTool(tool);
         state.tool = nextTool;
         if (nextTool !== "eraser" && nextTool !== "pencil") {
           state.strokePath = [];
+        }
+        if (!isShapeTool(nextTool)) {
+          state.cropStart = null;
+          state.cropPath = [];
         }
         toolWand.classList.toggle("active", nextTool === "wand");
         toolPencil.classList.toggle("active", nextTool === "pencil");
         toolEyedropper.classList.toggle("active", nextTool === "eyedropper");
         toolEraser.classList.toggle("active", nextTool === "eraser");
         toolMove.classList.toggle("active", nextTool === "move");
+        toolCropLasso.classList.toggle("active", nextTool === "crop_lasso");
+        toolCropRect.classList.toggle("active", nextTool === "crop_rect");
+        toolCropEllipse.classList.toggle("active", nextTool === "crop_ellipse");
+        toolSelectLasso.classList.toggle("active", nextTool === "select_lasso");
+        toolSelectRect.classList.toggle("active", nextTool === "select_rect");
+        toolSelectEllipse.classList.toggle("active", nextTool === "select_ellipse");
+        toolFill.classList.toggle("active", nextTool === "fill");
+        toolReplaceColor.classList.toggle("active", nextTool === "replace_color");
         toolWand.setAttribute("aria-pressed", String(nextTool === "wand"));
         toolPencil.setAttribute("aria-pressed", String(nextTool === "pencil"));
         toolEyedropper.setAttribute("aria-pressed", String(nextTool === "eyedropper"));
         toolEraser.setAttribute("aria-pressed", String(nextTool === "eraser"));
         toolMove.setAttribute("aria-pressed", String(nextTool === "move"));
+        toolCropLasso.setAttribute("aria-pressed", String(nextTool === "crop_lasso"));
+        toolCropRect.setAttribute("aria-pressed", String(nextTool === "crop_rect"));
+        toolCropEllipse.setAttribute("aria-pressed", String(nextTool === "crop_ellipse"));
+        toolSelectLasso.setAttribute("aria-pressed", String(nextTool === "select_lasso"));
+        toolSelectRect.setAttribute("aria-pressed", String(nextTool === "select_rect"));
+        toolSelectEllipse.setAttribute("aria-pressed", String(nextTool === "select_ellipse"));
+        toolFill.setAttribute("aria-pressed", String(nextTool === "fill"));
+        toolReplaceColor.setAttribute("aria-pressed", String(nextTool === "replace_color"));
         updateCursor();
+        if (redrawCanvas) {
+          draw();
+        }
       }
 
-      function setMode(mode) {
+      function setMode(mode, redrawCanvas = true) {
         state.mode = normalizeMode(mode);
         if (state.mode === "background") {
           state.offsetX = 0;
@@ -1440,17 +1811,32 @@
         if (state.mode !== "segmentation-cut") {
           state.cutDraggingIndex = -1;
           state.cutActivePointerId = null;
+          state.cutDragOriginPosition = null;
+          state.cutGhostPosition = null;
+          state.cutGhostElement = null;
+          state.cutCommitPending = null;
         }
         updateModeUI();
         updateCursor();
-        draw();
+        if (redrawCanvas) {
+          draw();
+        }
       }
 
       function setObjectOffset(x, y, emit = false) {
         state.offsetX = Math.round(Number.isFinite(x) ? x : 0);
         state.offsetY = Math.round(Number.isFinite(y) ? y : 0);
-        draw();
+        scheduleDraw();
         if (emit) {
+          state.transformCommitPending = {
+            offsetX: state.offsetX,
+            offsetY: state.offsetY,
+            mode: state.mode,
+            imageUrl: state.imageUrl,
+            overlayUrl: state.overlayUrl,
+            frameToken: state.frameToken,
+            createdAt: Date.now(),
+          };
           const delta = guideDelta();
           emitValue({
             eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -1536,9 +1922,11 @@
         state.guideOpacity = Math.max(0.1, Math.min(1, finiteNumber(value, 0.85)));
         const percent = Math.round(state.guideOpacity * 100);
         guides.style.setProperty("--guide-opacity", String(state.guideOpacity));
-        guides.style.opacity = state.mode === "segmentation-center" && state.showGuides
-          ? String(state.guideOpacity)
-          : "0";
+        guides.style.opacity = state.mode === "segmentation-cut"
+          ? "1"
+          : state.mode === "segmentation-center" && state.showGuides
+            ? String(state.guideOpacity)
+            : "0";
         guideOpacity.value = String(percent);
         guideOpacityValue.textContent = `${percent}%`;
         if (announce) {
@@ -1583,7 +1971,7 @@
         cursorDot.style.left = `${centerX}px`;
         cursorDot.style.top = `${centerY}px`;
         const visible = state.pointerVisible;
-        const crosshair = state.tool === "wand" || state.tool === "eyedropper" || state.tool === "pencil";
+        const crosshair = state.tool === "wand" || state.tool === "eyedropper" || state.tool === "pencil" || state.tool === "fill" || state.tool === "replace_color" || isShapeTool(state.tool);
         const eraser = state.tool === "eraser";
         cursorRing.classList.toggle("visible", visible && !cutMode);
         cursorDot.classList.toggle("visible", visible && crosshair && !centerMode && !cutMode);
@@ -1685,26 +2073,110 @@
         };
       }
 
-      function normalizedCutPositions() {
-        return state.cutPositions
+      function normalizedCutPositions(axis = "x") {
+        const values = axis === "y" ? state.cutPositionsY : state.cutPositionsX;
+        return values
           .map((value) => Math.round(Number(value)))
           .filter((value) => Number.isFinite(value));
       }
 
-      function updateCutGuidesGeometry() {
-        const positions = normalizedCutPositions();
-        cutGuides.replaceChildren();
-        const span = cutSpan();
-        positions.forEach((position, index) => {
-          const line = document.createElement("div");
-          line.className = "cut-boundary";
-          line.dataset.index = String(index);
+      function normalizedIncomingCutPositions(values) {
+        return Array.isArray(values)
+          ? values
+              .map((value) => Math.round(Number(value)))
+              .filter((value) => Number.isFinite(value))
+          : [];
+      }
+
+      function sameCutPositions(left, right) {
+        return left.length === right.length
+          && left.every((value, index) => value === right[index]);
+      }
+
+      function positionCutBoundary(line, axis, position, span = cutSpan()) {
+        if (axis === "y") {
+          line.style.top = `${Math.round(position * state.zoom)}px`;
+          line.style.left = `${Math.round(span.start * state.zoom)}px`;
+          line.style.width = `${Math.max(1, Math.round((span.end - span.start) * state.zoom))}px`;
+        } else {
           line.style.left = `${Math.round(position * state.zoom)}px`;
           line.style.top = `${Math.round(span.top * state.zoom)}px`;
           line.style.height = `${Math.max(1, Math.round((span.bottom - span.top) * state.zoom))}px`;
+        }
+      }
+
+      function clampedCutPosition(axis, index, nextPosition) {
+        const positions = normalizedCutPositions(axis);
+        const span = cutSpan();
+        const start = axis === "y" ? span.top : span.start;
+        const end = axis === "y" ? span.bottom : span.end;
+        const min = index === 0 ? start + 1 : positions[index - 1] + 1;
+        const max = index === positions.length - 1 ? end - 1 : positions[index + 1] - 1;
+        return Math.max(min, Math.min(max, Math.round(nextPosition)));
+      }
+
+      function removeCutGhost() {
+        state.cutGhostElement?.remove();
+        state.cutGhostElement = null;
+      }
+
+      function updateCutGhostPosition(axis, index, nextPosition) {
+        const clamped = clampedCutPosition(axis, index, nextPosition);
+        state.cutGhostPosition = clamped;
+        if (!state.cutGhostElement) {
+          const ghost = document.createElement("div");
+          ghost.className = `cut-boundary ghost${axis === "y" ? " horizontal" : ""}`;
+          ghost.dataset.index = String(index);
+          ghost.dataset.axis = axis;
+          ghost.setAttribute("aria-hidden", "true");
+          const label = document.createElement("span");
+          label.className = "cut-ghost-label";
+          ghost.appendChild(label);
+          cutGuides.appendChild(ghost);
+          state.cutGhostElement = ghost;
+        }
+        positionCutBoundary(state.cutGhostElement, axis, clamped);
+        const label = state.cutGhostElement.querySelector(".cut-ghost-label");
+        if (label) {
+          label.textContent = `${axis.toUpperCase()} ${clamped}px`;
+        }
+        return clamped;
+      }
+
+      function updateCutGuidesGeometry(force = false) {
+        const signature = JSON.stringify([
+          state.zoom,
+          state.offsetX,
+          state.offsetY,
+          state.width,
+          state.height,
+          state.allowCutDrag,
+          normalizedCutPositions("x"),
+          normalizedCutPositions("y"),
+          state.cutDraggingIndex,
+          state.cutDraggingAxis,
+        ]);
+        if (!force && signature === cutGuidesSignature) {
+          return;
+        }
+        cutGuidesSignature = signature;
+        cutGuides.replaceChildren();
+        state.cutGhostElement = null;
+        const span = cutSpan();
+        const renderBoundary = (axis, position, index) => {
+          const line = document.createElement("div");
+          line.className = `cut-boundary${axis === "y" ? " horizontal" : ""}`;
+          line.classList.toggle(
+            "active",
+            state.cutDraggingIndex === index && state.cutDraggingAxis === axis,
+          );
+          line.dataset.index = String(index);
+          line.dataset.axis = axis;
+          positionCutBoundary(line, axis, position, span);
           const handle = document.createElement("div");
           handle.className = "cut-handle";
           handle.dataset.index = String(index);
+          handle.dataset.axis = axis;
           if (!state.allowCutDrag) {
             handle.style.pointerEvents = "none";
             handle.style.cursor = "default";
@@ -1712,29 +2184,44 @@
             handle.addEventListener("pointerdown", (event) => {
               event.preventDefault();
               event.stopPropagation();
-              const pointer = pointerToPixel(event);
               state.cutDraggingIndex = index;
+              state.cutDraggingAxis = axis;
               state.cutActivePointerId = event.pointerId;
+              state.cutDragOriginPosition = position;
+              state.cutGhostPosition = position;
               handle.setPointerCapture?.(event.pointerId);
               handle.classList.add("dragging");
-              const next = updateCutPosition(index, pointer.x);
-              emitCutState(event, "move", next);
+              line.classList.add("active");
+              updateCutGhostPosition(axis, index, position);
             });
           }
           line.appendChild(handle);
           cutGuides.appendChild(line);
-        });
+        };
+        normalizedCutPositions("x").forEach((position, index) => renderBoundary("x", position, index));
+        normalizedCutPositions("y").forEach((position, index) => renderBoundary("y", position, index));
+        if (
+          state.cutDraggingIndex >= 0
+          && Number.isFinite(state.cutGhostPosition)
+        ) {
+          updateCutGhostPosition(
+            state.cutDraggingAxis,
+            state.cutDraggingIndex,
+            state.cutGhostPosition,
+          );
+        }
       }
 
-      function updateCutPosition(index, nextX) {
-        const positions = normalizedCutPositions();
-        const span = cutSpan();
-        const min = index === 0 ? span.start + 1 : positions[index - 1] + 1;
-        const max = index === positions.length - 1 ? span.end - 1 : positions[index + 1] - 1;
-        const clamped = Math.max(min, Math.min(max, Math.round(nextX)));
+      function commitCutPosition(axis, index, nextPosition) {
+        const positions = normalizedCutPositions(axis);
+        const clamped = clampedCutPosition(axis, index, nextPosition);
         positions[index] = clamped;
-        state.cutPositions = positions;
-        updateCutGuidesGeometry();
+        if (axis === "y") {
+          state.cutPositionsY = positions;
+        } else {
+          state.cutPositionsX = positions;
+          state.cutPositions = positions;
+        }
         return positions;
       }
 
@@ -1744,21 +2231,40 @@
           type: "cut",
           action,
           cutIndex: state.cutDraggingIndex,
+          cutAxis: state.cutDraggingAxis,
           cutPositions: positions.map((value) => Math.round(value)),
+          cutPositionsX: normalizedCutPositions("x").map((value) => Math.round(value)),
+          cutPositionsY: normalizedCutPositions("y").map((value) => Math.round(value)),
           allowCutDrag: state.allowCutDrag,
           ...modifiers(event),
         });
       }
 
-      function endCutDrag(event) {
+      function endCutDrag(event, commit = true) {
         if (state.cutDraggingIndex < 0) {
           return;
         }
-        const positions = normalizedCutPositions();
-        emitCutState(event, "end", positions);
+        const axis = state.cutDraggingAxis;
+        const index = state.cutDraggingIndex;
+        if (commit && Number.isFinite(state.cutGhostPosition)) {
+          const positionsForAxis = commitCutPosition(
+            axis,
+            index,
+            state.cutGhostPosition,
+          );
+          state.cutCommitPending = {
+            x: normalizedCutPositions("x"),
+            y: normalizedCutPositions("y"),
+            createdAt: Date.now(),
+          };
+          emitCutState(event, "end", positionsForAxis);
+        }
+        removeCutGhost();
         state.cutDraggingIndex = -1;
         state.cutActivePointerId = null;
-        updateCutGuidesGeometry();
+        state.cutDragOriginPosition = null;
+        state.cutGhostPosition = null;
+        updateCutGuidesGeometry(true);
       }
 
       function focusViewportOnOverlay() {
@@ -1785,6 +2291,7 @@
 
       function setZoom(value, announce = false) {
         const next = Math.max(1, Math.min(40, Math.round(value)));
+        const changed = state.zoom !== next;
         state.zoom = next;
         canvas.style.width = `${state.width * next}px`;
         canvas.style.height = `${state.height * next}px`;
@@ -1801,9 +2308,11 @@
             zoom: next,
           });
         }
-        requestAnimationFrame(updateCursor);
+        scheduleCursorUpdate();
         requestAnimationFrame(updateGuidesGeometry);
-        requestAnimationFrame(updateCutGuidesGeometry);
+        if (changed || !cutGuides.childElementCount) {
+          requestAnimationFrame(updateCutGuidesGeometry);
+        }
       }
 
       function computeFitZoom() {
@@ -1833,6 +2342,7 @@
         commitEditsButton.classList.toggle("active", count > 0);
         commitEditsButton.dataset.pending = String(count);
         commitEditsButton.disabled = count === 0;
+        updateHistoryControls();
       }
 
       function normalizeStudioLayers(value) {
@@ -1892,18 +2402,42 @@
           return;
         }
         state.activeLayerId = layerId;
-        renderStudioTimeline();
+        switchPendingEditContext(editContextKey());
+        state.studioSelectionPending = {
+          layerId,
+          frameIndex: state.activeFrame,
+          frameSpecific: false,
+          createdAt: Date.now(),
+        };
+        renderStudioTimeline(true);
         emitStudio("select-layer", { layerId });
       }
 
-      function selectStudioCel(layerId, frameIndex) {
+      function selectStudioCel(layerId, frameIndex, event = null) {
         if (!layerId || (state.activeLayerId === layerId && state.activeFrame === frameIndex)) {
           return;
         }
+        const previousFrame = state.activeFrame;
         state.activeLayerId = layerId;
         state.activeFrame = frameIndex;
-        renderStudioTimeline();
-        emitStudio("select-cel", { layerId, frameIndex });
+        switchPendingEditContext(editContextKey());
+        state.studioSelectionPending = {
+          layerId,
+          frameIndex,
+          frameSpecific: true,
+          createdAt: Date.now(),
+        };
+        if (event?.shiftKey) {
+          const rangeStart = Number.isFinite(previousFrame) ? previousFrame : frameIndex;
+          const start = Math.min(rangeStart, frameIndex);
+          const end = Math.max(rangeStart, frameIndex);
+          state.selectedFrames = Array.from({ length: end - start + 1 }, (_, index) => start + index);
+          emitStudio("select-range", { layerId, frameIndex, rangeStart });
+        } else {
+          state.selectedFrames = [frameIndex];
+          emitStudio("select-cel", { layerId, frameIndex });
+        }
+        renderStudioTimeline(true);
       }
 
       function clearStudioDragState() {
@@ -1912,8 +2446,20 @@
           .forEach((row) => row.classList.remove("dragging", "drop-target"));
       }
 
-      function renderStudioTimeline() {
+      function renderStudioTimeline(force = false) {
         const hasLayerTimeline = state.mode === "layer-edit" && state.studioLayers.length > 0;
+        const signature = JSON.stringify([
+          state.mode,
+          state.activeLayerId,
+          state.activeFrame,
+          state.frameCount,
+          state.selectedFrames,
+          state.studioLayers,
+        ]);
+        if (!force && signature === studioTimelineSignature) {
+          return;
+        }
+        studioTimelineSignature = signature;
         studioTimeline.hidden = !hasLayerTimeline;
         if (!hasLayerTimeline) {
           timelineSummary.textContent = "";
@@ -1978,6 +2524,19 @@
             window.setTimeout(() => {
               suppressStudioClick = false;
             }, 0);
+            const sourceIndex = state.studioLayers.findIndex((entry) => entry.id === sourceLayerId);
+            const targetIndex = state.studioLayers.findIndex((entry) => entry.id === targetLayerId);
+            if (sourceIndex >= 0 && targetIndex >= 0) {
+              const reordered = state.studioLayers.slice();
+              const [moved] = reordered.splice(sourceIndex, 1);
+              reordered.splice(targetIndex, 0, moved);
+              state.studioLayers = reordered;
+              state.studioOrderPending = {
+                layerIds: reordered.map((entry) => entry.id),
+                createdAt: Date.now(),
+              };
+              renderStudioTimeline(true);
+            }
             emitStudio("reorder-layer", { layerId: sourceLayerId, targetLayerId });
           });
           row.addEventListener("dragend", clearStudioDragState);
@@ -2007,6 +2566,7 @@
             const hasCel = studioLayerHasCel(layer, frameIndex);
             cel.classList.toggle("has-cel", hasCel);
             cel.classList.toggle("current", frameIndex === state.activeFrame);
+            cel.classList.toggle("selected", state.selectedFrames.includes(frameIndex));
             cel.title = `Frame ${frameIndex + 1}${hasCel ? " · cel" : " · vacío"}`;
             cel.setAttribute(
               "aria-label",
@@ -2016,12 +2576,12 @@
               "aria-pressed",
               String(layer.id === state.activeLayerId && frameIndex === state.activeFrame),
             );
-            cel.addEventListener("click", () => {
+            cel.addEventListener("click", (event) => {
               if (suppressStudioClick) {
                 suppressStudioClick = false;
                 return;
               }
-              selectStudioCel(layer.id, frameIndex);
+              selectStudioCel(layer.id, frameIndex, event);
             });
             cels.appendChild(cel);
           }
@@ -2044,25 +2604,129 @@
         canvas.height = state.height;
         context.imageSmoothingEnabled = false;
         context.clearRect(0, 0, state.width, state.height);
-        if (state.image) {
-          context.drawImage(state.image, 0, 0);
+        if (state.playbackTimer && state.animationFrames.length) {
+          const playbackFrame = state.animationFrames[state.playbackIndex % state.animationFrames.length];
+          if (playbackFrame) {
+            context.drawImage(playbackFrame, 0, 0);
+          }
+          return;
         }
-        if (state.overlay) {
+        const localLayerMove = (
+          state.mode === "layer-edit"
+          && state.tool === "move"
+          && state.moveBase
+          && !state.floatingSelection
+        );
+        const baseImage = localLayerMove ? state.moveBase : state.image;
+        if (baseImage) {
+          context.drawImage(baseImage, 0, 0);
+        }
+        if (state.overlay && (state.mode !== "layer-edit" || localLayerMove)) {
           context.drawImage(state.overlay, state.offsetX, state.offsetY);
         }
+        drawPendingEdits();
+        drawFloatingSelection();
+        drawCropPreview();
         updateGuidesGeometry();
       }
 
+      function drawFloatingSelection() {
+        if (!state.floatingSelection) {
+          return;
+        }
+        context.save();
+        context.imageSmoothingEnabled = false;
+        context.drawImage(
+          state.floatingSelection,
+          state.floatingSelectionX,
+          state.floatingSelectionY,
+        );
+        if (state.floatingHighlight) {
+          context.drawImage(
+            state.floatingHighlight,
+            state.floatingSelectionX,
+            state.floatingSelectionY,
+          );
+        }
+        const bounds = state.floatingSelectionBounds;
+        if (Array.isArray(bounds) && bounds.length === 4) {
+          const [x0, y0, x1, y1] = bounds;
+          context.strokeStyle = "rgba(255, 232, 168, 0.98)";
+          context.lineWidth = 1;
+          context.setLineDash([2, 2]);
+          context.strokeRect(
+            state.floatingSelectionX + x0 + 0.5,
+            state.floatingSelectionY + y0 + 0.5,
+            Math.max(1, x1 - x0),
+            Math.max(1, y1 - y0),
+          );
+        }
+        context.restore();
+      }
+
+      function drawCropPreview() {
+        if (state.mode !== "layer-edit" || !isShapeTool(state.tool) || !state.cropStart) {
+          return;
+        }
+        const points = state.cropPath.length ? state.cropPath : [state.cropStart];
+        const current = points[points.length - 1] || state.cropStart;
+        context.save();
+        context.imageSmoothingEnabled = false;
+        context.strokeStyle = "rgba(255, 196, 91, 0.95)";
+        context.fillStyle = "rgba(255, 196, 91, 0.18)";
+        context.lineWidth = 1;
+        context.setLineDash([2, 2]);
+        context.beginPath();
+        if (state.tool === "crop_lasso" || state.tool === "select_lasso") {
+          context.moveTo(state.cropStart.x + 0.5, state.cropStart.y + 0.5);
+          for (const point of points.slice(1)) {
+            context.lineTo(point.x + 0.5, point.y + 0.5);
+          }
+          if (points.length > 2) {
+            context.closePath();
+            context.fill();
+          }
+          context.stroke();
+        } else {
+          const x = Math.min(state.cropStart.x, current.x);
+          const y = Math.min(state.cropStart.y, current.y);
+          const width = Math.abs(current.x - state.cropStart.x) + 1;
+          const height = Math.abs(current.y - state.cropStart.y) + 1;
+          if (state.tool === "crop_ellipse" || state.tool === "select_ellipse") {
+            context.ellipse(
+              x + width / 2,
+              y + height / 2,
+              Math.max(0.5, width / 2),
+              Math.max(0.5, height / 2),
+              0,
+              0,
+              Math.PI * 2,
+            );
+            context.fill();
+            context.stroke();
+          } else {
+            context.rect(x + 0.5, y + 0.5, Math.max(1, width), Math.max(1, height));
+            context.fill();
+            context.stroke();
+          }
+        }
+        context.restore();
+      }
+
       function redraw() {
-        draw();
+        if (drawFrameId) {
+          cancelAnimationFrame(drawFrameId);
+          drawFrameId = 0;
+        }
         updateModeUI();
         renderStudioTimeline();
         setZoom(state.zoom);
-        setActiveTool(state.tool);
+        setActiveTool(state.tool, false);
         setBrushRadius(state.brushRadius);
         setGuideOpacity(state.guideOpacity);
         updateSample(state.sample);
         updatePendingEdits();
+        draw();
         requestAnimationFrame(setFrameHeight);
         requestAnimationFrame(updateCursor);
         requestAnimationFrame(updateCutGuidesGeometry);
@@ -2114,6 +2778,17 @@
       }
 
       function emitDrag(event, action, point) {
+        if (action === "end") {
+          state.transformCommitPending = {
+            offsetX: state.offsetX,
+            offsetY: state.offsetY,
+            mode: state.mode,
+            imageUrl: state.imageUrl,
+            overlayUrl: state.overlayUrl,
+            frameToken: state.frameToken,
+            createdAt: Date.now(),
+          };
+        }
         emitValue({
           eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           type: "transform",
@@ -2131,6 +2806,27 @@
           deltaX: state.offsetX - state.dragOriginX,
           deltaY: state.offsetY - state.dragOriginY,
           dragging: action !== "end",
+          ...modifiers(event),
+        });
+      }
+
+      function emitFloatingTransform(event, point) {
+        state.floatingTransformPending = {
+          x: state.floatingSelectionX,
+          y: state.floatingSelectionY,
+          selectionUrl: state.floatingSelectionUrl,
+          createdAt: Date.now(),
+        };
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "floating-transform",
+          action: "end",
+          mode: state.mode,
+          tool: "move",
+          x: point.x,
+          y: point.y,
+          deltaX: state.floatingSelectionX - state.floatingSelectionStartX,
+          deltaY: state.floatingSelectionY - state.floatingSelectionStartY,
           ...modifiers(event),
         });
       }
@@ -2159,15 +2855,52 @@
           brushRadius: state.brushRadius,
           color: state.paintColor,
         });
+        state.pendingRedoEdits = [];
         updatePendingEdits();
       }
 
-      function previewStroke(from, to) {
-        const radius = Math.max(0, state.brushRadius - 1);
+      function cropShapeForTool(tool) {
+        if (tool === "crop_rect" || tool === "select_rect") {
+          return "rect";
+        }
+        if (tool === "crop_ellipse" || tool === "select_ellipse") {
+          return "ellipse";
+        }
+        return "lasso";
+      }
+
+      function emitCrop(event, point) {
+        if (!state.cropStart) {
+          return;
+        }
+        const path = state.tool === "crop_lasso" || state.tool === "select_lasso"
+          ? state.cropPath.map((entry) => [entry.x, entry.y])
+          : [];
+        const payload = {
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: isSelectionTool(state.tool) ? "selection" : "crop",
+          tool: state.tool,
+          shape: cropShapeForTool(state.tool),
+          start: [state.cropStart.x, state.cropStart.y],
+          end: [point.x, point.y],
+          startX: state.cropStart.x,
+          startY: state.cropStart.y,
+          endX: point.x,
+          endY: point.y,
+          path,
+          ...modifiers(event),
+        };
+        emitValue(payload);
+      }
+
+      function renderStrokeSegment(from, to, edit = null) {
+        const tool = edit?.tool || state.tool;
+        const brushRadius = Math.max(1, Number(edit?.brushRadius || state.brushRadius));
+        const radius = Math.max(0, brushRadius - 1);
         context.save();
         context.imageSmoothingEnabled = false;
-        context.globalCompositeOperation = state.tool === "eraser" ? "destination-out" : "source-over";
-        const [r, g, b, a = 255] = state.paintColor;
+        context.globalCompositeOperation = tool === "eraser" ? "destination-out" : "source-over";
+        const [r, g, b, a = 255] = Array.isArray(edit?.color) ? edit.color : state.paintColor;
         context.strokeStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
         context.fillStyle = context.strokeStyle;
         context.lineWidth = radius * 2 + 1;
@@ -2185,6 +2918,28 @@
         context.restore();
       }
 
+      function previewStroke(from, to) {
+        renderStrokeSegment(from, to);
+      }
+
+      function drawPendingEdits() {
+        const committed = state.committedEditsPending?.edits || [];
+        for (const edit of [...committed, ...state.pendingEdits]) {
+          const path = Array.isArray(edit?.path)
+            ? edit.path
+                .filter((point) => Array.isArray(point) && point.length === 2)
+                .map((point) => ({ x: Number(point[0]), y: Number(point[1]) }))
+            : [];
+          if (!path.length) {
+            continue;
+          }
+          renderStrokeSegment(path[0], path[0], edit);
+          for (let index = 1; index < path.length; index += 1) {
+            renderStrokeSegment(path[index - 1], path[index], edit);
+          }
+        }
+      }
+
       function sampleCanvas(point) {
         const sampled = Array.from(context.getImageData(point.x, point.y, 1, 1).data);
         state.paintColor = sampled;
@@ -2195,13 +2950,20 @@
         if (!state.pendingEdits.length) {
           return;
         }
+        const edits = state.pendingEdits;
         emitValue({
           eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           type: "edit-batch",
-          edits: state.pendingEdits,
+          edits,
           sample: state.paintColor,
         });
+        state.committedEditsPending = {
+          edits,
+          imageUrl: state.imageUrl,
+          createdAt: Date.now(),
+        };
         state.pendingEdits = [];
+        state.pendingRedoEdits = [];
         updatePendingEdits();
       }
 
@@ -2247,8 +3009,16 @@
         if (state.mode === "layer-edit" && state.tool === "move") {
           state.dragStartX = point.x;
           state.dragStartY = point.y;
-          state.dragOriginX = state.offsetX;
-          state.dragOriginY = state.offsetY;
+          state.dragOriginX = state.floatingSelection ? state.floatingSelectionX : state.offsetX;
+          state.dragOriginY = state.floatingSelection ? state.floatingSelectionY : state.offsetY;
+          event.preventDefault();
+          return;
+        }
+        if (state.mode === "layer-edit" && isShapeTool(state.tool)) {
+          state.cropStart = point;
+          state.cropPath = [point];
+          draw();
+          updateCursor();
           event.preventDefault();
           return;
         }
@@ -2257,8 +3027,13 @@
           return;
         }
         if (state.tool === "eraser" || (state.mode === "layer-edit" && state.tool === "pencil")) {
-          state.strokePath = [point];
-          previewStroke(point, point);
+          const lineStart = event.shiftKey && state.lastStrokePoint
+            ? state.lastStrokePoint
+            : point;
+          state.strokePath = lineStart.x === point.x && lineStart.y === point.y
+            ? [point]
+            : [lineStart, point];
+          previewStroke(lineStart, point);
           updateCursor();
           event.preventDefault();
           return;
@@ -2278,7 +3053,7 @@
         if (state.mode === "segmentation-cut") {
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
-          updateCursor();
+          scheduleCursorUpdate();
           event.preventDefault();
           return;
         }
@@ -2288,18 +3063,33 @@
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
           setObjectOffset(nextX, nextY);
-          updateCursor();
+          scheduleCursorUpdate();
         } else if (state.mode === "layer-edit" && state.tool === "move" && state.dragging && (event.buttons & 1)) {
           const nextX = state.dragOriginX + (point.x - state.dragStartX);
           const nextY = state.dragOriginY + (point.y - state.dragStartY);
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
-          setObjectOffset(nextX, nextY);
-          updateCursor();
+          if (state.floatingSelection) {
+            state.floatingSelectionX = nextX;
+            state.floatingSelectionY = nextY;
+            scheduleDraw();
+          } else {
+            setObjectOffset(nextX, nextY);
+          }
+          scheduleCursorUpdate();
+        } else if (state.mode === "layer-edit" && isShapeTool(state.tool) && state.dragging && (event.buttons & 1)) {
+          state.pointerPixelX = point.x;
+          state.pointerPixelY = point.y;
+          const last = state.cropPath[state.cropPath.length - 1];
+          if (!last || last.x !== point.x || last.y !== point.y) {
+            state.cropPath.push(point);
+            scheduleDraw();
+          }
+          scheduleCursorUpdate();
         } else if (state.mode === "segmentation-center") {
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
-          updateCursor();
+          scheduleCursorUpdate();
         } else if (
           state.dragging
           && (state.tool === "eraser" || (state.mode === "layer-edit" && state.tool === "pencil"))
@@ -2312,11 +3102,11 @@
             state.strokePath.push(point);
             previewStroke(last || point, point);
           }
-          updateCursor();
+          scheduleCursorUpdate();
         } else {
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
-          updateCursor();
+          scheduleCursorUpdate();
         }
         event.preventDefault();
       });
@@ -2336,11 +3126,25 @@
             previewStroke(last || point, point);
           }
           emitStroke(event);
+          state.lastStrokePoint = point;
           state.strokePath = [];
         } else if (state.mode === "segmentation-center" && state.allowDrag) {
           emitDrag(event, "end", point);
         } else if (state.mode === "layer-edit" && state.tool === "move") {
-          emitDrag(event, "end", point);
+          if (state.floatingSelection) {
+            emitFloatingTransform(event, point);
+          } else {
+            emitDrag(event, "end", point);
+          }
+        } else if (state.mode === "layer-edit" && isShapeTool(state.tool)) {
+          const last = state.cropPath[state.cropPath.length - 1];
+          if (!last || last.x !== point.x || last.y !== point.y) {
+            state.cropPath.push(point);
+          }
+          emitCrop(event, point);
+          state.cropStart = null;
+          state.cropPath = [];
+          draw();
         }
         state.dragging = false;
         state.pointerVisible = true;
@@ -2350,15 +3154,26 @@
 
       canvas.addEventListener("pointercancel", () => {
         const point = { x: state.pointerPixelX, y: state.pointerPixelY };
-        if (
+        const cancelObjectMove = (
           (state.mode === "segmentation-center" && state.allowDrag && state.dragging)
-          || (state.mode === "layer-edit" && state.tool === "move" && state.dragging)
-        ) {
+          || (state.mode === "layer-edit" && state.tool === "move" && state.dragging && !state.floatingSelection)
+        );
+        if (cancelObjectMove) {
+          state.offsetX = state.dragOriginX;
+          state.offsetY = state.dragOriginY;
+          state.transformCommitPending = null;
           emitDrag({ button: 0, shiftKey: false, altKey: false, metaKey: false, ctrlKey: false }, "cancel", point);
         }
         state.dragging = false;
         state.strokePath = [];
+        state.cropStart = null;
+        state.cropPath = [];
+        if (state.floatingSelection) {
+          state.floatingSelectionX = state.floatingSelectionStartX;
+          state.floatingSelectionY = state.floatingSelectionStartY;
+        }
         state.pointerVisible = false;
+        draw();
         updateCursor();
       });
 
@@ -2370,8 +3185,11 @@
           return;
         }
         const pointer = pointerToPixel(event);
-        const positions = updateCutPosition(state.cutDraggingIndex, pointer.x);
-        emitCutState(event, "move", positions);
+        updateCutGhostPosition(
+          state.cutDraggingAxis,
+          state.cutDraggingIndex,
+          state.cutDraggingAxis === "y" ? pointer.y : pointer.x,
+        );
         event.preventDefault();
       });
 
@@ -2382,7 +3200,7 @@
         if (state.cutActivePointerId !== null && event.pointerId !== state.cutActivePointerId) {
           return;
         }
-        endCutDrag(event);
+        endCutDrag(event, true);
       });
 
       document.addEventListener("pointercancel", (event) => {
@@ -2392,12 +3210,17 @@
         if (state.cutActivePointerId !== null && event.pointerId !== state.cutActivePointerId) {
           return;
         }
-        endCutDrag(event);
+        endCutDrag(event, false);
       });
 
       canvas.addEventListener("pointerleave", () => {
         if (!state.dragging) {
           state.strokePath = [];
+          if (state.mode === "layer-edit" && isShapeTool(state.tool)) {
+            state.cropStart = null;
+            state.cropPath = [];
+            draw();
+          }
           state.pointerVisible = false;
           updateCursor();
         }
@@ -2414,6 +3237,43 @@
 
       canvas.addEventListener("keydown", (event) => {
         const key = event.key.toLowerCase();
+        if ((event.metaKey || event.ctrlKey) && key === "z") {
+          emitHistory(event.shiftKey ? "redo" : "undo");
+          event.preventDefault();
+          return;
+        }
+        if ((event.metaKey || event.ctrlKey) && key === "y") {
+          emitHistory("redo");
+          event.preventDefault();
+          return;
+        }
+        if (state.mode === "layer-edit" && (event.metaKey || event.ctrlKey) && key === "a") {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "selection-command",
+            action: "select-all",
+          });
+          event.preventDefault();
+          return;
+        }
+        if (state.mode === "layer-edit" && (event.metaKey || event.ctrlKey) && key === "d") {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "selection-command",
+            action: "deselect",
+          });
+          event.preventDefault();
+          return;
+        }
+        if (state.mode === "layer-edit" && (event.metaKey || event.ctrlKey) && ["c", "x", "v"].includes(key)) {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "clipboard",
+            action: key === "c" ? "copy" : key === "x" ? "cut" : "paste",
+          });
+          event.preventDefault();
+          return;
+        }
         if ((event.metaKey || event.ctrlKey) && key === "enter") {
           commitPendingEdits();
           event.preventDefault();
@@ -2426,6 +3286,21 @@
         }
         if (key === "m" && state.mode === "layer-edit") {
           setActiveTool("move");
+          event.preventDefault();
+          return;
+        }
+        if (key === "l" && state.mode === "layer-edit") {
+          setActiveTool("crop_lasso");
+          event.preventDefault();
+          return;
+        }
+        if (key === "r" && state.mode === "layer-edit") {
+          setActiveTool("crop_rect");
+          event.preventDefault();
+          return;
+        }
+        if (key === "o" && state.mode === "layer-edit") {
+          setActiveTool("crop_ellipse");
           event.preventDefault();
           return;
         }
@@ -2485,6 +3360,25 @@
           event.preventDefault();
           return;
         }
+        if (key === "escape" && state.mode === "layer-edit" && state.floatingSelection) {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "floating-selection",
+            action: "cancel",
+            tool: "move",
+          });
+          event.preventDefault();
+          return;
+        }
+        if (key === "escape" && state.mode === "layer-edit") {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "selection-command",
+            action: "deselect",
+          });
+          event.preventDefault();
+          return;
+        }
         if (
           state.mode === "segmentation-center"
           && state.allowDrag
@@ -2494,7 +3388,7 @@
           const step = event.shiftKey ? 5 : 1;
           const deltaX = key === "arrowleft" ? -step : key === "arrowright" ? step : 0;
           const deltaY = key === "arrowup" ? -step : key === "arrowdown" ? step : 0;
-          setObjectOffset(state.offsetX + deltaX, state.offsetY + deltaY, true);
+          nudgeObject(deltaX, deltaY);
           event.preventDefault();
           return;
         }
@@ -2502,6 +3396,15 @@
           return;
         }
         if (state.mode === "segmentation-cut") {
+          return;
+        }
+        if (state.mode === "layer-edit" && (key === "backspace" || key === "delete")) {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "clipboard",
+            action: "cut",
+          });
+          event.preventDefault();
           return;
         }
         if (key === "[") {
@@ -2543,6 +3446,22 @@
           return;
         }
         const action = button.dataset.action;
+        if (action === "undo" || action === "redo") {
+          emitHistory(action);
+          focusCanvas();
+          return;
+        }
+        if (action === "pixel-action") {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "pixel-action",
+            action: button.dataset.pixelAction || "",
+            radius: 1,
+            minimumNeighbors: 2,
+          });
+          focusCanvas();
+          return;
+        }
         if (action === "tool") {
           const tool = button.dataset.tool || "wand";
           setActiveTool(tool);
@@ -2620,6 +3539,11 @@
           setGuidesVisible(!state.showGuides, true);
           focusCanvas();
         }
+      });
+
+      timelinePlayButton.addEventListener("click", () => {
+        togglePlayback();
+        focusCanvas();
       });
 
       guideTargetLayer.addEventListener("change", () => {
@@ -2716,38 +3640,119 @@
           return;
         }
         const args = message.args || {};
+        const renderId = ++latestRenderId;
+        state.canUndo = !!args.canUndo;
+        state.canRedo = !!args.canRedo;
+        state.undoLabel = String(args.undoLabel || "");
+        state.redoLabel = String(args.redoLabel || "");
+        updateHistoryControls();
         if (Object.prototype.hasOwnProperty.call(args, "frameToken")) {
           state.frameToken = String(args.frameToken || "");
         }
         if (hasOwn(args, "studioLayers")) {
-          state.studioLayers = normalizeStudioLayers(args.studioLayers);
+          const incomingLayers = normalizeStudioLayers(args.studioLayers);
+          const incomingLayerIds = incomingLayers.map((entry) => entry.id);
+          const pendingOrder = state.studioOrderPending;
+          const orderAcknowledged = !!pendingOrder
+            && sameCutPositions(incomingLayerIds, pendingOrder.layerIds);
+          const orderExpired = !!pendingOrder && Date.now() - pendingOrder.createdAt > 4000;
+          if (!pendingOrder || orderAcknowledged || orderExpired) {
+            state.studioLayers = incomingLayers;
+            if (orderAcknowledged || orderExpired) {
+              state.studioOrderPending = null;
+            }
+          }
         }
-        if (hasOwn(args, "activeLayerId")) {
-          state.activeLayerId = String(args.activeLayerId ?? "");
-        }
-        if (hasOwn(args, "activeFrame")) {
-          state.activeFrame = Math.max(0, Math.round(finiteNumber(args.activeFrame, 0)));
+        const incomingLayerId = hasOwn(args, "activeLayerId")
+          ? String(args.activeLayerId ?? "")
+          : state.activeLayerId;
+        const incomingFrame = hasOwn(args, "activeFrame")
+          ? Math.max(0, Math.round(finiteNumber(args.activeFrame, 0)))
+          : state.activeFrame;
+        const pendingSelection = state.studioSelectionPending;
+        const selectionAcknowledged = !!pendingSelection
+          && incomingLayerId === pendingSelection.layerId
+          && (!pendingSelection.frameSpecific || incomingFrame === pendingSelection.frameIndex);
+        const selectionExpired = !!pendingSelection
+          && Date.now() - pendingSelection.createdAt > 4000;
+        if (!pendingSelection || selectionAcknowledged || selectionExpired) {
+          state.activeLayerId = incomingLayerId;
+          state.activeFrame = incomingFrame;
+          if (selectionAcknowledged || selectionExpired) {
+            state.studioSelectionPending = null;
+          }
         }
         if (hasOwn(args, "frameCount")) {
           state.frameCount = Math.max(0, Math.round(finiteNumber(args.frameCount, 0)));
         }
+        if (Array.isArray(args.selectedFrames)) {
+          state.selectedFrames = args.selectedFrames
+            .map((value) => Math.max(0, Math.round(finiteNumber(value, 0))))
+            .filter((value, index, values) => values.indexOf(value) === index);
+        }
         if (state.activeFrameToken && state.activeFrameToken !== state.frameToken) {
           frameStateByToken.set(state.activeFrameToken, captureFrameState());
         }
+        const frameChanged = state.frameToken !== state.activeFrameToken;
+        switchPendingEditContext(editContextKey());
+        if (frameChanged) {
+          state.cutCommitPending = null;
+          state.floatingTransformPending = null;
+        }
         state.width = Math.max(1, Number(args.width || 1));
         state.height = Math.max(1, Number(args.height || 1));
-        state.tool = normalizeTool(String(args.tool || state.tool || "wand"));
-        setMode(String(args.mode || state.mode || "background"));
-        state.brushRadius = Math.max(1, Math.round(Number(args.brushRadius || state.brushRadius || 5)));
+        const incomingTool = normalizeTool(String(args.tool || state.tool || "wand"));
+        if (!state.initialized || frameChanged || incomingTool !== state.serverTool) {
+          state.tool = incomingTool;
+        }
+        state.serverTool = incomingTool;
+        setMode(String(args.mode || state.mode || "background"), false);
+        const incomingBrushRadius = Math.max(
+          1,
+          Math.round(Number(args.brushRadius || state.brushRadius || 5)),
+        );
+        if (
+          !state.initialized
+          || frameChanged
+          || incomingBrushRadius !== state.serverBrushRadius
+        ) {
+          state.brushRadius = incomingBrushRadius;
+        }
+        state.serverBrushRadius = incomingBrushRadius;
         state.sample = Array.isArray(args.sample) ? args.sample.slice(0, 4) : null;
         state.paintColor = Array.isArray(args.paintColor)
           ? args.paintColor.slice(0, 4)
           : (state.sample || state.paintColor);
-        if (Object.prototype.hasOwnProperty.call(args, "offsetX")) {
-          state.offsetX = Math.round(Number(args.offsetX || 0));
-        }
-        if (Object.prototype.hasOwnProperty.call(args, "offsetY")) {
-          state.offsetY = Math.round(Number(args.offsetY || 0));
+        const incomingOffsetX = hasOwn(args, "offsetX")
+          ? Math.round(Number(args.offsetX || 0))
+          : state.offsetX;
+        const incomingOffsetY = hasOwn(args, "offsetY")
+          ? Math.round(Number(args.offsetY || 0))
+          : state.offsetY;
+        const pendingTransform = state.transformCommitPending;
+        const transformAcknowledged = !!pendingTransform
+          && (
+            (
+              incomingOffsetX === pendingTransform.offsetX
+              && incomingOffsetY === pendingTransform.offsetY
+            )
+            || (
+              pendingTransform.mode === "segmentation-center"
+              && (
+                (args.overlay || null) !== pendingTransform.overlayUrl
+                || (args.image || null) !== pendingTransform.imageUrl
+                || state.frameToken !== pendingTransform.frameToken
+              )
+            )
+          );
+        const transformExpired = !!pendingTransform
+          && Date.now() - pendingTransform.createdAt > 4000;
+        if (!pendingTransform || transformAcknowledged || transformExpired) {
+          state.offsetX = incomingOffsetX;
+          state.offsetY = incomingOffsetY;
+          if (transformAcknowledged || transformExpired) {
+            state.transformCommitPending = null;
+          }
         }
         if (Object.prototype.hasOwnProperty.call(args, "homeOffsetX")) {
           state.homeOffsetX = Math.round(Number(args.homeOffsetX || 0));
@@ -2833,14 +3838,111 @@
         if (Object.prototype.hasOwnProperty.call(args, "fitToken")) {
           state.fitToken = String(args.fitToken || "");
         }
-        if (hasOwn(args, "cutPositions") && Array.isArray(args.cutPositions)) {
-          state.cutPositions = args.cutPositions.map((value) => Math.round(Number(value)));
+        const incomingLegacyCuts = normalizedIncomingCutPositions(args.cutPositions);
+        const incomingCutsX = hasOwn(args, "cutPositionsX")
+          ? normalizedIncomingCutPositions(args.cutPositionsX)
+          : incomingLegacyCuts;
+        const incomingCutsY = normalizedIncomingCutPositions(args.cutPositionsY);
+        const pendingCuts = state.cutCommitPending;
+        const pendingAcknowledged = !!pendingCuts
+          && sameCutPositions(incomingCutsX, pendingCuts.x)
+          && sameCutPositions(incomingCutsY, pendingCuts.y);
+        const pendingExpired = !!pendingCuts && Date.now() - pendingCuts.createdAt > 4000;
+        if (!pendingCuts || pendingAcknowledged || pendingExpired) {
+          if (hasOwn(args, "cutPositions") && Array.isArray(args.cutPositions)) {
+            state.cutPositions = incomingLegacyCuts;
+            state.cutPositionsX = state.cutPositions.slice();
+          }
+          if (hasOwn(args, "cutPositionsX") && Array.isArray(args.cutPositionsX)) {
+            state.cutPositionsX = incomingCutsX;
+            state.cutPositions = state.cutPositionsX.slice();
+          }
+          if (hasOwn(args, "cutPositionsY") && Array.isArray(args.cutPositionsY)) {
+            state.cutPositionsY = incomingCutsY;
+          }
+          if (pendingAcknowledged || pendingExpired) {
+            state.cutCommitPending = null;
+          }
         }
         try {
           let focusAfterRender = false;
-          state.image = await loadImage(args.image || null);
-          state.overlay = await loadImage(args.overlay || null);
-          const frameChanged = state.frameToken !== state.activeFrameToken;
+          const imageUrl = args.image || null;
+          const overlayUrl = args.overlay || null;
+          const moveBaseUrl = args.moveBase || null;
+          const floatingSelectionUrl = args.floatingSelection || null;
+          const floatingHighlightUrl = args.floatingHighlight || null;
+          const animationFrameUrls = Array.isArray(args.animationFrames)
+            ? args.animationFrames.filter((value) => typeof value === "string" && value)
+            : [];
+          const sameAnimationFrames = JSON.stringify(animationFrameUrls) === JSON.stringify(state.animationFrameUrls);
+          const [image, overlay, moveBase, floatingSelection, floatingHighlight, animationFrames] = await Promise.all([
+            imageUrl === state.imageUrl ? state.image : loadImage(imageUrl),
+            overlayUrl === state.overlayUrl ? state.overlay : loadImage(overlayUrl),
+            moveBaseUrl === state.moveBaseUrl ? state.moveBase : loadImage(moveBaseUrl),
+            floatingSelectionUrl === state.floatingSelectionUrl
+              ? state.floatingSelection
+              : loadImage(floatingSelectionUrl),
+            floatingHighlightUrl === state.floatingHighlightUrl
+              ? state.floatingHighlight
+              : loadImage(floatingHighlightUrl),
+            sameAnimationFrames
+              ? state.animationFrames
+              : Promise.all(animationFrameUrls.map((url) => loadImage(url))),
+          ]);
+          if (renderId !== latestRenderId) {
+            return;
+          }
+          state.image = image;
+          state.imageUrl = imageUrl;
+          state.overlay = overlay;
+          state.overlayUrl = overlayUrl;
+          state.moveBase = moveBase;
+          state.moveBaseUrl = moveBaseUrl;
+          state.floatingSelection = floatingSelection;
+          state.floatingSelectionUrl = floatingSelectionUrl;
+          state.floatingHighlight = floatingHighlight;
+          state.floatingHighlightUrl = floatingHighlightUrl;
+          state.animationFrames = animationFrames.filter(Boolean);
+          state.animationFrameUrls = animationFrameUrls;
+          state.animationFps = Math.max(1, Math.min(60, Math.round(finiteNumber(args.animationFps, 8))));
+          state.animationDurations = Array.isArray(args.animationDurations)
+            ? args.animationDurations.map((value) => Math.max(16, Math.round(finiteNumber(value, 125))))
+            : [];
+          timelinePlayButton.disabled = state.animationFrames.length === 0;
+          if (!state.animationFrames.length && state.playbackTimer) {
+            stopPlayback();
+          }
+          const incomingFloatingX = Math.round(Number(args.floatingSelectionX || 0));
+          const incomingFloatingY = Math.round(Number(args.floatingSelectionY || 0));
+          const pendingFloating = state.floatingTransformPending;
+          const floatingAcknowledged = !!pendingFloating && (
+            floatingSelectionUrl !== pendingFloating.selectionUrl
+            || (
+              incomingFloatingX === pendingFloating.x
+              && incomingFloatingY === pendingFloating.y
+            )
+          );
+          const floatingExpired = !!pendingFloating
+            && Date.now() - pendingFloating.createdAt > 4000;
+          if (!pendingFloating || floatingAcknowledged || floatingExpired) {
+            state.floatingSelectionX = incomingFloatingX;
+            state.floatingSelectionY = incomingFloatingY;
+            if (floatingAcknowledged || floatingExpired) {
+              state.floatingTransformPending = null;
+            }
+          }
+          state.floatingSelectionStartX = state.floatingSelectionX;
+          state.floatingSelectionStartY = state.floatingSelectionY;
+          state.floatingSelectionBounds = Array.isArray(args.floatingSelectionBounds)
+            ? args.floatingSelectionBounds.map((value) => Math.round(Number(value)))
+            : null;
+          const committedEdits = state.committedEditsPending;
+          if (committedEdits && (
+            imageUrl !== committedEdits.imageUrl
+            || Date.now() - committedEdits.createdAt > 4000
+          )) {
+            state.committedEditsPending = null;
+          }
           if (frameChanged) {
             state.activeFrameToken = state.frameToken;
             const restored = restoreFrameState(frameStateByToken.get(state.frameToken), args);
@@ -2863,7 +3965,6 @@
             state.initialized = true;
           }
           redraw();
-          setZoom(state.zoom, false);
           if (focusAfterRender) {
             scheduleViewportFocus();
           }

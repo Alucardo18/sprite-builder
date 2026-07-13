@@ -35,6 +35,7 @@ class SpriteLayer:
     locked: bool = False
     exportable: bool = True
     opacity: float = 1.0
+    alpha_locked: bool = False
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> SpriteLayer:
@@ -49,6 +50,7 @@ class SpriteLayer:
             locked=bool(value.get("locked", False)),
             exportable=bool(value.get("exportable", True)),
             opacity=_clamp_opacity(value.get("opacity", 1.0)),
+            alpha_locked=bool(value.get("alpha_locked", False)),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -349,6 +351,319 @@ def composite_document_frames(
             frame.alpha_composite(placed, dest=(cel.offset_x, cel.offset_y))
         result.append(frame)
     return tuple(result)
+
+
+def composite_document_frame(
+    document: LayeredSpriteDocument,
+    images: Mapping[tuple[str, int], Image.Image],
+    frame_index: int,
+    *,
+    analysis_only: bool = False,
+) -> Image.Image:
+    """Flatten one frame without composing every hidden timeline frame."""
+
+    index = int(frame_index)
+    if not 0 <= index < document.frame_count:
+        raise IndexError(index)
+    frame = Image.new("RGBA", (document.canvas_width, document.canvas_height))
+    for layer in document.layers:
+        if not layer.visible or not layer.exportable:
+            continue
+        if analysis_only and layer.role in {"vfx", "reference"}:
+            continue
+        cel = document.cel(layer.layer_id, index)
+        image = images.get((layer.layer_id, index))
+        if cel is None or image is None:
+            continue
+        placed = image.convert("RGBA")
+        if layer.opacity < 1:
+            placed = placed.copy()
+            placed.putalpha(
+                placed.getchannel("A").point(
+                    lambda value, opacity=layer.opacity: round(value * opacity)
+                )
+            )
+        frame.alpha_composite(placed, dest=(cel.offset_x, cel.offset_y))
+    return frame
+
+
+def fill_cel_selection(
+    image: Image.Image,
+    mask: Any,
+    color: tuple[int, int, int, int],
+) -> Image.Image:
+    """Fill a boolean selection exactly, without filtering or antialiasing."""
+
+    import numpy as np
+
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+    selected = np.asarray(mask, dtype=bool)
+    if selected.shape != rgba.shape[:2]:
+        raise ValueError("Selection mask must match cel size")
+    rgba[selected] = np.asarray(color, dtype=np.uint8)
+    return Image.fromarray(rgba, "RGBA")
+
+
+def replace_cel_color(
+    image: Image.Image,
+    source: tuple[int, int, int, int],
+    target: tuple[int, int, int, int],
+    *,
+    tolerance: int = 0,
+    mask: Any | None = None,
+) -> Image.Image:
+    """Replace RGBA colors inside an optional selection using integer distance."""
+
+    import numpy as np
+
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+    delta = np.abs(rgba.astype(np.int16) - np.asarray(source, dtype=np.int16))
+    selected = np.max(delta, axis=2) <= max(0, min(255, int(tolerance)))
+    if mask is not None:
+        region = np.asarray(mask, dtype=bool)
+        if region.shape != selected.shape:
+            raise ValueError("Selection mask must match cel size")
+        selected &= region
+    rgba[selected] = np.asarray(target, dtype=np.uint8)
+    return Image.fromarray(rgba, "RGBA")
+
+
+def transform_cel_selection(
+    image: Image.Image,
+    mask: Any,
+    operation: str,
+) -> tuple[Image.Image, Any]:
+    """Flip or rotate selected pixels with nearest, integer-only placement."""
+
+    import numpy as np
+
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+    selected = np.asarray(mask, dtype=bool)
+    if selected.shape != rgba.shape[:2]:
+        raise ValueError("Selection mask must match cel size")
+    rows, columns = np.where(selected)
+    if not len(rows):
+        return image.convert("RGBA"), selected.copy()
+    x0, x1 = int(columns.min()), int(columns.max()) + 1
+    y0, y1 = int(rows.min()), int(rows.max()) + 1
+    piece = rgba[y0:y1, x0:x1].copy()
+    piece_mask = selected[y0:y1, x0:x1].copy()
+    piece[~piece_mask, 3] = 0
+    if operation == "flip-horizontal":
+        transformed = np.flip(piece, axis=1)
+        transformed_mask = np.flip(piece_mask, axis=1)
+    elif operation == "flip-vertical":
+        transformed = np.flip(piece, axis=0)
+        transformed_mask = np.flip(piece_mask, axis=0)
+    elif operation == "rotate-cw":
+        transformed = np.rot90(piece, -1)
+        transformed_mask = np.rot90(piece_mask, -1)
+    elif operation == "rotate-ccw":
+        transformed = np.rot90(piece, 1)
+        transformed_mask = np.rot90(piece_mask, 1)
+    elif operation == "rotate-180":
+        transformed = np.rot90(piece, 2)
+        transformed_mask = np.rot90(piece_mask, 2)
+    elif operation == "scale-2x":
+        transformed = np.repeat(np.repeat(piece, 2, axis=0), 2, axis=1)
+        transformed_mask = np.repeat(np.repeat(piece_mask, 2, axis=0), 2, axis=1)
+    elif operation == "scale-half":
+        transformed = piece[::2, ::2].copy()
+        transformed_mask = piece_mask[::2, ::2].copy()
+    else:
+        raise ValueError(f"Unknown pixel transform: {operation}")
+    rgba[selected] = (0, 0, 0, 0)
+    max_height, max_width = rgba.shape[:2]
+    if transformed_mask.shape[0] > max_height or transformed_mask.shape[1] > max_width:
+        crop_y = max(0, (transformed_mask.shape[0] - max_height) // 2)
+        crop_x = max(0, (transformed_mask.shape[1] - max_width) // 2)
+        transformed = transformed[crop_y : crop_y + max_height, crop_x : crop_x + max_width]
+        transformed_mask = transformed_mask[
+            crop_y : crop_y + max_height,
+            crop_x : crop_x + max_width,
+        ]
+    height, width = transformed_mask.shape
+    center_x = (x0 + x1) // 2
+    center_y = (y0 + y1) // 2
+    dest_x = center_x - width // 2
+    dest_y = center_y - height // 2
+    dest_x = max(0, min(rgba.shape[1] - width, dest_x))
+    dest_y = max(0, min(rgba.shape[0] - height, dest_y))
+    output_mask = np.zeros(selected.shape, dtype=bool)
+    target = rgba[dest_y : dest_y + height, dest_x : dest_x + width]
+    target[transformed_mask] = transformed[transformed_mask]
+    output_mask[dest_y : dest_y + height, dest_x : dest_x + width] = transformed_mask
+    return Image.fromarray(rgba, "RGBA"), output_mask
+
+
+def outline_cel_pixels(
+    image: Image.Image,
+    color: tuple[int, int, int, int],
+    *,
+    radius: int = 1,
+    mask: Any | None = None,
+) -> Image.Image:
+    """Add a crisp outline around opaque pixels, constrained by a selection."""
+
+    import numpy as np
+
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+    opaque = rgba[..., 3] > 0
+    expanded = opaque.copy()
+    for _ in range(max(1, min(8, int(radius)))):
+        padded = np.pad(expanded, 1, constant_values=False)
+        expanded = np.logical_or.reduce(
+            [
+                padded[0:-2, 0:-2], padded[0:-2, 1:-1], padded[0:-2, 2:],
+                padded[1:-1, 0:-2], padded[1:-1, 1:-1], padded[1:-1, 2:],
+                padded[2:, 0:-2], padded[2:, 1:-1], padded[2:, 2:],
+            ]
+        )
+    outline = expanded & ~opaque
+    if mask is not None:
+        selected = np.asarray(mask, dtype=bool)
+        if selected.shape != outline.shape:
+            raise ValueError("Selection mask must match cel size")
+        outline &= selected
+    rgba[outline] = np.asarray(color, dtype=np.uint8)
+    return Image.fromarray(rgba, "RGBA")
+
+
+def remove_isolated_pixels(
+    image: Image.Image,
+    *,
+    minimum_neighbors: int = 2,
+    mask: Any | None = None,
+) -> Image.Image:
+    """Remove isolated opaque pixels using an exact 8-neighbour count."""
+
+    import numpy as np
+
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+    opaque = rgba[..., 3] > 0
+    padded = np.pad(opaque, 1, constant_values=False)
+    neighbors = sum(
+        padded[dy : dy + opaque.shape[0], dx : dx + opaque.shape[1]].astype(np.uint8)
+        for dy in range(3)
+        for dx in range(3)
+        if (dy, dx) != (1, 1)
+    )
+    remove = opaque & (neighbors < max(0, min(8, int(minimum_neighbors))))
+    if mask is not None:
+        selected = np.asarray(mask, dtype=bool)
+        if selected.shape != remove.shape:
+            raise ValueError("Selection mask must match cel size")
+        remove &= selected
+    rgba[remove] = (0, 0, 0, 0)
+    return Image.fromarray(rgba, "RGBA")
+
+
+def duplicate_document_frame(
+    document: LayeredSpriteDocument,
+    images: Mapping[tuple[str, int], Image.Image],
+    frame_index: int,
+) -> tuple[LayeredSpriteDocument, dict[tuple[str, int], Image.Image]]:
+    """Insert a pixel-identical frame after ``frame_index`` without resizing."""
+
+    source_index = max(0, min(document.frame_count - 1, int(frame_index)))
+    insert_at = source_index + 1
+    next_images: dict[tuple[str, int], Image.Image] = {}
+    next_cels: list[SpriteCel] = []
+    for layer in document.layers:
+        for next_index in range(document.frame_count + 1):
+            old_index = (
+                source_index
+                if next_index == insert_at
+                else next_index
+                if next_index < insert_at
+                else next_index - 1
+            )
+            old_cel = document.cel(layer.layer_id, old_index)
+            old_image = images.get((layer.layer_id, old_index))
+            if old_cel is not None:
+                next_cels.append(
+                    replace(old_cel, frame_index=next_index, image_path="", sha256="")
+                )
+            if old_image is not None:
+                next_images[(layer.layer_id, next_index)] = old_image.copy()
+    updated = replace(
+        document,
+        frame_count=document.frame_count + 1,
+        cels=tuple(next_cels),
+        revision=document.revision + 1,
+    )
+    updated.validate()
+    return updated, next_images
+
+
+def delete_document_frame(
+    document: LayeredSpriteDocument,
+    images: Mapping[tuple[str, int], Image.Image],
+    frame_index: int,
+) -> tuple[LayeredSpriteDocument, dict[tuple[str, int], Image.Image]]:
+    """Delete one frame while preserving at least one animation frame."""
+
+    if document.frame_count <= 1:
+        raise ValueError("An animation needs at least one frame")
+    removed = max(0, min(document.frame_count - 1, int(frame_index)))
+    next_images: dict[tuple[str, int], Image.Image] = {}
+    next_cels: list[SpriteCel] = []
+    for layer in document.layers:
+        next_index = 0
+        for old_index in range(document.frame_count):
+            if old_index == removed:
+                continue
+            old_cel = document.cel(layer.layer_id, old_index)
+            old_image = images.get((layer.layer_id, old_index))
+            if old_cel is not None:
+                next_cels.append(
+                    replace(old_cel, frame_index=next_index, image_path="", sha256="")
+                )
+            if old_image is not None:
+                next_images[(layer.layer_id, next_index)] = old_image.copy()
+            next_index += 1
+    updated = replace(
+        document,
+        frame_count=document.frame_count - 1,
+        cels=tuple(next_cels),
+        revision=document.revision + 1,
+    )
+    updated.validate()
+    return updated, next_images
+
+
+def move_document_frame(
+    document: LayeredSpriteDocument,
+    images: Mapping[tuple[str, int], Image.Image],
+    source_index: int,
+    destination_index: int,
+) -> tuple[LayeredSpriteDocument, dict[tuple[str, int], Image.Image]]:
+    """Reorder a whole frame across every layer track."""
+
+    source = max(0, min(document.frame_count - 1, int(source_index)))
+    destination = max(0, min(document.frame_count - 1, int(destination_index)))
+    order = list(range(document.frame_count))
+    moved = order.pop(source)
+    order.insert(destination, moved)
+    next_images: dict[tuple[str, int], Image.Image] = {}
+    next_cels: list[SpriteCel] = []
+    for layer in document.layers:
+        for next_index, old_index in enumerate(order):
+            old_cel = document.cel(layer.layer_id, old_index)
+            old_image = images.get((layer.layer_id, old_index))
+            if old_cel is not None:
+                next_cels.append(
+                    replace(old_cel, frame_index=next_index, image_path="", sha256="")
+                )
+            if old_image is not None:
+                next_images[(layer.layer_id, next_index)] = old_image.copy()
+    updated = replace(
+        document,
+        cels=tuple(next_cels),
+        revision=document.revision + 1,
+    )
+    updated.validate()
+    return updated, next_images
 
 
 def paint_cel_stroke(

@@ -1,0 +1,84 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      768,
+      512
+    ],
+    "canvas_height": 1024,
+    "canvas_width": 1536,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      0,
+      0,
+      0
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 1,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-07-06T22:17:32.216223+00:00",
+  "current_stage": "source",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": false,
+    "padding": 0
+  },
+  "export_manifest": null,
+  "frame_adjustments": [],
+  "inspection": {
+    "background_confidence": 1.0,
+    "border_rgb": [
+      0,
+      0,
+      0
+    ],
+    "has_alpha": true,
+    "height": 1024,
+    "mode": "RGBA",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      0,
+      0,
+      0
+    ],
+    "uses_transparency": true,
+    "width": 1536
+  },
+  "output_dir": "sheet_sessions/sheet-20260706T221732-3629defe-5c7a",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 1,
+    "manual_cut_positions": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260706T221732-3629defe-5c7a",
+  "source_image_path": "sheet_sessions/sheet-20260706T221732-3629defe-5c7a/source/3629defef607c69d920719c0a5d457023ce0da464d790ec46dd65011a93ee0fe.png",
+  "source_sha256": "3629defef607c69d920719c0a5d457023ce0da464d790ec46dd65011a93ee0fe",
+  "stages": {
+    "source": {
+      "path": "sheet_sessions/sheet-20260706T221732-3629defe-5c7a/source/3629defef607c69d920719c0a5d457023ce0da464d790ec46dd65011a93ee0fe.png",
+      "sha256": "3629defef607c69d920719c0a5d457023ce0da464d790ec46dd65011a93ee0fe",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-06T22:17:32.216310+00:00"
+}

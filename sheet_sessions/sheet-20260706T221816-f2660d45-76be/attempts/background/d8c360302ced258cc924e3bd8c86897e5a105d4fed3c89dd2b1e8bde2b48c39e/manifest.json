@@ -1,0 +1,47 @@
+{
+  "cache_key": "d8c360302ced258cc924e3bd8c86897e5a105d4fed3c89dd2b1e8bde2b48c39e",
+  "config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 1,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-07-06T22:20:26.343160+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/source/f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f.png",
+      "role": "source",
+      "sha256": "f2660d458dfea6848e13b730f97edcb1b5ea48e12651637980b684a04b18c76f",
+      "size_bytes": 1361501
+    }
+  ],
+  "metadata": {
+    "manual_edit_operations": {}
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260706T221816-f2660d45-76be/attempts/background/d8c360302ced258cc924e3bd8c86897e5a105d4fed3c89dd2b1e8bde2b48c39e/frame_000.png",
+      "role": "output",
+      "sha256": "e0454b7d6cec933157cb13b6922117585341f65d194c0d05241a558619a2f86a",
+      "size_bytes": 1311653
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260706T221816-f2660d45-76be",
+  "stage": "background",
+  "status": "passed",
+  "warnings": []
+}

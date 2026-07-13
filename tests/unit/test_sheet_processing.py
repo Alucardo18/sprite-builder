@@ -9,6 +9,8 @@ from PIL import Image, ImageDraw
 from sprite_builder.sheets import (
     AutoCenterConfig,
     BackgroundRemovalConfig,
+    auto_cut_positions,
+    analyze_center_frames,
     ExportCropConfig,
     FrameAdjustment,
     SegmentationConfig,
@@ -33,8 +35,16 @@ from sprite_builder.sheets import (
 )
 from sprite_builder.ui.app import _clamp_manual_offsets_to_canvas
 from sprite_builder.ui.app import _normalized_segmentation_cut_positions
+from sprite_builder.ui.app import _normalized_grid_cut_positions
 from sprite_builder.ui.app import _safe_trim_transparent_frames
 from sprite_builder.ui.app import _handle_center_editor_event
+from sprite_builder.ui.app import _export_preview_columns
+from sprite_builder.ui.app import _alignment_export_readiness
+from sprite_builder.ui.app import _center_history_snapshot
+from sprite_builder.ui.app import _handle_editor_history_event
+from sprite_builder.ui.app import _pack_selection_masks
+from sprite_builder.ui.app import _record_editor_history
+from sprite_builder.ui.app import _unpack_selection_masks
 
 
 def _sheet(count: int = 4, cell: tuple[int, int] = (16, 20)) -> Image.Image:
@@ -51,6 +61,13 @@ def _png_bytes(image: Image.Image) -> bytes:
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+def test_export_preview_columns_match_the_output_layout() -> None:
+    assert _export_preview_columns("horizontal", 16, None) == 16
+    assert _export_preview_columns("vertical", 16, None) == 1
+    assert _export_preview_columns("grid", 16, 4) == 4
+    assert _export_preview_columns("grid", 3, 8) == 3
 
 
 def test_horizontal_segmentation_and_empty_detection() -> None:
@@ -105,6 +122,26 @@ def test_mismatched_manual_cut_positions_fall_back_to_auto() -> None:
     assert positions == (16, 32, 48)
 
 
+def test_grid_cut_normalization_ignores_linear_orientation() -> None:
+    positions = _normalized_grid_cut_positions(
+        _sheet().size,
+        SegmentationConfig(frame_count=4, orientation="horizontal"),
+        (),
+        (),
+    )
+    assert positions == ((), ())
+
+
+def test_grid_cut_normalization_ignores_incomplete_grid_capacity() -> None:
+    positions = _normalized_grid_cut_positions(
+        _sheet().size,
+        SegmentationConfig(frame_count=4, orientation="grid", rows=1, columns=1),
+        (),
+        (),
+    )
+    assert positions == ((), ())
+
+
 def test_grid_segmentation_honours_offsets_and_spacing() -> None:
     image = Image.new("RGBA", (25, 19), (0, 0, 0, 0))
     result = segment_sheet(
@@ -129,6 +166,68 @@ def test_grid_segmentation_honours_offsets_and_spacing() -> None:
         (13, 12, 23, 19),
     )
     assert result.empty_frames == (0, 1, 2, 3)
+
+
+def test_grid_segmentation_honours_manual_cut_positions_on_both_axes() -> None:
+    image = Image.new("RGBA", (25, 19), (0, 0, 0, 0))
+    result = segment_sheet(
+        image,
+        SegmentationConfig(
+            frame_count=4,
+            orientation="grid",
+            rows=2,
+            columns=2,
+            cell_width=10,
+            cell_height=7,
+            manual_cut_positions_x=(11,),
+            manual_cut_positions_y=(8,),
+        ),
+    )
+    assert result.regions == (
+        (0, 0, 11, 8),
+        (11, 0, 20, 8),
+        (0, 8, 11, 14),
+        (11, 8, 20, 14),
+    )
+
+
+def test_auto_sized_manual_grid_cuts_cover_the_full_source() -> None:
+    image = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    result = segment_sheet(
+        image,
+        SegmentationConfig(
+            frame_count=4,
+            orientation="grid",
+            rows=2,
+            columns=2,
+            manual_cut_positions_x=(4,),
+            manual_cut_positions_y=(6,),
+        ),
+    )
+    assert result.regions == (
+        (0, 0, 4, 6),
+        (4, 0, 10, 6),
+        (0, 6, 4, 10),
+        (4, 6, 10, 10),
+    )
+    assert not any("unused pixel" in warning for warning in result.warnings)
+
+
+def test_auto_cut_positions_returns_torso_aware_grid_axes() -> None:
+    image = Image.new("RGBA", (32, 40), (0, 255, 0, 255))
+    draw = ImageDraw.Draw(image)
+    for row in range(2):
+        for column in range(2):
+            x = column * 16
+            y = row * 20
+            draw.rectangle((x + 5, y + 4, x + 10, y + 15), fill=(180, 90, 30, 255))
+    cuts_x, cuts_y = auto_cut_positions(
+        image,
+        SegmentationConfig(frame_count=4, orientation="grid", rows=2, columns=2),
+        AutoCenterConfig(canvas_width=16, canvas_height=20, canonical_anchor=(8, 10)),
+    )
+    assert len(cuts_x) == 1
+    assert len(cuts_y) == 1
 
 
 def test_rgb_background_removal_preserves_hard_pixels() -> None:
@@ -289,6 +388,33 @@ def test_weapon_does_not_drag_body_anchor() -> None:
     assert all(frame.size == (80, 64) for frame in result.frames)
 
 
+def test_auto_center_respects_a_custom_target_anchor() -> None:
+    frame = Image.new("RGBA", (48, 48), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(frame)
+    draw.rectangle((14, 10, 31, 34), fill=(180, 90, 30, 255))
+    analysis = analyze_center_frames(
+        [frame],
+        AutoCenterConfig(
+            canvas_width=64,
+            canvas_height=64,
+            canonical_anchor=(16, 16),
+            confidence_threshold=0,
+        ),
+    )
+    result = auto_center_frames(
+        [frame],
+        AutoCenterConfig(
+            canvas_width=64,
+            canvas_height=64,
+            canonical_anchor=(16, 16),
+            confidence_threshold=0,
+        ),
+        analysis=analysis,
+        target_anchor=(28, 30),
+    )
+    assert result.adjustments[0].final_anchor == (28.0, 30.0)
+
+
 def test_auto_center_can_clamp_overflowing_frames_without_crashing() -> None:
     frame = Image.new("RGBA", (60, 50), (0, 0, 0, 0))
     draw = ImageDraw.Draw(frame)
@@ -310,6 +436,8 @@ def test_auto_center_can_clamp_overflowing_frames_without_crashing() -> None:
     alpha = np.asarray(result.frames[0])[:, :, 3]
     assert np.where(alpha > 0)[1].max() == 75
     assert result.adjustments[0].applied_translation[0] == 17
+    assert result.status == "passed"
+    assert result.adjustments[0].manual_review is False
 
 
 def test_auto_center_clamp_expands_canvas_when_content_is_larger() -> None:
@@ -425,6 +553,124 @@ def test_center_drag_event_clears_widget_state_and_persists_offset() -> None:
     assert ss[f"{prefix}:center_zoom:0"] == 9
 
 
+def test_center_drag_adds_delta_to_the_existing_manual_offset() -> None:
+    from streamlit import session_state as ss
+
+    ss.clear()
+    prefix = "sheet-drag-base-test"
+    ss[f"{prefix}:offsets"] = [(5, -2)]
+    changed = _handle_center_editor_event(
+        type("Session", (), {"session_id": prefix})(),
+        1,
+        0,
+        {
+            "eventId": "drag-base-1",
+            "type": "transform",
+            "offsetX": 13,
+            "offsetY": 8,
+        },
+        home_offset=(10, 10),
+        base_manual_offset=(5, -2),
+    )
+    assert changed is True
+    assert ss[f"{prefix}:offsets"] == [(8, -4)]
+
+
+def test_history_undo_redo_restores_center_offsets() -> None:
+    from streamlit import session_state as ss
+
+    ss.clear()
+    prefix = "sheet-history-center"
+    session = type("Session", (), {"session_id": prefix})()
+    ss[f"{prefix}:offsets"] = [(0, 0), (1, 2)]
+    ss[f"{prefix}:center_ground_line_y"] = 15
+    before = _center_history_snapshot(prefix)
+    ss[f"{prefix}:offsets"] = [(8, -4), (1, 2)]
+    after = _center_history_snapshot(prefix)
+    assert _record_editor_history(
+        session,
+        scope="center",
+        label="Mover frame",
+        before=before,
+        after=after,
+    )
+
+    store = type("Store", (), {})()
+    assert _handle_editor_history_event(
+        store,
+        session,
+        {"eventId": "undo-1", "type": "history", "action": "undo"},
+    )
+    assert ss[f"{prefix}:offsets"] == [(0, 0), (1, 2)]
+    assert ss[f"{prefix}:offset_x_widget:0"] == 0
+
+    assert _handle_editor_history_event(
+        store,
+        session,
+        {"eventId": "redo-1", "type": "history", "action": "redo"},
+    )
+    assert ss[f"{prefix}:offsets"] == [(8, -4), (1, 2)]
+    assert ss[f"{prefix}:offset_y_widget:0"] == -4
+
+
+def test_history_selection_masks_are_compact_and_lossless() -> None:
+    mask = np.zeros((19, 23), dtype=bool)
+    mask[2:8, 4:17] = True
+    packed = _pack_selection_masks([None, mask])
+
+    assert packed[0] is None
+    assert isinstance(packed[1]["data"], bytes)
+    assert len(packed[1]["data"]) < mask.size
+    restored = _unpack_selection_masks(packed)
+    assert restored[0] is None
+    assert np.array_equal(restored[1], mask)
+
+
+def test_alignment_export_readiness_rejects_stale_or_review_manifests() -> None:
+    segmentation = SegmentationConfig(frame_count=1)
+    background = BackgroundRemovalConfig()
+    center = AutoCenterConfig(
+        canvas_width=16,
+        canvas_height=16,
+        canonical_anchor=(8, 8),
+    )
+    manifest = {
+        "status": "passed",
+        "config": {
+            "segmentation": segmentation.to_dict(),
+            "background": background.to_dict(),
+            "auto_center": center.to_dict(),
+            "manual_offsets": [[0, 0]],
+        },
+        "metadata": {
+            "frames": [{"locked": False, "manual_review": False}],
+        },
+    }
+    assert _alignment_export_readiness(
+        manifest,
+        segmentation_config=segmentation,
+        background_config=background,
+        center_config=center,
+        manual_offsets=[(0, 0)],
+        locks=[False],
+        frame_count=1,
+    ) == (True, "")
+
+    review_manifest = dict(manifest)
+    review_manifest["status"] = "manual_review"
+    ready, reason = _alignment_export_readiness(
+        review_manifest,
+        segmentation_config=segmentation,
+        background_config=background,
+        center_config=center,
+        manual_offsets=[(0, 0)],
+        locks=[False],
+        frame_count=1,
+    )
+    assert ready is False
+    assert "revisión" in reason
+
+
 def test_center_zoom_event_persists_per_frame_and_clamps() -> None:
     from streamlit import session_state as ss
 
@@ -504,7 +750,7 @@ def test_contact_sheet_can_show_cell_guides_and_axes() -> None:
         )
     )
     assert preview.shape[:2] == (14, 16)
-    assert tuple(preview[3, 3, :3]) == (91, 223, 255)
+    assert tuple(preview[2, 3, :3]) == (91, 223, 255)
     assert tuple(preview[7, 3, :3]) == (255, 255, 255)
     assert tuple(preview[7, 8, :3]) == (255, 76, 160)
     axes_only = np.asarray(
@@ -535,6 +781,28 @@ def test_contact_sheet_can_show_cell_guides_and_axes() -> None:
         )
     )
     assert tuple(no_guides[5, 6, :3]) != (255, 76, 160)
+
+
+def test_contact_sheet_grid_and_x_axes_are_continuous_across_cells() -> None:
+    frames = [Image.new("RGBA", (4, 4), (0, 0, 0, 0)) for _ in range(4)]
+    preview = np.asarray(
+        render_contact_sheet(
+            frames,
+            columns=2,
+            scale=2,
+            show_cell_guides=True,
+            show_center_axes=True,
+            show_anchor_guides=False,
+            show_bbox=False,
+        )
+    )
+
+    # Shared cuts span the complete sheet instead of leaving gaps between cells.
+    assert tuple(preview[1, 8, :3]) == (91, 223, 255)
+    assert tuple(preview[8, 1, :3]) == (91, 223, 255)
+    # Each horizontal X axis reaches both sides of the shared cut.
+    assert tuple(preview[4, 7, :3]) == (255, 255, 255)
+    assert tuple(preview[4, 8, :3]) == (255, 255, 255)
 
 
 def test_session_round_trip_stage_and_export(tmp_path: Path) -> None:
