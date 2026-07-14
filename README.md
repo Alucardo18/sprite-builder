@@ -34,9 +34,10 @@ python -m pip install -e '.[ui]'
 sprite-builder ui
 ```
 
-## Arranque rápido de la UI
+## Sheet Studio: editor web local
 
-Si solo quieres abrir la interfaz local, estos son los pasos mínimos:
+Si solo quieres limpiar, segmentar, alinear y exportar una sprite sheet, estos
+son los pasos mínimos:
 
 ```bash
 python -m venv .venv
@@ -45,11 +46,30 @@ python -m pip install -e '.[ui]'
 sprite-builder ui
 ```
 
-La app abre en `http://127.0.0.1:8504/`. Si ese puerto ya está ocupado,
-detén el proceso anterior o usa otro puerto con `--port`.
+La app abre en [http://127.0.0.1:8501/](http://127.0.0.1:8501/) y mantiene la
+barra lateral visible mientras amplía el canvas. Para ejecutarla sin abrir el
+navegador, elegir otro puerto o trabajar sobre otro workspace:
 
-Consulte [README_UI.md](README_UI.md) para el flujo de segmentación, chroma,
-centrado, ajuste fino, sesiones y exportación manual a Godot.
+```bash
+sprite-builder ui --no-browser
+sprite-builder ui --port 8504
+sprite-builder --workspace /ruta/al/proyecto ui
+```
+
+El editor incluye:
+
+- segmentación horizontal, vertical o en grid con guías pixel-perfect;
+- remoción de chroma y herramientas manuales de varita, cuentagotas y borrador;
+- selección independiente por frame, historial de ediciones y ajuste fino;
+- centrado por torso/body anchor, sin usar armas o VFX para calcular el anclaje;
+- exportación RGBA, frames, manifest, contact sheet y GIF sin interpolación.
+
+Cada sesión se guarda de forma inmutable bajo `sheet_sessions/<session_id>/`
+con lineage y SHA-256. Una máscara se normaliza cuando cambia la geometría del
+frame, y un artefacto rechazado o pendiente de revisión nunca pasa a exportación.
+
+Consulta [README_UI.md](README_UI.md) para el flujo completo de fondo,
+segmentación, centrado, edición manual, sesiones y exportación a Godot.
 
 ## Flujo recomendado
 
