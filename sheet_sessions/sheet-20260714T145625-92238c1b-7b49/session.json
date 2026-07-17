@@ -1,0 +1,394 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      135,
+      398
+    ],
+    "canvas_height": 724,
+    "canvas_width": 271,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 158.0
+  },
+  "created_at": "2026-07-14T14:56:25.207376+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": true,
+    "padding": 18
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-90b4314d1892",
+    "cell_size": [
+      240,
+      456
+    ],
+    "contact_sheet": null,
+    "crop": {
+      "alpha_threshold": 8,
+      "bbox": [
+        15,
+        159,
+        255,
+        615
+      ],
+      "enabled": true,
+      "padding": 18,
+      "source_size": [
+        271,
+        724
+      ]
+    },
+    "exported_at": "2026-07-14T15:20:27.858503+00:00",
+    "frame_count": 8,
+    "godot_notes": "8 column(s), 1 row(s); use nearest filtering and lossless compression",
+    "layout": "horizontal",
+    "output_frames_dir": null,
+    "output_png": "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/exports/export-90b4314d1892/sprite-sheet.png",
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/exports/export-90b4314d1892/sprite-sheet.png",
+        "role": "output",
+        "sha256": "4d8c9d9c11ee43fe37ff6432ee0feb6fefc2f126371b1efb95f3ede82eb83533",
+        "size_bytes": 890667
+      }
+    ],
+    "preview_gif": null,
+    "schema_version": "1.0",
+    "session_id": "sheet-20260714T145625-92238c1b-7b49",
+    "sha256": "4d8c9d9c11ee43fe37ff6432ee0feb6fefc2f126371b1efb95f3ede82eb83533",
+    "status": "passed",
+    "validation_warnings": []
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        -16,
+        30
+      ],
+      "auto_anchor": [
+        151.0,
+        368.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        49,
+        150,
+        253,
+        566
+      ],
+      "final_anchor": [
+        135.0,
+        398.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        0,
+        31
+      ],
+      "auto_anchor": [
+        135.0,
+        367.0
+      ],
+      "auto_confidence": 0.7817539915241364,
+      "body_bbox": [
+        36,
+        149,
+        237,
+        566
+      ],
+      "final_anchor": [
+        135.0,
+        398.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -1,
+        28
+      ],
+      "auto_anchor": [
+        136.0,
+        370.0
+      ],
+      "auto_confidence": 0.770956382437894,
+      "body_bbox": [
+        46,
+        155,
+        228,
+        566
+      ],
+      "final_anchor": [
+        135.0,
+        398.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        1,
+        30
+      ],
+      "auto_anchor": [
+        134.0,
+        368.0
+      ],
+      "auto_confidence": 0.7717437201550887,
+      "body_bbox": [
+        49,
+        147,
+        220,
+        566
+      ],
+      "final_anchor": [
+        135.0,
+        398.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        2,
+        26
+      ],
+      "auto_anchor": [
+        133.0,
+        376.0
+      ],
+      "auto_confidence": 0.6893448686341878,
+      "body_bbox": [
+        49,
+        180,
+        219,
+        566
+      ],
+      "final_anchor": [
+        135.0,
+        402.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 4,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        5,
+        23
+      ],
+      "auto_anchor": [
+        130.0,
+        388.0
+      ],
+      "auto_confidence": 0.6643576593510326,
+      "body_bbox": [
+        45,
+        211,
+        213,
+        566
+      ],
+      "final_anchor": [
+        135.0,
+        411.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 13,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        6,
+        23
+      ],
+      "auto_anchor": [
+        129.0,
+        375.0
+      ],
+      "auto_confidence": 0.7306659090486745,
+      "body_bbox": [
+        42,
+        161,
+        216,
+        566
+      ],
+      "final_anchor": [
+        135.0,
+        398.0
+      ],
+      "frame_index": 6,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        2,
+        26
+      ],
+      "auto_anchor": [
+        133.0,
+        372.0
+      ],
+      "auto_confidence": 0.7596049135292876,
+      "body_bbox": [
+        46,
+        160,
+        223,
+        566
+      ],
+      "final_anchor": [
+        135.0,
+        398.0
+      ],
+      "frame_index": 7,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 0.4201796821008984,
+    "border_rgb": [
+      254,
+      254,
+      254
+    ],
+    "has_alpha": false,
+    "height": 724,
+    "mode": "RGB",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      254,
+      253,
+      255
+    ],
+    "uses_transparency": false,
+    "width": 2172
+  },
+  "layer_document": null,
+  "output_dir": "sheet_sessions/sheet-20260714T145625-92238c1b-7b49",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 8,
+    "manual_cut_positions": [
+      287,
+      559,
+      830,
+      1099,
+      1364,
+      1624,
+      1887
+    ],
+    "manual_cut_positions_x": [
+      287,
+      559,
+      830,
+      1099,
+      1364,
+      1624,
+      1887
+    ],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260714T145625-92238c1b-7b49",
+  "source_image_path": "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/source/92238c1b461fcd45a374a9664b4cb0dc414ffaf4d3d67f0395741181a71716ae.png",
+  "source_sha256": "92238c1b461fcd45a374a9664b4cb0dc414ffaf4d3d67f0395741181a71716ae",
+  "stages": {
+    "alignment": {
+      "cache_key": "c3e6a79abba879692aee3876729c8c1d0fc3a6d76978bc345dd22ed8b0d57b7c",
+      "manifest": "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/alignment/c3e6a79abba879692aee3876729c8c1d0fc3a6d76978bc345dd22ed8b0d57b7c/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/alignment/c3e6a79abba879692aee3876729c8c1d0fc3a6d76978bc345dd22ed8b0d57b7c/frame_000.png",
+        "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/alignment/c3e6a79abba879692aee3876729c8c1d0fc3a6d76978bc345dd22ed8b0d57b7c/frame_001.png",
+        "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/alignment/c3e6a79abba879692aee3876729c8c1d0fc3a6d76978bc345dd22ed8b0d57b7c/frame_002.png",
+        "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/alignment/c3e6a79abba879692aee3876729c8c1d0fc3a6d76978bc345dd22ed8b0d57b7c/frame_003.png",
+        "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/alignment/c3e6a79abba879692aee3876729c8c1d0fc3a6d76978bc345dd22ed8b0d57b7c/frame_004.png",
+        "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/alignment/c3e6a79abba879692aee3876729c8c1d0fc3a6d76978bc345dd22ed8b0d57b7c/frame_005.png",
+        "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/alignment/c3e6a79abba879692aee3876729c8c1d0fc3a6d76978bc345dd22ed8b0d57b7c/frame_006.png",
+        "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/alignment/c3e6a79abba879692aee3876729c8c1d0fc3a6d76978bc345dd22ed8b0d57b7c/frame_007.png"
+      ],
+      "status": "passed"
+    },
+    "background": {
+      "cache_key": "25ce22a25da9e400bd1652977b453a101bf009749ceb55a4a3e1076d0ee3dae1",
+      "manifest": "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/background/25ce22a25da9e400bd1652977b453a101bf009749ceb55a4a3e1076d0ee3dae1/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/attempts/background/25ce22a25da9e400bd1652977b453a101bf009749ceb55a4a3e1076d0ee3dae1/frame_000.png"
+      ],
+      "status": "passed"
+    },
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/exports/export-90b4314d1892/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/exports/export-90b4314d1892/sprite-sheet.png"
+      ],
+      "status": "passed"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260714T145625-92238c1b-7b49/source/92238c1b461fcd45a374a9664b4cb0dc414ffaf4d3d67f0395741181a71716ae.png",
+      "sha256": "92238c1b461fcd45a374a9664b4cb0dc414ffaf4d3d67f0395741181a71716ae",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-14T15:20:27.859883+00:00"
+}

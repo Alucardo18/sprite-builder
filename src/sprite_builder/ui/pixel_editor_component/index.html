@@ -21,6 +21,10 @@
         width: 100%;
       }
 
+      [hidden] {
+        display: none !important;
+      }
+
       .root {
         width: 100%;
         display: flex;
@@ -156,6 +160,113 @@
       button:focus-visible {
         outline: 2px solid rgba(91,223,255,0.9);
         outline-offset: 2px;
+      }
+
+      .wand-control {
+        position: relative;
+        display: inline-flex;
+      }
+
+      .wand-card {
+        position: absolute;
+        z-index: 12;
+        top: calc(100% + 10px);
+        left: 0;
+        width: min(300px, calc(100vw - 32px));
+        box-sizing: border-box;
+        padding: 14px;
+        border: 1px solid rgba(132, 225, 255, 0.28);
+        border-radius: 16px;
+        background: linear-gradient(145deg, rgba(17, 23, 39, 0.97), rgba(10, 14, 25, 0.97));
+        backdrop-filter: blur(22px) saturate(130%);
+        box-shadow: 0 22px 54px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255,255,255,0.04) inset;
+      }
+
+      .wand-card[hidden] {
+        display: none;
+      }
+
+      .wand-card::before {
+        content: "";
+        position: absolute;
+        top: -6px;
+        left: 17px;
+        width: 11px;
+        height: 11px;
+        border-left: 1px solid rgba(132, 225, 255, 0.28);
+        border-top: 1px solid rgba(132, 225, 255, 0.28);
+        background: rgba(17, 23, 39, 0.98);
+        transform: rotate(45deg);
+      }
+
+      .wand-card-heading,
+      .wand-value-row,
+      .wand-contiguous-row {
+        display: flex;
+        align-items: center;
+      }
+
+      .wand-card-heading {
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 4px;
+      }
+
+      .wand-card-heading strong {
+        font-size: 13px;
+      }
+
+      .wand-card-heading code {
+        color: #bdefff;
+      }
+
+      .wand-card p {
+        margin: 0 0 12px;
+        color: rgba(220, 227, 245, 0.65);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .wand-value-row {
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 7px;
+        color: rgba(240, 246, 255, 0.9);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .wand-number {
+        width: 58px;
+        box-sizing: border-box;
+        padding: 5px 7px;
+        border: 1px solid rgba(132, 225, 255, 0.23);
+        border-radius: 8px;
+        color: white;
+        background: rgba(255,255,255,0.06);
+        font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .wand-range {
+        width: 100%;
+        accent-color: #5bdfff;
+        cursor: pointer;
+      }
+
+      .wand-scale {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 2px;
+        color: rgba(220, 227, 245, 0.48);
+        font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .wand-contiguous-row {
+        gap: 8px;
+        margin-top: 13px;
+        color: rgba(240, 246, 255, 0.84);
+        font-size: 11px;
+        cursor: pointer;
       }
 
       .guide-settings {
@@ -1058,7 +1169,17 @@
         </div>
         <div class="toolgroup" data-group="background">
           <span class="toolbar-label">Herramientas</span>
-          <button class="icon-button tool-button" data-action="tool" data-tool="wand" id="tool-wand" title="Varita (W)" aria-label="Varita, atajo W" aria-pressed="true"><svg class="icon"><use href="#icon-wand"></use></svg><span class="shortcut">W</span></button>
+          <div class="wand-control" id="wand-control">
+            <button class="icon-button tool-button" data-action="tool" data-tool="wand" id="tool-wand" title="Varita (W)" aria-label="Varita, atajo W" aria-pressed="true" aria-haspopup="dialog" aria-expanded="false"><svg class="icon"><use href="#icon-wand"></use></svg><span class="shortcut">W</span></button>
+            <div class="wand-card" id="wand-card" role="dialog" aria-label="Ajustes de la varita" hidden>
+              <div class="wand-card-heading"><strong>Varita mágica</strong><code id="wand-tolerance-badge">0</code></div>
+              <p><strong>0</strong> selecciona estrictamente el mismo color. Sube la tolerancia para incluir colores RGB cercanos.</p>
+              <label class="wand-value-row" for="wand-tolerance-number"><span>Tolerancia</span><input class="wand-number" id="wand-tolerance-number" type="number" min="0" max="255" step="1" value="0" /></label>
+              <input class="wand-range" id="wand-tolerance-range" type="range" min="0" max="255" step="1" value="0" aria-label="Tolerancia de color" />
+              <div class="wand-scale"><span>Exacto · 0</span><span>Amplio · 255</span></div>
+              <label class="wand-contiguous-row"><input id="wand-contiguous" type="checkbox" checked /> Solo pixels conectados</label>
+            </div>
+          </div>
           <button class="icon-button tool-button" data-action="tool" data-tool="pencil" id="tool-pencil" title="Lápiz (P)" aria-label="Lápiz, atajo P" aria-pressed="false" hidden><svg class="icon"><use href="#icon-pencil"></use></svg><span class="shortcut">P</span></button>
           <button class="icon-button tool-button" data-action="tool" data-tool="eyedropper" id="tool-eyedropper" title="Cuentagotas (I)" aria-label="Cuentagotas, atajo I" aria-pressed="false"><svg class="icon fill-icon"><use href="#icon-eyedropper"></use></svg><span class="shortcut">I</span></button>
           <button class="icon-button tool-button" data-action="tool" data-tool="eraser" id="tool-eraser" title="Borrador (E)" aria-label="Borrador, atajo E" aria-pressed="false"><svg class="icon"><use href="#icon-eraser"></use></svg><span class="shortcut">E</span></button>
@@ -1197,6 +1318,12 @@
       const sampleText = document.getElementById("sample-text");
       const swatch = document.getElementById("swatch");
       const toolWand = document.getElementById("tool-wand");
+      const wandControl = document.getElementById("wand-control");
+      const wandCard = document.getElementById("wand-card");
+      const wandToleranceRange = document.getElementById("wand-tolerance-range");
+      const wandToleranceNumber = document.getElementById("wand-tolerance-number");
+      const wandToleranceBadge = document.getElementById("wand-tolerance-badge");
+      const wandContiguous = document.getElementById("wand-contiguous");
       const toolPencil = document.getElementById("tool-pencil");
       const toolEyedropper = document.getElementById("tool-eyedropper");
       const toolEraser = document.getElementById("tool-eraser");
@@ -1269,6 +1396,8 @@
         tool: "wand",
         mode: "background",
         brushRadius: 5,
+        wandTolerance: 0,
+        wandContiguous: true,
         sample: null,
         paintColor: [255, 255, 255, 255],
         offsetX: 0,
@@ -1411,11 +1540,12 @@
 
       function stopPlayback() {
         if (state.playbackTimer) {
-          clearInterval(state.playbackTimer);
+          clearTimeout(state.playbackTimer);
           state.playbackTimer = 0;
         }
         timelinePlayButton.textContent = "▶";
         timelinePlayButton.setAttribute("aria-label", "Reproducir animación");
+        timelinePlayButton.title = "Reproducir animación";
         scheduleDraw();
       }
 
@@ -1428,8 +1558,9 @@
           return;
         }
         state.playbackIndex = Math.max(0, Math.min(state.animationFrames.length - 1, state.activeFrame));
-        timelinePlayButton.textContent = "■";
-        timelinePlayButton.setAttribute("aria-label", "Detener animación");
+        timelinePlayButton.textContent = "❚❚";
+        timelinePlayButton.setAttribute("aria-label", "Pausar animación");
+        timelinePlayButton.title = "Pausar animación";
         const advance = () => {
           if (!state.playbackTimer) {
             return;
@@ -1650,7 +1781,11 @@
         const centerMode = state.mode === "segmentation-center";
         const cutMode = state.mode === "segmentation-cut";
         const layerMode = state.mode === "layer-edit";
+        const backgroundFloating = state.mode === "background" && !!state.floatingSelection;
         document.body.dataset.mode = state.mode;
+        if (state.mode !== "background") {
+          setWandCardOpen(false);
+        }
         modePill.textContent = centerMode ? "Centrado" : cutMode ? "Cortes" : layerMode ? "Capas" : "Fondo";
         if (cutModePill) {
           setPillValue(cutModePill, cutMode ? "Cortes" : "Bloqueado");
@@ -1669,24 +1804,33 @@
           : "Mostrar guías (G)";
         toolWand.hidden = layerMode;
         toolPencil.hidden = !layerMode;
-        toolMove.hidden = !layerMode;
-        toolCropLasso.hidden = !layerMode;
-        toolCropRect.hidden = !layerMode;
-        toolCropEllipse.hidden = !layerMode;
+        toolMove.hidden = centerMode || cutMode;
+        toolCropLasso.hidden = centerMode || cutMode;
+        toolCropRect.hidden = centerMode || cutMode;
+        toolCropEllipse.hidden = centerMode || cutMode;
         toolSelectLasso.hidden = !layerMode;
         toolSelectRect.hidden = !layerMode;
         toolSelectEllipse.hidden = !layerMode;
         toolFill.hidden = !layerMode;
         toolReplaceColor.hidden = !layerMode;
         pixelActionsGroup.hidden = !layerMode;
-        toolWand.disabled = centerMode || cutMode;
+        toolWand.disabled = centerMode || cutMode || backgroundFloating;
         toolPencil.disabled = !layerMode;
-        toolEyedropper.disabled = centerMode || cutMode;
-        toolEraser.disabled = centerMode || cutMode;
-        toolMove.disabled = !layerMode;
-        toolCropLasso.disabled = !layerMode;
-        toolCropRect.disabled = !layerMode;
-        toolCropEllipse.disabled = !layerMode;
+        toolEyedropper.disabled = centerMode || cutMode || backgroundFloating;
+        toolEraser.disabled = centerMode || cutMode || backgroundFloating;
+        toolMove.disabled = !layerMode && !backgroundFloating;
+        toolMove.title = layerMode
+          ? "Mover cel (M)"
+          : backgroundFloating
+            ? "Mover selección (M)"
+            : "Mover selección (haz un recorte primero)";
+        toolMove.setAttribute(
+          "aria-label",
+          layerMode ? "Mover cel, atajo M" : "Mover selección, atajo M",
+        );
+        toolCropLasso.disabled = centerMode || cutMode || backgroundFloating;
+        toolCropRect.disabled = centerMode || cutMode || backgroundFloating;
+        toolCropEllipse.disabled = centerMode || cutMode || backgroundFloating;
         toolSelectLasso.disabled = !layerMode;
         toolSelectRect.disabled = !layerMode;
         toolSelectEllipse.disabled = !layerMode;
@@ -1743,7 +1887,9 @@
               ? "Activa el ajuste libre en el panel lateral y arrastra las líneas de corte."
               : layerMode
                 ? "<code>P</code> lápiz · <code>E</code> borrador · <code>I</code> cuentagotas · <code>M</code> mueve · selección y clipboard usan los atajos estándar."
-                : "<code>W</code> varita · <code>I</code> cuentagotas · <code>E</code> borrador · <code>Shift</code> suma · <code>Alt/Option</code> resta · <code>Esc</code> limpia · <code>Delete</code> borra.";
+                : backgroundFloating
+                  ? "<code>M</code> mover selección · arrastra para colocar · <code>Esc</code> cancela el recorte."
+                  : "<code>W</code> varita · <code>L/R/O</code> recorte lazo/rectángulo/elipse · <code>I</code> cuentagotas · <code>E</code> borrador · <code>Shift</code> suma · <code>Alt/Option</code> resta · <code>Esc</code> limpia · <code>Delete</code> borra.";
         }
       }
 
@@ -1762,6 +1908,9 @@
       function setActiveTool(tool, redrawCanvas = true) {
         const nextTool = normalizeTool(tool);
         state.tool = nextTool;
+        if (nextTool !== "wand") {
+          setWandCardOpen(false);
+        }
         if (nextTool !== "eraser" && nextTool !== "pencil") {
           state.strokePath = [];
         }
@@ -1798,6 +1947,32 @@
         updateCursor();
         if (redrawCanvas) {
           draw();
+        }
+      }
+
+      function setWandCardOpen(open) {
+        const visible = !!open && state.mode === "background";
+        wandCard.hidden = !visible;
+        toolWand.setAttribute("aria-expanded", String(visible));
+      }
+
+      function setWandSettings(tolerance, contiguous, announce = false) {
+        const nextTolerance = Math.max(0, Math.min(255, Math.round(finiteNumber(tolerance, 0))));
+        state.wandTolerance = nextTolerance;
+        state.wandContiguous = !!contiguous;
+        wandToleranceRange.value = String(nextTolerance);
+        wandToleranceNumber.value = String(nextTolerance);
+        wandToleranceBadge.textContent = String(nextTolerance);
+        wandContiguous.checked = state.wandContiguous;
+        if (announce) {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "wand-settings",
+            tool: "wand",
+            wandTolerance: state.wandTolerance,
+            wandContiguous: state.wandContiguous,
+          });
         }
       }
 
@@ -1958,7 +2133,10 @@
       function updateCursor() {
         const centerMode = state.mode === "segmentation-center";
         const cutMode = state.mode === "segmentation-cut";
-        const layerMove = state.mode === "layer-edit" && state.tool === "move";
+        const layerMove = (
+          state.tool === "move"
+          && (state.mode === "layer-edit" || (state.mode === "background" && state.floatingSelection))
+        );
         const size = state.tool === "eraser"
           ? Math.max(1, (state.brushRadius * 2 + 1) * state.zoom)
           : Math.max(12, Math.round(state.zoom * 1.5));
@@ -2665,7 +2843,11 @@
       }
 
       function drawCropPreview() {
-        if (state.mode !== "layer-edit" || !isShapeTool(state.tool) || !state.cropStart) {
+        if (
+          (state.mode !== "layer-edit" && state.mode !== "background")
+          || !isShapeTool(state.tool)
+          || !state.cropStart
+        ) {
           return;
         }
         const points = state.cropPath.length ? state.cropPath : [state.cropStart];
@@ -2772,6 +2954,8 @@
           x: point.x,
           y: point.y,
           brushRadius: state.brushRadius,
+          wandTolerance: state.wandTolerance,
+          wandContiguous: state.wandContiguous,
           dragging: type === "pointermove",
           ...modifiers(event),
         });
@@ -3006,7 +3190,10 @@
           event.preventDefault();
           return;
         }
-        if (state.mode === "layer-edit" && state.tool === "move") {
+        if (
+          state.tool === "move"
+          && (state.mode === "layer-edit" || (state.mode === "background" && state.floatingSelection))
+        ) {
           state.dragStartX = point.x;
           state.dragStartY = point.y;
           state.dragOriginX = state.floatingSelection ? state.floatingSelectionX : state.offsetX;
@@ -3014,7 +3201,7 @@
           event.preventDefault();
           return;
         }
-        if (state.mode === "layer-edit" && isShapeTool(state.tool)) {
+        if ((state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool)) {
           state.cropStart = point;
           state.cropPath = [point];
           draw();
@@ -3064,7 +3251,12 @@
           state.pointerPixelY = point.y;
           setObjectOffset(nextX, nextY);
           scheduleCursorUpdate();
-        } else if (state.mode === "layer-edit" && state.tool === "move" && state.dragging && (event.buttons & 1)) {
+        } else if (
+          state.tool === "move"
+          && (state.mode === "layer-edit" || (state.mode === "background" && state.floatingSelection))
+          && state.dragging
+          && (event.buttons & 1)
+        ) {
           const nextX = state.dragOriginX + (point.x - state.dragStartX);
           const nextY = state.dragOriginY + (point.y - state.dragStartY);
           state.pointerPixelX = point.x;
@@ -3077,7 +3269,7 @@
             setObjectOffset(nextX, nextY);
           }
           scheduleCursorUpdate();
-        } else if (state.mode === "layer-edit" && isShapeTool(state.tool) && state.dragging && (event.buttons & 1)) {
+        } else if ((state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool) && state.dragging && (event.buttons & 1)) {
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
           const last = state.cropPath[state.cropPath.length - 1];
@@ -3130,13 +3322,16 @@
           state.strokePath = [];
         } else if (state.mode === "segmentation-center" && state.allowDrag) {
           emitDrag(event, "end", point);
-        } else if (state.mode === "layer-edit" && state.tool === "move") {
+        } else if (
+          state.tool === "move"
+          && (state.mode === "layer-edit" || (state.mode === "background" && state.floatingSelection))
+        ) {
           if (state.floatingSelection) {
             emitFloatingTransform(event, point);
           } else {
             emitDrag(event, "end", point);
           }
-        } else if (state.mode === "layer-edit" && isShapeTool(state.tool)) {
+        } else if ((state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool)) {
           const last = state.cropPath[state.cropPath.length - 1];
           if (!last || last.x !== point.x || last.y !== point.y) {
             state.cropPath.push(point);
@@ -3216,7 +3411,7 @@
       canvas.addEventListener("pointerleave", () => {
         if (!state.dragging) {
           state.strokePath = [];
-          if (state.mode === "layer-edit" && isShapeTool(state.tool)) {
+          if ((state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool)) {
             state.cropStart = null;
             state.cropPath = [];
             draw();
@@ -3284,37 +3479,38 @@
           event.preventDefault();
           return;
         }
-        if (key === "m" && state.mode === "layer-edit") {
+        if (key === "m" && (state.mode === "layer-edit" || (state.mode === "background" && state.floatingSelection))) {
           setActiveTool("move");
           event.preventDefault();
           return;
         }
-        if (key === "l" && state.mode === "layer-edit") {
+        if (key === "l" && (state.mode === "layer-edit" || (state.mode === "background" && !state.floatingSelection))) {
           setActiveTool("crop_lasso");
           event.preventDefault();
           return;
         }
-        if (key === "r" && state.mode === "layer-edit") {
+        if (key === "r" && (state.mode === "layer-edit" || (state.mode === "background" && !state.floatingSelection))) {
           setActiveTool("crop_rect");
           event.preventDefault();
           return;
         }
-        if (key === "o" && state.mode === "layer-edit") {
+        if (key === "o" && (state.mode === "layer-edit" || (state.mode === "background" && !state.floatingSelection))) {
           setActiveTool("crop_ellipse");
           event.preventDefault();
           return;
         }
-        if (key === "i" && state.mode !== "segmentation-center") {
+        if (key === "i" && state.mode !== "segmentation-center" && !(state.mode === "background" && state.floatingSelection)) {
           setActiveTool("eyedropper");
           event.preventDefault();
           return;
         }
-        if (key === "w" && state.mode !== "segmentation-center") {
+        if (key === "w" && state.mode !== "segmentation-center" && !(state.mode === "background" && state.floatingSelection)) {
           setActiveTool("wand");
+          setWandCardOpen(true);
           event.preventDefault();
           return;
         }
-        if (key === "e" && state.mode !== "segmentation-center") {
+        if (key === "e" && state.mode !== "segmentation-center" && !(state.mode === "background" && state.floatingSelection)) {
           setActiveTool("eraser");
           event.preventDefault();
           return;
@@ -3360,7 +3556,11 @@
           event.preventDefault();
           return;
         }
-        if (key === "escape" && state.mode === "layer-edit" && state.floatingSelection) {
+        if (
+          key === "escape"
+          && (state.mode === "layer-edit" || state.mode === "background")
+          && state.floatingSelection
+        ) {
           emitValue({
             eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
             type: "floating-selection",
@@ -3465,6 +3665,9 @@
         if (action === "tool") {
           const tool = button.dataset.tool || "wand";
           setActiveTool(tool);
+          if (tool === "wand") {
+            setWandCardOpen(true);
+          }
           focusCanvas();
           return;
         }
@@ -3538,6 +3741,41 @@
         if (action === "toggle-guides") {
           setGuidesVisible(!state.showGuides, true);
           focusCanvas();
+        }
+      });
+
+      wandToleranceRange.addEventListener("input", () => {
+        setWandSettings(wandToleranceRange.value, state.wandContiguous, false);
+      });
+
+      wandToleranceRange.addEventListener("change", () => {
+        setWandSettings(wandToleranceRange.value, state.wandContiguous, true);
+      });
+
+      wandToleranceNumber.addEventListener("input", () => {
+        if (wandToleranceNumber.value !== "") {
+          setWandSettings(wandToleranceNumber.value, state.wandContiguous, false);
+        }
+      });
+
+      wandToleranceNumber.addEventListener("change", () => {
+        setWandSettings(wandToleranceNumber.value, state.wandContiguous, true);
+      });
+
+      wandToleranceNumber.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          setWandSettings(wandToleranceNumber.value, state.wandContiguous, true);
+          event.preventDefault();
+        }
+      });
+
+      wandContiguous.addEventListener("change", () => {
+        setWandSettings(state.wandTolerance, wandContiguous.checked, true);
+      });
+
+      document.addEventListener("pointerdown", (event) => {
+        if (!wandCard.hidden && !wandControl.contains(event.target)) {
+          setWandCardOpen(false);
         }
       });
 
@@ -3719,6 +3957,11 @@
           state.brushRadius = incomingBrushRadius;
         }
         state.serverBrushRadius = incomingBrushRadius;
+        setWandSettings(
+          hasOwn(args, "wandTolerance") ? args.wandTolerance : state.wandTolerance,
+          hasOwn(args, "wandContiguous") ? args.wandContiguous : state.wandContiguous,
+          false,
+        );
         state.sample = Array.isArray(args.sample) ? args.sample.slice(0, 4) : null;
         state.paintColor = Array.isArray(args.paintColor)
           ? args.paintColor.slice(0, 4)
@@ -3972,6 +4215,22 @@
           console.error("pixel editor render failed", error);
         }
       });
+
+      let responsiveFitFrame = 0;
+      const responsiveFitObserver = new ResizeObserver(() => {
+        if (!state.initialized || !state.width || !state.height) {
+          return;
+        }
+        if (responsiveFitFrame) {
+          cancelAnimationFrame(responsiveFitFrame);
+        }
+        responsiveFitFrame = requestAnimationFrame(() => {
+          responsiveFitFrame = 0;
+          setZoom(computeFitZoom(), false);
+          scheduleViewportFocus();
+        });
+      });
+      responsiveFitObserver.observe(stage);
 
       window.addEventListener("DOMContentLoaded", () => {
         sendReady();

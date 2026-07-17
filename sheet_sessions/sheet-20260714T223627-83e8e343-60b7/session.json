@@ -1,0 +1,471 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      180,
+      218
+    ],
+    "canvas_height": 397,
+    "canvas_width": 360,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 126.0
+  },
+  "created_at": "2026-07-14T22:36:27.851718+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": true,
+    "padding": 0
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-8949d0570404",
+    "cell_size": [
+      265,
+      317
+    ],
+    "contact_sheet": null,
+    "crop": {
+      "alpha_threshold": 8,
+      "bbox": [
+        49,
+        105,
+        314,
+        422
+      ],
+      "enabled": true,
+      "padding": 0,
+      "source_size": [
+        360,
+        422
+      ]
+    },
+    "export_kind": "spritesheet",
+    "exported_at": "2026-07-14T22:40:32.292606+00:00",
+    "frame_count": 11,
+    "godot_notes": "11 column(s), 1 row(s); use nearest filtering and lossless compression",
+    "layout": "horizontal",
+    "output_frames": [],
+    "output_frames_dir": null,
+    "output_png": "sheet_sessions/sheet-20260714T223627-83e8e343-60b7/exports/export-8949d0570404/sprite-sheet.png",
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260714T223627-83e8e343-60b7/exports/export-8949d0570404/sprite-sheet.png",
+        "role": "output",
+        "sha256": "3609b4ffc77ce15e171fc84890e2987e4b2ac9def98e085b30a4e97a70f54c2f",
+        "size_bytes": 550592
+      }
+    ],
+    "preview_gif": null,
+    "primary_output": "sheet_sessions/sheet-20260714T223627-83e8e343-60b7/exports/export-8949d0570404/sprite-sheet.png",
+    "schema_version": "1.0",
+    "session_id": "sheet-20260714T223627-83e8e343-60b7",
+    "sha256": "3609b4ffc77ce15e171fc84890e2987e4b2ac9def98e085b30a4e97a70f54c2f",
+    "status": "manual_review",
+    "validation_warnings": [
+      "alignment stage is not passed"
+    ]
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        9,
+        59
+      ],
+      "auto_anchor": [
+        171.0,
+        159.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        97,
+        48,
+        260,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -1,
+        55
+      ],
+      "auto_anchor": [
+        181.0,
+        163.0
+      ],
+      "auto_confidence": 0.7675106900637375,
+      "body_bbox": [
+        90,
+        55,
+        272,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -6,
+        50
+      ],
+      "auto_anchor": [
+        186.0,
+        168.0
+      ],
+      "auto_confidence": 0.8540706013960666,
+      "body_bbox": [
+        81,
+        67,
+        282,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -1,
+        54
+      ],
+      "auto_anchor": [
+        181.0,
+        164.0
+      ],
+      "auto_confidence": 0.7485520943467365,
+      "body_bbox": [
+        50,
+        61,
+        281,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        1,
+        49
+      ],
+      "auto_anchor": [
+        179.0,
+        169.0
+      ],
+      "auto_confidence": 0.852524595212333,
+      "body_bbox": [
+        109,
+        67,
+        300,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        0,
+        53
+      ],
+      "auto_anchor": [
+        180.0,
+        165.0
+      ],
+      "auto_confidence": 0.8081539374278822,
+      "body_bbox": [
+        59,
+        52,
+        314,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        0,
+        34
+      ],
+      "auto_anchor": [
+        180.0,
+        184.0
+      ],
+      "auto_confidence": 0.6571523611489534,
+      "body_bbox": [
+        102,
+        82,
+        282,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 6,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -1,
+        44
+      ],
+      "auto_anchor": [
+        181.0,
+        174.0
+      ],
+      "auto_confidence": 0.7170880442005839,
+      "body_bbox": [
+        81,
+        68,
+        280,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 7,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -4,
+        40
+      ],
+      "auto_anchor": [
+        184.0,
+        178.0
+      ],
+      "auto_confidence": 0.7215391651464773,
+      "body_bbox": [
+        104,
+        71,
+        287,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 8,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        3,
+        41
+      ],
+      "auto_anchor": [
+        177.0,
+        177.0
+      ],
+      "auto_confidence": 0.7502429426154498,
+      "body_bbox": [
+        106,
+        68,
+        273,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 9,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        4,
+        48
+      ],
+      "auto_anchor": [
+        176.0,
+        170.0
+      ],
+      "auto_confidence": 0.7692666555567048,
+      "body_bbox": [
+        107,
+        61,
+        271,
+        363
+      ],
+      "final_anchor": [
+        180.0,
+        218.0
+      ],
+      "frame_index": 10,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 0.5484055976141317,
+    "border_rgb": [
+      254,
+      254,
+      254
+    ],
+    "has_alpha": false,
+    "height": 397,
+    "mode": "RGB",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      253,
+      254,
+      254
+    ],
+    "uses_transparency": false,
+    "width": 3964
+  },
+  "layer_document": null,
+  "output_dir": "sheet_sessions/sheet-20260714T223627-83e8e343-60b7",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 11,
+    "manual_cut_positions": [
+      353,
+      720,
+      1087,
+      1446,
+      1805,
+      2164,
+      2524,
+      2890,
+      3252,
+      3606
+    ],
+    "manual_cut_positions_x": [
+      353,
+      720,
+      1087,
+      1446,
+      1805,
+      2164,
+      2524,
+      2890,
+      3252,
+      3606
+    ],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260714T223627-83e8e343-60b7",
+  "source_image_path": "sheet_sessions/sheet-20260714T223627-83e8e343-60b7/source/83e8e3433edef3e8aad582f95b4c21883ac138656fcc4172a11073c3f560dee9.png",
+  "source_sha256": "83e8e3433edef3e8aad582f95b4c21883ac138656fcc4172a11073c3f560dee9",
+  "stages": {
+    "background": {
+      "cache_key": "19b65b5d87b82233ff3f7a74766467c2dcdf13772163ee092348494417610dca",
+      "manifest": "sheet_sessions/sheet-20260714T223627-83e8e343-60b7/attempts/background/19b65b5d87b82233ff3f7a74766467c2dcdf13772163ee092348494417610dca/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260714T223627-83e8e343-60b7/attempts/background/19b65b5d87b82233ff3f7a74766467c2dcdf13772163ee092348494417610dca/frame_000.png"
+      ],
+      "status": "passed"
+    },
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260714T223627-83e8e343-60b7/exports/export-8949d0570404/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260714T223627-83e8e343-60b7/exports/export-8949d0570404/sprite-sheet.png"
+      ],
+      "status": "manual_review"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260714T223627-83e8e343-60b7/source/83e8e3433edef3e8aad582f95b4c21883ac138656fcc4172a11073c3f560dee9.png",
+      "sha256": "83e8e3433edef3e8aad582f95b4c21883ac138656fcc4172a11073c3f560dee9",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-14T22:40:32.294245+00:00"
+}

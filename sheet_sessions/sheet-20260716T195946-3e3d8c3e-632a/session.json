@@ -1,0 +1,585 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      156,
+      230
+    ],
+    "canvas_height": 418,
+    "canvas_width": 313,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 153.0
+  },
+  "created_at": "2026-07-16T19:59:46.380450+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 10,
+    "enabled": true,
+    "padding": 0
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-195644cdf1a9",
+    "cell_size": [
+      277,
+      337
+    ],
+    "contact_sheet": null,
+    "crop": {
+      "alpha_threshold": 10,
+      "bbox": [
+        21,
+        54,
+        298,
+        391
+      ],
+      "enabled": true,
+      "padding": 0,
+      "source_size": [
+        313,
+        418
+      ]
+    },
+    "export_kind": "individual",
+    "exported_at": "2026-07-16T20:03:23.325565+00:00",
+    "frame_count": 12,
+    "godot_notes": "12 individual frame PNG(s); use nearest filtering and lossless compression",
+    "layout": "grid",
+    "output_frames": [
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_000.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_001.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_002.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_003.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_004.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_005.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_006.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_007.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_008.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_009.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_010.png",
+      "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_011.png"
+    ],
+    "output_frames_dir": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames",
+    "output_png": null,
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_000.png",
+        "role": "output",
+        "sha256": "cdb04c7f5dbfa1c9a408a9725839ac0cb123cd3270efa4c2ba921f4f73284fdd",
+        "size_bytes": 95454
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_001.png",
+        "role": "output",
+        "sha256": "f2381bd68361195a70954c8e285467054ffda44d0901967355e2a1dbfb64714d",
+        "size_bytes": 90547
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_002.png",
+        "role": "output",
+        "sha256": "75010d6951c196f863cc450f8a8a12901241d6049271d2ea9ee8f4af0b733dd6",
+        "size_bytes": 93335
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_003.png",
+        "role": "output",
+        "sha256": "579fa533be587093c18e6febf0d01ea01782de7bde9b80e78456be8fbdaf036e",
+        "size_bytes": 94103
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_004.png",
+        "role": "output",
+        "sha256": "57058f99ef5690dcef6ffae11cdb1521d132418e52bfece11f4d06f659ddd019",
+        "size_bytes": 72810
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_005.png",
+        "role": "output",
+        "sha256": "3f986bafa7136240ec2260c833b652564b317974633dcb6b2af6b5b6a2bfe467",
+        "size_bytes": 56988
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_006.png",
+        "role": "output",
+        "sha256": "03d172e3b81072a1074898db7ebcd949540040931c7f23cf679b720d61287ae9",
+        "size_bytes": 71398
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_007.png",
+        "role": "output",
+        "sha256": "6e8a0197789a9e7214f2bc369740cab5734fbb0cde479fddde6e1e6321405172",
+        "size_bytes": 84865
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_008.png",
+        "role": "output",
+        "sha256": "c10ac804610603046610caceacab1260d58ce8aa551a7fd0b3fbe7394e65b828",
+        "size_bytes": 95192
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_009.png",
+        "role": "output",
+        "sha256": "674630ceedf651c59c155847c64efdebe63704d9f87cdd86ae737ae7b005d0e5",
+        "size_bytes": 65164
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_010.png",
+        "role": "output",
+        "sha256": "0b3dc63ea95a234a7135001b38d68d6946be91dcb4b7245e18ebf6ec8c87f54f",
+        "size_bytes": 106691
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_011.png",
+        "role": "output",
+        "sha256": "a631c8aa3941dafe1368a9386e2334c253b546a162e21340c62867274a7d6e71",
+        "size_bytes": 106600
+      }
+    ],
+    "preview_gif": null,
+    "primary_output": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_000.png",
+    "schema_version": "1.0",
+    "session_id": "sheet-20260716T195946-3e3d8c3e-632a",
+    "sha256": "cdb04c7f5dbfa1c9a408a9725839ac0cb123cd3270efa4c2ba921f4f73284fdd",
+    "status": "manual_review",
+    "validation_warnings": [
+      "alignment stage is not passed",
+      "alignment contains manual_review frames"
+    ]
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        -19,
+        -40
+      ],
+      "auto_anchor": [
+        175.0,
+        270.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        67,
+        131,
+        288,
+        393
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -11,
+        -40
+      ],
+      "auto_anchor": [
+        167.0,
+        270.0
+      ],
+      "auto_confidence": 0.5672189755521784,
+      "body_bbox": [
+        56,
+        119,
+        248,
+        395
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -1,
+        -45
+      ],
+      "auto_anchor": [
+        157.0,
+        275.0
+      ],
+      "auto_confidence": 0.6156573045352733,
+      "body_bbox": [
+        29,
+        115,
+        232,
+        398
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -2,
+        -45
+      ],
+      "auto_anchor": [
+        158.0,
+        275.0
+      ],
+      "auto_confidence": 0.5817052006149637,
+      "body_bbox": [
+        31,
+        144,
+        280,
+        386
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -23,
+        32
+      ],
+      "auto_anchor": [
+        179.0,
+        198.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        44,
+        129,
+        313,
+        270
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        14,
+        33
+      ],
+      "auto_anchor": [
+        142.0,
+        197.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        46,
+        99,
+        237,
+        295
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        15,
+        20
+      ],
+      "auto_anchor": [
+        141.0,
+        210.0
+      ],
+      "auto_confidence": 0.4847460589951296,
+      "body_bbox": [
+        18,
+        115,
+        255,
+        304
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 6,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        23,
+        18
+      ],
+      "auto_anchor": [
+        133.0,
+        212.0
+      ],
+      "auto_confidence": 0.6355530630782292,
+      "body_bbox": [
+        28,
+        58,
+        275,
+        319
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 7,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -20,
+        41
+      ],
+      "auto_anchor": [
+        176.0,
+        189.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        58,
+        68,
+        293,
+        311
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 8,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        30,
+        71
+      ],
+      "auto_anchor": [
+        126.0,
+        159.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        55,
+        20,
+        211,
+        320
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 9,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        29,
+        64
+      ],
+      "auto_anchor": [
+        127.0,
+        166.0
+      ],
+      "auto_confidence": 0.5680165370769291,
+      "body_bbox": [
+        8,
+        66,
+        258,
+        306
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 10,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        9,
+        38
+      ],
+      "auto_anchor": [
+        147.0,
+        192.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        24,
+        16,
+        270,
+        324
+      ],
+      "final_anchor": [
+        156.0,
+        230.0
+      ],
+      "frame_index": 11,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 0.3681165203511572,
+    "border_rgb": [
+      254,
+      254,
+      254
+    ],
+    "has_alpha": false,
+    "height": 1254,
+    "mode": "RGB",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      253,
+      253,
+      253
+    ],
+    "uses_transparency": false,
+    "width": 1254
+  },
+  "layer_document": null,
+  "output_dir": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 4,
+    "frame_count": 12,
+    "manual_cut_positions": [],
+    "manual_cut_positions_x": [
+      331,
+      628,
+      930
+    ],
+    "manual_cut_positions_y": [
+      418,
+      777
+    ],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "grid",
+    "rows": 3,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260716T195946-3e3d8c3e-632a",
+  "source_image_path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/source/3e3d8c3eb54a94cef52cf542866df259b1406bc3c54743d3b8e4d3915d9bda87.png",
+  "source_sha256": "3e3d8c3eb54a94cef52cf542866df259b1406bc3c54743d3b8e4d3915d9bda87",
+  "stages": {
+    "background": {
+      "cache_key": "192eda96baecf890f97e190ffaf34970a44803afd3a76cec028a910c0560a45f",
+      "manifest": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/attempts/background/192eda96baecf890f97e190ffaf34970a44803afd3a76cec028a910c0560a45f/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/attempts/background/192eda96baecf890f97e190ffaf34970a44803afd3a76cec028a910c0560a45f/frame_000.png"
+      ],
+      "status": "passed"
+    },
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_000.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_001.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_002.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_003.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_004.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_005.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_006.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_007.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_008.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_009.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_010.png",
+        "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_011.png"
+      ],
+      "status": "manual_review"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/source/3e3d8c3eb54a94cef52cf542866df259b1406bc3c54743d3b8e4d3915d9bda87.png",
+      "sha256": "3e3d8c3eb54a94cef52cf542866df259b1406bc3c54743d3b8e4d3915d9bda87",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-16T20:03:23.327321+00:00"
+}

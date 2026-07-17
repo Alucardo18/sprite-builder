@@ -12,6 +12,9 @@ from sprite_builder.ui import components
 COMPONENT_HTML = (
     Path(components.__file__).parent / "pixel_editor_component" / "index.html"
 )
+TILESET_COMPONENT_HTML = (
+    Path(components.__file__).parent / "tileset_editor_component" / "index.html"
+)
 UI_APP = Path(components.__file__).resolve().parent / "app.py"
 
 
@@ -21,6 +24,161 @@ def _component_source() -> str:
 
 def _ui_app_source() -> str:
     return UI_APP.read_text(encoding="utf-8")
+
+
+def test_tileset_editor_forwards_grid_contract(monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_component(**kwargs: Any) -> None:
+        captured.update(kwargs)
+        return None
+
+    monkeypatch.setattr(components, "_TILESET_EDITOR", fake_component)
+    components.tileset_editor(
+        Image.new("RGBA", (48, 32)),
+        image_token="atlas-v1",
+        tile_size=12,
+        offset_x=2,
+        offset_y=3,
+        spacing_x=1,
+        spacing_y=2,
+        key="tileset-contract",
+    )
+
+    assert captured["imageToken"] == "atlas-v1"
+    assert captured["tileSize"] == 12
+    assert captured["offsetX"] == 2
+    assert captured["offsetY"] == 3
+    assert captured["spacingX"] == 1
+    assert captured["spacingY"] == 2
+
+
+def test_tileset_canvas_has_pixel_tools_grid_and_seamless_preview() -> None:
+    source = TILESET_COMPONENT_HTML.read_text(encoding="utf-8")
+    studio_source = _component_source()
+
+    for tool in (
+        "wand",
+        "pencil",
+        "eraser",
+        "eyedropper",
+        "move",
+        "fill",
+        "replace_color",
+        "crop_lasso",
+        "crop_rect",
+        "crop_ellipse",
+        "select_lasso",
+        "select_rect",
+        "select_ellipse",
+    ):
+        assert f'data-tool="{tool}"' in source
+    for action in (
+        "flip-horizontal",
+        "flip-vertical",
+        "rotate-cw",
+        "scale-2x",
+        "scale-half",
+        "outline",
+        "cleanup-isolated",
+    ):
+        assert f'data-pixel-action="{action}"' in source
+    assert 'id="undo"' in source
+    assert 'id="redo"' in source
+    assert 'id="tileSize"' in source
+    assert 'id="seamless"' in source
+    assert 'id="toggleGrid"' in source
+    assert 'id="magnetCrop"' in source
+    assert 'Imán de recorte · ${state.magnetCrop ? "ON" : "OFF"}' in source
+    assert "button:hover { border-color" in source
+    assert "button:hover, button.active" not in source
+    assert 'id="hexColor"' in source
+    assert 'id="brushCard"' in source
+    assert 'id="brushRange"' in source
+    assert "? state.brush" in source
+    assert "brushY < size" in source
+    assert "brushX < size" in source
+    assert 'state.tool !== "pencil" && state.tool !== "eraser"' in source
+    assert 'event.target.closest("#brushCard")' in source
+    assert "target instanceof HTMLInputElement" in source
+    assert 'id="wandToleranceNumber"' in source
+    assert 'id="wandToleranceRange"' in source
+    assert 'id="wandContiguous"' in source
+    assert 'imageSmoothingEnabled = false' in source
+    assert "floodFill" in source
+    assert "magicWand" in source
+    assert "state.wandTolerance * state.wandTolerance" in source
+    assert "state.wandContiguous" in source
+    assert 'w: "wand"' in source
+    assert "replaceColor" in source
+    assert "commitShape" in source
+    assert "prepareMoveSnapshot" in source
+    assert "applyPixelAction" in source
+    assert "deleteSelection" in source
+    assert "selectAll" in source
+    assert "magneticCropPoint" in source
+    assert "snapAxisToTile" in source
+    assert 'edge === "end" ? [start + state.tileSize - 1] : [start]' in source
+    assert 'magneticCropPoint(rawPoint, "start")' in source
+    assert 'magneticCropPoint(rawPoint, "end")' in source
+    assert 'const usesPath = state.tool.endsWith("lasso")' in source
+    assert 'document.addEventListener("pointerup"' in source
+    assert 'if (isCropTool(state.tool) && !state.shapeMoved)' in source
+    assert "const cutForMove = isCropTool(state.tool)" in source
+    assert "state.selectionBounds = bounds" in source
+    assert 'setTool("move")' in source
+    assert 'emitImage("crop")' not in source
+    assert '<use href="#icon-flip-horizontal"></use>' in source
+    assert '<use href="#icon-flip-vertical"></use>' in source
+    assert "stageResizeObserver.observe(stage)" in source
+    assert 'input.addEventListener("input", commitGridInput)' in source
+    assert 'dataType: "json"' in source
+    assert 'addEventListener("mousedown"' not in source
+    assert 'addEventListener("mousemove"' not in source
+
+
+def test_tileset_brush_card_is_owned_by_the_paint_tool_group() -> None:
+    source = TILESET_COMPONENT_HTML.read_text(encoding="utf-8")
+    studio_source = _component_source()
+
+    tool_group = re.search(
+        r'<div class="group tool-group">([\s\S]*?)\n\s*</div>\n\s*<div class="group">',
+        source,
+    )
+    assert tool_group
+    assert 'id="brushCard"' in tool_group.group(1)
+    assert 'data-tool="pencil"' in tool_group.group(1)
+    assert 'data-tool="eraser"' in tool_group.group(1)
+    for icon in (
+        "eyedropper",
+        "pencil",
+        "move",
+        "eraser",
+        "lasso",
+        "rect",
+        "ellipse",
+        "zoom-in",
+        "zoom-out",
+        "fit",
+        "undo",
+        "redo",
+    ):
+        symbol = re.search(
+            rf'<symbol id="icon-{re.escape(icon)}".*?</symbol>',
+            studio_source,
+        )
+        assert symbol is not None
+        assert symbol.group(0) in source
+
+
+def test_both_editors_refit_when_their_container_width_changes() -> None:
+    pixel_source = _component_source()
+    tileset_source = TILESET_COMPONENT_HTML.read_text(encoding="utf-8")
+
+    assert "responsiveFitObserver.observe(stage)" in pixel_source
+    assert "setZoom(computeFitZoom(), false)" in pixel_source
+    assert "stageResizeObserver.observe(stage)" in tileset_source
+    assert "state.fitResponsive" in tileset_source
 
 
 def test_pixel_editor_forwards_manual_guide_contract(monkeypatch) -> None:
@@ -240,6 +398,7 @@ def test_pixel_editor_toolbar_uses_svg_icons_and_accessible_names() -> None:
     assert 'aria-label="Acercar"' in source
     assert 'aria-label="Alejar"' in source
     assert 'title="Varita (W)"' in source
+    assert "[hidden] {\n        display: none !important;" in source
 
 
 def test_pixel_editor_supports_layer_edit_tools_and_events() -> None:
@@ -317,10 +476,65 @@ def test_component_events_do_not_force_a_second_streamlit_rerun() -> None:
 
 def test_background_editor_keeps_zoom_and_tools_in_the_canvas_toolbar() -> None:
     source = _ui_app_source()
+    component_source = _component_source()
 
     assert '"Zoom 100%"' not in source
     assert '"Modo editor ancho"' not in source
     assert '"Lienzo amplio"' in source
+    for tool in ("crop_lasso", "crop_rect", "crop_ellipse"):
+        assert f'"{tool}"' in source
+    assert "toolCropLasso.hidden = centerMode || cutMode" in component_source
+    assert "toolCropRect.disabled = centerMode || cutMode" in component_source
+    assert '(state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool)' in component_source
+    assert 'event_type == "crop"' in source
+    assert "incoming = _layer_crop_mask_from_event(" in source
+    assert ":background_floating_selection" in source
+    assert '"kind": "move_mask"' in source
+    assert "floating_selection=floating_piece" in source
+    assert 'state.mode === "background" && state.floatingSelection' in component_source
+    assert 'type: "floating-transform"' in component_source
+    assert "toolMove.hidden = centerMode || cutMode" in component_source
+    assert '"Mover selección (haz un recorte primero)"' in component_source
+
+
+def test_magic_wand_opens_a_color_tolerance_card_in_the_canvas_toolbar() -> None:
+    source = _component_source()
+    app_source = _ui_app_source()
+
+    assert 'id="wand-card"' in source
+    assert 'role="dialog" aria-label="Ajustes de la varita"' in source
+    assert 'id="wand-tolerance-range" type="range" min="0" max="255"' in source
+    assert 'id="wand-tolerance-number" type="number" min="0" max="255"' in source
+    assert "0</strong> selecciona estrictamente el mismo color" in source
+    assert 'action: "wand-settings"' in source
+    assert "wandTolerance: state.wandTolerance" in source
+    assert "wandContiguous: state.wandContiguous" in source
+    assert 'if (tool === "wand")' in source
+    assert "setWandCardOpen(true)" in source
+    assert 'event.key === "Enter"' in source
+    assert 'f"{prefix}:background_wand_tolerance"' in app_source
+    assert 'f"{prefix}:background_wand_contiguous"' in app_source
+    assert 'str(event.get("action", "")) == "wand-settings"' in app_source
+
+
+def test_pixel_editor_forwards_magic_wand_settings(monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_component(**kwargs: Any) -> None:
+        captured.update(kwargs)
+        return None
+
+    monkeypatch.setattr(components, "_PIXEL_EDITOR", fake_component)
+    components.pixel_editor(
+        Image.new("RGBA", (8, 8)),
+        tool="wand",
+        wand_tolerance=37,
+        wand_contiguous=False,
+        key="wand-settings",
+    )
+
+    assert captured["wandTolerance"] == 37
+    assert captured["wandContiguous"] is False
 
 
 def test_cut_canvas_exposes_zoom_and_fit_controls() -> None:
@@ -533,6 +747,13 @@ def test_component_exposes_selection_clipboard_pixel_tools_and_local_playback() 
     assert "function togglePlayback()" in source
     assert "state.animationFrames" in source
     assert "composite_document_frame(" in app_source
+    assert 'f"{prefix}:studio_playback": False' not in app_source
+    assert "if playback_enabled" not in app_source
+    assert "animation_frames = tuple(" in app_source
+    assert "clearTimeout(state.playbackTimer)" in source
+    assert "if playback_fps != previous_fps:" in app_source
+    assert "round(1000 / playback_fps)" in app_source
+    assert "for _ in range(document.frame_count)" in app_source
 
 
 def test_pointer_cancel_restores_the_local_transform_origin() -> None:

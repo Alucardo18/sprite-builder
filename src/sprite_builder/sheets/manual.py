@@ -291,6 +291,21 @@ def apply_manual_background_edits(
                     edited,
                     decode_mask(operation, edited.size),
                 )
+            elif kind == "move_mask":
+                mask = decode_mask(operation, edited.size)
+                rgba = np.asarray(edited.convert("RGBA"), dtype=np.uint8)
+                piece = rgba.copy()
+                piece[~mask, 3] = 0
+                remainder = rgba.copy()
+                remainder[mask, 3] = 0
+                edited = Image.fromarray(remainder, "RGBA")
+                edited.alpha_composite(
+                    Image.fromarray(piece, "RGBA"),
+                    dest=(
+                        int(operation.get("offset_x", 0)),
+                        int(operation.get("offset_y", 0)),
+                    ),
+                )
             else:
                 raise ValueError(f"Unsupported manual background edit: {kind}")
         output.append(edited)

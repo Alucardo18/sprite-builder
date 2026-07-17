@@ -1,0 +1,335 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      181,
+      398
+    ],
+    "canvas_height": 724,
+    "canvas_width": 362,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      252,
+      252,
+      252
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 200.0
+  },
+  "created_at": "2026-07-13T21:18:15.989455+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": true,
+    "padding": 25
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-5c0e9b55bad8",
+    "cell_size": [
+      262,
+      465
+    ],
+    "contact_sheet": null,
+    "crop": {
+      "alpha_threshold": 8,
+      "bbox": [
+        49,
+        145,
+        311,
+        610
+      ],
+      "enabled": true,
+      "padding": 25,
+      "source_size": [
+        362,
+        724
+      ]
+    },
+    "exported_at": "2026-07-13T21:19:37.563506+00:00",
+    "frame_count": 6,
+    "godot_notes": "6 column(s), 1 row(s); use nearest filtering and lossless compression",
+    "layout": "horizontal",
+    "output_frames_dir": null,
+    "output_png": "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/exports/export-5c0e9b55bad8/sprite-sheet.png",
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/exports/export-5c0e9b55bad8/sprite-sheet.png",
+        "role": "output",
+        "sha256": "bea38fa3aea5b51322e7fbaece33ce8f52e77bb3e9c569ad412fb2c217652326",
+        "size_bytes": 729549
+      }
+    ],
+    "preview_gif": null,
+    "schema_version": "1.0",
+    "session_id": "sheet-20260713T211815-a2886a7d-1b41",
+    "sha256": "bea38fa3aea5b51322e7fbaece33ce8f52e77bb3e9c569ad412fb2c217652326",
+    "status": "manual_review",
+    "validation_warnings": [
+      "alignment stage is not passed",
+      "alignment contains manual_review frames"
+    ]
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        -24,
+        19
+      ],
+      "auto_anchor": [
+        205.0,
+        379.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        98,
+        151,
+        310,
+        554
+      ],
+      "final_anchor": [
+        181.0,
+        398.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        7,
+        30
+      ],
+      "auto_anchor": [
+        174.0,
+        368.0
+      ],
+      "auto_confidence": 0.6467231059404582,
+      "body_bbox": [
+        77,
+        153,
+        273,
+        554
+      ],
+      "final_anchor": [
+        181.0,
+        398.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        3,
+        15
+      ],
+      "auto_anchor": [
+        178.0,
+        383.0
+      ],
+      "auto_confidence": 0.6720056374526662,
+      "body_bbox": [
+        82,
+        167,
+        274,
+        554
+      ],
+      "final_anchor": [
+        181.0,
+        398.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        4,
+        10
+      ],
+      "auto_anchor": [
+        177.0,
+        388.0
+      ],
+      "auto_confidence": 0.7198452066212524,
+      "body_bbox": [
+        85,
+        192,
+        270,
+        554
+      ],
+      "final_anchor": [
+        181.0,
+        398.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        7,
+        31
+      ],
+      "auto_anchor": [
+        174.0,
+        367.0
+      ],
+      "auto_confidence": 0.8205496832530138,
+      "body_bbox": [
+        76,
+        152,
+        272,
+        554
+      ],
+      "final_anchor": [
+        181.0,
+        398.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        4,
+        19
+      ],
+      "auto_anchor": [
+        177.0,
+        379.0
+      ],
+      "auto_confidence": 0.8126731823701023,
+      "body_bbox": [
+        71,
+        151,
+        281,
+        554
+      ],
+      "final_anchor": [
+        181.0,
+        398.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 0.2805805114029026,
+    "border_rgb": [
+      252,
+      252,
+      252
+    ],
+    "has_alpha": false,
+    "height": 724,
+    "mode": "RGB",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      253,
+      253,
+      252
+    ],
+    "uses_transparency": false,
+    "width": 2172
+  },
+  "layer_document": {
+    "cache_key": "157edc07103430ede89d0740d0ca8fc69fcd30023156e6d739cadd0675f594b4",
+    "document_id": "sprite-5e672bbd649b",
+    "manifest": "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/attempts/layers/157edc07103430ede89d0740d0ca8fc69fcd30023156e6d739cadd0675f594b4/manifest.json",
+    "manifest_sha256": "ea08186c44d68d491d3ff82a1b27e62aff7a476a7b171e9d46d2cc4cd11457be",
+    "revision": 1
+  },
+  "output_dir": "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 6,
+    "manual_cut_positions": [
+      379,
+      731,
+      1086,
+      1436,
+      1786
+    ],
+    "manual_cut_positions_x": [
+      379,
+      731,
+      1086,
+      1436,
+      1786
+    ],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260713T211815-a2886a7d-1b41",
+  "source_image_path": "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/source/a2886a7d52df627c29edfdba16766b44708d3ad2a4bd0123ff06f0a7acd99e06.png",
+  "source_sha256": "a2886a7d52df627c29edfdba16766b44708d3ad2a4bd0123ff06f0a7acd99e06",
+  "stages": {
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/exports/export-5c0e9b55bad8/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/exports/export-5c0e9b55bad8/sprite-sheet.png"
+      ],
+      "status": "manual_review"
+    },
+    "segmentation": {
+      "cache_key": "b186c97b12aaca38f5def96a71068bd02f1905c78c849b80c159d94406559d8e",
+      "manifest": "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/attempts/segmentation/b186c97b12aaca38f5def96a71068bd02f1905c78c849b80c159d94406559d8e/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/attempts/segmentation/b186c97b12aaca38f5def96a71068bd02f1905c78c849b80c159d94406559d8e/frame_000.png",
+        "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/attempts/segmentation/b186c97b12aaca38f5def96a71068bd02f1905c78c849b80c159d94406559d8e/frame_001.png",
+        "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/attempts/segmentation/b186c97b12aaca38f5def96a71068bd02f1905c78c849b80c159d94406559d8e/frame_002.png",
+        "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/attempts/segmentation/b186c97b12aaca38f5def96a71068bd02f1905c78c849b80c159d94406559d8e/frame_003.png",
+        "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/attempts/segmentation/b186c97b12aaca38f5def96a71068bd02f1905c78c849b80c159d94406559d8e/frame_004.png",
+        "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/attempts/segmentation/b186c97b12aaca38f5def96a71068bd02f1905c78c849b80c159d94406559d8e/frame_005.png"
+      ],
+      "status": "passed"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260713T211815-a2886a7d-1b41/source/a2886a7d52df627c29edfdba16766b44708d3ad2a4bd0123ff06f0a7acd99e06.png",
+      "sha256": "a2886a7d52df627c29edfdba16766b44708d3ad2a4bd0123ff06f0a7acd99e06",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-14T00:20:25.783627+00:00"
+}

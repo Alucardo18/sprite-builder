@@ -1,0 +1,59 @@
+{
+  "alpha": true,
+  "attempt_id": "export-ece24e10a142",
+  "cell_size": [
+    1158,
+    912
+  ],
+  "contact_sheet": "sheet_sessions/sheet-20260714T220017-9e16ae29-2dc2/exports/export-ece24e10a142/contact-sheet.png",
+  "crop": {
+    "alpha_threshold": 8,
+    "bbox": [
+      41,
+      278,
+      1199,
+      1190
+    ],
+    "enabled": true,
+    "padding": 29,
+    "source_size": [
+      1254,
+      1254
+    ]
+  },
+  "export_kind": "individual",
+  "exported_at": "2026-07-14T22:01:22.546689+00:00",
+  "frame_count": 1,
+  "godot_notes": "1 individual frame PNG(s); use nearest filtering and lossless compression",
+  "layout": "horizontal",
+  "output_frames": [
+    "sheet_sessions/sheet-20260714T220017-9e16ae29-2dc2/exports/export-ece24e10a142/frames/frame_000.png"
+  ],
+  "output_frames_dir": "sheet_sessions/sheet-20260714T220017-9e16ae29-2dc2/exports/export-ece24e10a142/frames",
+  "output_png": null,
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260714T220017-9e16ae29-2dc2/exports/export-ece24e10a142/frames/frame_000.png",
+      "role": "output",
+      "sha256": "42148f05f1019d7f848ae62f1f1268808e41adfa69a3fa0c105cd95d1569fb0a",
+      "size_bytes": 630443
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260714T220017-9e16ae29-2dc2/exports/export-ece24e10a142/contact-sheet.png",
+      "role": "output",
+      "sha256": "46e1ea1cfa396b74d9816270e7ae5c4aab0e555069946c3e707132679b8f6776",
+      "size_bytes": 883088
+    }
+  ],
+  "preview_gif": null,
+  "primary_output": "sheet_sessions/sheet-20260714T220017-9e16ae29-2dc2/exports/export-ece24e10a142/frames/frame_000.png",
+  "schema_version": "1.0",
+  "session_id": "sheet-20260714T220017-9e16ae29-2dc2",
+  "sha256": "42148f05f1019d7f848ae62f1f1268808e41adfa69a3fa0c105cd95d1569fb0a",
+  "status": "manual_review",
+  "validation_warnings": [
+    "alignment stage is not passed"
+  ]
+}

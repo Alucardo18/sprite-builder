@@ -39,6 +39,7 @@ from sprite_builder.ui.app import _normalized_grid_cut_positions
 from sprite_builder.ui.app import _effective_segmentation_frame_count
 from sprite_builder.ui.app import _safe_trim_transparent_frames
 from sprite_builder.ui.app import _handle_center_editor_event
+from sprite_builder.ui.app import _handle_background_editor_event
 from sprite_builder.ui.app import _export_preview_columns
 from sprite_builder.ui.app import _alignment_export_readiness
 from sprite_builder.ui.app import _center_history_snapshot
@@ -572,6 +573,92 @@ def test_center_drag_event_clears_widget_state_and_persists_offset() -> None:
     assert ss[f"{prefix}:center_zoom:0"] == 9
 
 
+def test_background_rect_crop_tool_creates_a_pixel_selection() -> None:
+    from streamlit import session_state as ss
+
+    ss.clear()
+    prefix = "sheet-background-crop"
+    ss[f"{prefix}:background_last_event"] = None
+    ss[f"{prefix}:background_tool"] = "wand"
+    ss[f"{prefix}:background_selection_masks"] = [None]
+    ss[f"{prefix}:background_manual_ops"] = {}
+    frame = Image.new("RGBA", (8, 6), (0, 255, 0, 255))
+
+    changed = _handle_background_editor_event(
+        type("Session", (), {"session_id": prefix})(),
+        (frame,),
+        0,
+        {
+            "eventId": "crop-rect-1",
+            "type": "crop",
+            "tool": "crop_rect",
+            "shape": "rect",
+            "start": [2, 1],
+            "end": [4, 3],
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+
+    assert changed is True
+    assert ss[f"{prefix}:background_tool"] == "move"
+    mask = ss[f"{prefix}:background_selection_masks"][0]
+    assert isinstance(mask, np.ndarray)
+    assert mask.shape == (6, 8)
+    assert int(mask.sum()) == 9
+    floating = ss[f"{prefix}:background_floating_selection"]
+    assert floating["bounds"] == (2, 1, 5, 4)
+    assert floating["piece"].size == frame.size
+    assert floating["remainder"].getpixel((3, 2))[3] == 0
+
+    moved = _handle_background_editor_event(
+        type("Session", (), {"session_id": prefix})(),
+        (frame,),
+        0,
+        {
+            "eventId": "move-rect-1",
+            "type": "floating-transform",
+            "tool": "move",
+            "deltaX": 2,
+            "deltaY": 1,
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+
+    assert moved is True
+    assert f"{prefix}:background_floating_selection" not in ss
+    operation = ss[f"{prefix}:background_manual_ops"][0][-1]
+    assert operation["kind"] == "move_mask"
+    assert (operation["offset_x"], operation["offset_y"]) == (2, 1)
+
+
+def test_manual_background_move_mask_preserves_canvas_and_moves_pixels() -> None:
+    frame = Image.new("RGBA", (8, 6), (0, 0, 0, 0))
+    ImageDraw.Draw(frame).rectangle((2, 1, 4, 3), fill=(220, 80, 40, 255))
+    mask = np.zeros((6, 8), dtype=bool)
+    mask[1:4, 2:5] = True
+
+    moved = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "move_mask",
+                    **encode_mask(mask),
+                    "offset_x": 2,
+                    "offset_y": 1,
+                }
+            ]
+        },
+    )[0]
+
+    assert moved.size == frame.size
+    assert moved.getpixel((2, 1))[3] == 0
+    assert moved.getpixel((4, 2)) == (220, 80, 40, 255)
+    assert moved.getpixel((6, 4)) == (220, 80, 40, 255)
+
+
 def test_center_drag_adds_delta_to_the_existing_manual_offset() -> None:
     from streamlit import session_state as ss
 
@@ -955,6 +1042,55 @@ def test_export_can_preserve_manual_review_as_an_emergency_warning(tmp_path: Pat
     assert len(manifest["validation_warnings"]) == 2
     assert (tmp_path / manifest["output_png"]).is_file()
     assert session.stages["export"]["status"] == "manual_review"
+
+
+def test_export_switches_between_individual_frames_and_single_sheet(tmp_path: Path) -> None:
+    store = SheetSessionStore(tmp_path)
+    session = store.create(_png_bytes(Image.new("RGBA", (8, 4), (0, 0, 0, 0))))
+    session.stages["alignment"] = {"status": "passed"}
+    session.frame_adjustments = [
+        FrameAdjustment(
+            frame_index=index,
+            auto_anchor=(2, 2),
+            applied_translation=(0, 0),
+            body_bbox=(1, 1, 3, 3),
+        )
+        for index in range(2)
+    ]
+    store.save(session)
+    frames = (
+        Image.new("RGBA", (4, 4), (255, 0, 0, 255)),
+        Image.new("RGBA", (4, 4), (0, 0, 255, 255)),
+    )
+
+    individual = store.export(
+        session,
+        frames,
+        export_frames=True,
+        export_sheet_png=False,
+        export_contact_sheet=False,
+    )
+
+    assert individual["export_kind"] == "individual"
+    assert individual["output_png"] is None
+    assert len(individual["output_frames"]) == 2
+    assert all((tmp_path / path).is_file() for path in individual["output_frames"])
+    individual_dir = tmp_path / individual["output_frames_dir"]
+    assert not (individual_dir.parent / "sprite-sheet.png").exists()
+
+    spritesheet = store.export(
+        session,
+        frames,
+        export_frames=False,
+        export_sheet_png=True,
+        export_contact_sheet=False,
+    )
+
+    assert spritesheet["export_kind"] == "spritesheet"
+    assert spritesheet["output_frames"] == []
+    assert spritesheet["output_frames_dir"] is None
+    assert (tmp_path / spritesheet["output_png"]).is_file()
+    assert not (tmp_path / spritesheet["output_png"]).parent.joinpath("frames").exists()
 
 
 def test_session_round_trip_stage_and_export(tmp_path: Path) -> None:

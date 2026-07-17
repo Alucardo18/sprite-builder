@@ -1,0 +1,100 @@
+{
+  "alpha": true,
+  "attempt_id": "export-5fe23e183132",
+  "cell_size": [
+    255,
+    274
+  ],
+  "contact_sheet": "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/contact-sheet.png",
+  "crop": {
+    "alpha_threshold": 8,
+    "bbox": [
+      10,
+      336,
+      265,
+      610
+    ],
+    "enabled": true,
+    "padding": 18,
+    "source_size": [
+      295,
+      887
+    ]
+  },
+  "export_kind": "individual",
+  "exported_at": "2026-07-14T19:43:52.599419+00:00",
+  "frame_count": 6,
+  "godot_notes": "6 individual frame PNG(s); use nearest filtering and lossless compression",
+  "layout": "horizontal",
+  "output_frames": [
+    "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_000.png",
+    "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_001.png",
+    "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_002.png",
+    "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_003.png",
+    "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_004.png",
+    "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_005.png"
+  ],
+  "output_frames_dir": "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames",
+  "output_png": null,
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_000.png",
+      "role": "output",
+      "sha256": "7d61d81f0d86af9309634383f898fda03ec02701414d8ef955481929cfd246fb",
+      "size_bytes": 40896
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_001.png",
+      "role": "output",
+      "sha256": "17fa672c7eb369f21c22963b4cb10d30cc5731734b852921afe2ea060d6174b6",
+      "size_bytes": 43815
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_002.png",
+      "role": "output",
+      "sha256": "557001b63f61eb6187328f85cb16f5a4e18cea88ac8091a616a316b674fe4896",
+      "size_bytes": 48128
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_003.png",
+      "role": "output",
+      "sha256": "c3c2b656017b0eca47c17206db5fec8314f25a9b4658ea7bc599f9c7258ca1da",
+      "size_bytes": 59165
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_004.png",
+      "role": "output",
+      "sha256": "9edbbe8a3e451adac81bf44fcbe12a3d0a856b4a7fd70da8e3a9da7d4e5c1aff",
+      "size_bytes": 56938
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_005.png",
+      "role": "output",
+      "sha256": "3267e3ce0f32eb8e8cc78a69c7c9abb0ae75247d197d8f947dc3fdaab688b61c",
+      "size_bytes": 36511
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/contact-sheet.png",
+      "role": "output",
+      "sha256": "d38b0edac3d306321a3cb51b2277c1d871cc5fbc258f63bb5684edea89b4121a",
+      "size_bytes": 368386
+    }
+  ],
+  "preview_gif": null,
+  "primary_output": "sheet_sessions/sheet-20260714T171218-b68273d9-9fd5/exports/export-5fe23e183132/frames/frame_000.png",
+  "schema_version": "1.0",
+  "session_id": "sheet-20260714T171218-b68273d9-9fd5",
+  "sha256": "7d61d81f0d86af9309634383f898fda03ec02701414d8ef955481929cfd246fb",
+  "status": "manual_review",
+  "validation_warnings": [
+    "alignment stage is not passed",
+    "alignment contains manual_review frames"
+  ]
+}

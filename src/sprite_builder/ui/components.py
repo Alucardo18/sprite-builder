@@ -5,8 +5,8 @@ from __future__ import annotations
 import base64
 import html
 import io
-from functools import lru_cache
 from collections.abc import Mapping, Sequence
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
@@ -16,6 +16,16 @@ from PIL import Image
 _PIXEL_EDITOR = components.declare_component(
     "sprite_builder_pixel_editor",
     path=str(Path(__file__).parent / "pixel_editor_component"),
+)
+
+_TILESET_EDITOR = components.declare_component(
+    "sprite_builder_tileset_editor",
+    path=str(Path(__file__).parent / "tileset_editor_component"),
+)
+
+_HEADER_NAV = components.declare_component(
+    "sprite_builder_header_nav",
+    path=str(Path(__file__).parent / "header_nav_component"),
 )
 
 
@@ -59,6 +69,43 @@ def status_badge(label: str, tone: str = "pending") -> str:
     return f'<span class="status-badge {html.escape(tone)}">{html.escape(label)}</span>'
 
 
+def header_navigation(active_page: str) -> None:
+    """Mount page navigation inside Streamlit's native header toolbar."""
+
+    _HEADER_NAV(
+        activePage="tilesets" if active_page == "tilesets" else "sprites",
+        key="sprite_builder_header_navigation",
+        default=None,
+    )
+
+
+def tileset_editor(
+    image: Image.Image,
+    *,
+    image_token: str,
+    tile_size: int,
+    offset_x: int = 0,
+    offset_y: int = 0,
+    spacing_x: int = 0,
+    spacing_y: int = 0,
+    key: str,
+) -> dict[str, Any] | None:
+    """Render the full-width tileset canvas."""
+
+    result = _TILESET_EDITOR(
+        image=image_data_uri(image.convert("RGBA")),
+        imageToken=str(image_token),
+        tileSize=max(1, min(64, int(tile_size))),
+        offsetX=max(0, int(offset_x)),
+        offsetY=max(0, int(offset_y)),
+        spacingX=max(0, int(spacing_x)),
+        spacingY=max(0, int(spacing_y)),
+        key=key,
+        default=None,
+    )
+    return cast(dict[str, Any] | None, result)
+
+
 def pixel_editor(
     image: Image.Image,
     *,
@@ -69,6 +116,8 @@ def pixel_editor(
     tool: str,
     mode: str = "background",
     brush_radius: int = 5,
+    wand_tolerance: int = 0,
+    wand_contiguous: bool = True,
     zoom: int = 12,
     offset_x: int = 0,
     offset_y: int = 0,
@@ -129,6 +178,8 @@ def pixel_editor(
         sample=sample,
         paintColor=paint_color if paint_color is not None else sample,
         brushRadius=max(1, int(brush_radius)),
+        wandTolerance=max(0, min(255, int(wand_tolerance))),
+        wandContiguous=bool(wand_contiguous),
         offsetX=int(offset_x),
         offsetY=int(offset_y),
         homeOffsetX=int(offset_x if home_offset_x is None else home_offset_x),

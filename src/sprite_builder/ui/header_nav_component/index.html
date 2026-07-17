@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+  <head><meta charset="utf-8" /></head>
+  <body>
+    <script>
+      const RENDER = "streamlit:render";
+      const NAV_VERSION = "2";
+      let activePage = "sprites";
+
+      function navigationButton(documentRef, label, page) {
+        const button = documentRef.createElement("a");
+        button.setAttribute("role", "button");
+        button.target = "_top";
+        button.textContent = label;
+        button.dataset.page = page;
+        button.setAttribute("aria-label", `Abrir ${label}`);
+        button.style.cssText = `
+          appearance:none; min-height:34px; padding:6px 13px;
+          border-radius:10px; border:1px solid rgba(255,255,255,.14);
+          color:#f5f7ff; font:700 13px/1 ui-sans-serif,system-ui,sans-serif;
+          cursor:pointer; white-space:nowrap; text-decoration:none;
+        `;
+        return button;
+      }
+
+      function ensureNavigation() {
+        const documentRef = window.parent.document;
+        const header = documentRef.querySelector('[data-testid="stHeader"]');
+        if (!header) return;
+        const deployButton = [...header.querySelectorAll("button")]
+          .find(button => button.textContent.trim() === "Deploy");
+        if (!deployButton || !deployButton.parentElement) return;
+        let navigation = documentRef.getElementById("sprite-builder-header-nav");
+        if (navigation && navigation.dataset.version !== NAV_VERSION) {
+          navigation.remove();
+          navigation = null;
+        }
+        if (!navigation) {
+          navigation = documentRef.createElement("div");
+          navigation.id = "sprite-builder-header-nav";
+          navigation.dataset.version = NAV_VERSION;
+          navigation.style.cssText = `
+            display:inline-flex; align-items:center; gap:7px;
+            margin-right:10px; pointer-events:auto;
+          `;
+          navigation.append(
+            navigationButton(documentRef, "Sprite Builder", "sprites"),
+            navigationButton(documentRef, "Tileset Builder", "tilesets"),
+          );
+        }
+        if (navigation.parentElement !== deployButton.parentElement) {
+          deployButton.parentElement.insertBefore(navigation, deployButton);
+        }
+        navigation.querySelectorAll("[data-page]").forEach(button => {
+          const destination = new URL(window.parent.location.href);
+          destination.searchParams.set("page", button.dataset.page);
+          button.href = destination.toString();
+          const selected = button.dataset.page === activePage;
+          button.setAttribute("aria-current", selected ? "page" : "false");
+          button.style.background = selected
+            ? "linear-gradient(115deg,#22bce8,#7c5cff 62%,#d445a2)"
+            : "linear-gradient(120deg,rgba(91,223,255,.12),rgba(157,124,255,.18))";
+          button.style.boxShadow = selected
+            ? "0 8px 22px rgba(78,100,255,.25)"
+            : "inset 0 1px 0 rgba(255,255,255,.08)";
+        });
+      }
+
+      window.addEventListener("message", event => {
+        if (!event.data || event.data.type !== RENDER) return;
+        activePage = event.data.args?.activePage === "tilesets" ? "tilesets" : "sprites";
+        ensureNavigation();
+      });
+      const observer = new MutationObserver(ensureNavigation);
+      observer.observe(window.parent.document.documentElement, { childList: true, subtree: true });
+      window.parent.postMessage({
+        isStreamlitMessage: true,
+        type: "streamlit:componentReady",
+        apiVersion: 1,
+      }, "*");
+      window.parent.postMessage({
+        isStreamlitMessage: true,
+        type: "streamlit:setFrameHeight",
+        height: 0,
+      }, "*");
+    </script>
+  </body>
+</html>

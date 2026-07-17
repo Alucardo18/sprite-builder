@@ -1,0 +1,141 @@
+{
+  "alpha": true,
+  "attempt_id": "export-195644cdf1a9",
+  "cell_size": [
+    277,
+    337
+  ],
+  "contact_sheet": null,
+  "crop": {
+    "alpha_threshold": 10,
+    "bbox": [
+      21,
+      54,
+      298,
+      391
+    ],
+    "enabled": true,
+    "padding": 0,
+    "source_size": [
+      313,
+      418
+    ]
+  },
+  "export_kind": "individual",
+  "exported_at": "2026-07-16T20:03:23.325565+00:00",
+  "frame_count": 12,
+  "godot_notes": "12 individual frame PNG(s); use nearest filtering and lossless compression",
+  "layout": "grid",
+  "output_frames": [
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_000.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_001.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_002.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_003.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_004.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_005.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_006.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_007.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_008.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_009.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_010.png",
+    "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_011.png"
+  ],
+  "output_frames_dir": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames",
+  "output_png": null,
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_000.png",
+      "role": "output",
+      "sha256": "cdb04c7f5dbfa1c9a408a9725839ac0cb123cd3270efa4c2ba921f4f73284fdd",
+      "size_bytes": 95454
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_001.png",
+      "role": "output",
+      "sha256": "f2381bd68361195a70954c8e285467054ffda44d0901967355e2a1dbfb64714d",
+      "size_bytes": 90547
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_002.png",
+      "role": "output",
+      "sha256": "75010d6951c196f863cc450f8a8a12901241d6049271d2ea9ee8f4af0b733dd6",
+      "size_bytes": 93335
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_003.png",
+      "role": "output",
+      "sha256": "579fa533be587093c18e6febf0d01ea01782de7bde9b80e78456be8fbdaf036e",
+      "size_bytes": 94103
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_004.png",
+      "role": "output",
+      "sha256": "57058f99ef5690dcef6ffae11cdb1521d132418e52bfece11f4d06f659ddd019",
+      "size_bytes": 72810
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_005.png",
+      "role": "output",
+      "sha256": "3f986bafa7136240ec2260c833b652564b317974633dcb6b2af6b5b6a2bfe467",
+      "size_bytes": 56988
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_006.png",
+      "role": "output",
+      "sha256": "03d172e3b81072a1074898db7ebcd949540040931c7f23cf679b720d61287ae9",
+      "size_bytes": 71398
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_007.png",
+      "role": "output",
+      "sha256": "6e8a0197789a9e7214f2bc369740cab5734fbb0cde479fddde6e1e6321405172",
+      "size_bytes": 84865
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_008.png",
+      "role": "output",
+      "sha256": "c10ac804610603046610caceacab1260d58ce8aa551a7fd0b3fbe7394e65b828",
+      "size_bytes": 95192
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_009.png",
+      "role": "output",
+      "sha256": "674630ceedf651c59c155847c64efdebe63704d9f87cdd86ae737ae7b005d0e5",
+      "size_bytes": 65164
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_010.png",
+      "role": "output",
+      "sha256": "0b3dc63ea95a234a7135001b38d68d6946be91dcb4b7245e18ebf6ec8c87f54f",
+      "size_bytes": 106691
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_011.png",
+      "role": "output",
+      "sha256": "a631c8aa3941dafe1368a9386e2334c253b546a162e21340c62867274a7d6e71",
+      "size_bytes": 106600
+    }
+  ],
+  "preview_gif": null,
+  "primary_output": "sheet_sessions/sheet-20260716T195946-3e3d8c3e-632a/exports/export-195644cdf1a9/frames/frame_000.png",
+  "schema_version": "1.0",
+  "session_id": "sheet-20260716T195946-3e3d8c3e-632a",
+  "sha256": "cdb04c7f5dbfa1c9a408a9725839ac0cb123cd3270efa4c2ba921f4f73284fdd",
+  "status": "manual_review",
+  "validation_warnings": [
+    "alignment stage is not passed",
+    "alignment contains manual_review frames"
+  ]
+}

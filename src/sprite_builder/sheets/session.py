@@ -905,11 +905,14 @@ class SheetSessionStore:
         layout: str = "horizontal",
         columns: int | None = None,
         export_frames: bool = True,
+        export_sheet_png: bool = True,
         export_contact_sheet: bool = True,
         export_gif: bool = False,
         fps: float = 8.0,
         allow_manual_review: bool = False,
     ) -> dict[str, Any]:
+        if not export_sheet_png and not export_frames:
+            raise ValueError("Export must include a sprite sheet or individual frames")
         alignment = session.stages.get("alignment")
         validation_warnings: list[str] = []
         if not alignment or alignment.get("status") != "passed":
@@ -927,6 +930,8 @@ class SheetSessionStore:
                 "updated_at": session.updated_at,
                 "layout": layout,
                 "columns": columns,
+                "export_sheet_png": export_sheet_png,
+                "export_frames": export_frames,
                 "frame_count": len(cropped.frames),
                 "crop_bbox": cropped.bbox,
                 "crop_enabled": session.export_crop_config.enabled,
@@ -939,24 +944,30 @@ class SheetSessionStore:
         directory = self.workspace / session.output_dir / "exports" / attempt_id
         if directory.exists():
             raise FileExistsError(f"Export attempt already exists: {directory}")
-        sheet_path = directory / "sprite-sheet.png"
-        result = export_sheet(
-            cropped.frames,
-            sheet_path,
-            layout=layout,
-            columns=columns,
-            cell_size=(
-                max(frame.width for frame in cropped.frames),
-                max(frame.height for frame in cropped.frames),
-            ),
+        cell_size = (
+            max(frame.width for frame in cropped.frames),
+            max(frame.height for frame in cropped.frames),
         )
-        outputs = [result.output_path]
+        result = None
+        outputs: list[Path] = []
+        if export_sheet_png:
+            sheet_path = directory / "sprite-sheet.png"
+            result = export_sheet(
+                cropped.frames,
+                sheet_path,
+                layout=layout,
+                columns=columns,
+                cell_size=cell_size,
+            )
+            outputs.append(result.output_path)
         frames_dir: Path | None = None
+        frame_paths: list[Path] = []
         if export_frames:
             frames_dir = directory / "frames"
             for index, frame in enumerate(cropped.frames):
                 path = frames_dir / f"frame_{index:03d}.png"
                 _atomic_save_png(frame, path)
+                frame_paths.append(path)
                 outputs.append(path)
         contact_path: Path | None = None
         if export_contact_sheet:
@@ -992,6 +1003,7 @@ class SheetSessionStore:
             )
             outputs.append(gif_path)
 
+        primary_output = result.output_path if result is not None else frame_paths[0]
         records = [
             asdict(ArtifactRecord.from_path(path, root=self.workspace))
             for path in outputs
@@ -1000,22 +1012,37 @@ class SheetSessionStore:
             "schema_version": "1.0",
             "session_id": session.session_id,
             "attempt_id": attempt_id,
-            "output_png": str(result.output_path.relative_to(self.workspace)),
+            "export_kind": (
+                "mixed"
+                if export_sheet_png and export_frames
+                else "individual"
+                if export_frames
+                else "spritesheet"
+            ),
+            "output_png": (
+                str(result.output_path.relative_to(self.workspace))
+                if result is not None
+                else None
+            ),
             "output_frames_dir": (
                 str(frames_dir.relative_to(self.workspace)) if frames_dir else None
             ),
+            "output_frames": [
+                str(path.relative_to(self.workspace)) for path in frame_paths
+            ],
+            "primary_output": str(primary_output.relative_to(self.workspace)),
             "contact_sheet": (
                 str(contact_path.relative_to(self.workspace)) if contact_path else None
             ),
             "preview_gif": str(gif_path.relative_to(self.workspace)) if gif_path else None,
             "exported_at": utc_now(),
             "layout": layout,
-            "cell_size": list(result.cell_size),
+            "cell_size": list(result.cell_size if result is not None else cell_size),
             "frame_count": len(cropped.frames),
             "alpha": True,
             "status": "manual_review" if validation_warnings else "passed",
             "validation_warnings": validation_warnings,
-            "sha256": sha256_file(result.output_path),
+            "sha256": sha256_file(primary_output),
             "crop": {
                 "enabled": session.export_crop_config.enabled,
                 "padding": session.export_crop_config.padding,
@@ -1024,8 +1051,12 @@ class SheetSessionStore:
                 "source_size": list(cropped.source_size),
             },
             "godot_notes": (
-                f"{result.columns} column(s), {result.rows} row(s); "
-                "use nearest filtering and lossless compression"
+                (
+                    f"{result.columns} column(s), {result.rows} row(s); "
+                    if result is not None
+                    else f"{len(frame_paths)} individual frame PNG(s); "
+                )
+                + "use nearest filtering and lossless compression"
             ),
             "outputs": records,
         }

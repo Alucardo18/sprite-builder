@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import io
 import json
 import os
 import uuid
+import zipfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -39,6 +42,7 @@ from sprite_builder.sheets import (
     duplicate_document_frame,
     encode_mask,
     fill_cel_selection,
+    move_document_frame,
     outline_cel_pixels,
     paint_cel_stroke,
     render_contact_sheet,
@@ -47,7 +51,6 @@ from sprite_builder.sheets import (
     render_selection_overlay,
     remove_isolated_pixels,
     replace_cel_color,
-    move_document_frame,
     resolve_segmentation_config,
     sample_pixel,
     segment_sheet,
@@ -56,10 +59,25 @@ from sprite_builder.sheets import (
     transform_cel_selection,
 )
 from sprite_builder.sheets.models import ExportCropConfig
-from sprite_builder.ui.components import pixel_editor, pixel_image_html, status_badge
+from sprite_builder.tilesets import (
+    TilesetGrid,
+    build_tileset_bundle,
+    resize_tileset,
+    resize_tileset_canvas,
+    slice_tileset,
+)
+from sprite_builder.ui.components import (
+    header_navigation,
+    pixel_editor,
+    pixel_image_html,
+    status_badge,
+    tileset_editor,
+)
 
 
 _EDITOR_HISTORY_LIMIT = 75
+_TILESET_STATE_PREFIX = "tileset_builder"
+_APP_PAGE_KEY = "sprite_builder_page"
 
 
 def _workspace() -> Path:
@@ -69,6 +87,293 @@ def _workspace() -> Path:
 def _load_css() -> None:
     css = (Path(__file__).parent / "assets" / "theme.css").read_text(encoding="utf-8")
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+
+
+def _render_header_navigation() -> str:
+    """Mount app-level navigation in Streamlit's native header."""
+
+    requested = str(st.query_params.get("page", "")).strip().lower()
+    if requested in {"sprites", "tilesets"}:
+        st.session_state[_APP_PAGE_KEY] = requested
+    page = str(st.session_state.get(_APP_PAGE_KEY, "sprites"))
+    if page not in {"sprites", "tilesets"}:
+        page = "sprites"
+    header_navigation(page)
+    return page
+
+
+def _png_bytes(image: Image.Image) -> bytes:
+    buffer = io.BytesIO()
+    image.convert("RGBA").save(buffer, format="PNG", optimize=False)
+    return buffer.getvalue()
+
+
+def _tileset_state_image() -> Image.Image | None:
+    value = st.session_state.get(f"{_TILESET_STATE_PREFIX}:image")
+    if not isinstance(value, bytes):
+        return None
+    try:
+        with Image.open(io.BytesIO(value)) as image:
+            return image.convert("RGBA")
+    except (OSError, ValueError):
+        return None
+
+
+def _set_tileset_image(image: Image.Image, *, source_name: str, reset_canvas: bool) -> None:
+    st.session_state[f"{_TILESET_STATE_PREFIX}:image"] = _png_bytes(image)
+    st.session_state[f"{_TILESET_STATE_PREFIX}:source_name"] = source_name
+    if reset_canvas:
+        st.session_state[f"{_TILESET_STATE_PREFIX}:canvas_token"] = uuid.uuid4().hex
+        st.session_state[f"{_TILESET_STATE_PREFIX}:last_event"] = None
+
+
+def _tileset_grid_from_state() -> TilesetGrid:
+    prefix = _TILESET_STATE_PREFIX
+    tile_size = max(1, min(64, int(st.session_state.get(f"{prefix}:tile_size", 16))))
+    return TilesetGrid(
+        tile_width=tile_size,
+        tile_height=tile_size,
+        offset_x=max(0, int(st.session_state.get(f"{prefix}:offset_x", 0))),
+        offset_y=max(0, int(st.session_state.get(f"{prefix}:offset_y", 0))),
+        spacing_x=max(0, int(st.session_state.get(f"{prefix}:spacing_x", 0))),
+        spacing_y=max(0, int(st.session_state.get(f"{prefix}:spacing_y", 0))),
+    )
+
+
+def _apply_tileset_grid_event(event: Mapping[str, Any]) -> None:
+    raw = event.get("grid")
+    if not isinstance(raw, Mapping):
+        return
+    prefix = _TILESET_STATE_PREFIX
+    st.session_state[f"{prefix}:tile_size"] = max(
+        1, min(64, int(raw.get("tile_size", raw.get("tile_width", 16))))
+    )
+    for name in ("offset_x", "offset_y", "spacing_x", "spacing_y"):
+        st.session_state[f"{prefix}:{name}"] = max(0, int(raw.get(name, 0)))
+
+
+def _render_tileset_builder() -> None:
+    """Render the standalone, full-width tileset authoring canvas."""
+
+    prefix = _TILESET_STATE_PREFIX
+    st.subheader("Tileset Builder")
+    st.caption(
+        "Edita el atlas a píxel real, define su cuadrícula y exporta PNG + metadata."
+    )
+    upload_col, scale_col = st.columns((1.1, 2.9), gap="large")
+    with upload_col:
+        upload = st.file_uploader(
+            "Cargar tileset PNG",
+            type=["png"],
+            key=f"{prefix}:upload",
+        )
+        if upload is not None:
+            payload = upload.getvalue()
+            digest = hashlib.sha256(payload).hexdigest()
+            if digest != st.session_state.get(f"{prefix}:upload_sha256"):
+                try:
+                    with Image.open(io.BytesIO(payload)) as incoming:
+                        _set_tileset_image(
+                            incoming.convert("RGBA"),
+                            source_name=upload.name,
+                            reset_canvas=True,
+                        )
+                    st.session_state[f"{prefix}:upload_sha256"] = digest
+                except OSError as exc:
+                    st.error(f"No se pudo abrir el PNG: {exc}")
+    image = _tileset_state_image()
+    with scale_col:
+        if image is None:
+            st.info("Carga un PNG para activar el canvas.")
+        else:
+            st.markdown("**Reescalado pixel-perfect · nearest-neighbor**")
+            width_col, height_col, action_col = st.columns((1, 1, 1.25), gap="small")
+            target_width = int(
+                width_col.number_input(
+                    "Ancho final",
+                    min_value=1,
+                    max_value=8192,
+                    value=image.width,
+                    key=f"{prefix}:target_width:{image.width}x{image.height}",
+                )
+            )
+            target_height = int(
+                height_col.number_input(
+                    "Alto final",
+                    min_value=1,
+                    max_value=8192,
+                    value=image.height,
+                    key=f"{prefix}:target_height:{image.width}x{image.height}",
+                )
+            )
+            if action_col.button(
+                "Aplicar tamaño",
+                type="primary",
+                width="stretch",
+                disabled=(target_width, target_height) == image.size,
+                key=f"{prefix}:resize",
+            ):
+                _set_tileset_image(
+                    resize_tileset(image, (target_width, target_height)),
+                    source_name=str(
+                        st.session_state.get(f"{prefix}:source_name", "tileset.png")
+                    ),
+                    reset_canvas=True,
+                )
+                st.rerun()
+            preset_cols = st.columns(5, gap="small")
+            for column, (label, divisor) in zip(
+                preset_cols,
+                (("½", 2), ("¼", 4), ("⅛", 8), ("2×", 0.5), ("4×", 0.25)),
+                strict=True,
+            ):
+                size = (
+                    max(1, round(image.width / divisor)),
+                    max(1, round(image.height / divisor)),
+                )
+                if column.button(label, width="stretch", key=f"{prefix}:scale:{label}"):
+                    _set_tileset_image(
+                        resize_tileset(image, size),
+                        source_name=str(
+                            st.session_state.get(f"{prefix}:source_name", "tileset.png")
+                        ),
+                        reset_canvas=True,
+                    )
+                    st.rerun()
+            with st.expander("Tamaño del lienzo · no escala la imagen"):
+                st.caption(
+                    "Añade transparencia o recorta bordes; cada píxel conserva su tamaño."
+                )
+                canvas_width_col, canvas_height_col = st.columns(2, gap="small")
+                canvas_width = int(
+                    canvas_width_col.number_input(
+                        "Ancho del lienzo",
+                        min_value=1,
+                        max_value=8192,
+                        value=image.width,
+                        key=f"{prefix}:canvas_width:{image.width}x{image.height}",
+                    )
+                )
+                canvas_height = int(
+                    canvas_height_col.number_input(
+                        "Alto del lienzo",
+                        min_value=1,
+                        max_value=8192,
+                        value=image.height,
+                        key=f"{prefix}:canvas_height:{image.width}x{image.height}",
+                    )
+                )
+                anchor_labels = {
+                    "Superior izquierda": "top-left",
+                    "Superior centro": "top",
+                    "Superior derecha": "top-right",
+                    "Centro izquierda": "left",
+                    "Centro": "center",
+                    "Centro derecha": "right",
+                    "Inferior izquierda": "bottom-left",
+                    "Inferior centro": "bottom",
+                    "Inferior derecha": "bottom-right",
+                }
+                anchor_label = st.selectbox(
+                    "Anclaje del contenido",
+                    tuple(anchor_labels),
+                    key=f"{prefix}:canvas_anchor",
+                )
+                if st.button(
+                    "Aplicar tamaño de lienzo",
+                    type="primary",
+                    width="stretch",
+                    disabled=(canvas_width, canvas_height) == image.size,
+                    key=f"{prefix}:resize_canvas",
+                ):
+                    _set_tileset_image(
+                        resize_tileset_canvas(
+                            image,
+                            (canvas_width, canvas_height),
+                            anchor=anchor_labels[anchor_label],
+                        ),
+                        source_name=str(
+                            st.session_state.get(
+                                f"{prefix}:source_name", "tileset.png"
+                            )
+                        ),
+                        reset_canvas=True,
+                    )
+                    st.rerun()
+
+    image = _tileset_state_image()
+    if image is None:
+        return
+    grid = _tileset_grid_from_state()
+    event = tileset_editor(
+        image,
+        image_token=str(
+            st.session_state.setdefault(f"{prefix}:canvas_token", uuid.uuid4().hex)
+        ),
+        tile_size=grid.tile_width,
+        offset_x=grid.offset_x,
+        offset_y=grid.offset_y,
+        spacing_x=grid.spacing_x,
+        spacing_y=grid.spacing_y,
+        key=f"{prefix}:canvas",
+    )
+    if isinstance(event, Mapping):
+        event_id = str(event.get("eventId", ""))
+        if event_id and event_id != st.session_state.get(f"{prefix}:last_event"):
+            st.session_state[f"{prefix}:last_event"] = event_id
+            _apply_tileset_grid_event(event)
+            encoded = event.get("image")
+            if isinstance(encoded, str) and encoded.startswith("data:image/png;base64,"):
+                try:
+                    payload = base64.b64decode(encoded.split(",", 1)[1], validate=True)
+                    with Image.open(io.BytesIO(payload)) as edited:
+                        _set_tileset_image(
+                            edited.convert("RGBA"),
+                            source_name=str(
+                                st.session_state.get(
+                                    f"{prefix}:source_name", "tileset.png"
+                                )
+                            ),
+                            reset_canvas=False,
+                        )
+                    image = _tileset_state_image() or image
+                except (OSError, ValueError):
+                    st.warning(
+                        "El canvas devolvió un PNG inválido; se conservó la versión anterior."
+                    )
+            st.rerun()
+
+    tiles = slice_tileset(image, grid)
+    duplicate_count = sum(tile.duplicate_of is not None for tile in tiles)
+    empty_count = sum(tile.empty for tile in tiles)
+    metric_cols = st.columns(5, gap="small")
+    metric_cols[0].metric("Atlas", f"{image.width}×{image.height}")
+    metric_cols[1].metric("Tile", f"{grid.tile_width}×{grid.tile_height}")
+    metric_cols[2].metric("Tiles completos", len(tiles))
+    metric_cols[3].metric("Duplicados", duplicate_count)
+    metric_cols[4].metric("Vacíos", empty_count)
+    if not tiles:
+        st.warning("La cuadrícula actual no contiene ningún tile completo.")
+        return
+    png_payload = _png_bytes(image)
+    source_name = str(st.session_state.get(f"{prefix}:source_name", "tileset.png"))
+    download_cols = st.columns(2, gap="small")
+    download_cols[0].download_button(
+        "Descargar atlas PNG",
+        data=png_payload,
+        file_name="tileset.png",
+        mime="image/png",
+        width="stretch",
+        key=f"{prefix}:download_png",
+    )
+    download_cols[1].download_button(
+        "Descargar bundle PNG + JSON + tiles",
+        data=build_tileset_bundle(image, grid, source_name=source_name),
+        file_name="tileset-bundle.zip",
+        mime="application/zip",
+        width="stretch",
+        key=f"{prefix}:download_bundle",
+    )
 
 
 def _set_editor_width_mode(enabled: bool) -> None:
@@ -105,12 +410,24 @@ def _background_tool_label(tool: str) -> str:
         "wand": "Varita",
         "eraser": "Borrador",
         "eyedropper": "Cuentagotas",
+        "crop_lasso": "Recorte lazo",
+        "crop_rect": "Recorte rectangular",
+        "crop_ellipse": "Recorte elíptico",
+        "move": "Mover selección",
     }.get(tool, "Varita")
 
 
 def _normalize_background_tool(tool: Any) -> str:
     value = str(tool or "wand")
-    return value if value in {"wand", "eraser", "eyedropper"} else "wand"
+    return value if value in {
+        "wand",
+        "eraser",
+        "eyedropper",
+        "crop_lasso",
+        "crop_rect",
+        "crop_ellipse",
+        "move",
+    } else "wand"
 
 
 def _normalize_layer_tool(tool: Any) -> str:
@@ -224,6 +541,10 @@ def _background_history_snapshot(prefix: str) -> dict[str, Any]:
     }
 
 
+def _clear_background_floating_selection(prefix: str) -> None:
+    st.session_state.pop(f"{prefix}:background_floating_selection", None)
+
+
 def _center_history_snapshot(prefix: str) -> dict[str, Any]:
     return {
         "offsets": [
@@ -318,6 +639,7 @@ def _apply_editor_history_snapshot(
         st.session_state[f"{prefix}:background_selection_masks"] = _unpack_selection_masks(
             snapshot.get("selection_masks", [])
         )
+        _clear_background_floating_selection(prefix)
         return
     if scope == "center":
         offsets = [tuple(map(int, value)) for value in snapshot.get("offsets", [])]
@@ -406,6 +728,10 @@ def _history_label(scope: str, event: Mapping[str, Any]) -> str:
         if event_type == "key":
             return "Cambiar selección"
         tool = _normalize_background_tool(event.get("tool"))
+        if event_type == "floating-transform":
+            return "Mover selección"
+        if event_type == "crop":
+            return _background_tool_label(tool)
         return "Borrador" if tool == "eraser" or event_type == "edit-batch" else "Varita"
     if scope == "studio":
         return {
@@ -1608,7 +1934,13 @@ def _ensure_manual_background_state(
         st.session_state[sig_key] = signature
 
 
-def _ensure_background_editor_state(session: Any, count: int) -> None:
+def _ensure_background_editor_state(
+    session: Any,
+    count: int,
+    *,
+    default_tolerance: float = 0,
+    default_contiguous: bool = True,
+) -> None:
     prefix = session.session_id
     tool_key = f"{prefix}:background_tool"
     tool_widget_key = f"{prefix}:background_tool_widget"
@@ -1617,7 +1949,10 @@ def _ensure_background_editor_state(session: Any, count: int) -> None:
     zoom_key = f"{prefix}:background_zoom"
     brush_key = f"{prefix}:background_brush_radius"
     brush_widget_key = f"{prefix}:background_brush_radius_widget"
+    tolerance_key = f"{prefix}:background_wand_tolerance"
+    contiguous_key = f"{prefix}:background_wand_contiguous"
     event_key = f"{prefix}:background_last_event"
+    floating_key = f"{prefix}:background_floating_selection"
     if tool_key not in st.session_state:
         st.session_state[tool_key] = "wand"
     else:
@@ -1634,8 +1969,14 @@ def _ensure_background_editor_state(session: Any, count: int) -> None:
         st.session_state[brush_key] = 5
     if brush_widget_key not in st.session_state:
         st.session_state[brush_widget_key] = st.session_state[brush_key]
+    if tolerance_key not in st.session_state:
+        st.session_state[tolerance_key] = max(0, min(255, int(default_tolerance)))
+    if contiguous_key not in st.session_state:
+        st.session_state[contiguous_key] = bool(default_contiguous)
     if event_key not in st.session_state:
         st.session_state[event_key] = None
+    if floating_key not in st.session_state:
+        st.session_state[floating_key] = None
 
 
 def _selection_mode_from_event(event: dict[str, Any]) -> str:
@@ -1717,6 +2058,15 @@ def _handle_background_editor_event(
             st.session_state[f"{prefix}:background_brush_radius"] = radius
             st.session_state[f"{prefix}:background_brush_radius_widget_sync"] = radius
             return True
+        if action == "wand-settings":
+            st.session_state[f"{prefix}:background_wand_tolerance"] = max(
+                0,
+                min(255, int(event.get("wandTolerance", tolerance))),
+            )
+            st.session_state[f"{prefix}:background_wand_contiguous"] = bool(
+                event.get("wandContiguous", contiguous)
+            )
+            return True
         if action == "zoom":
             zoom = int(event.get("zoom", st.session_state.get(f"{prefix}:background_zoom", 8)))
             st.session_state[f"{prefix}:background_zoom"] = max(1, min(40, zoom))
@@ -1724,6 +2074,94 @@ def _handle_background_editor_event(
         return False
 
     event_type = str(event.get("type", ""))
+    if event_type == "floating-selection" and event.get("action") == "cancel":
+        _clear_background_floating_selection(prefix)
+        selections = list(st.session_state[f"{prefix}:background_selection_masks"])
+        selections[selected_frame] = None
+        st.session_state[f"{prefix}:background_selection_masks"] = selections
+        st.session_state[f"{prefix}:background_tool"] = "wand"
+        st.session_state[f"{prefix}:background_tool_widget_sync"] = "wand"
+        return True
+    if event_type == "crop":
+        tool = _normalize_background_tool(
+            event.get("tool", st.session_state[f"{prefix}:background_tool"])
+        )
+        if tool not in {"crop_lasso", "crop_rect", "crop_ellipse"}:
+            return False
+        frame = frames[selected_frame]
+        incoming = _layer_crop_mask_from_event(
+            event,
+            cel_size=frame.size,
+            offset_x=0,
+            offset_y=0,
+        )
+        selections = list(st.session_state[f"{prefix}:background_selection_masks"])
+        current = selections[selected_frame]
+        combined = combine_selection_masks(
+            current if isinstance(current, np.ndarray) else None,
+            incoming,
+            mode=_selection_mode_from_event(event),
+        )
+        combined = _opaque_crop_mask(frame, combined)
+        if not combined.any():
+            _clear_background_floating_selection(prefix)
+            selections[selected_frame] = None
+            st.session_state[f"{prefix}:background_selection_masks"] = selections
+            return True
+        remainder, piece = _extract_layer_piece(frame, combined)
+        rows, columns = np.where(combined)
+        selections[selected_frame] = combined
+        st.session_state[f"{prefix}:background_selection_masks"] = selections
+        st.session_state[f"{prefix}:background_floating_selection"] = {
+            "frame_index": selected_frame,
+            "mask": combined,
+            "piece": piece,
+            "remainder": remainder,
+            "tool": tool,
+            "bounds": (
+                int(columns.min()),
+                int(rows.min()),
+                int(columns.max()) + 1,
+                int(rows.max()) + 1,
+            ),
+        }
+        st.session_state[f"{prefix}:background_tool"] = "move"
+        st.session_state[f"{prefix}:background_tool_widget_sync"] = "move"
+        return True
+    if event_type == "floating-transform":
+        floating = st.session_state.get(f"{prefix}:background_floating_selection")
+        if not isinstance(floating, dict) or int(floating.get("frame_index", -1)) != selected_frame:
+            return False
+        mask = floating.get("mask")
+        if not isinstance(mask, np.ndarray) or mask.shape != (
+            frames[selected_frame].height,
+            frames[selected_frame].width,
+        ):
+            _clear_background_floating_selection(prefix)
+            return False
+        delta_x = int(event.get("deltaX", 0))
+        delta_y = int(event.get("deltaY", 0))
+        operations = {
+            int(index): [dict(item) for item in items]
+            for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
+        }
+        operations.setdefault(selected_frame, []).append(
+            {
+                "kind": "move_mask",
+                **encode_mask(mask),
+                "offset_x": delta_x,
+                "offset_y": delta_y,
+            }
+        )
+        st.session_state[f"{prefix}:background_manual_ops"] = operations
+        selections = list(st.session_state[f"{prefix}:background_selection_masks"])
+        selections[selected_frame] = None
+        st.session_state[f"{prefix}:background_selection_masks"] = selections
+        next_tool = _normalize_background_tool(floating.get("tool", "wand"))
+        _clear_background_floating_selection(prefix)
+        st.session_state[f"{prefix}:background_tool"] = next_tool
+        st.session_state[f"{prefix}:background_tool_widget_sync"] = next_tool
+        return True
     if event_type == "edit-batch":
         raw_sample = event.get("sample")
         if isinstance(raw_sample, (list, tuple)) and len(raw_sample) == 4:
@@ -1803,11 +2241,13 @@ def _handle_background_editor_event(
         return True
     if tool != "wand":
         return False
+    event_tolerance = max(0, min(255, int(event.get("wandTolerance", tolerance))))
+    event_contiguous = bool(event.get("wandContiguous", contiguous))
     incoming = select_similar_pixels(
         frame,
         seed_point=(x, y),
-        tolerance=tolerance,
-        contiguous=contiguous,
+        tolerance=event_tolerance,
+        contiguous=event_contiguous,
     )
     selections = list(st.session_state[f"{prefix}:background_selection_masks"])
     current = selections[selected_frame]
@@ -2598,9 +3038,17 @@ def main() -> None:
     )
     _load_css()
     workspace = _workspace()
-    store = SheetSessionStore(workspace)
+    page = _render_header_navigation()
     st.sidebar.markdown("# sprite-builder")
     st.sidebar.caption("Godot-ready pixel sprite pipeline")
+    if page == "tilesets":
+        _render_tileset_builder()
+        st.sidebar.markdown("---")
+        st.sidebar.caption(f"Workspace: {workspace}")
+        st.sidebar.caption("Procesamiento local · sin APIs externas")
+        return
+
+    store = SheetSessionStore(workspace)
     session = _new_or_existing_session(store)
 
     if session is None:
@@ -3001,7 +3449,11 @@ def main() -> None:
     processing_error: str | None = None
     try:
         _ensure_manual_background_state(store, session, 1)
-        _ensure_background_editor_state(session, 1)
+        _ensure_background_editor_state(
+            session,
+            1,
+            default_tolerance=background_config.tolerance,
+        )
         prefix = session.session_id
         background_source, segmentation, processing_signature = _ensure_sheet_processing(
             session,
@@ -3119,7 +3571,13 @@ def main() -> None:
             st.caption("Historial listo · cada pincelada o drag cuenta como una acción")
 
     sheet_tab, background_tab, studio_tab, align_tab, export_tab = st.tabs(
-        ("Sheet", "Background", "Studio", "Segmentación + Auto Center", "Export")
+        (
+            "Sheet",
+            "Background",
+            "Studio",
+            "Segmentación + Auto Center",
+            "Export",
+        )
     )
     history_notice_key = f"{session.session_id}:editor_history_notice"
     if history_notice_key in st.session_state:
@@ -3305,26 +3763,10 @@ def main() -> None:
             brush_key = f"{prefix}:background_brush_radius"
             selected_bg = 0
             sampled_rgba = st.session_state[f"{prefix}:background_sampled_color"]
-            with st.expander("Ajustes de la varita", expanded=False):
-                settings_col1, settings_col2 = st.columns(2)
-                with settings_col1:
-                    contiguous = st.toggle(
-                        "Selección contigua",
-                        value=True,
-                        key=f"{prefix}:bg_contiguous:{selected_bg}",
-                        help="Limita la varita a pixels conectados al punto donde haces clic.",
-                    )
-                with settings_col2:
-                    manual_tolerance = float(
-                        st.slider(
-                            "Tolerancia RGB",
-                            min_value=0,
-                            max_value=255,
-                            value=min(255, int(background_config.tolerance)),
-                            key=f"{prefix}:bg_manual_tol:{selected_bg}",
-                            help="Cuánta variación de color incluye la varita.",
-                        )
-                    )
+            manual_tolerance = float(
+                st.session_state[f"{prefix}:background_wand_tolerance"]
+            )
+            contiguous = bool(st.session_state[f"{prefix}:background_wand_contiguous"])
             selection_masks = st.session_state[f"{prefix}:background_selection_masks"]
             normalized_selection_masks: list[np.ndarray | None] = []
             invalid_mask = False
@@ -3339,9 +3781,34 @@ def main() -> None:
                 st.session_state[f"{prefix}:background_selection_masks"] = normalized_selection_masks
             selection_masks = normalized_selection_masks
             selection_mask = selection_masks[selected_bg]
+            floating = st.session_state.get(f"{prefix}:background_floating_selection")
+            floating_piece: Image.Image | None = None
+            floating_highlight: Image.Image | None = None
+            floating_bounds: tuple[int, int, int, int] | None = None
+            editor_background = background_source
+            if (
+                isinstance(floating, dict)
+                and int(floating.get("frame_index", -1)) == selected_bg
+                and isinstance(floating.get("piece"), Image.Image)
+                and isinstance(floating.get("remainder"), Image.Image)
+                and isinstance(floating.get("mask"), np.ndarray)
+                and floating["mask"].shape == (background_source.height, background_source.width)
+            ):
+                floating_piece = floating["piece"]
+                editor_background = floating["remainder"]
+                floating_highlight = _floating_selection_highlight(floating["mask"])
+                raw_bounds = floating.get("bounds")
+                if isinstance(raw_bounds, tuple) and len(raw_bounds) == 4:
+                    floating_bounds = tuple(int(value) for value in raw_bounds)
+            elif floating is not None:
+                _clear_background_floating_selection(prefix)
             overlay = render_selection_overlay(
                 background_source.size,
-                selection_mask if isinstance(selection_mask, np.ndarray) else None,
+                (
+                    selection_mask
+                    if isinstance(selection_mask, np.ndarray) and floating_piece is None
+                    else None
+                ),
             )
             tool_zoom = int(st.session_state[f"{prefix}:background_zoom"])
             editor_box = st.container(border=True)
@@ -3360,11 +3827,18 @@ def main() -> None:
                 )
                 history_controls = _history_controls(session)
                 event = pixel_editor(
-                    background_source,
+                    editor_background,
                     overlay=overlay,
                     sample=st.session_state[f"{prefix}:background_sampled_color"],
                     tool=st.session_state[tool_key],
                     brush_radius=int(st.session_state[brush_key]),
+                    wand_tolerance=int(manual_tolerance),
+                    wand_contiguous=contiguous,
+                    floating_selection=floating_piece,
+                    floating_highlight=floating_highlight,
+                    floating_selection_x=0,
+                    floating_selection_y=0,
+                    floating_selection_bounds=floating_bounds,
                     zoom=tool_zoom,
                     frame_token=(
                         f"{prefix}:background:"
@@ -3400,6 +3874,12 @@ def main() -> None:
                     )
                     changes_visible_state = (
                         event_type == "edit-batch"
+                        or event_type == "crop"
+                        or event_type in {"floating-transform", "floating-selection"}
+                        or (
+                            event_type == "toolbar"
+                            and str(event.get("action", "")) == "wand-settings"
+                        )
                         or (
                             event_type in {"pointer", "pointerdown", "pointermove"}
                             and tool in {"wand", "eraser", "eyedropper"}
@@ -3446,7 +3926,7 @@ def main() -> None:
                 if action_col1.button(
                     "Borrar selección",
                     width="stretch",
-                    disabled=selection_pixels == 0,
+                    disabled=selection_pixels == 0 or floating_piece is not None,
                     key=f"{prefix}:bg_delete_selection:{selected_bg}",
                 ):
                     history_before = _background_history_snapshot(prefix)
@@ -3472,7 +3952,7 @@ def main() -> None:
                 if action_col2.button(
                     "Limpiar selección",
                     width="stretch",
-                    disabled=selection_pixels == 0,
+                    disabled=selection_pixels == 0 or floating_piece is not None,
                     key=f"{prefix}:bg_clear_selection:{selected_bg}",
                 ):
                     history_before = _background_history_snapshot(prefix)
@@ -3500,6 +3980,7 @@ def main() -> None:
                                     "erase_similar": "varita",
                                     "erase_brush": "borrador",
                                     "erase_mask": "selección",
+                                    "move_mask": "mover selección",
                                 }.get(op["kind"], op["kind"]),
                                 "punto": ",".join(map(str, op.get("point", ()))),
                                 "tol": str(op.get("tolerance", "-")),
@@ -3524,6 +4005,7 @@ def main() -> None:
                             if int(index) != selected_bg and items
                         }
                         st.session_state[f"{prefix}:background_manual_ops"] = updated
+                        _clear_background_floating_selection(prefix)
                         _record_editor_history(
                             session,
                             scope="background",
@@ -3542,6 +4024,7 @@ def main() -> None:
                         st.session_state[f"{prefix}:background_selection_masks"] = [
                             None
                         ]
+                        _clear_background_floating_selection(prefix)
                         _record_editor_history(
                             session,
                             scope="background",
@@ -3553,6 +4036,7 @@ def main() -> None:
             if st.button(
                 "Guardar remoción de fondo",
                 type="primary",
+                disabled=floating_piece is not None,
                 key=f"{session.session_id}:save_background",
             ):
                 session.background_removal_config = background_config
@@ -4010,7 +4494,6 @@ def main() -> None:
                             st.markdown("#### Lienzo")
                             studio_defaults = {
                                 f"{prefix}:studio_onion_skin": False,
-                                f"{prefix}:studio_playback": False,
                                 f"{prefix}:studio_onion_opacity": 0.28,
                                 f"{prefix}:studio_playback_fps": 8,
                             }
@@ -4025,7 +4508,7 @@ def main() -> None:
                                     for index in range(document.frame_count)
                                 ]
                                 st.session_state[duration_key] = durations
-                            frame_tool_cols = st.columns((1, 1, 1, 1, 1.3, 1.3), gap="small")
+                            frame_tool_cols = st.columns((1, 1, 1, 1, 1.3), gap="small")
                             if frame_tool_cols[0].button(
                                 "Duplicar",
                                 key=f"{prefix}:duplicate_frame:{active_frame}",
@@ -4133,10 +4616,6 @@ def main() -> None:
                                 "Onion skin",
                                 key=f"{prefix}:studio_onion_skin",
                             )
-                            playback_enabled = frame_tool_cols[5].toggle(
-                                "Reproducción",
-                                key=f"{prefix}:studio_playback",
-                            )
                             option_cols = st.columns(3, gap="small")
                             if onion_enabled:
                                 option_cols[0].slider(
@@ -4146,32 +4625,60 @@ def main() -> None:
                                     step=0.05,
                                     key=f"{prefix}:studio_onion_opacity",
                                 )
-                            if playback_enabled:
+                            playback_fps = int(
                                 option_cols[1].slider(
                                     "FPS reproducción",
                                     min_value=1,
                                     max_value=30,
                                     key=f"{prefix}:studio_playback_fps",
+                                    help=(
+                                        "Cambiar FPS aplica la duración equivalente "
+                                        "a todos los frames."
+                                    ),
                                 )
-                                duration_widget_key = (
-                                    f"{prefix}:studio_frame_duration:{active_frame}"
+                            )
+                            applied_fps_key = f"{prefix}:studio_playback_applied_fps"
+                            previous_fps = int(
+                                st.session_state.get(applied_fps_key, playback_fps)
+                            )
+                            if playback_fps != previous_fps:
+                                frame_duration_from_fps = max(
+                                    16,
+                                    round(1000 / playback_fps),
                                 )
-                                if duration_widget_key not in st.session_state:
-                                    st.session_state[duration_widget_key] = int(
-                                        durations[active_frame]
+                                durations = [
+                                    frame_duration_from_fps
+                                    for _ in range(document.frame_count)
+                                ]
+                                st.session_state[duration_key] = durations
+                                for frame_index in range(document.frame_count):
+                                    frame_widget_key = (
+                                        f"{prefix}:studio_frame_duration:{frame_index}"
                                     )
-                                frame_duration = int(
-                                    option_cols[2].number_input(
-                                        "Duración frame (ms)",
-                                        min_value=16,
-                                        max_value=5000,
-                                        step=10,
-                                        key=duration_widget_key,
-                                    )
+                                    if frame_widget_key in st.session_state:
+                                        st.session_state[frame_widget_key] = (
+                                            frame_duration_from_fps
+                                        )
+                            st.session_state[applied_fps_key] = playback_fps
+                            duration_widget_key = (
+                                f"{prefix}:studio_frame_duration:{active_frame}"
+                            )
+                            if duration_widget_key not in st.session_state:
+                                st.session_state[duration_widget_key] = int(
+                                    durations[active_frame]
                                 )
-                                if frame_duration != durations[active_frame]:
-                                    durations[active_frame] = frame_duration
-                                    st.session_state[duration_key] = durations
+                            frame_duration = int(
+                                option_cols[2].number_input(
+                                    "Duración frame (ms)",
+                                    min_value=16,
+                                    max_value=5000,
+                                    step=10,
+                                    key=duration_widget_key,
+                                )
+                            )
+                            if frame_duration != durations[active_frame]:
+                                durations[active_frame] = frame_duration
+                                st.session_state[duration_key] = durations
                             st.caption(
                                 f"Frame {active_frame + 1}/{document.frame_count} · "
                                 f"capa activa: {active_layer.name} · "
@@ -4212,13 +4719,9 @@ def main() -> None:
                                     )
                                 onion_canvas.alpha_composite(composite)
                                 composite = onion_canvas
-                            animation_frames = (
-                                tuple(
-                                    composite_document_frame(document, preview_images, index)
-                                    for index in range(document.frame_count)
-                                )
-                                if playback_enabled
-                                else ()
+                            animation_frames = tuple(
+                                composite_document_frame(document, preview_images, index)
+                                for index in range(document.frame_count)
                             )
                             history_controls = _history_controls(session)
                             event = pixel_editor(
@@ -5084,7 +5587,13 @@ def main() -> None:
                         "tamaños distintos. La exportación seguirá usando el canvas de cada frame."
                     )
                 if st.button(
-                    "Exportar sprite .png" if export_ready else "Exportar con advertencias",
+                    (
+                        "Exportar PNG por frame"
+                        if include_frames and export_ready
+                        else "Exportar sprite-sheet PNG"
+                        if export_ready
+                        else "Exportar con advertencias"
+                    ),
                     type="primary",
                     width="stretch",
                     key=f"{session.session_id}:export",
@@ -5100,6 +5609,7 @@ def main() -> None:
                         layout=layout,
                         columns=export_columns,
                         export_frames=include_frames,
+                        export_sheet_png=not include_frames,
                         export_contact_sheet=include_contact,
                         export_gif=include_gif,
                         fps=fps,
@@ -5112,13 +5622,35 @@ def main() -> None:
                     session.export_manifest,
                 )
                 if manifest:
-                    png_path = workspace / manifest["output_png"]
-                    if png_path.is_file():
+                    output_png = manifest.get("output_png")
+                    png_path = workspace / output_png if isinstance(output_png, str) else None
+                    if png_path is not None and png_path.is_file():
                         st.download_button(
                             "Descargar sprite-sheet PNG",
                             data=png_path.read_bytes(),
                             file_name=png_path.name,
                             mime="image/png",
+                            width="stretch",
+                        )
+                    frame_paths = [
+                        workspace / value
+                        for value in manifest.get("output_frames", [])
+                        if isinstance(value, str) and (workspace / value).is_file()
+                    ]
+                    if frame_paths:
+                        archive = io.BytesIO()
+                        with zipfile.ZipFile(
+                            archive,
+                            mode="w",
+                            compression=zipfile.ZIP_DEFLATED,
+                        ) as bundle:
+                            for frame_path in frame_paths:
+                                bundle.write(frame_path, arcname=frame_path.name)
+                        st.download_button(
+                            f"Descargar {len(frame_paths)} frames PNG (.zip)",
+                            data=archive.getvalue(),
+                            file_name="sprite-frames.zip",
+                            mime="application/zip",
                             width="stretch",
                         )
                     st.download_button(

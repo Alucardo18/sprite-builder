@@ -1,0 +1,187 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      627,
+      690
+    ],
+    "canvas_height": 1254,
+    "canvas_width": 1254,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 200.0
+  },
+  "created_at": "2026-07-14T22:03:34.189049+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": true,
+    "padding": 22
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-486cbd45b929",
+    "cell_size": [
+      1090,
+      916
+    ],
+    "contact_sheet": "sheet_sessions/sheet-20260714T220334-5643215a-de91/exports/export-486cbd45b929/contact-sheet.png",
+    "crop": {
+      "alpha_threshold": 8,
+      "bbox": [
+        73,
+        255,
+        1163,
+        1171
+      ],
+      "enabled": true,
+      "padding": 22,
+      "source_size": [
+        1254,
+        1254
+      ]
+    },
+    "export_kind": "spritesheet",
+    "exported_at": "2026-07-14T22:05:29.185063+00:00",
+    "frame_count": 1,
+    "godot_notes": "1 column(s), 1 row(s); use nearest filtering and lossless compression",
+    "layout": "horizontal",
+    "output_frames": [],
+    "output_frames_dir": null,
+    "output_png": "sheet_sessions/sheet-20260714T220334-5643215a-de91/exports/export-486cbd45b929/sprite-sheet.png",
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260714T220334-5643215a-de91/exports/export-486cbd45b929/sprite-sheet.png",
+        "role": "output",
+        "sha256": "70a7863cb09dac6e8477cd09693d28bfa74ac274981e4105adf166c4ca9d70c7",
+        "size_bytes": 744707
+      },
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260714T220334-5643215a-de91/exports/export-486cbd45b929/contact-sheet.png",
+        "role": "output",
+        "sha256": "b0e1b4ecde0a9bd4248e69797667a63b9212faea3ff98c63dd47b9cfcbfb2686",
+        "size_bytes": 1026358
+      }
+    ],
+    "preview_gif": null,
+    "primary_output": "sheet_sessions/sheet-20260714T220334-5643215a-de91/exports/export-486cbd45b929/sprite-sheet.png",
+    "schema_version": "1.0",
+    "session_id": "sheet-20260714T220334-5643215a-de91",
+    "sha256": "70a7863cb09dac6e8477cd09693d28bfa74ac274981e4105adf166c4ca9d70c7",
+    "status": "manual_review",
+    "validation_warnings": [
+      "alignment stage is not passed"
+    ]
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        -4,
+        122
+      ],
+      "auto_anchor": [
+        631.0,
+        568.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        99,
+        155,
+        1145,
+        1027
+      ],
+      "final_anchor": [
+        627.0,
+        690.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 0.41620111731843573,
+    "border_rgb": [
+      254,
+      254,
+      254
+    ],
+    "has_alpha": false,
+    "height": 1254,
+    "mode": "RGB",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      255,
+      254,
+      254
+    ],
+    "uses_transparency": false,
+    "width": 1254
+  },
+  "layer_document": null,
+  "output_dir": "sheet_sessions/sheet-20260714T220334-5643215a-de91",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 1,
+    "manual_cut_positions": [],
+    "manual_cut_positions_x": [],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260714T220334-5643215a-de91",
+  "source_image_path": "sheet_sessions/sheet-20260714T220334-5643215a-de91/source/5643215a8c1ba58cd1bb9896dca6f7ac3ff973933a1ee5f46ef098a1895bfcba.png",
+  "source_sha256": "5643215a8c1ba58cd1bb9896dca6f7ac3ff973933a1ee5f46ef098a1895bfcba",
+  "stages": {
+    "background": {
+      "cache_key": "7980149eb2b0ece9e7f9fd6177b5472b6cc5b43288826534ecaf9568121dfcd7",
+      "manifest": "sheet_sessions/sheet-20260714T220334-5643215a-de91/attempts/background/7980149eb2b0ece9e7f9fd6177b5472b6cc5b43288826534ecaf9568121dfcd7/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260714T220334-5643215a-de91/attempts/background/7980149eb2b0ece9e7f9fd6177b5472b6cc5b43288826534ecaf9568121dfcd7/frame_000.png"
+      ],
+      "status": "passed"
+    },
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260714T220334-5643215a-de91/exports/export-486cbd45b929/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260714T220334-5643215a-de91/exports/export-486cbd45b929/sprite-sheet.png",
+        "sheet_sessions/sheet-20260714T220334-5643215a-de91/exports/export-486cbd45b929/contact-sheet.png"
+      ],
+      "status": "manual_review"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260714T220334-5643215a-de91/source/5643215a8c1ba58cd1bb9896dca6f7ac3ff973933a1ee5f46ef098a1895bfcba.png",
+      "sha256": "5643215a8c1ba58cd1bb9896dca6f7ac3ff973933a1ee5f46ef098a1895bfcba",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-14T22:05:29.186102+00:00"
+}
