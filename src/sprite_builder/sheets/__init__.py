@@ -42,6 +42,8 @@ from .manual import (
     render_selection_overlay,
     sample_pixel,
     select_similar_pixels,
+    shift_mask,
+    transform_masked_pixels,
 )
 from .models import (
     AutoCenterConfig,
@@ -113,7 +115,9 @@ __all__ = [
     "resolve_segmentation_config",
     "sample_pixel",
     "select_similar_pixels",
+    "shift_mask",
     "segment_sheet",
     "trim_transparent_frames",
     "transform_cel_selection",
+    "transform_masked_pixels",
 ]

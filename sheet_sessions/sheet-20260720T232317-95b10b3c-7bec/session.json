@@ -1,0 +1,416 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      256,
+      188
+    ],
+    "canvas_height": 341,
+    "canvas_width": 512,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      0,
+      0,
+      0
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 1,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-07-20T23:23:17.533266+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": false,
+    "padding": 0
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-a8692b67a0a8",
+    "cell_size": [
+      662,
+      356
+    ],
+    "contact_sheet": null,
+    "crop": {
+      "alpha_threshold": 8,
+      "bbox": [
+        0,
+        0,
+        662,
+        356
+      ],
+      "enabled": false,
+      "padding": 0,
+      "source_size": [
+        662,
+        356
+      ]
+    },
+    "export_kind": "spritesheet",
+    "exported_at": "2026-07-20T23:25:04.139218+00:00",
+    "frame_count": 9,
+    "godot_notes": "3 column(s), 3 row(s); use nearest filtering and lossless compression",
+    "layout": "grid",
+    "output_frames": [],
+    "output_frames_dir": null,
+    "output_png": "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/exports/export-a8692b67a0a8/sprite-sheet.png",
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/exports/export-a8692b67a0a8/sprite-sheet.png",
+        "role": "output",
+        "sha256": "b0adfcc9a2d1694818e4012229e1669fb17df471ba576b42389169e1fbdad476",
+        "size_bytes": 265445
+      }
+    ],
+    "preview_gif": null,
+    "primary_output": "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/exports/export-a8692b67a0a8/sprite-sheet.png",
+    "schema_version": "1.0",
+    "session_id": "sheet-20260720T232317-95b10b3c-7bec",
+    "sha256": "b0adfcc9a2d1694818e4012229e1669fb17df471ba576b42389169e1fbdad476",
+    "status": "manual_review",
+    "validation_warnings": [
+      "alignment stage is not passed",
+      "alignment contains manual_review frames"
+    ]
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        11,
+        17
+      ],
+      "auto_anchor": [
+        395.0,
+        171.0
+      ],
+      "auto_confidence": 0.9067580588312965,
+      "body_bbox": [
+        33,
+        16,
+        446,
+        321
+      ],
+      "final_anchor": [
+        406.0,
+        188.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        13,
+        18
+      ],
+      "auto_anchor": [
+        393.0,
+        170.0
+      ],
+      "auto_confidence": 0.6302829385325033,
+      "body_bbox": [
+        31,
+        15,
+        451,
+        320
+      ],
+      "final_anchor": [
+        406.0,
+        188.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        1,
+        17
+      ],
+      "auto_anchor": [
+        405.0,
+        171.0
+      ],
+      "auto_confidence": 0.7351667242709554,
+      "body_bbox": [
+        7,
+        16,
+        452,
+        321
+      ],
+      "final_anchor": [
+        406.0,
+        188.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -6,
+        14
+      ],
+      "auto_anchor": [
+        412.0,
+        174.0
+      ],
+      "auto_confidence": 0.7079602796814968,
+      "body_bbox": [
+        40,
+        28,
+        447,
+        323
+      ],
+      "final_anchor": [
+        406.0,
+        188.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -2,
+        15
+      ],
+      "auto_anchor": [
+        408.0,
+        173.0
+      ],
+      "auto_confidence": 0.7722101099123806,
+      "body_bbox": [
+        50,
+        25,
+        458,
+        318
+      ],
+      "final_anchor": [
+        406.0,
+        188.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        17,
+        12
+      ],
+      "auto_anchor": [
+        389.0,
+        176.0
+      ],
+      "auto_confidence": 0.6712106438669944,
+      "body_bbox": [
+        28,
+        25,
+        445,
+        320
+      ],
+      "final_anchor": [
+        406.0,
+        188.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        13,
+        8
+      ],
+      "auto_anchor": [
+        393.0,
+        180.0
+      ],
+      "auto_confidence": 0.6838720735284595,
+      "body_bbox": [
+        8,
+        19,
+        460,
+        324
+      ],
+      "final_anchor": [
+        406.0,
+        188.0
+      ],
+      "frame_index": 6,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        13,
+        9
+      ],
+      "auto_anchor": [
+        393.0,
+        179.0
+      ],
+      "auto_confidence": 0.7705882438050412,
+      "body_bbox": [
+        7,
+        19,
+        464,
+        324
+      ],
+      "final_anchor": [
+        406.0,
+        188.0
+      ],
+      "frame_index": 7,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        14,
+        10
+      ],
+      "auto_anchor": [
+        392.0,
+        178.0
+      ],
+      "auto_confidence": 0.7988904824118448,
+      "body_bbox": [
+        21,
+        18,
+        470,
+        319
+      ],
+      "final_anchor": [
+        406.0,
+        188.0
+      ],
+      "frame_index": 8,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 1.0,
+    "border_rgb": [
+      0,
+      0,
+      0
+    ],
+    "has_alpha": true,
+    "height": 1024,
+    "mode": "RGBA",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      0,
+      0,
+      0
+    ],
+    "uses_transparency": true,
+    "width": 1536
+  },
+  "layer_document": {
+    "cache_key": "4da3a57c72920fb2eb37d8334755768e3d949850165b21cd30ed4d05f633c4b9",
+    "document_id": "sprite-3dff94043afd",
+    "manifest": "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/layers/4da3a57c72920fb2eb37d8334755768e3d949850165b21cd30ed4d05f633c4b9/manifest.json",
+    "manifest_sha256": "cf2ac4c43ff6b407a5e0ac0672f929348ba5013c4e722fdf6369424295d09557",
+    "revision": 1
+  },
+  "output_dir": "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 3,
+    "frame_count": 9,
+    "manual_cut_positions": [],
+    "manual_cut_positions_x": [
+      512,
+      1024
+    ],
+    "manual_cut_positions_y": [
+      341,
+      682
+    ],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "grid",
+    "rows": 3,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260720T232317-95b10b3c-7bec",
+  "source_image_path": "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/source/95b10b3c034d8a482032e1a82a9db40307435dd2e2232a45bdc029e22c3cb054.png",
+  "source_sha256": "95b10b3c034d8a482032e1a82a9db40307435dd2e2232a45bdc029e22c3cb054",
+  "stages": {
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/exports/export-a8692b67a0a8/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/exports/export-a8692b67a0a8/sprite-sheet.png"
+      ],
+      "status": "manual_review"
+    },
+    "segmentation": {
+      "cache_key": "f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9",
+      "manifest": "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/segmentation/f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/segmentation/f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9/frame_000.png",
+        "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/segmentation/f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9/frame_001.png",
+        "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/segmentation/f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9/frame_002.png",
+        "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/segmentation/f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9/frame_003.png",
+        "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/segmentation/f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9/frame_004.png",
+        "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/segmentation/f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9/frame_005.png",
+        "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/segmentation/f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9/frame_006.png",
+        "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/segmentation/f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9/frame_007.png",
+        "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/attempts/segmentation/f716acfa18af4790d9f8d869e3fccd26d9d310a37ce07158316e26427247c9e9/frame_008.png"
+      ],
+      "status": "passed"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260720T232317-95b10b3c-7bec/source/95b10b3c034d8a482032e1a82a9db40307435dd2e2232a45bdc029e22c3cb054.png",
+      "sha256": "95b10b3c034d8a482032e1a82a9db40307435dd2e2232a45bdc029e22c3cb054",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-20T23:25:04.140172+00:00"
+}

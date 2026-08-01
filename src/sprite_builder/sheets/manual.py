@@ -9,7 +9,14 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
-ManualEditKind = Literal["erase_similar", "erase_brush"]
+ManualEditKind = Literal[
+    "erase_similar",
+    "erase_brush",
+    "erase_mask",
+    "move_mask",
+    "copy_mask",
+    "rotate_mask",
+]
 
 
 def sample_pixel(image: Image.Image, point: tuple[int, int]) -> tuple[int, int, int, int]:
@@ -176,6 +183,120 @@ def clear_selection(image: Image.Image, mask: np.ndarray) -> Image.Image:
     return Image.fromarray(rgba, "RGBA")
 
 
+def shift_mask(mask: np.ndarray, *, offset_x: int, offset_y: int) -> np.ndarray:
+    """Translate a boolean mask on the same canvas, clipping at the edges."""
+
+    source = np.asarray(mask, dtype=bool)
+    if not source.size:
+        return source.copy()
+    height, width = source.shape
+    shifted = np.zeros((height, width), dtype=bool)
+    src_x0 = max(0, -int(offset_x))
+    src_y0 = max(0, -int(offset_y))
+    dst_x0 = max(0, int(offset_x))
+    dst_y0 = max(0, int(offset_y))
+    copy_width = min(width - src_x0, width - dst_x0)
+    copy_height = min(height - src_y0, height - dst_y0)
+    if copy_width <= 0 or copy_height <= 0:
+        return shifted
+    shifted[dst_y0 : dst_y0 + copy_height, dst_x0 : dst_x0 + copy_width] = source[
+        src_y0 : src_y0 + copy_height,
+        src_x0 : src_x0 + copy_width,
+    ]
+    return shifted
+
+
+def _mask_bbox(mask: np.ndarray) -> tuple[int, int, int, int] | None:
+    ys, xs = np.where(np.asarray(mask, dtype=bool))
+    if len(xs) == 0:
+        return None
+    return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
+
+
+def transform_masked_pixels(
+    image: Image.Image,
+    mask: np.ndarray,
+    *,
+    clear_source: bool,
+    offset_x: int = 0,
+    offset_y: int = 0,
+    quarter_turns: int = 0,
+    angle_degrees: float | None = None,
+) -> tuple[Image.Image, np.ndarray]:
+    """Move, duplicate, or rotate a selection without resampling pixels."""
+
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+    selection = np.asarray(mask, dtype=bool)
+    if selection.shape != rgba.shape[:2]:
+        raise ValueError("Selection mask must match image size")
+    bbox = _mask_bbox(selection)
+    if bbox is None:
+        return Image.fromarray(rgba, "RGBA"), np.zeros_like(selection, dtype=bool)
+
+    x0, y0, x1, y1 = bbox
+    crop = rgba[y0:y1, x0:x1].copy()
+    crop_mask = selection[y0:y1, x0:x1].copy()
+    crop[~crop_mask, 3] = 0
+    degrees = (
+        float(angle_degrees)
+        if angle_degrees is not None
+        else float((int(quarter_turns) % 4) * 90)
+    )
+    normalized_degrees = degrees % 360.0
+    exact_turns = round(normalized_degrees / 90.0)
+    if abs(normalized_degrees - exact_turns * 90.0) < 1e-9:
+        turns = exact_turns % 4
+        if turns:
+            crop = np.rot90(crop, k=-turns)
+            crop_mask = np.rot90(crop_mask, k=-turns)
+    elif abs(normalized_degrees) > 1e-9:
+        crop_image = Image.fromarray(crop, "RGBA").rotate(
+            -normalized_degrees,
+            resample=Image.Resampling.NEAREST,
+            expand=True,
+            fillcolor=(0, 0, 0, 0),
+        )
+        mask_image = Image.fromarray(crop_mask.astype(np.uint8) * 255, "L").rotate(
+            -normalized_degrees,
+            resample=Image.Resampling.NEAREST,
+            expand=True,
+            fillcolor=0,
+        )
+        crop = np.asarray(crop_image, dtype=np.uint8).copy()
+        crop_mask = np.asarray(mask_image, dtype=np.uint8) > 0
+        crop[~crop_mask, 3] = 0
+    crop_height, crop_width = crop.shape[:2]
+    center_x = (x0 + x1) / 2.0
+    center_y = (y0 + y1) / 2.0
+    dest_x0 = int(round(center_x - crop_width / 2.0)) + int(offset_x)
+    dest_y0 = int(round(center_y - crop_height / 2.0)) + int(offset_y)
+    if clear_source:
+        rgba[selection, 3] = 0
+
+    canvas_height, canvas_width = selection.shape
+    src_x0 = max(0, -dest_x0)
+    src_y0 = max(0, -dest_y0)
+    src_x1 = min(crop_width, canvas_width - dest_x0)
+    src_y1 = min(crop_height, canvas_height - dest_y0)
+    if src_x0 >= src_x1 or src_y0 >= src_y1:
+        return Image.fromarray(rgba, "RGBA"), np.zeros_like(selection, dtype=bool)
+
+    dst_x0 = max(0, dest_x0)
+    dst_y0 = max(0, dest_y0)
+    dst_x1 = dst_x0 + (src_x1 - src_x0)
+    dst_y1 = dst_y0 + (src_y1 - src_y0)
+
+    placed = np.zeros_like(rgba)
+    placed[dst_y0:dst_y1, dst_x0:dst_x1] = crop[src_y0:src_y1, src_x0:src_x1]
+    result = Image.alpha_composite(
+        Image.fromarray(rgba, "RGBA"),
+        Image.fromarray(placed, "RGBA"),
+    )
+    next_mask = np.zeros_like(selection, dtype=bool)
+    next_mask[dst_y0:dst_y1, dst_x0:dst_x1] = crop_mask[src_y0:src_y1, src_x0:src_x1]
+    return result, next_mask
+
+
 def encode_mask(mask: np.ndarray) -> dict[str, Any]:
     if mask.ndim != 2:
         raise ValueError("Mask must be 2D")
@@ -291,19 +412,18 @@ def apply_manual_background_edits(
                     edited,
                     decode_mask(operation, edited.size),
                 )
-            elif kind == "move_mask":
-                mask = decode_mask(operation, edited.size)
-                rgba = np.asarray(edited.convert("RGBA"), dtype=np.uint8)
-                piece = rgba.copy()
-                piece[~mask, 3] = 0
-                remainder = rgba.copy()
-                remainder[mask, 3] = 0
-                edited = Image.fromarray(remainder, "RGBA")
-                edited.alpha_composite(
-                    Image.fromarray(piece, "RGBA"),
-                    dest=(
-                        int(operation.get("offset_x", 0)),
-                        int(operation.get("offset_y", 0)),
+            elif kind in {"move_mask", "copy_mask", "rotate_mask"}:
+                edited, _ = transform_masked_pixels(
+                    edited,
+                    decode_mask(operation, edited.size),
+                    clear_source=kind != "copy_mask",
+                    offset_x=int(operation.get("offset_x", 0)),
+                    offset_y=int(operation.get("offset_y", 0)),
+                    quarter_turns=int(operation.get("quarter_turns", 0)),
+                    angle_degrees=(
+                        float(operation["angle_degrees"])
+                        if operation.get("angle_degrees") is not None
+                        else None
                     ),
                 )
             else:

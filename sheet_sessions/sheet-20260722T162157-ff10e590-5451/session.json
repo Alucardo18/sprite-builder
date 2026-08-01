@@ -1,0 +1,87 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      836,
+      470
+    ],
+    "canvas_height": 941,
+    "canvas_width": 1672,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      0,
+      0,
+      0
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 1,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-07-22T16:21:57.233988+00:00",
+  "current_stage": "source",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": false,
+    "padding": 0
+  },
+  "export_manifest": null,
+  "frame_adjustments": [],
+  "inspection": {
+    "background_confidence": 0.853887399463807,
+    "border_rgb": [
+      0,
+      0,
+      0
+    ],
+    "has_alpha": false,
+    "height": 941,
+    "mode": "RGB",
+    "solid_background_likely": true,
+    "top_left_rgb": [
+      0,
+      0,
+      0
+    ],
+    "uses_transparency": false,
+    "width": 1672
+  },
+  "layer_document": null,
+  "output_dir": "sheet_sessions/sheet-20260722T162157-ff10e590-5451",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 1,
+    "manual_cut_positions": [],
+    "manual_cut_positions_x": [],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260722T162157-ff10e590-5451",
+  "source_image_path": "sheet_sessions/sheet-20260722T162157-ff10e590-5451/source/ff10e590a589153fdc27ba61f26fb4d319f14aa9a7400910c8211844c9687f81.png",
+  "source_sha256": "ff10e590a589153fdc27ba61f26fb4d319f14aa9a7400910c8211844c9687f81",
+  "stages": {
+    "source": {
+      "path": "sheet_sessions/sheet-20260722T162157-ff10e590-5451/source/ff10e590a589153fdc27ba61f26fb4d319f14aa9a7400910c8211844c9687f81.png",
+      "sha256": "ff10e590a589153fdc27ba61f26fb4d319f14aa9a7400910c8211844c9687f81",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-22T16:21:57.234097+00:00"
+}

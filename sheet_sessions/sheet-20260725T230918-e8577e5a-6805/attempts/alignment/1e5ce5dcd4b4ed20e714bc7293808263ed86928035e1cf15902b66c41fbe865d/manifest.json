@@ -1,0 +1,320 @@
+{
+  "cache_key": "1e5ce5dcd4b4ed20e714bc7293808263ed86928035e1cf15902b66c41fbe865d",
+  "config": {
+    "auto_center": {
+      "anchor_strategy": "distance_core_percentiles",
+      "canonical_anchor": [
+        139,
+        518
+      ],
+      "canvas_height": 941,
+      "canvas_width": 278,
+      "confidence_threshold": 0.65,
+      "ignore_outliers": true,
+      "method": "body"
+    },
+    "background": {
+      "border_connected_only": true,
+      "cleanup_enabled": true,
+      "color": [
+        254,
+        254,
+        254
+      ],
+      "color_space": "rgb",
+      "fringe_cleanup_strength": 3,
+      "mode": "chroma",
+      "near_transparent_threshold": 8,
+      "preserve_outline": true,
+      "remove_near_transparent": true,
+      "tolerance": 116.0
+    },
+    "manual_offsets": [
+      [
+        0,
+        0
+      ],
+      [
+        -1,
+        33
+      ],
+      [
+        0,
+        -24
+      ],
+      [
+        0,
+        -79
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        18
+      ]
+    ],
+    "segmentation": {
+      "cell_height": null,
+      "cell_width": null,
+      "columns": 1,
+      "frame_count": 6,
+      "manual_cut_positions": [
+        282,
+        544,
+        810,
+        1128,
+        1397
+      ],
+      "manual_cut_positions_x": [
+        282,
+        544,
+        810,
+        1128,
+        1397
+      ],
+      "manual_cut_positions_y": [],
+      "offset_x": 0,
+      "offset_y": 0,
+      "orientation": "horizontal",
+      "rows": 1,
+      "spacing_x": 0,
+      "spacing_y": 0
+    }
+  },
+  "created_at": "2026-07-26T00:41:49.874381+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260725T230918-e8577e5a-6805/source/e8577e5a912c1fcdb6b713f68e0ba29747c5e2e462bb174c1fa22d081a8a02e7.png",
+      "role": "source",
+      "sha256": "e8577e5a912c1fcdb6b713f68e0ba29747c5e2e462bb174c1fa22d081a8a02e7",
+      "size_bytes": 971282
+    }
+  ],
+  "metadata": {
+    "frames": [
+      {
+        "applied_translation": [
+          14,
+          1
+        ],
+        "auto_anchor": [
+          142.0,
+          517.0
+        ],
+        "auto_confidence": 1.0,
+        "body_bbox": [
+          26,
+          433,
+          236,
+          595
+        ],
+        "final_anchor": [
+          156.0,
+          518.0
+        ],
+        "frame_index": 0,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "notes": ""
+      },
+      {
+        "applied_translation": [
+          26,
+          17
+        ],
+        "auto_anchor": [
+          129.0,
+          534.0
+        ],
+        "auto_confidence": 0.4727128821582394,
+        "body_bbox": [
+          13,
+          473,
+          244,
+          595
+        ],
+        "final_anchor": [
+          155.0,
+          551.0
+        ],
+        "frame_index": 1,
+        "locked": false,
+        "manual_offset_x": -1,
+        "manual_offset_y": 33,
+        "manual_review": true,
+        "notes": ""
+      },
+      {
+        "applied_translation": [
+          -5,
+          18
+        ],
+        "auto_anchor": [
+          161.0,
+          476.0
+        ],
+        "auto_confidence": 0.9,
+        "body_bbox": [
+          16,
+          382,
+          258,
+          565
+        ],
+        "final_anchor": [
+          156.0,
+          494.0
+        ],
+        "frame_index": 2,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": -24,
+        "manual_review": false,
+        "notes": ""
+      },
+      {
+        "applied_translation": [
+          -17,
+          -13
+        ],
+        "auto_anchor": [
+          173.0,
+          452.0
+        ],
+        "auto_confidence": 0.9,
+        "body_bbox": [
+          17,
+          350,
+          314,
+          579
+        ],
+        "final_anchor": [
+          156.0,
+          439.0
+        ],
+        "frame_index": 3,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": -79,
+        "manual_review": false,
+        "notes": ""
+      },
+      {
+        "applied_translation": [
+          11,
+          7
+        ],
+        "auto_anchor": [
+          145.0,
+          511.0
+        ],
+        "auto_confidence": 0.9,
+        "body_bbox": [
+          17,
+          379,
+          251,
+          605
+        ],
+        "final_anchor": [
+          156.0,
+          518.0
+        ],
+        "frame_index": 4,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "notes": ""
+      },
+      {
+        "applied_translation": [
+          19,
+          2
+        ],
+        "auto_anchor": [
+          137.0,
+          534.0
+        ],
+        "auto_confidence": 0.48292848504303215,
+        "body_bbox": [
+          12,
+          468,
+          213,
+          605
+        ],
+        "final_anchor": [
+          156.0,
+          536.0
+        ],
+        "frame_index": 5,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 18,
+        "manual_review": true,
+        "notes": ""
+      }
+    ]
+  },
+  "metrics": {
+    "final_anchor_max_error": 0.0,
+    "final_anchor_mean_error": 0.0,
+    "manual_offset_max_delta": 79.0,
+    "mean_confidence": 0.7759402278668786,
+    "minimum_confidence": 0.4727128821582394,
+    "source_anchor_max_delta": 66.24198064671678,
+    "source_anchor_mean_delta": 40.82685794570832
+  },
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260725T230918-e8577e5a-6805/attempts/alignment/1e5ce5dcd4b4ed20e714bc7293808263ed86928035e1cf15902b66c41fbe865d/frame_000.png",
+      "role": "output",
+      "sha256": "be5a4fdea696214d7fd0e2032ae41830efbf05f887e83eab32147d342d61f0fc",
+      "size_bytes": 68710
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260725T230918-e8577e5a-6805/attempts/alignment/1e5ce5dcd4b4ed20e714bc7293808263ed86928035e1cf15902b66c41fbe865d/frame_001.png",
+      "role": "output",
+      "sha256": "420de5c1661f34bd8a7d0026f4c7df4716778b475a46f8b3bd55f2b86a9a2dae",
+      "size_bytes": 58534
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260725T230918-e8577e5a-6805/attempts/alignment/1e5ce5dcd4b4ed20e714bc7293808263ed86928035e1cf15902b66c41fbe865d/frame_002.png",
+      "role": "output",
+      "sha256": "e5405a488501fdb394b2aa6d5ee6d74c7f9b4353f57979d722cb94724d4b41da",
+      "size_bytes": 78219
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260725T230918-e8577e5a-6805/attempts/alignment/1e5ce5dcd4b4ed20e714bc7293808263ed86928035e1cf15902b66c41fbe865d/frame_003.png",
+      "role": "output",
+      "sha256": "d9c50a048310ce24c70c4a84456c2bb624c9bf2157c118611e2b77a59f07df8d",
+      "size_bytes": 86716
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260725T230918-e8577e5a-6805/attempts/alignment/1e5ce5dcd4b4ed20e714bc7293808263ed86928035e1cf15902b66c41fbe865d/frame_004.png",
+      "role": "output",
+      "sha256": "e24e13eba508c43de76bec52df4d7334f490c321c3222a0ba76ef72a373bce69",
+      "size_bytes": 74024
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260725T230918-e8577e5a-6805/attempts/alignment/1e5ce5dcd4b4ed20e714bc7293808263ed86928035e1cf15902b66c41fbe865d/frame_005.png",
+      "role": "output",
+      "sha256": "5679ed3f592adba78820ea9aa7e8fd9338cef808cb415e220709293867cc0c44",
+      "size_bytes": 54912
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260725T230918-e8577e5a-6805",
+  "stage": "alignment",
+  "status": "manual_review",
+  "warnings": []
+}

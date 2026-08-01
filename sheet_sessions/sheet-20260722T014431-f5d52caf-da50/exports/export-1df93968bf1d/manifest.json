@@ -1,0 +1,48 @@
+{
+  "alpha": true,
+  "attempt_id": "export-1df93968bf1d",
+  "cell_size": [
+    384,
+    337
+  ],
+  "contact_sheet": null,
+  "crop": {
+    "alpha_threshold": 8,
+    "bbox": [
+      0,
+      125,
+      384,
+      462
+    ],
+    "enabled": true,
+    "padding": 0,
+    "source_size": [
+      459,
+      543
+    ]
+  },
+  "export_kind": "spritesheet",
+  "exported_at": "2026-07-22T01:50:45.473783+00:00",
+  "frame_count": 8,
+  "godot_notes": "4 column(s), 2 row(s); use nearest filtering and lossless compression",
+  "layout": "grid",
+  "output_frames": [],
+  "output_frames_dir": null,
+  "output_png": "sheet_sessions/sheet-20260722T014431-f5d52caf-da50/exports/export-1df93968bf1d/sprite-sheet.png",
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260722T014431-f5d52caf-da50/exports/export-1df93968bf1d/sprite-sheet.png",
+      "role": "output",
+      "sha256": "d6a14156d74f7f1b190b3411c0cd6d27676f8c4fb5f6998e7ad29ed3448525ea",
+      "size_bytes": 137746
+    }
+  ],
+  "preview_gif": null,
+  "primary_output": "sheet_sessions/sheet-20260722T014431-f5d52caf-da50/exports/export-1df93968bf1d/sprite-sheet.png",
+  "schema_version": "1.0",
+  "session_id": "sheet-20260722T014431-f5d52caf-da50",
+  "sha256": "d6a14156d74f7f1b190b3411c0cd6d27676f8c4fb5f6998e7ad29ed3448525ea",
+  "status": "passed",
+  "validation_warnings": []
+}

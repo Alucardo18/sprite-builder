@@ -32,6 +32,7 @@ from sprite_builder.sheets import (
     segment_sheet,
     render_segmentation_region_guides,
     trim_transparent_frames,
+    shift_mask,
 )
 from sprite_builder.ui.app import _clamp_manual_offsets_to_canvas
 from sprite_builder.ui.app import _normalized_segmentation_cut_positions
@@ -633,6 +634,195 @@ def test_background_rect_crop_tool_creates_a_pixel_selection() -> None:
     assert (operation["offset_x"], operation["offset_y"]) == (2, 1)
 
 
+def test_background_clipboard_copy_paste_and_rotate_follow_selection() -> None:
+    from streamlit import session_state as ss
+
+    ss.clear()
+    prefix = "sheet-background-clipboard"
+    session = type("Session", (), {"session_id": prefix})()
+    frame = Image.new("RGBA", (8, 6), (0, 0, 0, 0))
+    ImageDraw.Draw(frame).rectangle((2, 1, 3, 3), fill=(220, 80, 40, 255))
+    mask = np.zeros((6, 8), dtype=bool)
+    mask[1:4, 2:4] = True
+    ss[f"{prefix}:background_last_event"] = None
+    ss[f"{prefix}:background_tool"] = "move"
+    ss[f"{prefix}:background_selection_masks"] = [mask.copy()]
+    ss[f"{prefix}:background_manual_ops"] = {}
+    ss[f"{prefix}:background_floating_selection"] = None
+    ss[f"{prefix}:background_clipboard"] = None
+
+    copied = _handle_background_editor_event(
+        session,
+        (frame,),
+        0,
+        {
+            "eventId": "copy-1",
+            "type": "clipboard",
+            "action": "copy",
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+    assert copied is True
+    clipboard = ss[f"{prefix}:background_clipboard"]
+    assert clipboard["bounds"] == (2, 1, 4, 4)
+
+    pasted = _handle_background_editor_event(
+        session,
+        (frame,),
+        0,
+        {
+            "eventId": "paste-1",
+            "type": "clipboard",
+            "action": "paste",
+            "x": 5,
+            "y": 2,
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+    assert pasted is True
+    floating = ss[f"{prefix}:background_floating_selection"]
+    assert floating["operation_kind"] == "copy_mask"
+    assert floating["x"] == 3
+    assert floating["y"] == 1
+
+    rotated = _handle_background_editor_event(
+        session,
+        (frame,),
+        0,
+        {
+            "eventId": "rotate-1",
+            "type": "pixel-action",
+            "action": "rotate-selection",
+            "degrees": 37,
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+    assert rotated is True
+    floating = ss[f"{prefix}:background_floating_selection"]
+    rotated_mask = floating["mask"]
+    assert floating["operation_kind"] == "move_mask"
+    assert floating["quarter_turns"] == 0
+    assert rotated_mask.shape == (6, 8)
+    operations = ss[f"{prefix}:background_manual_ops"][0]
+    assert [operation["kind"] for operation in operations] == ["copy_mask", "rotate_mask"]
+    assert operations[-1]["angle_degrees"] == 37
+
+    committed = _handle_background_editor_event(
+        session,
+        (frame,),
+        0,
+        {
+            "eventId": "commit-1",
+            "type": "floating-transform",
+            "tool": "move",
+            "deltaX": 1,
+            "deltaY": 2,
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+    assert committed is True
+    operation = ss[f"{prefix}:background_manual_ops"][0][-1]
+    assert operation["kind"] == "move_mask"
+    assert (operation["offset_x"], operation["offset_y"]) == (1, 2)
+    assert operation["quarter_turns"] == 0
+    selection = ss[f"{prefix}:background_selection_masks"][0]
+    assert isinstance(selection, np.ndarray)
+    assert np.array_equal(selection, shift_mask(rotated_mask, offset_x=1, offset_y=2))
+    rendered = apply_manual_background_edits(
+        (frame,),
+        ss[f"{prefix}:background_manual_ops"],
+    )[0]
+    assert rendered.getpixel((2, 1)) == (220, 80, 40, 255)
+    assert int((np.asarray(rendered.getchannel("A")) > 0).sum()) > int(mask.sum())
+
+
+def test_background_crop_copy_paste_keeps_source_and_creates_duplicate() -> None:
+    from streamlit import session_state as ss
+
+    ss.clear()
+    prefix = "sheet-background-crop-copy-paste"
+    session = type("Session", (), {"session_id": prefix})()
+    frame = Image.new("RGBA", (8, 6), (0, 0, 0, 0))
+    ImageDraw.Draw(frame).rectangle((1, 1, 2, 2), fill=(220, 80, 40, 255))
+    ss[f"{prefix}:background_last_event"] = None
+    ss[f"{prefix}:background_tool"] = "crop_rect"
+    ss[f"{prefix}:background_selection_masks"] = [None]
+    ss[f"{prefix}:background_manual_ops"] = {}
+    ss[f"{prefix}:background_floating_selection"] = None
+    ss[f"{prefix}:background_clipboard"] = None
+
+    assert _handle_background_editor_event(
+        session,
+        (frame,),
+        0,
+        {
+            "eventId": "crop-1",
+            "type": "crop",
+            "tool": "crop_rect",
+            "shape": "rect",
+            "start": [1, 1],
+            "end": [2, 2],
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+    assert _handle_background_editor_event(
+        session,
+        (frame,),
+        0,
+        {"eventId": "copy-1", "type": "clipboard", "action": "copy"},
+        tolerance=0,
+        contiguous=True,
+    )
+    assert _handle_background_editor_event(
+        session,
+        (frame,),
+        0,
+        {
+            "eventId": "paste-1",
+            "type": "clipboard",
+            "action": "paste",
+            "x": 5,
+            "y": 1,
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+
+    operations = ss[f"{prefix}:background_manual_ops"][0]
+    assert [operation["kind"] for operation in operations] == ["move_mask"]
+    floating = ss[f"{prefix}:background_floating_selection"]
+    assert floating["operation_kind"] == "copy_mask"
+    assert (floating["x"], floating["y"]) == (4, 0)
+
+    assert _handle_background_editor_event(
+        session,
+        (apply_manual_background_edits((frame,), {0: operations})[0],),
+        0,
+        {
+            "eventId": "commit-copy-1",
+            "type": "floating-transform",
+            "tool": "move",
+            "deltaX": 0,
+            "deltaY": 0,
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+    rendered = apply_manual_background_edits(
+        (frame,),
+        ss[f"{prefix}:background_manual_ops"],
+    )[0]
+    assert rendered.getpixel((1, 1)) == (220, 80, 40, 255)
+    assert rendered.getpixel((2, 2)) == (220, 80, 40, 255)
+    assert rendered.getpixel((5, 1)) == (220, 80, 40, 255)
+    assert rendered.getpixel((6, 2)) == (220, 80, 40, 255)
+
+
 def test_manual_background_move_mask_preserves_canvas_and_moves_pixels() -> None:
     frame = Image.new("RGBA", (8, 6), (0, 0, 0, 0))
     ImageDraw.Draw(frame).rectangle((2, 1, 4, 3), fill=(220, 80, 40, 255))
@@ -657,6 +847,63 @@ def test_manual_background_move_mask_preserves_canvas_and_moves_pixels() -> None
     assert moved.getpixel((2, 1))[3] == 0
     assert moved.getpixel((4, 2)) == (220, 80, 40, 255)
     assert moved.getpixel((6, 4)) == (220, 80, 40, 255)
+
+
+def test_manual_background_copy_and_rotate_operations_replay_pixel_exact() -> None:
+    frame = Image.new("RGBA", (8, 6), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(frame)
+    draw.rectangle((2, 1, 3, 3), fill=(220, 80, 40, 255))
+    mask = np.zeros((6, 8), dtype=bool)
+    mask[1:4, 2:4] = True
+
+    copied = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "copy_mask",
+                    **encode_mask(mask),
+                    "offset_x": 2,
+                    "offset_y": 0,
+                }
+            ]
+        },
+    )[0]
+    assert copied.getpixel((2, 1)) == (220, 80, 40, 255)
+    assert copied.getpixel((4, 1)) == (220, 80, 40, 255)
+    assert copied.getpixel((4, 3)) == (220, 80, 40, 255)
+
+    rotated = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "rotate_mask",
+                    **encode_mask(mask),
+                    "quarter_turns": 1,
+                }
+            ]
+        },
+    )[0]
+
+    assert rotated.getpixel((2, 1))[3] == 0
+    assert rotated.getpixel((2, 2)) == (220, 80, 40, 255)
+    assert rotated.getpixel((4, 3)) == (220, 80, 40, 255)
+
+    freely_rotated = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "rotate_mask",
+                    **encode_mask(mask),
+                    "angle_degrees": 37,
+                }
+            ]
+        },
+    )[0]
+    assert freely_rotated.size == frame.size
+    assert set(np.asarray(freely_rotated.getchannel("A")).ravel().tolist()) <= {0, 255}
 
 
 def test_center_drag_adds_delta_to_the_existing_manual_offset() -> None:

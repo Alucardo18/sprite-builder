@@ -1,0 +1,351 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      127,
+      505
+    ],
+    "canvas_height": 919,
+    "canvas_width": 255,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 200.0
+  },
+  "created_at": "2026-07-19T18:10:03.051434+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": true,
+    "padding": 10
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-afbc04c30c5a",
+    "cell_size": [
+      305,
+      385
+    ],
+    "contact_sheet": null,
+    "crop": {
+      "alpha_threshold": 8,
+      "bbox": [
+        0,
+        294,
+        305,
+        679
+      ],
+      "enabled": true,
+      "padding": 10,
+      "source_size": [
+        305,
+        919
+      ]
+    },
+    "export_kind": "spritesheet",
+    "exported_at": "2026-07-19T18:26:00.011561+00:00",
+    "frame_count": 6,
+    "godot_notes": "6 column(s), 1 row(s); use nearest filtering and lossless compression",
+    "layout": "horizontal",
+    "output_frames": [],
+    "output_frames_dir": null,
+    "output_png": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/exports/export-afbc04c30c5a/sprite-sheet.png",
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/exports/export-afbc04c30c5a/sprite-sheet.png",
+        "role": "output",
+        "sha256": "ea8b476711d75eda9d791a627091af65db3fd6dd0009bc7ac223b6ca68a935f7",
+        "size_bytes": 426808
+      }
+    ],
+    "preview_gif": null,
+    "primary_output": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/exports/export-afbc04c30c5a/sprite-sheet.png",
+    "schema_version": "1.0",
+    "session_id": "sheet-20260719T181003-82950aeb-920f",
+    "sha256": "ea8b476711d75eda9d791a627091af65db3fd6dd0009bc7ac223b6ca68a935f7",
+    "status": "manual_review",
+    "validation_warnings": [
+      "alignment stage is not passed",
+      "alignment contains manual_review frames"
+    ]
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        17,
+        12
+      ],
+      "auto_anchor": [
+        157.0,
+        493.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        37,
+        292,
+        271,
+        657
+      ],
+      "final_anchor": [
+        174.0,
+        505.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        0,
+        14
+      ],
+      "auto_anchor": [
+        174.0,
+        491.0
+      ],
+      "auto_confidence": 0.5272182353213475,
+      "body_bbox": [
+        0,
+        383,
+        295,
+        640
+      ],
+      "final_anchor": [
+        174.0,
+        505.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        35,
+        -14
+      ],
+      "auto_anchor": [
+        139.0,
+        519.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        0,
+        425,
+        261,
+        650
+      ],
+      "final_anchor": [
+        174.0,
+        505.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        43,
+        -31
+      ],
+      "auto_anchor": [
+        131.0,
+        536.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        2,
+        441,
+        253,
+        660
+      ],
+      "final_anchor": [
+        174.0,
+        505.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        40,
+        -29
+      ],
+      "auto_anchor": [
+        134.0,
+        534.0
+      ],
+      "auto_confidence": 0.6493120127411339,
+      "body_bbox": [
+        2,
+        436,
+        250,
+        660
+      ],
+      "final_anchor": [
+        174.0,
+        505.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        29,
+        -16
+      ],
+      "auto_anchor": [
+        142.0,
+        505.0
+      ],
+      "auto_confidence": 0.6483717339548654,
+      "body_bbox": [
+        16,
+        378,
+        253,
+        659
+      ],
+      "final_anchor": [
+        171.0,
+        489.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": -3,
+      "manual_offset_y": -16,
+      "manual_review": true,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 0.5469939117199392,
+    "border_rgb": [
+      254,
+      254,
+      254
+    ],
+    "has_alpha": false,
+    "height": 919,
+    "mode": "RGB",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      253,
+      255,
+      255
+    ],
+    "uses_transparency": false,
+    "width": 1711
+  },
+  "layer_document": {
+    "cache_key": "64363a2ad2f85bb8a635846be79d03dd6939cd2f8315db2aded275d4d027cc1a",
+    "document_id": "sprite-7b6bb4c959ff",
+    "manifest": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/layers/64363a2ad2f85bb8a635846be79d03dd6939cd2f8315db2aded275d4d027cc1a/manifest.json",
+    "manifest_sha256": "51f24ba281e4342c70b1e8435539be3241b94a6d682bac7f0f1d0348e13cf503",
+    "revision": 1
+  },
+  "output_dir": "sheet_sessions/sheet-20260719T181003-82950aeb-920f",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 6,
+    "manual_cut_positions": [
+      281,
+      576,
+      846,
+      1120,
+      1404
+    ],
+    "manual_cut_positions_x": [
+      281,
+      576,
+      846,
+      1120,
+      1404
+    ],
+    "manual_cut_positions_y": [],
+    "offset_x": 8,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 34,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260719T181003-82950aeb-920f",
+  "source_image_path": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/source/82950aebd3de34755042f717f1725cb28f2db10c2d760a1b50c26fc368e11288.png",
+  "source_sha256": "82950aebd3de34755042f717f1725cb28f2db10c2d760a1b50c26fc368e11288",
+  "stages": {
+    "alignment": {
+      "cache_key": "775d9667106bf07d898448b600761cd593332ae0a91095cb963fcf353b4b7b67",
+      "manifest": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/alignment/775d9667106bf07d898448b600761cd593332ae0a91095cb963fcf353b4b7b67/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/alignment/775d9667106bf07d898448b600761cd593332ae0a91095cb963fcf353b4b7b67/frame_000.png",
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/alignment/775d9667106bf07d898448b600761cd593332ae0a91095cb963fcf353b4b7b67/frame_001.png",
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/alignment/775d9667106bf07d898448b600761cd593332ae0a91095cb963fcf353b4b7b67/frame_002.png",
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/alignment/775d9667106bf07d898448b600761cd593332ae0a91095cb963fcf353b4b7b67/frame_003.png",
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/alignment/775d9667106bf07d898448b600761cd593332ae0a91095cb963fcf353b4b7b67/frame_004.png",
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/alignment/775d9667106bf07d898448b600761cd593332ae0a91095cb963fcf353b4b7b67/frame_005.png"
+      ],
+      "status": "manual_review"
+    },
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/exports/export-afbc04c30c5a/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/exports/export-afbc04c30c5a/sprite-sheet.png"
+      ],
+      "status": "manual_review"
+    },
+    "segmentation": {
+      "cache_key": "8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8",
+      "manifest": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_000.png",
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_001.png",
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_002.png",
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_003.png",
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_004.png",
+        "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_005.png"
+      ],
+      "status": "passed"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/source/82950aebd3de34755042f717f1725cb28f2db10c2d760a1b50c26fc368e11288.png",
+      "sha256": "82950aebd3de34755042f717f1725cb28f2db10c2d760a1b50c26fc368e11288",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-19T18:26:00.012451+00:00"
+}

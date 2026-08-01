@@ -162,12 +162,14 @@
         outline-offset: 2px;
       }
 
-      .wand-control {
+      .wand-control,
+      .rotate-control {
         position: relative;
         display: inline-flex;
       }
 
-      .wand-card {
+      .wand-card,
+      .rotate-card {
         position: absolute;
         z-index: 12;
         top: calc(100% + 10px);
@@ -182,11 +184,13 @@
         box-shadow: 0 22px 54px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255,255,255,0.04) inset;
       }
 
-      .wand-card[hidden] {
+      .wand-card[hidden],
+      .rotate-card[hidden] {
         display: none;
       }
 
-      .wand-card::before {
+      .wand-card::before,
+      .rotate-card::before {
         content: "";
         position: absolute;
         top: -6px;
@@ -200,34 +204,41 @@
       }
 
       .wand-card-heading,
+      .rotate-card-heading,
       .wand-value-row,
+      .rotate-value-row,
       .wand-contiguous-row {
         display: flex;
         align-items: center;
       }
 
-      .wand-card-heading {
+      .wand-card-heading,
+      .rotate-card-heading {
         justify-content: space-between;
         gap: 12px;
         margin-bottom: 4px;
       }
 
-      .wand-card-heading strong {
+      .wand-card-heading strong,
+      .rotate-card-heading strong {
         font-size: 13px;
       }
 
-      .wand-card-heading code {
+      .wand-card-heading code,
+      .rotate-card-heading code {
         color: #bdefff;
       }
 
-      .wand-card p {
+      .wand-card p,
+      .rotate-card p {
         margin: 0 0 12px;
         color: rgba(220, 227, 245, 0.65);
         font-size: 11px;
         line-height: 1.45;
       }
 
-      .wand-value-row {
+      .wand-value-row,
+      .rotate-value-row {
         justify-content: space-between;
         gap: 12px;
         margin-bottom: 7px;
@@ -236,7 +247,8 @@
         font-weight: 700;
       }
 
-      .wand-number {
+      .wand-number,
+      .rotate-number {
         width: 58px;
         box-sizing: border-box;
         padding: 5px 7px;
@@ -247,13 +259,15 @@
         font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
       }
 
-      .wand-range {
+      .wand-range,
+      .rotate-range {
         width: 100%;
         accent-color: #5bdfff;
         cursor: pointer;
       }
 
-      .wand-scale {
+      .wand-scale,
+      .rotate-scale {
         display: flex;
         justify-content: space-between;
         margin-top: 2px;
@@ -267,6 +281,30 @@
         color: rgba(240, 246, 255, 0.84);
         font-size: 11px;
         cursor: pointer;
+      }
+
+      .rotate-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 13px;
+      }
+
+      .rotate-actions button {
+        min-height: 30px;
+        padding: 0 12px;
+        border: 1px solid rgba(132, 225, 255, 0.24);
+        border-radius: 9px;
+        color: rgba(240, 246, 255, 0.9);
+        background: rgba(255, 255, 255, 0.07);
+        font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        cursor: pointer;
+      }
+
+      .rotate-actions button[data-primary] {
+        color: #08121e;
+        border-color: transparent;
+        background: linear-gradient(120deg, #5bdfff, #ffd36a);
       }
 
       .guide-settings {
@@ -1187,6 +1225,20 @@
           <button class="icon-button tool-button" data-action="tool" data-tool="crop_lasso" id="tool-crop-lasso" title="Recorte lazo (L)" aria-label="Recorte lazo, atajo L" aria-pressed="false" hidden><svg class="icon"><use href="#icon-lasso"></use></svg><span class="shortcut">L</span></button>
           <button class="icon-button tool-button" data-action="tool" data-tool="crop_rect" id="tool-crop-rect" title="Recorte rectangular (R)" aria-label="Recorte rectangular, atajo R" aria-pressed="false" hidden><svg class="icon"><use href="#icon-rect"></use></svg><span class="shortcut">R</span></button>
           <button class="icon-button tool-button" data-action="tool" data-tool="crop_ellipse" id="tool-crop-ellipse" title="Recorte elíptico (O)" aria-label="Recorte elíptico, atajo O" aria-pressed="false" hidden><svg class="icon"><use href="#icon-ellipse"></use></svg><span class="shortcut">O</span></button>
+          <div class="rotate-control" id="rotate-control">
+            <button class="icon-button tool-button" data-action="rotate-open" id="tool-rotate-selection" title="Rotar selección libremente" aria-label="Rotar selección libremente" aria-haspopup="dialog" aria-expanded="false"><svg class="icon"><use href="#icon-reset"></use></svg></button>
+            <div class="rotate-card" id="rotate-card" role="dialog" aria-label="Rotación libre" hidden>
+              <div class="rotate-card-heading"><strong>Rotación libre</strong><code id="rotate-angle-badge">0°</code></div>
+              <p>Arrastra el tirador sobre la selección o escribe un ángulo. Mantén Shift para ajustar cada 15°. Los grados positivos giran a la derecha.</p>
+              <label class="rotate-value-row" for="rotate-angle-number"><span>Grados</span><input class="rotate-number" id="rotate-angle-number" type="number" min="-180" max="180" step="1" value="0" /></label>
+              <input class="rotate-range" id="rotate-angle-range" type="range" min="-180" max="180" step="1" value="0" aria-label="Grados de rotación" />
+              <div class="rotate-scale"><span>-180°</span><span>0°</span><span>180°</span></div>
+              <div class="rotate-actions">
+                <button type="button" id="rotate-reset">Restablecer</button>
+                <button type="button" id="rotate-apply" data-primary>Aplicar giro</button>
+              </div>
+            </div>
+          </div>
           <button class="icon-button tool-button" data-action="tool" data-tool="select_lasso" id="tool-select-lasso" title="Selección lazo" aria-label="Selección lazo" aria-pressed="false" hidden><svg class="icon"><use href="#icon-lasso"></use></svg></button>
           <button class="icon-button tool-button" data-action="tool" data-tool="select_rect" id="tool-select-rect" title="Selección rectangular" aria-label="Selección rectangular" aria-pressed="false" hidden><svg class="icon"><use href="#icon-rect"></use></svg></button>
           <button class="icon-button tool-button" data-action="tool" data-tool="select_ellipse" id="tool-select-ellipse" title="Selección elíptica" aria-label="Selección elíptica" aria-pressed="false" hidden><svg class="icon"><use href="#icon-ellipse"></use></svg></button>
@@ -1331,6 +1383,14 @@
       const toolCropLasso = document.getElementById("tool-crop-lasso");
       const toolCropRect = document.getElementById("tool-crop-rect");
       const toolCropEllipse = document.getElementById("tool-crop-ellipse");
+      const rotateControl = document.getElementById("rotate-control");
+      const toolRotateSelection = document.getElementById("tool-rotate-selection");
+      const rotateCard = document.getElementById("rotate-card");
+      const rotateAngleRange = document.getElementById("rotate-angle-range");
+      const rotateAngleNumber = document.getElementById("rotate-angle-number");
+      const rotateAngleBadge = document.getElementById("rotate-angle-badge");
+      const rotateResetButton = document.getElementById("rotate-reset");
+      const rotateApplyButton = document.getElementById("rotate-apply");
       const toolSelectLasso = document.getElementById("tool-select-lasso");
       const toolSelectRect = document.getElementById("tool-select-rect");
       const toolSelectEllipse = document.getElementById("tool-select-ellipse");
@@ -1398,6 +1458,7 @@
         brushRadius: 5,
         wandTolerance: 0,
         wandContiguous: true,
+        rotateAngle: 0,
         sample: null,
         paintColor: [255, 255, 255, 255],
         offsetX: 0,
@@ -1469,6 +1530,11 @@
         floatingSelectionStartX: 0,
         floatingSelectionStartY: 0,
         floatingSelectionBounds: null,
+        floatingOperationKind: "move_mask",
+        floatingRotationPreview: 0,
+        rotationDragging: false,
+        rotationStartPointerAngle: 0,
+        rotationOriginAngle: 0,
         floatingTransformPending: null,
         studioSelectionPending: null,
         studioOrderPending: null,
@@ -1494,6 +1560,7 @@
       let latestRenderId = 0;
       let drawFrameId = 0;
       let cursorFrameId = 0;
+      const ROTATE_CURSOR = 'url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22%3E%3Cpath d=%22M7 5a8 8 0 0 1 11 2%22 fill=%22none%22 stroke=%22%23fff3ba%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22m18 3 .5 4.5L14 7%22 fill=%22none%22 stroke=%22%23fff3ba%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3Cpath d=%22M17 19A8 8 0 0 1 6 17%22 fill=%22none%22 stroke=%22%2308121e%22 stroke-width=%224%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M17 19A8 8 0 0 1 6 17%22 fill=%22none%22 stroke=%22%23fff3ba%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22m6 21-.5-4.5L10 17%22 fill=%22none%22 stroke=%22%23fff3ba%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 12 12, crosshair';
       let studioTimelineSignature = "";
       let cutGuidesSignature = "";
       let activeEditContext = "";
@@ -1785,6 +1852,7 @@
         document.body.dataset.mode = state.mode;
         if (state.mode !== "background") {
           setWandCardOpen(false);
+          setRotateCardOpen(false);
         }
         modePill.textContent = centerMode ? "Centrado" : cutMode ? "Cortes" : layerMode ? "Capas" : "Fondo";
         if (cutModePill) {
@@ -1808,6 +1876,7 @@
         toolCropLasso.hidden = centerMode || cutMode;
         toolCropRect.hidden = centerMode || cutMode;
         toolCropEllipse.hidden = centerMode || cutMode;
+        rotateControl.hidden = centerMode || cutMode || layerMode;
         toolSelectLasso.hidden = !layerMode;
         toolSelectRect.hidden = !layerMode;
         toolSelectEllipse.hidden = !layerMode;
@@ -1888,7 +1957,7 @@
               : layerMode
                 ? "<code>P</code> lápiz · <code>E</code> borrador · <code>I</code> cuentagotas · <code>M</code> mueve · selección y clipboard usan los atajos estándar."
                 : backgroundFloating
-                  ? "<code>M</code> mover selección · arrastra para colocar · <code>Esc</code> cancela el recorte."
+                  ? "<code>M</code> mover selección · tirador exterior para rotar · <code>Shift</code> ajusta 15° · <code>Ctrl/Cmd+C</code> copia · <code>Ctrl/Cmd+V</code> pega · <code>Esc</code> cancela."
                   : "<code>W</code> varita · <code>L/R/O</code> recorte lazo/rectángulo/elipse · <code>I</code> cuentagotas · <code>E</code> borrador · <code>Shift</code> suma · <code>Alt/Option</code> resta · <code>Esc</code> limpia · <code>Delete</code> borra.";
         }
       }
@@ -1954,6 +2023,42 @@
         const visible = !!open && state.mode === "background";
         wandCard.hidden = !visible;
         toolWand.setAttribute("aria-expanded", String(visible));
+      }
+
+      function setRotateCardOpen(open) {
+        const visible = !!open && state.mode === "background";
+        rotateCard.hidden = !visible;
+        toolRotateSelection.setAttribute("aria-expanded", String(visible));
+        if (visible) {
+          setWandCardOpen(false);
+        }
+      }
+
+      function setRotateAngle(value) {
+        const nextAngle = Math.max(-180, Math.min(180, Math.round(finiteNumber(value, 0))));
+        state.rotateAngle = nextAngle;
+        state.floatingRotationPreview = nextAngle;
+        rotateAngleRange.value = String(nextAngle);
+        rotateAngleNumber.value = String(nextAngle);
+        rotateAngleBadge.textContent = `${nextAngle}°`;
+        if (state.floatingSelection) {
+          scheduleDraw();
+          scheduleCursorUpdate();
+        }
+      }
+
+      function applyRotateAngle() {
+        if (state.rotateAngle === 0) {
+          return;
+        }
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "pixel-action",
+          action: "rotate-selection",
+          degrees: state.rotateAngle,
+        });
+        setRotateCardOpen(false);
+        focusCanvas();
       }
 
       function setWandSettings(tolerance, contiguous, announce = false) {
@@ -2137,6 +2242,13 @@
           state.tool === "move"
           && (state.mode === "layer-edit" || (state.mode === "background" && state.floatingSelection))
         );
+        const rotationCursor = (
+          state.rotationDragging
+          || pointHitsRotationHandle({
+            x: state.pointerPixelX,
+            y: state.pointerPixelY,
+          })
+        );
         const size = state.tool === "eraser"
           ? Math.max(1, (state.brushRadius * 2 + 1) * state.zoom)
           : Math.max(12, Math.round(state.zoom * 1.5));
@@ -2151,14 +2263,16 @@
         const visible = state.pointerVisible;
         const crosshair = state.tool === "wand" || state.tool === "eyedropper" || state.tool === "pencil" || state.tool === "fill" || state.tool === "replace_color" || isShapeTool(state.tool);
         const eraser = state.tool === "eraser";
-        cursorRing.classList.toggle("visible", visible && !cutMode);
-        cursorDot.classList.toggle("visible", visible && crosshair && !centerMode && !cutMode);
+        cursorRing.classList.toggle("visible", visible && !cutMode && !rotationCursor);
+        cursorDot.classList.toggle("visible", visible && crosshair && !centerMode && !cutMode && !rotationCursor);
         cursorRing.classList.toggle("mode-crosshair", crosshair);
         cursorRing.classList.toggle("mode-eraser", eraser);
         cursorRing.classList.toggle("eyedropper", state.tool === "eyedropper");
         cursorRing.classList.toggle("wand", state.tool === "wand");
         canvas.classList.toggle("dragging", centerMode && state.dragging);
-        canvas.style.cursor = centerMode || layerMove
+        canvas.style.cursor = rotationCursor
+          ? ROTATE_CURSOR
+          : centerMode || layerMove
           ? (state.dragging ? "grabbing" : "grab")
           : cutMode
             ? "default"
@@ -2808,12 +2922,70 @@
         updateGuidesGeometry();
       }
 
+      function normalizeRotationAngle(value) {
+        const angle = finiteNumber(value, 0);
+        return ((angle + 180) % 360 + 360) % 360 - 180;
+      }
+
+      function floatingRotationGeometry(angle = state.floatingRotationPreview) {
+        const bounds = state.floatingSelectionBounds;
+        if (!state.floatingSelection || !Array.isArray(bounds) || bounds.length !== 4) {
+          return null;
+        }
+        const [x0, y0, x1, y1] = bounds;
+        const centerX = state.floatingSelectionX + (x0 + x1) / 2;
+        const centerY = state.floatingSelectionY + (y0 + y1) / 2;
+        const radians = finiteNumber(angle, 0) * Math.PI / 180;
+        const sin = Math.sin(radians);
+        const cos = Math.cos(radians);
+        const rotateVector = (x, y) => ({
+          x: centerX + x * cos - y * sin,
+          y: centerY + x * sin + y * cos,
+        });
+        const edgeDistance = Math.max(1, (y1 - y0) / 2);
+        const edge = rotateVector(0, edgeDistance);
+        const handle = rotateVector(0, edgeDistance + 28 / Math.max(1, state.zoom));
+        return { centerX, centerY, edge, handle };
+      }
+
+      function pointHitsRotationHandle(point) {
+        if (state.mode !== "background" || !state.floatingSelection) {
+          return false;
+        }
+        const geometry = floatingRotationGeometry();
+        if (!geometry) {
+          return false;
+        }
+        const dx = (point.x - geometry.handle.x) * state.zoom;
+        const dy = (point.y - geometry.handle.y) * state.zoom;
+        return dx * dx + dy * dy <= 13 * 13;
+      }
+
+      function pointerAngleAroundSelection(point) {
+        const geometry = floatingRotationGeometry(0);
+        if (!geometry) {
+          return 0;
+        }
+        return Math.atan2(
+          point.y - geometry.centerY,
+          point.x - geometry.centerX,
+        ) * 180 / Math.PI;
+      }
+
       function drawFloatingSelection() {
         if (!state.floatingSelection) {
           return;
         }
+        const bounds = state.floatingSelectionBounds;
+        const geometry = floatingRotationGeometry();
+        const previewAngle = state.floatingRotationPreview;
         context.save();
         context.imageSmoothingEnabled = false;
+        if (geometry && Math.abs(previewAngle) > 1e-9) {
+          context.translate(geometry.centerX, geometry.centerY);
+          context.rotate(previewAngle * Math.PI / 180);
+          context.translate(-geometry.centerX, -geometry.centerY);
+        }
         context.drawImage(
           state.floatingSelection,
           state.floatingSelectionX,
@@ -2826,7 +2998,6 @@
             state.floatingSelectionY,
           );
         }
-        const bounds = state.floatingSelectionBounds;
         if (Array.isArray(bounds) && bounds.length === 4) {
           const [x0, y0, x1, y1] = bounds;
           context.strokeStyle = "rgba(255, 232, 168, 0.98)";
@@ -2840,6 +3011,53 @@
           );
         }
         context.restore();
+        if (geometry) {
+          const rotatedGeometry = floatingRotationGeometry(previewAngle);
+          const handleRadius = 7 / Math.max(1, state.zoom);
+          context.save();
+          context.setLineDash([]);
+          context.lineWidth = Math.max(1 / Math.max(1, state.zoom), 0.35);
+          context.strokeStyle = "rgba(255, 232, 168, 0.98)";
+          context.beginPath();
+          context.moveTo(rotatedGeometry.edge.x, rotatedGeometry.edge.y);
+          context.lineTo(rotatedGeometry.handle.x, rotatedGeometry.handle.y);
+          context.stroke();
+          context.fillStyle = state.rotationDragging
+            ? "rgba(91, 223, 255, 1)"
+            : "rgba(255, 232, 168, 1)";
+          context.strokeStyle = "rgba(8, 18, 30, 0.96)";
+          context.beginPath();
+          context.arc(
+            rotatedGeometry.handle.x,
+            rotatedGeometry.handle.y,
+            handleRadius,
+            0,
+            Math.PI * 2,
+          );
+          context.fill();
+          context.stroke();
+          if (state.rotationDragging || Math.abs(previewAngle) > 1e-9) {
+            const fontSize = 11 / Math.max(1, state.zoom);
+            const label = `${Math.round(previewAngle)}°`;
+            context.font = `700 ${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+            context.textAlign = "center";
+            context.textBaseline = "bottom";
+            context.lineWidth = 3 / Math.max(1, state.zoom);
+            context.strokeStyle = "rgba(8, 18, 30, 0.95)";
+            context.fillStyle = "rgba(255, 244, 196, 1)";
+            context.strokeText(
+              label,
+              rotatedGeometry.handle.x,
+              rotatedGeometry.handle.y - 11 / Math.max(1, state.zoom),
+            );
+            context.fillText(
+              label,
+              rotatedGeometry.handle.x,
+              rotatedGeometry.handle.y - 11 / Math.max(1, state.zoom),
+            );
+          }
+          context.restore();
+        }
       }
 
       function drawCropPreview() {
@@ -3011,6 +3229,7 @@
           y: point.y,
           deltaX: state.floatingSelectionX - state.floatingSelectionStartX,
           deltaY: state.floatingSelectionY - state.floatingSelectionStartY,
+          operationKind: state.floatingOperationKind,
           ...modifiers(event),
         });
       }
@@ -3182,6 +3401,15 @@
         state.pointerPixelY = point.y;
         state.pointerVisible = true;
         updateCursor();
+        if (event.button === 0 && pointHitsRotationHandle(point)) {
+          state.rotationDragging = true;
+          state.rotationStartPointerAngle = pointerAngleAroundSelection(point);
+          state.rotationOriginAngle = state.floatingRotationPreview;
+          setRotateCardOpen(false);
+          updateCursor();
+          event.preventDefault();
+          return;
+        }
         if (state.mode === "segmentation-center" && state.allowDrag && pointHitsOverlay(point)) {
           state.dragStartX = point.x;
           state.dragStartY = point.y;
@@ -3237,6 +3465,22 @@
       canvas.addEventListener("pointermove", (event) => {
         state.pointerVisible = true;
         const point = pointerToPixel(event);
+        if (state.rotationDragging && state.dragging && (event.buttons & 1)) {
+          const pointerAngle = pointerAngleAroundSelection(point);
+          let nextAngle = normalizeRotationAngle(
+            state.rotationOriginAngle
+            + pointerAngle
+            - state.rotationStartPointerAngle,
+          );
+          if (event.shiftKey) {
+            nextAngle = Math.round(nextAngle / 15) * 15;
+          }
+          state.pointerPixelX = point.x;
+          state.pointerPixelY = point.y;
+          setRotateAngle(nextAngle);
+          event.preventDefault();
+          return;
+        }
         if (state.mode === "segmentation-cut") {
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
@@ -3307,6 +3551,19 @@
         const point = pointerToPixel(event);
         state.pointerPixelX = point.x;
         state.pointerPixelY = point.y;
+        if (state.rotationDragging) {
+          state.rotationDragging = false;
+          state.dragging = false;
+          if (state.rotateAngle !== 0) {
+            applyRotateAngle();
+          } else {
+            setRotateAngle(0);
+          }
+          state.pointerVisible = true;
+          updateCursor();
+          event.preventDefault();
+          return;
+        }
         if (state.mode === "segmentation-cut") {
           event.preventDefault();
           return;
@@ -3349,6 +3606,10 @@
 
       canvas.addEventListener("pointercancel", () => {
         const point = { x: state.pointerPixelX, y: state.pointerPixelY };
+        if (state.rotationDragging) {
+          state.rotationDragging = false;
+          setRotateAngle(state.rotationOriginAngle);
+        }
         const cancelObjectMove = (
           (state.mode === "segmentation-center" && state.allowDrag && state.dragging)
           || (state.mode === "layer-edit" && state.tool === "move" && state.dragging && !state.floatingSelection)
@@ -3461,11 +3722,26 @@
           return;
         }
         if (state.mode === "layer-edit" && (event.metaKey || event.ctrlKey) && ["c", "x", "v"].includes(key)) {
-          emitValue({
+          const payload = {
             eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
             type: "clipboard",
             action: key === "c" ? "copy" : key === "x" ? "cut" : "paste",
-          });
+          };
+          emitValue(payload);
+          event.preventDefault();
+          return;
+        }
+        if (state.mode === "background" && (event.metaKey || event.ctrlKey) && ["c", "v"].includes(key)) {
+          const payload = {
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "clipboard",
+            action: key === "c" ? "copy" : "paste",
+          };
+          if (key === "v") {
+            payload.x = state.pointerPixelX;
+            payload.y = state.pointerPixelY;
+          }
+          emitValue(payload);
           event.preventDefault();
           return;
         }
@@ -3651,6 +3927,10 @@
           focusCanvas();
           return;
         }
+        if (action === "rotate-open") {
+          setRotateCardOpen(rotateCard.hidden);
+          return;
+        }
         if (action === "pixel-action") {
           emitValue({
             eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -3659,6 +3939,21 @@
             radius: 1,
             minimumNeighbors: 2,
           });
+          focusCanvas();
+          return;
+        }
+        if (action === "clipboard") {
+          const clipboardAction = button.dataset.clipboardAction || "";
+          const payload = {
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "clipboard",
+            action: clipboardAction,
+          };
+          if (clipboardAction === "paste" && state.pointerVisible) {
+            payload.x = state.pointerPixelX;
+            payload.y = state.pointerPixelY;
+          }
+          emitValue(payload);
           focusCanvas();
           return;
         }
@@ -3773,9 +4068,38 @@
         setWandSettings(state.wandTolerance, wandContiguous.checked, true);
       });
 
+      rotateAngleRange.addEventListener("input", () => {
+        setRotateAngle(rotateAngleRange.value);
+      });
+
+      rotateAngleNumber.addEventListener("input", () => {
+        if (rotateAngleNumber.value !== "") {
+          setRotateAngle(rotateAngleNumber.value);
+        }
+      });
+
+      rotateAngleNumber.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          setRotateAngle(rotateAngleNumber.value);
+          applyRotateAngle();
+          event.preventDefault();
+        }
+      });
+
+      rotateResetButton.addEventListener("click", () => {
+        setRotateAngle(0);
+      });
+
+      rotateApplyButton.addEventListener("click", () => {
+        applyRotateAngle();
+      });
+
       document.addEventListener("pointerdown", (event) => {
         if (!wandCard.hidden && !wandControl.contains(event.target)) {
           setWandCardOpen(false);
+        }
+        if (!rotateCard.hidden && !rotateControl.contains(event.target)) {
+          setRotateCardOpen(false);
         }
       });
 
@@ -4135,6 +4459,7 @@
           if (renderId !== latestRenderId) {
             return;
           }
+          const floatingSelectionChanged = floatingSelectionUrl !== state.floatingSelectionUrl;
           state.image = image;
           state.imageUrl = imageUrl;
           state.overlay = overlay;
@@ -4179,6 +4504,13 @@
           state.floatingSelectionBounds = Array.isArray(args.floatingSelectionBounds)
             ? args.floatingSelectionBounds.map((value) => Math.round(Number(value)))
             : null;
+          if (floatingSelectionChanged) {
+            state.rotationDragging = false;
+            setRotateAngle(0);
+          }
+          state.floatingOperationKind = args.floatingOperationKind === "copy_mask"
+            ? "copy_mask"
+            : "move_mask";
           const committedEdits = state.committedEditsPending;
           if (committedEdits && (
             imageUrl !== committedEdits.imageUrl

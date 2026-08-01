@@ -1,0 +1,160 @@
+{
+  "cache_key": "122d6ac6cac63a1a1817497f6121296e49b255f8750b062145696db9ff64cd99",
+  "config": {
+    "auto_center": {
+      "anchor_strategy": "distance_core_percentiles",
+      "canonical_anchor": [
+        384,
+        563
+      ],
+      "canvas_height": 1024,
+      "canvas_width": 768,
+      "confidence_threshold": 0.65,
+      "ignore_outliers": true,
+      "method": "body"
+    },
+    "background": {
+      "border_connected_only": true,
+      "cleanup_enabled": false,
+      "color": [
+        254,
+        255,
+        254
+      ],
+      "color_space": "rgb",
+      "fringe_cleanup_strength": 0,
+      "mode": "chroma",
+      "near_transparent_threshold": 8,
+      "preserve_outline": true,
+      "remove_near_transparent": true,
+      "tolerance": 200.0
+    },
+    "manual_offsets": [
+      [
+        -186,
+        3
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    "segmentation": {
+      "cell_height": null,
+      "cell_width": null,
+      "columns": 1,
+      "frame_count": 2,
+      "manual_cut_positions": [
+        673
+      ],
+      "manual_cut_positions_x": [
+        673
+      ],
+      "manual_cut_positions_y": [],
+      "offset_x": 0,
+      "offset_y": 0,
+      "orientation": "horizontal",
+      "rows": 1,
+      "spacing_x": 0,
+      "spacing_y": 0
+    }
+  },
+  "created_at": "2026-07-22T23:54:03.702261+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260722T235008-8d08a4a1-7e8f/source/8d08a4a1960ad30b21127981a2641086b3960697d51f88e6c9b35ea8f5a4b433.png",
+      "role": "source",
+      "sha256": "8d08a4a1960ad30b21127981a2641086b3960697d51f88e6c9b35ea8f5a4b433",
+      "size_bytes": 1040158
+    }
+  ],
+  "metadata": {
+    "frames": [
+      {
+        "applied_translation": [
+          -57,
+          75
+        ],
+        "auto_anchor": [
+          255.0,
+          491.0
+        ],
+        "auto_confidence": 0.752974634666638,
+        "body_bbox": [
+          225,
+          326,
+          649,
+          692
+        ],
+        "final_anchor": [
+          198.0,
+          566.0
+        ],
+        "frame_index": 0,
+        "locked": false,
+        "manual_offset_x": -186,
+        "manual_offset_y": 3,
+        "manual_review": false,
+        "notes": ""
+      },
+      {
+        "applied_translation": [
+          -34,
+          60
+        ],
+        "auto_anchor": [
+          418.0,
+          503.0
+        ],
+        "auto_confidence": 0.764596432578366,
+        "body_bbox": [
+          169,
+          267,
+          651,
+          759
+        ],
+        "final_anchor": [
+          384.0,
+          563.0
+        ],
+        "frame_index": 1,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "notes": ""
+      }
+    ]
+  },
+  "metrics": {
+    "final_anchor_max_error": 0.0,
+    "final_anchor_mean_error": 0.0,
+    "manual_offset_max_delta": 186.02419197512995,
+    "mean_confidence": 0.758785533622502,
+    "minimum_confidence": 0.752974634666638,
+    "source_anchor_max_delta": 163.44112089679268,
+    "source_anchor_mean_delta": 163.44112089679268
+  },
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260722T235008-8d08a4a1-7e8f/attempts/alignment/122d6ac6cac63a1a1817497f6121296e49b255f8750b062145696db9ff64cd99/frame_000.png",
+      "role": "output",
+      "sha256": "c052adf15b14403628b2c129ccc70b69f85bb80837ba259322a60a5c1693d7f3",
+      "size_bytes": 43139
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260722T235008-8d08a4a1-7e8f/attempts/alignment/122d6ac6cac63a1a1817497f6121296e49b255f8750b062145696db9ff64cd99/frame_001.png",
+      "role": "output",
+      "sha256": "4a10eb8b0a72008d62015fbb0ced048fb7aeb8021c5ea8f4d50dbe036bff1d2e",
+      "size_bytes": 110997
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260722T235008-8d08a4a1-7e8f",
+  "stage": "alignment",
+  "status": "passed",
+  "warnings": []
+}

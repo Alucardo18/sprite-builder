@@ -1,0 +1,169 @@
+{
+  "created_at": "2026-07-31T22:22:24.582394+00:00",
+  "frames": [
+    {
+      "applied_translation": [
+        -18,
+        21
+      ],
+      "auto_anchor": [
+        231.0,
+        377.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        18,
+        221,
+        415,
+        512
+      ],
+      "final_anchor": [
+        213.0,
+        398.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        37,
+        21
+      ],
+      "auto_anchor": [
+        170.0,
+        373.0
+      ],
+      "auto_confidence": 0.8987367031912342,
+      "body_bbox": [
+        7,
+        222,
+        377,
+        512
+      ],
+      "final_anchor": [
+        207.0,
+        394.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": -6,
+      "manual_offset_y": -4,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        32,
+        16
+      ],
+      "auto_anchor": [
+        173.0,
+        377.0
+      ],
+      "auto_confidence": 0.6517706609925765,
+      "body_bbox": [
+        12,
+        226,
+        350,
+        512
+      ],
+      "final_anchor": [
+        205.0,
+        393.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": -8,
+      "manual_offset_y": -5,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        54,
+        18
+      ],
+      "auto_anchor": [
+        159.0,
+        380.0
+      ],
+      "auto_confidence": 0.6369591542121442,
+      "body_bbox": [
+        2,
+        238,
+        325,
+        512
+      ],
+      "final_anchor": [
+        213.0,
+        398.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        58,
+        18
+      ],
+      "auto_anchor": [
+        155.0,
+        380.0
+      ],
+      "auto_confidence": 0.67484680645493,
+      "body_bbox": [
+        3,
+        224,
+        326,
+        507
+      ],
+      "final_anchor": [
+        213.0,
+        398.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        55,
+        24
+      ],
+      "auto_anchor": [
+        158.0,
+        374.0
+      ],
+      "auto_confidence": 0.7636239501919209,
+      "body_bbox": [
+        21,
+        230,
+        328,
+        508
+      ],
+      "final_anchor": [
+        213.0,
+        398.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260731T221518-9f3a4088-190c"
+}

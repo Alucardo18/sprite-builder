@@ -1,0 +1,169 @@
+{
+  "created_at": "2026-07-24T21:37:27.785245+00:00",
+  "frames": [
+    {
+      "applied_translation": [
+        9,
+        13
+      ],
+      "auto_anchor": [
+        130.0,
+        480.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        35,
+        394,
+        273,
+        555
+      ],
+      "final_anchor": [
+        139.0,
+        493.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": -25,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -19,
+        16
+      ],
+      "auto_anchor": [
+        153.0,
+        484.0
+      ],
+      "auto_confidence": 0.7230773979774633,
+      "body_bbox": [
+        60,
+        402,
+        288,
+        555
+      ],
+      "final_anchor": [
+        134.0,
+        500.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": -5,
+      "manual_offset_y": -18,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        10,
+        14
+      ],
+      "auto_anchor": [
+        129.0,
+        504.0
+      ],
+      "auto_confidence": 0.5745659998894301,
+      "body_bbox": [
+        32,
+        429,
+        260,
+        555
+      ],
+      "final_anchor": [
+        139.0,
+        518.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        5,
+        14
+      ],
+      "auto_anchor": [
+        134.0,
+        504.0
+      ],
+      "auto_confidence": 0.797390987621509,
+      "body_bbox": [
+        40,
+        426,
+        264,
+        555
+      ],
+      "final_anchor": [
+        139.0,
+        518.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        6,
+        10
+      ],
+      "auto_anchor": [
+        133.0,
+        508.0
+      ],
+      "auto_confidence": 0.6190676910209725,
+      "body_bbox": [
+        35,
+        431,
+        266,
+        555
+      ],
+      "final_anchor": [
+        139.0,
+        518.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        4,
+        14
+      ],
+      "auto_anchor": [
+        135.0,
+        504.0
+      ],
+      "auto_confidence": 0.6669601493589601,
+      "body_bbox": [
+        40,
+        427,
+        265,
+        555
+      ],
+      "final_anchor": [
+        139.0,
+        518.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260724T212616-597de34a-6766"
+}

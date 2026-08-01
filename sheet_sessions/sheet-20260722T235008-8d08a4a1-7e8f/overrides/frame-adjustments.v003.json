@@ -1,0 +1,61 @@
+{
+  "created_at": "2026-07-22T23:54:35.579357+00:00",
+  "frames": [
+    {
+      "applied_translation": [
+        -58,
+        46
+      ],
+      "auto_anchor": [
+        255.0,
+        491.0
+      ],
+      "auto_confidence": 0.752974634666638,
+      "body_bbox": [
+        225,
+        326,
+        649,
+        692
+      ],
+      "final_anchor": [
+        197.0,
+        537.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": -187,
+      "manual_offset_y": -26,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -34,
+        60
+      ],
+      "auto_anchor": [
+        418.0,
+        503.0
+      ],
+      "auto_confidence": 0.764596432578366,
+      "body_bbox": [
+        169,
+        267,
+        651,
+        759
+      ],
+      "final_anchor": [
+        384.0,
+        563.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260722T235008-8d08a4a1-7e8f"
+}

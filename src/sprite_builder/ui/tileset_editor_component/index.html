@@ -190,6 +190,7 @@
         <div class="group">
           <button class="icon-button tool-button" data-tool="crop_lasso" title="Cortar lazo para mover (L)" aria-label="Cortar lazo para mover, atajo L" aria-pressed="false"><svg class="icon"><use href="#icon-lasso"></use></svg><span class="shortcut">L</span></button>
           <button class="icon-button tool-button" data-tool="crop_rect" title="Cortar rectángulo para mover (R)" aria-label="Cortar rectángulo para mover, atajo R" aria-pressed="false"><svg class="icon"><use href="#icon-rect"></use></svg><span class="shortcut">R</span></button>
+          <button class="icon-button tool-button" data-tool="crop_tile" title="Recorte tile por tile (T)" aria-label="Recorte tile por tile, atajo T" aria-pressed="false"><svg class="icon"><use href="#icon-grid"></use></svg><span class="shortcut">T</span></button>
           <button class="icon-button tool-button" data-tool="crop_ellipse" title="Cortar elipse para mover (O)" aria-label="Cortar elipse para mover, atajo O" aria-pressed="false"><svg class="icon"><use href="#icon-ellipse"></use></svg><span class="shortcut">O</span></button>
           <button class="icon-button tool-button" data-tool="select_lasso" title="Selección lazo" aria-label="Selección lazo" aria-pressed="false"><svg class="icon"><use href="#icon-lasso"></use></svg></button>
           <button class="icon-button tool-button" data-tool="select_rect" title="Selección rectangular" aria-label="Selección rectangular" aria-pressed="false"><svg class="icon"><use href="#icon-rect"></use></svg></button>
@@ -215,7 +216,7 @@
         </div>
         <div class="group">
           <button class="icon-button active" id="toggleGrid" title="Mostrar u ocultar guía de tiles" aria-label="Mostrar u ocultar guía de tiles" aria-pressed="true"><svg class="icon"><use href="#icon-grid"></use></svg></button>
-          <button class="icon-button active" id="magnetCrop" title="Ajuste magnético del recorte rectangular" aria-label="Ajuste magnético del recorte rectangular" aria-pressed="true"><svg class="icon"><use href="#icon-magnet"></use></svg></button>
+          <button class="icon-button active" id="magnetCrop" title="Ajuste magnético del recorte y movimiento" aria-label="Ajuste magnético del recorte y movimiento" aria-pressed="true"><svg class="icon"><use href="#icon-magnet"></use></svg></button>
           <label>Tile Size <input id="tileSize" type="number" min="1" max="64" /> px</label>
           <label>Off X <input id="offsetX" type="number" min="0" /></label>
           <label>Y <input id="offsetY" type="number" min="0" /></label>
@@ -263,7 +264,7 @@
         pointerX: 0, pointerY: 0, pointerVisible: false, lastStrokePoint: null,
         interactionSnapshot: null, selectionSnapshot: null,
         shapeMoved: false, activePointerId: null,
-        moveChanged: false,
+        moveChanged: false, moveGridSnap: false,
       };
 
       function post(type, payload = {}) {
@@ -322,6 +323,7 @@
         };
       }
       function isCropTool(tool) { return tool.startsWith("crop_"); }
+      function isTileCropTool(tool) { return tool === "crop_tile"; }
       function isSelectionTool(tool) { return tool.startsWith("select_"); }
       function isShapeTool(tool) { return isCropTool(tool) || isSelectionTool(tool); }
       function setTool(tool) {
@@ -476,7 +478,13 @@
         return nearestDistance <= threshold ? nearest : value;
       }
       function magneticCropPoint(value, edge) {
-        if (state.tool !== "crop_rect" || !state.magnetCrop) return value;
+        if (
+          (
+            state.tool !== "crop_rect"
+            && !isTileCropTool(state.tool)
+          )
+          || (!state.magnetCrop && !isTileCropTool(state.tool))
+        ) return value;
         return {
           x: snapAxisToTile(
             value.x, state.offsetX, state.spacingX, imageCanvas.width - 1, edge,
@@ -484,6 +492,32 @@
           y: snapAxisToTile(
             value.y, state.offsetY, state.spacingY, imageCanvas.height - 1, edge,
           ),
+        };
+      }
+      function magneticMoveDelta(dx, dy) {
+        if (!state.magnetCrop && !state.moveGridSnap) {
+          return { dx, dy };
+        }
+        const [baseX, baseY] = state.moveSnapshot?.selected
+          ? state.moveSnapshot.bounds
+          : [0, 0];
+        const snappedX = snapAxisToTile(
+          baseX + dx,
+          state.offsetX,
+          state.spacingX,
+          imageCanvas.width - 1,
+          "start",
+        );
+        const snappedY = snapAxisToTile(
+          baseY + dy,
+          state.offsetY,
+          state.spacingY,
+          imageCanvas.height - 1,
+          "start",
+        );
+        return {
+          dx: snappedX - baseX,
+          dy: snappedY - baseY,
         };
       }
       function drawPoint(p) {
@@ -615,6 +649,7 @@
         selectionCanvas.height = imageCanvas.height;
         selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
         state.selectionBounds = null;
+        state.moveGridSnap = false;
         drawOverlay();
       }
       function cloneCanvas(source) {
@@ -775,6 +810,7 @@
         const bounds = drawShapeMask(selectionCtx);
         const cutForMove = isCropTool(state.tool);
         state.selectionBounds = bounds;
+        state.moveGridSnap = isTileCropTool(state.tool);
         cancelShape();
         if (cutForMove) {
           setTool("move");
@@ -1005,7 +1041,9 @@
           drawOverlay(); return;
         }
         if (state.tool === "move" && state.moveSnapshot && state.shapeStart) {
-          const dx = p.x - state.shapeStart.x, dy = p.y - state.shapeStart.y;
+          const rawDx = p.x - state.shapeStart.x;
+          const rawDy = p.y - state.shapeStart.y;
+          const { dx, dy } = magneticMoveDelta(rawDx, rawDy);
           state.moveChanged = state.moveChanged || dx !== 0 || dy !== 0;
           previewMove(dx, dy);
           drawOverlay(); return;
@@ -1184,10 +1222,10 @@
         event.currentTarget.classList.toggle("active", state.magnetCrop);
         event.currentTarget.setAttribute("aria-pressed", String(state.magnetCrop));
         event.currentTarget.title = state.magnetCrop
-          ? "Desactivar ajuste magnético del recorte rectangular"
-          : "Activar ajuste magnético del recorte rectangular";
+          ? "Desactivar ajuste magnético del recorte y movimiento"
+          : "Activar ajuste magnético del recorte y movimiento";
         document.querySelector("#status").textContent =
-          `Imán de recorte · ${state.magnetCrop ? "ON" : "OFF"}`;
+          `Imán de recorte y movimiento · ${state.magnetCrop ? "ON" : "OFF"}`;
       });
       const gridInputs = {
         tileSize: ["tileSize", 1, 64],
@@ -1250,7 +1288,7 @@
         }
         const tools = {
           w: "wand", p: "pencil", e: "eraser", i: "eyedropper", m: "move", f: "fill",
-          l: "crop_lasso", r: "crop_rect", o: "crop_ellipse",
+          l: "crop_lasso", r: "crop_rect", t: "crop_tile", o: "crop_ellipse",
         };
         if (!event.metaKey && !event.ctrlKey && tools[event.key.toLowerCase()]) setTool(tools[event.key.toLowerCase()]);
       });
@@ -1279,6 +1317,7 @@
             selectionCanvas.width = incoming.width;
             selectionCanvas.height = incoming.height;
             state.selectionBounds = null;
+            state.moveGridSnap = false;
             state.zoom = clamp(Math.min(
               Math.floor((stage.clientWidth - 48) / incoming.width),
               Math.floor((stage.clientHeight - 48) / incoming.height),

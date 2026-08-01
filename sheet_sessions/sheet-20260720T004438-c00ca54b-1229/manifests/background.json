@@ -1,0 +1,211 @@
+{
+  "cache_key": "e2b7bdfa97ccbbd00f789e1a33910f9bf1fd6bc5b42e77de931682058c09390a",
+  "config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      253,
+      253,
+      253
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 172.0
+  },
+  "created_at": "2026-07-20T00:47:21.647849+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260720T004438-c00ca54b-1229/source/c00ca54b91d3f680065c6168578729b3626d514382c9baca07f6069100b2165d.png",
+      "role": "source",
+      "sha256": "c00ca54b91d3f680065c6168578729b3626d514382c9baca07f6069100b2165d",
+      "size_bytes": 1510847
+    }
+  ],
+  "metadata": {
+    "manual_edit_operations": {
+      "0": [
+        {
+          "bbox": [
+            623,
+            966,
+            647,
+            991
+          ],
+          "kind": "erase_mask",
+          "rows": [
+            [
+              [
+                10,
+                12
+              ]
+            ],
+            [
+              [
+                10,
+                12
+              ]
+            ],
+            [
+              [
+                10,
+                13
+              ]
+            ],
+            [
+              [
+                9,
+                15
+              ]
+            ],
+            [
+              [
+                8,
+                15
+              ]
+            ],
+            [
+              [
+                8,
+                18
+              ]
+            ],
+            [
+              [
+                7,
+                18
+              ]
+            ],
+            [
+              [
+                6,
+                24
+              ]
+            ],
+            [
+              [
+                6,
+                24
+              ]
+            ],
+            [
+              [
+                5,
+                23
+              ]
+            ],
+            [
+              [
+                5,
+                23
+              ]
+            ],
+            [
+              [
+                4,
+                21
+              ]
+            ],
+            [
+              [
+                3,
+                21
+              ]
+            ],
+            [
+              [
+                3,
+                21
+              ]
+            ],
+            [
+              [
+                2,
+                19
+              ]
+            ],
+            [
+              [
+                1,
+                18
+              ]
+            ],
+            [
+              [
+                0,
+                17
+              ]
+            ],
+            [
+              [
+                1,
+                16
+              ]
+            ],
+            [
+              [
+                0,
+                16
+              ]
+            ],
+            [
+              [
+                0,
+                16
+              ]
+            ],
+            [
+              [
+                2,
+                14
+              ]
+            ],
+            [
+              [
+                3,
+                14
+              ]
+            ],
+            [
+              [
+                4,
+                13
+              ]
+            ],
+            [
+              [
+                9,
+                12
+              ]
+            ],
+            [
+              [
+                11,
+                12
+              ]
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260720T004438-c00ca54b-1229/attempts/background/e2b7bdfa97ccbbd00f789e1a33910f9bf1fd6bc5b42e77de931682058c09390a/frame_000.png",
+      "role": "output",
+      "sha256": "e38ea913c90537b01e174827e65563fd80616d83070b2846952e183837de0436",
+      "size_bytes": 1689504
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260720T004438-c00ca54b-1229",
+  "stage": "background",
+  "status": "passed",
+  "warnings": []
+}

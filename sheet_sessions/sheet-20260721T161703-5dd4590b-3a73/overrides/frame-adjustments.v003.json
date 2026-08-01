@@ -1,0 +1,169 @@
+{
+  "created_at": "2026-07-21T16:22:35.684698+00:00",
+  "frames": [
+    {
+      "applied_translation": [
+        16,
+        38
+      ],
+      "auto_anchor": [
+        144.0,
+        412.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        65,
+        252,
+        267,
+        556
+      ],
+      "final_anchor": [
+        160.0,
+        450.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -1,
+        38
+      ],
+      "auto_anchor": [
+        161.0,
+        412.0
+      ],
+      "auto_confidence": 0.7165977347658781,
+      "body_bbox": [
+        63,
+        251,
+        288,
+        556
+      ],
+      "final_anchor": [
+        160.0,
+        450.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        6,
+        28
+      ],
+      "auto_anchor": [
+        156.0,
+        443.0
+      ],
+      "auto_confidence": 0.8969227996228718,
+      "body_bbox": [
+        51,
+        283,
+        291,
+        571
+      ],
+      "final_anchor": [
+        162.0,
+        471.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 2,
+      "manual_offset_y": 21,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        11,
+        13
+      ],
+      "auto_anchor": [
+        149.0,
+        486.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        25,
+        336,
+        296,
+        582
+      ],
+      "final_anchor": [
+        160.0,
+        499.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 49,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        6,
+        -44
+      ],
+      "auto_anchor": [
+        154.0,
+        494.0
+      ],
+      "auto_confidence": 0.5350782670388888,
+      "body_bbox": [
+        36,
+        421,
+        330,
+        587
+      ],
+      "final_anchor": [
+        160.0,
+        450.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -7,
+        -69
+      ],
+      "auto_anchor": [
+        167.0,
+        519.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        46,
+        425,
+        336,
+        588
+      ],
+      "final_anchor": [
+        160.0,
+        450.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260721T161703-5dd4590b-3a73"
+}

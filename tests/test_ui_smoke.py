@@ -56,7 +56,10 @@ def test_tileset_builder_is_available_without_a_sprite_session(
     test_app.run(timeout=30)
 
     assert not test_app.exception
-    assert not test_app.tabs
+    assert [tab.label for tab in test_app.tabs] == [
+        "Atlas",
+        "Pattern Studio",
+    ]
     assert any(
         uploader.label == "Cargar tileset PNG"
         for uploader in test_app.file_uploader
@@ -75,6 +78,7 @@ def test_tileset_builder_is_a_page_not_a_sprite_workflow_tab() -> None:
     assert 'textContent.trim() === "Deploy"' in header_source
     assert "deployButton.parentElement.insertBefore(navigation, deployButton)" in header_source
     assert "with tileset_tab:" not in source
+    assert 'st.tabs(("Atlas", "Pattern Studio"))' in source
     assert "Tile Size" in (
         Path(app.__file__).parent / "tileset_editor_component" / "index.html"
     ).read_text(encoding="utf-8")

@@ -21,6 +21,49 @@ Desde la raíz del proyecto:
 sprite-builder ui
 ```
 
+Si quieres dejar el servicio levantado sin abrir el navegador, usa:
+
+```bash
+./.venv/bin/sprite-builder ui --no-browser
+```
+
+La UI queda disponible en [http://127.0.0.1:8501/](http://127.0.0.1:8501/).
+
+## Tileset Builder
+
+Abra **Tileset Builder** desde la navegación superior. La página conserva el
+editor pixel-perfect de atlas y añade **Pattern Studio**, un flujo de
+generación inspirado en el Set View de Tilesetter:
+
+1. Defina el Tile Size y cargue una imagen en **Atlas**.
+2. Use **Importar grilla** para convertir las celdas opacas en Sources, o
+   arrastre sobre la imagen para guardar un Source de tamaño libre.
+3. Seleccione un tile en **Set View** y ejecute **Build Borders · Blob** para
+   crear 47 variantes con placeholders.
+4. Para Wang, seleccione dos tiles y ejecute **Build Borders · Wang**; esos
+   tiles representan los dos terrenos de la transición.
+5. Configure el tablero fijo de **Tile Properties**: tile base y cuatro bordes.
+   El compositor recorta la base y los Sources completos con la matriz de ocho
+   vecinos; los corners se forman con los mismos empalmes diagonales.
+6. Pulse cualquier slot y elija su Source haciendo clic directamente en un
+   tile original del **Set View**. La miniatura asignada aparece en el tablero.
+7. Si sólo tiene una muestra de borde, use **Completar 4 por rotación**. Los
+   Cutoffs por orientación, Custom corners, rotación, Flip X y reemplazos por
+   variante permanecen dentro de **Ajustes avanzados**.
+8. Pinte y borre en el **Sandbox** para comprobar las transiciones.
+
+El proyecto JSON conserva Sources, posiciones del Set View, sets generados,
+transformaciones y correcciones, y sólo vuelve a abrirse sobre la misma imagen
+verificada por SHA-256. La exportación conserva los layouts canónicos, el
+manifiesto y el instalador para Godot 4.
+
+El bundle contiene `terrain_tiles.png`, `terrain_bitmask_reference.png`,
+`terrain_pattern.json`, `install_terrain_tileset.gd` y sus instrucciones. El
+script crea
+`terrain_tileset.tres` dentro de Godot después de importar el PNG. El manifest
+conserva la relación entre máscara, tile fuente, coordenada canónica y peering
+bits para generadores procedurales.
+
 Para elegir otro workspace:
 
 ```bash

@@ -1,0 +1,180 @@
+{
+  "alpha": true,
+  "attempt_id": "export-f024787fd76e",
+  "cell_size": [
+    300,
+    262
+  ],
+  "contact_sheet": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/contact-sheet.png",
+  "crop": {
+    "alpha_threshold": 8,
+    "bbox": [
+      13,
+      45,
+      313,
+      307
+    ],
+    "enabled": true,
+    "padding": 18,
+    "source_size": [
+      313,
+      313
+    ]
+  },
+  "export_kind": "individual",
+  "exported_at": "2026-07-21T22:07:53.698054+00:00",
+  "frame_count": 16,
+  "godot_notes": "16 individual frame PNG(s); use nearest filtering and lossless compression",
+  "layout": "grid",
+  "output_frames": [
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_000.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_001.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_002.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_003.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_004.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_005.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_006.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_007.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_008.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_009.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_010.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_011.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_012.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_013.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_014.png",
+    "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_015.png"
+  ],
+  "output_frames_dir": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames",
+  "output_png": null,
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_000.png",
+      "role": "output",
+      "sha256": "6c22ac197e212cc612fd0daf5732960f128a1bbb9375b9543661cdd97e295117",
+      "size_bytes": 58269
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_001.png",
+      "role": "output",
+      "sha256": "a46ca21f99f3e93d3ceebb3f69f8a8e9ab9424c9b2af847e2f9601bc49ffb1a9",
+      "size_bytes": 59819
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_002.png",
+      "role": "output",
+      "sha256": "cb19bb90d66a6ded892a26eefae454ddcf10c0a26fb5be26f42396bd3f6dfa2f",
+      "size_bytes": 51430
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_003.png",
+      "role": "output",
+      "sha256": "3f1e013097bd59aefb34bdab3caa07f84382968363da815be5145b569f7afa70",
+      "size_bytes": 58011
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_004.png",
+      "role": "output",
+      "sha256": "6616e91514009c13211b81f22947f70b90484935fa027b746f8880b96bcc9e52",
+      "size_bytes": 53403
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_005.png",
+      "role": "output",
+      "sha256": "2c98b6dd6a87b9f4691aeb5c774fe2c2b4f773f7783a8d90c67e450af77adea4",
+      "size_bytes": 52514
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_006.png",
+      "role": "output",
+      "sha256": "510fd911e4042815989b5c8e0661cb9868e2453cc57cbe146b561e74905c56c3",
+      "size_bytes": 48258
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_007.png",
+      "role": "output",
+      "sha256": "577a1d958589255a026adab960c465778ca7295f8e81bd79216d07a3a1f6ade8",
+      "size_bytes": 49177
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_008.png",
+      "role": "output",
+      "sha256": "e8c29bc6f820b25f3fed6a4e9d32c882e63920141fc497d6201622eef57672dc",
+      "size_bytes": 52058
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_009.png",
+      "role": "output",
+      "sha256": "d3cee4148fd6f5aba83d2276123cda9c6b77067f837a05739f22b82cd091efcf",
+      "size_bytes": 48604
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_010.png",
+      "role": "output",
+      "sha256": "7355a93fd781bd2fed8fcce699b4e0a83db254cdcdb5f5fb435ac79cc3c9d03e",
+      "size_bytes": 47854
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_011.png",
+      "role": "output",
+      "sha256": "507c651a3e5e5e9b54b54b8054ef9c50a3c4fc3a28f3a4e5a4f901ff8133e15b",
+      "size_bytes": 46874
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_012.png",
+      "role": "output",
+      "sha256": "8718e7b8759cb7efc7dae8bd5bbd93722d051b8c213eadfc6c342a3b5285f965",
+      "size_bytes": 51097
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_013.png",
+      "role": "output",
+      "sha256": "5e4a5505db047fc997391bc1c8712cffe5f542b4bc63829418ffeefeb3dccf34",
+      "size_bytes": 48587
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_014.png",
+      "role": "output",
+      "sha256": "0b5210a1f25fd78483f1605f2e174bbb8558016ae33d42df8cf9f4b86bd0bff3",
+      "size_bytes": 44393
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_015.png",
+      "role": "output",
+      "sha256": "a8e6b0b6a2e227daaadaf71f9bd1adadd002da215e87a363f9df9bd70f1506ea",
+      "size_bytes": 47980
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/contact-sheet.png",
+      "role": "output",
+      "sha256": "071e068f9dd949e4fafb20ce6cef77277240d4cf65cf92f469d2ad14c5c1a4f8",
+      "size_bytes": 1031716
+    }
+  ],
+  "preview_gif": null,
+  "primary_output": "sheet_sessions/sheet-20260721T220227-d92f34c2-5024/exports/export-f024787fd76e/frames/frame_000.png",
+  "schema_version": "1.0",
+  "session_id": "sheet-20260721T220227-d92f34c2-5024",
+  "sha256": "6c22ac197e212cc612fd0daf5732960f128a1bbb9375b9543661cdd97e295117",
+  "status": "manual_review",
+  "validation_warnings": [
+    "alignment stage is not passed",
+    "alignment contains manual_review frames"
+  ]
+}

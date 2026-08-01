@@ -23,6 +23,11 @@ _TILESET_EDITOR = components.declare_component(
     path=str(Path(__file__).parent / "tileset_editor_component"),
 )
 
+_TERRAIN_PATTERN_STUDIO = components.declare_component(
+    "sprite_builder_terrain_pattern_studio",
+    path=str(Path(__file__).parent / "terrain_pattern_studio_component"),
+)
+
 _HEADER_NAV = components.declare_component(
     "sprite_builder_header_nav",
     path=str(Path(__file__).parent / "header_nav_component"),
@@ -106,6 +111,49 @@ def tileset_editor(
     return cast(dict[str, Any] | None, result)
 
 
+def terrain_pattern_studio(
+    image: Image.Image,
+    *,
+    pattern_image: Image.Image,
+    image_token: str,
+    tile_size: tuple[int, int],
+    offset: tuple[int, int] = (0, 0),
+    spacing: tuple[int, int] = (0, 0),
+    kind: str,
+    roles: Sequence[Mapping[str, Any]],
+    project: Mapping[str, Any],
+    set_previews: Sequence[Mapping[str, Any]] = (),
+    key: str,
+) -> dict[str, Any] | None:
+    """Render the fragment library, layered tile composer, and terrain sandbox."""
+
+    preview_payload: list[dict[str, Any]] = []
+    for preview in set_previews:
+        item = dict(preview)
+        preview_image = item.get("image")
+        if isinstance(preview_image, Image.Image):
+            item["image"] = image_data_uri(preview_image.convert("RGBA"))
+        preview_payload.append(item)
+    result = _TERRAIN_PATTERN_STUDIO(
+        image=image_data_uri(image.convert("RGBA")),
+        patternImage=image_data_uri(pattern_image.convert("RGBA")),
+        imageToken=str(image_token),
+        tileWidth=max(1, int(tile_size[0])),
+        tileHeight=max(1, int(tile_size[1])),
+        offsetX=max(0, int(offset[0])),
+        offsetY=max(0, int(offset[1])),
+        spacingX=max(0, int(spacing[0])),
+        spacingY=max(0, int(spacing[1])),
+        kind=str(kind),
+        roles=[dict(role) for role in roles],
+        project=dict(project),
+        setPreviews=preview_payload,
+        key=key,
+        default=None,
+    )
+    return cast(dict[str, Any] | None, result)
+
+
 def pixel_editor(
     image: Image.Image,
     *,
@@ -154,6 +202,7 @@ def pixel_editor(
     floating_selection_x: int = 0,
     floating_selection_y: int = 0,
     floating_selection_bounds: tuple[int, int, int, int] | None = None,
+    floating_operation_kind: str = "move_mask",
     can_undo: bool = False,
     can_redo: bool = False,
     undo_label: str = "",
@@ -225,6 +274,7 @@ def pixel_editor(
             if floating_selection_bounds is None
             else [int(value) for value in floating_selection_bounds]
         ),
+        floatingOperationKind=str(floating_operation_kind),
         canUndo=bool(can_undo),
         canRedo=bool(can_redo),
         undoLabel=str(undo_label),

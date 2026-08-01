@@ -1,0 +1,93 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      128,
+      128
+    ],
+    "canvas_height": 256,
+    "canvas_width": 256,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      0,
+      0,
+      0
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 1,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-07-20T22:55:14.670538+00:00",
+  "current_stage": "source",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": false,
+    "padding": 0
+  },
+  "export_manifest": null,
+  "frame_adjustments": [],
+  "inspection": {
+    "background_confidence": 1.0,
+    "border_rgb": [
+      0,
+      0,
+      0
+    ],
+    "has_alpha": true,
+    "height": 256,
+    "mode": "RGBA",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      0,
+      0,
+      0
+    ],
+    "uses_transparency": true,
+    "width": 1280
+  },
+  "layer_document": {
+    "cache_key": "210e69273e07941ed9c6f044e86293e203d65e92c68d0ce37649ab1764250d06",
+    "document_id": "sprite-c2c3a2197ba4",
+    "manifest": "sheet_sessions/sheet-20260720T225514-dc0f1cd9-f16c/attempts/layers/210e69273e07941ed9c6f044e86293e203d65e92c68d0ce37649ab1764250d06/manifest.json",
+    "manifest_sha256": "c1cf8ef5bea48d4d98f03f01b2a0a30a07b51d6e1f1f13eab721fc899b6ce553",
+    "revision": 1
+  },
+  "output_dir": "sheet_sessions/sheet-20260720T225514-dc0f1cd9-f16c",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": 256,
+    "cell_width": 256,
+    "columns": 1,
+    "frame_count": 5,
+    "manual_cut_positions": [],
+    "manual_cut_positions_x": [],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260720T225514-dc0f1cd9-f16c",
+  "source_image_path": "sheet_sessions/sheet-20260720T225514-dc0f1cd9-f16c/source/dc0f1cd974e70c1616657e8b35a7a05a6d4891b55e77e50f981f8b4aadd1fd24.png",
+  "source_sha256": "dc0f1cd974e70c1616657e8b35a7a05a6d4891b55e77e50f981f8b4aadd1fd24",
+  "stages": {
+    "source": {
+      "path": "sheet_sessions/sheet-20260720T225514-dc0f1cd9-f16c/source/dc0f1cd974e70c1616657e8b35a7a05a6d4891b55e77e50f981f8b4aadd1fd24.png",
+      "sha256": "dc0f1cd974e70c1616657e8b35a7a05a6d4891b55e77e50f981f8b4aadd1fd24",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-20T22:56:10.686460+00:00"
+}

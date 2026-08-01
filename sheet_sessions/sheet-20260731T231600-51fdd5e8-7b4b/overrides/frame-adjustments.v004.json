@@ -1,0 +1,223 @@
+{
+  "created_at": "2026-07-31T23:24:29.018894+00:00",
+  "frames": [
+    {
+      "applied_translation": [
+        -3,
+        -75
+      ],
+      "auto_anchor": [
+        149.0,
+        587.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        16,
+        531,
+        250,
+        653
+      ],
+      "final_anchor": [
+        146.0,
+        512.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": -1,
+      "manual_offset_y": 101,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        17,
+        -74
+      ],
+      "auto_anchor": [
+        131.0,
+        587.0
+      ],
+      "auto_confidence": 0.8973796533243205,
+      "body_bbox": [
+        11,
+        521,
+        252,
+        654
+      ],
+      "final_anchor": [
+        148.0,
+        513.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 1,
+      "manual_offset_y": 102,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        23,
+        -72
+      ],
+      "auto_anchor": [
+        123.0,
+        577.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        10,
+        467,
+        253,
+        654
+      ],
+      "final_anchor": [
+        146.0,
+        505.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": -1,
+      "manual_offset_y": 94,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        19,
+        -72
+      ],
+      "auto_anchor": [
+        127.0,
+        570.0
+      ],
+      "auto_confidence": 0.5379576412171352,
+      "body_bbox": [
+        10,
+        345,
+        264,
+        655
+      ],
+      "final_anchor": [
+        146.0,
+        498.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": -1,
+      "manual_offset_y": 87,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        7,
+        -70
+      ],
+      "auto_anchor": [
+        140.0,
+        481.0
+      ],
+      "auto_confidence": 0.8934733156242454,
+      "body_bbox": [
+        6,
+        184,
+        274,
+        655
+      ],
+      "final_anchor": [
+        147.0,
+        411.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        5,
+        -68
+      ],
+      "auto_anchor": [
+        142.0,
+        479.0
+      ],
+      "auto_confidence": 0.6571736399551303,
+      "body_bbox": [
+        5,
+        106,
+        272,
+        655
+      ],
+      "final_anchor": [
+        147.0,
+        411.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -1,
+        -62
+      ],
+      "auto_anchor": [
+        148.0,
+        473.0
+      ],
+      "auto_confidence": 0.5515215974179744,
+      "body_bbox": [
+        7,
+        62,
+        270,
+        655
+      ],
+      "final_anchor": [
+        147.0,
+        411.0
+      ],
+      "frame_index": 6,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -3,
+        -63
+      ],
+      "auto_anchor": [
+        150.0,
+        474.0
+      ],
+      "auto_confidence": 0.6135990462896411,
+      "body_bbox": [
+        7,
+        85,
+        270,
+        655
+      ],
+      "final_anchor": [
+        147.0,
+        411.0
+      ],
+      "frame_index": 7,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260731T231600-51fdd5e8-7b4b"
+}

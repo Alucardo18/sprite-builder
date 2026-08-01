@@ -15,6 +15,11 @@ COMPONENT_HTML = (
 TILESET_COMPONENT_HTML = (
     Path(components.__file__).parent / "tileset_editor_component" / "index.html"
 )
+TERRAIN_STUDIO_HTML = (
+    Path(components.__file__).parent
+    / "terrain_pattern_studio_component"
+    / "index.html"
+)
 UI_APP = Path(components.__file__).resolve().parent / "app.py"
 
 
@@ -53,9 +58,112 @@ def test_tileset_editor_forwards_grid_contract(monkeypatch) -> None:
     assert captured["spacingY"] == 2
 
 
+def test_terrain_pattern_studio_forwards_fragment_composer_contract(
+    monkeypatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_component(**kwargs: Any) -> None:
+        captured.update(kwargs)
+        return None
+
+    monkeypatch.setattr(components, "_TERRAIN_PATTERN_STUDIO", fake_component)
+    components.terrain_pattern_studio(
+        Image.new("RGBA", (48, 32)),
+        pattern_image=Image.new("RGBA", (64, 48)),
+        image_token="atlas-v2",
+        tile_size=(16, 8),
+        offset=(2, 3),
+        spacing=(1, 2),
+        kind="blob_47",
+        roles=[{"index": 0, "mask": 0, "neighbors": [], "sourceIndex": None}],
+        project={
+            "version": 3,
+            "sources": [{"id": "center", "x": 0, "y": 0, "width": 8, "height": 8}],
+            "tiles": [],
+            "sets": [],
+        },
+        set_previews=[
+            {
+                "id": "set-1",
+                "image": Image.new("RGBA", (64, 48)),
+                "roles": [{"mask": 0}],
+            }
+        ],
+        key="pattern-contract",
+    )
+
+    assert captured["imageToken"] == "atlas-v2"
+    assert captured["tileWidth"] == 16
+    assert captured["tileHeight"] == 8
+    assert captured["offsetX"] == 2
+    assert captured["offsetY"] == 3
+    assert captured["spacingX"] == 1
+    assert captured["spacingY"] == 2
+    assert captured["kind"] == "blob_47"
+    assert captured["roles"][0]["sourceIndex"] is None
+    assert captured["project"]["sources"][0]["id"] == "center"
+    assert captured["setPreviews"][0]["image"].startswith("data:image/png;base64,")
+    assert captured["patternImage"].startswith("data:image/png;base64,")
+
+
+def test_terrain_pattern_studio_uses_tilesetter_set_view_flow() -> None:
+    source = TERRAIN_STUDIO_HTML.read_text(encoding="utf-8")
+
+    for copy in (
+        "Set View",
+        "Tile Properties",
+        "Sources",
+        "Importar grilla",
+        "Build Borders · Blob",
+        "Build Borders · Wang",
+        "Selecciona exactamente 1 tile base completo",
+        "Selecciona exactamente 2 tiles base completos",
+        "1 · Tile base",
+        "2 · Bordes",
+        "3 · Corners",
+        "Completar 4 por rotación",
+        "Source + transformación + cutoff por orientación",
+        "Ajustes avanzados",
+        "Cutoff rápido · los 4 bordes",
+        "Cutoff Wang · admite valores negativos",
+        "Aplica la misma entrada del terreno a todos",
+        "Composite automático",
+        "Composite",
+        "Custom",
+        "Custom corners · opcionales",
+        "Elegir desde Set View",
+        "Usar composición automática",
+        "Sandbox",
+    ):
+        assert copy in source
+    assert 'startPick("edge"' in source
+    assert 'startPick("corner"' in source
+    assert 'id="cornerCompositeBoard"' in source
+    assert '$("#cornerSection").hidden=false' in source
+    assert 'set.kind==="wang_16"?-cutoffLimit:0' in source
+    assert 'set.kind==="wang_16"?-Math.floor(axis/2):0' in source
+    assert "Flip Y" in source
+    assert "raw&&typeof raw===\"object\"?raw:{}" in source
+    assert "sets:Array.isArray(raw?.sets)?raw.sets.map(cleanSet):[]" in source
+    assert "set.autoOrientEdges=true" in source
+    assert "set.autoOrientEdges?[\"top\",\"right\",\"bottom\",\"left\"]" in source
+    assert "setRoleColumn(item)" in source
+    assert "setRoleRow(item)" in source
+    assert "role.setColumn??role.previewColumn" in source
+    assert "role.setRow??role.previewRow" in source
+    assert 'setCtx.fillStyle="rgba(255,199,109,.10)"' in source
+    assert 'setCtx.fillStyle="rgba(4,8,14,.62)"' not in source
+    assert "Composición: Base +" in source
+    assert 'columns:kind==="blob_47"?11:4' in source
+    assert 'rows:kind==="blob_47"?5:4' in source
+    assert "Compositor de tile" not in source
+    assert "Variantes generadas" not in source
+    assert 'type:"project-change"' in source
+
+
 def test_tileset_canvas_has_pixel_tools_grid_and_seamless_preview() -> None:
     source = TILESET_COMPONENT_HTML.read_text(encoding="utf-8")
-    studio_source = _component_source()
 
     for tool in (
         "wand",
@@ -67,6 +175,7 @@ def test_tileset_canvas_has_pixel_tools_grid_and_seamless_preview() -> None:
         "replace_color",
         "crop_lasso",
         "crop_rect",
+        "crop_tile",
         "crop_ellipse",
         "select_lasso",
         "select_rect",
@@ -89,7 +198,7 @@ def test_tileset_canvas_has_pixel_tools_grid_and_seamless_preview() -> None:
     assert 'id="seamless"' in source
     assert 'id="toggleGrid"' in source
     assert 'id="magnetCrop"' in source
-    assert 'Imán de recorte · ${state.magnetCrop ? "ON" : "OFF"}' in source
+    assert 'Imán de recorte y movimiento · ${state.magnetCrop ? "ON" : "OFF"}' in source
     assert "button:hover { border-color" in source
     assert "button:hover, button.active" not in source
     assert 'id="hexColor"' in source
@@ -117,10 +226,17 @@ def test_tileset_canvas_has_pixel_tools_grid_and_seamless_preview() -> None:
     assert "deleteSelection" in source
     assert "selectAll" in source
     assert "magneticCropPoint" in source
+    assert "magneticMoveDelta" in source
     assert "snapAxisToTile" in source
+    assert "moveGridSnap" in source
     assert 'edge === "end" ? [start + state.tileSize - 1] : [start]' in source
     assert 'magneticCropPoint(rawPoint, "start")' in source
     assert 'magneticCropPoint(rawPoint, "end")' in source
+    assert 'const { dx, dy } = magneticMoveDelta(rawDx, rawDy);' in source
+    assert 'Desactivar ajuste magnético del recorte y movimiento' in source
+    assert 'data-tool="crop_tile"' in source
+    assert 'Recorte tile por tile (T)' in source
+    assert 't: "crop_tile"' in source
     assert 'const usesPath = state.tool.endsWith("lasso")' in source
     assert 'document.addEventListener("pointerup"' in source
     assert 'if (isCropTool(state.tool) && !state.shapeMoved)' in source
@@ -135,6 +251,35 @@ def test_tileset_canvas_has_pixel_tools_grid_and_seamless_preview() -> None:
     assert 'dataType: "json"' in source
     assert 'addEventListener("mousedown"' not in source
     assert 'addEventListener("mousemove"' not in source
+
+
+def test_terrain_pattern_studio_exposes_sources_properties_and_sandbox() -> None:
+    source = TERRAIN_STUDIO_HTML.read_text(encoding="utf-8")
+
+    assert 'id="setCanvas"' in source
+    assert 'id="sourceCanvas"' in source
+    assert 'id="importGrid"' in source
+    assert 'id="buildBlob"' in source
+    assert 'id="buildWang"' in source
+    assert 'id="edgeRows"' in source
+    assert 'id="baseSourceSlot"' in source
+    assert 'id="edgeBoard"' in source
+    assert 'id="cornerAutoCard"' in source
+    assert 'id="cornerRows"' in source
+    assert 'id="pickBanner"' in source
+    assert 'id="assignOverride"' in source
+    assert 'id="compositeToggle"' in source
+    assert 'id="sandboxCanvas"' in source
+    assert 'type:"project-change"' in source
+    assert "drawPatternRole" in source
+    assert "roleForMapCell" in source
+
+
+def test_terrain_pattern_studio_keeps_dom_ids_unique() -> None:
+    source = TERRAIN_STUDIO_HTML.read_text(encoding="utf-8")
+    ids = re.findall(r'\sid="([^"]+)"', source)
+
+    assert len(ids) == len(set(ids))
 
 
 def test_tileset_brush_card_is_owned_by_the_paint_tool_group() -> None:
@@ -483,13 +628,36 @@ def test_background_editor_keeps_zoom_and_tools_in_the_canvas_toolbar() -> None:
     assert '"Lienzo amplio"' in source
     for tool in ("crop_lasso", "crop_rect", "crop_ellipse"):
         assert f'"{tool}"' in source
+    assert 'aria-label="Rotar selección libremente"' in component_source
+    assert 'id="rotate-angle-number" type="number" min="-180" max="180"' in component_source
+    assert 'id="rotate-angle-range" type="range" min="-180" max="180"' in component_source
+    assert 'action: "rotate-selection"' in component_source
+    assert "degrees: state.rotateAngle" in component_source
+    assert "function floatingRotationGeometry" in component_source
+    assert "function pointHitsRotationHandle" in component_source
+    assert "state.rotationDragging" in component_source
+    assert "state.floatingRotationPreview = nextAngle" in component_source
+    assert "context.rotate(previewAngle * Math.PI / 180)" in component_source
+    assert "nextAngle = Math.round(nextAngle / 15) * 15" in component_source
+    assert "ROTATE_CURSOR" in component_source
+    assert "tirador exterior para rotar" in component_source
+    assert "Ctrl/Cmd+C" in component_source
+    assert "Ctrl/Cmd+V" in component_source
+    assert 'aria-label="Copiar selección"' not in component_source
+    assert 'aria-label="Pegar selección"' not in component_source
     assert "toolCropLasso.hidden = centerMode || cutMode" in component_source
     assert "toolCropRect.disabled = centerMode || cutMode" in component_source
     assert '(state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool)' in component_source
     assert 'event_type == "crop"' in source
     assert "incoming = _layer_crop_mask_from_event(" in source
     assert ":background_floating_selection" in source
-    assert '"kind": "move_mask"' in source
+    assert ":background_clipboard" in source
+    assert '"copy_mask"' in source
+    assert 'str(event.get("action", "")) == "paste"' in source
+    assert "floatingOperationKind=str(floating_operation_kind)" in inspect.getsource(
+        components.pixel_editor
+    )
+    assert "operationKind: state.floatingOperationKind" in component_source
     assert "floating_selection=floating_piece" in source
     assert 'state.mode === "background" && state.floatingSelection' in component_source
     assert 'type: "floating-transform"' in component_source

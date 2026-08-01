@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pattern Studio · Set View</title>
+  <style>
+    :root {
+      color-scheme:dark; font-family:Inter,ui-sans-serif,system-ui,sans-serif;
+      --panel:rgba(15,22,36,.96); --panel2:#182238; --line:rgba(145,205,255,.18);
+      --cyan:#63dcff; --mint:#57dfbc; --pink:#ff6898; --text:#f4f7ff;
+      --muted:#98a7c0; --warn:#ffc76d; --cell:48px;
+    }
+    * { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    html,body { margin:0; color:var(--text); background:transparent; }
+    button,input,select { font:inherit; }
+    button,select,input {
+      color:var(--text); border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.055); border-radius:9px;
+    }
+    button { min-height:32px; padding:6px 9px; cursor:pointer; font-size:9px; font-weight:780; }
+    button:hover { border-color:var(--cyan); background:rgba(99,220,255,.1); }
+    button:disabled { opacity:.34; cursor:not-allowed; }
+    button.primary { border-color:rgba(99,220,255,.48);
+      background:linear-gradient(125deg,rgba(35,177,220,.27),rgba(116,88,255,.23)); }
+    button.active { color:#09231d; border-color:var(--mint); background:var(--mint); }
+    input,select { min-height:31px; padding:4px 7px; background:#182238; font-size:9px; }
+    .root { display:grid; gap:10px; }
+    .toolbar,.panel { border:1px solid var(--line); border-radius:15px; background:var(--panel);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04); }
+    .toolbar { min-height:59px; padding:9px 11px; display:flex; align-items:center; gap:7px;
+      flex-wrap:wrap; background:linear-gradient(130deg,rgba(29,43,65,.97),rgba(12,18,30,.97)); }
+    .brand { display:grid; gap:2px; min-width:215px; margin-right:4px; }
+    .brand strong { font-size:14px; }
+    .brand span,.hint { color:var(--muted); font-size:8px; line-height:1.35; }
+    .tool-separator { width:1px; height:27px; background:var(--line); margin:0 2px; }
+    .toolbar label { display:grid; gap:2px; color:var(--muted); font-size:7px; font-weight:800; }
+    .build-guide { padding:8px 10px; display:grid; grid-template-columns:1fr 1fr; gap:8px;
+      border:1px solid var(--line); border-radius:12px; background:rgba(15,22,36,.9); }
+    .build-rule { min-height:45px; padding:7px 9px; display:grid;
+      grid-template-columns:auto 1fr; align-items:center; gap:8px; border:1px solid var(--line);
+      border-radius:9px; background:rgba(255,255,255,.025); }
+    .build-rule strong { font-size:9px; }
+    .build-rule span { color:var(--muted); font-size:8px; }
+    .build-count { min-width:24px; height:24px; display:grid; place-items:center;
+      border-radius:999px; color:#09231d; background:var(--mint); font:850 9px/1 ui-monospace,monospace; }
+    .status { margin-left:auto; padding:7px 9px; border:1px solid var(--line);
+      border-radius:999px; color:var(--warn); font:750 9px/1 ui-monospace,monospace; }
+    .status.ready { color:var(--mint); }
+    .workspace { display:grid; grid-template-columns:minmax(500px,1.55fr) minmax(245px,.72fr)
+      minmax(225px,.63fr); gap:10px; align-items:stretch; }
+    .panel { min-width:0; overflow:hidden; }
+    .head { min-height:47px; padding:8px 10px; display:flex; align-items:center;
+      justify-content:space-between; gap:7px; border-bottom:1px solid var(--line); }
+    .title { display:grid; gap:2px; }
+    .title strong { font-size:11px; }
+    .badge { padding:4px 7px; border:1px solid rgba(99,220,255,.2); border-radius:999px;
+      color:#c8f7ff; background:rgba(99,220,255,.08); font:700 8px/1 ui-monospace,monospace; }
+    .set-stage { position:relative; height:610px; overflow:auto; background:#111827; }
+    #setCanvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges;
+      cursor:default; touch-action:none; }
+    #setCanvas.picking { cursor:crosshair; }
+    .pick-banner { position:sticky; z-index:4; top:8px; left:8px; width:calc(100% - 16px);
+      min-height:42px; padding:7px 9px; display:flex; align-items:center; gap:8px;
+      border:1px solid rgba(255,199,109,.58); border-radius:10px;
+      background:rgba(35,29,20,.96); box-shadow:0 12px 32px rgba(0,0,0,.42); }
+    .pick-banner strong { color:var(--warn); font-size:9px; }
+    .pick-banner span { flex:1; color:#f3ddba; font-size:8px; }
+    .pick-banner button { min-height:27px; }
+    .context-menu { position:absolute; z-index:5; width:172px; padding:5px; display:none;
+      gap:4px; border:1px solid rgba(99,220,255,.32); border-radius:10px;
+      background:rgba(18,28,45,.98); box-shadow:0 16px 40px rgba(0,0,0,.48); }
+    .context-menu.open { display:grid; }
+    .context-menu button { width:100%; text-align:left; }
+    .set-footer { min-height:46px; padding:7px 10px; display:flex; gap:8px;
+      align-items:center; justify-content:space-between; border-top:1px solid var(--line); }
+    .inspector-body { min-height:610px; padding:10px; display:grid; align-content:start; gap:9px; }
+    .preview-box { min-height:145px; display:grid; place-items:center; border:1px solid var(--line);
+      border-radius:12px; background-color:#131b2a; background-image:
+      linear-gradient(45deg,#202b3f 25%,transparent 25%),
+      linear-gradient(-45deg,#202b3f 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#202b3f 75%),
+      linear-gradient(-45deg,transparent 75%,#202b3f 75%);
+      background-size:14px 14px; background-position:0 0,0 7px,7px -7px,-7px 0; }
+    #tilePreview { width:112px; height:112px; image-rendering:pixelated; }
+    .inspector-title { display:grid; gap:3px; }
+    .inspector-title strong { font-size:12px; }
+    .section { display:grid; gap:6px; padding:8px; border:1px solid var(--line);
+      border-radius:11px; background:rgba(255,255,255,.025); }
+    .section-label { color:var(--muted); font-size:7px; font-weight:850;
+      letter-spacing:.08em; text-transform:uppercase; }
+    .composition-map { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
+    .composition-slot { min-height:70px; padding:5px; display:grid; place-items:center;
+      align-content:center; gap:3px; text-align:center; font-size:8px; line-height:1.1; }
+    .composition-slot small { max-width:66px; overflow:hidden; color:var(--muted);
+      font-size:6px; text-overflow:ellipsis; white-space:nowrap; }
+    .composition-slot canvas,.base-source-slot canvas { width:34px; height:34px;
+      image-rendering:pixelated; border:1px solid rgba(255,255,255,.1);
+      border-radius:5px; background:#101725; }
+    .composition-slot.configured { border-color:rgba(87,223,188,.42);
+      background:rgba(87,223,188,.08); }
+    .composition-slot.corner { border-color:rgba(255,104,152,.34); }
+    .composition-slot.unused { opacity:.22; cursor:default; }
+    .composition-center { min-height:70px; display:grid; place-items:center;
+      border:1px solid rgba(255,255,255,.07); border-radius:8px; color:var(--muted);
+      background:rgba(255,255,255,.02); font-size:7px; }
+    .base-source-slot { min-height:58px; padding:7px; display:grid;
+      grid-template-columns:38px 1fr auto; align-items:center; gap:7px; text-align:left; }
+    .base-source-slot span { min-width:0; display:grid; gap:2px; }
+    .base-source-slot small { overflow:hidden; color:var(--muted); font-size:7px;
+      text-overflow:ellipsis; white-space:nowrap; }
+    #cornerAutoCard { border:1px solid rgba(87,223,188,.34); border-radius:9px;
+      background:rgba(87,223,188,.07); }
+    .corner-composite-board { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+    .corner-composite { min-width:0; padding:6px; display:grid; grid-template-columns:auto 1fr;
+      align-items:center; gap:6px; border:1px solid rgba(87,223,188,.2); border-radius:8px;
+      background:rgba(87,223,188,.045); }
+    .corner-composite strong { font-size:7px; }
+    .corner-composite span { display:block; color:var(--muted); font-size:6px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .board-heading { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .board-heading button { min-height:26px; padding:3px 6px; font-size:7px; }
+    .corner-pair { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+    .corner-board { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+    .corner-board .composition-slot { min-height:76px; }
+    .board-column { display:grid; gap:5px; }
+    .board-column > strong { color:var(--muted); font-size:7px; text-align:center;
+      text-transform:uppercase; letter-spacing:.06em; }
+    details.advanced { margin-top:8px; border:1px solid var(--line);
+      border-radius:11px; background:rgba(255,255,255,.018); }
+    details.advanced > summary { padding:9px; cursor:pointer; color:#c5d0e2;
+      font-size:8px; font-weight:800; }
+    .advanced-body { padding:0 8px 8px; display:grid; gap:8px; }
+    .edge-row { display:grid; grid-template-columns:52px 1fr auto; gap:5px; align-items:center;
+      padding:5px; border:1px solid rgba(255,255,255,.07); border-radius:8px; }
+    .edge-row.needed { border-color:rgba(255,199,109,.35); }
+    .edge-row.configured { border-color:rgba(87,223,188,.28); }
+    .edge-row strong { font-size:8px; }
+    .edge-row span { overflow:hidden; color:var(--muted); font-size:7px;
+      text-overflow:ellipsis; white-space:nowrap; }
+    .edge-row button { min-height:25px; padding:3px 6px; font-size:7px; }
+    .edge-transform { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;
+      grid-column:1/-1; }
+    .edge-transform select,.edge-transform button { min-height:25px; font-size:7px; }
+    .edge-cutoff { grid-column:1/-1; display:grid; grid-template-columns:auto 1fr auto;
+      align-items:center; gap:6px; color:var(--muted); font-size:7px; }
+    .edge-cutoff input { min-width:0; width:100%; }
+    .action-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+    .source-tools { padding:8px; display:grid; gap:7px; border-bottom:1px solid var(--line); }
+    .source-stage { height:230px; overflow:auto; padding:10px; background:#111827; }
+    #sourceCanvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges;
+      cursor:crosshair; box-shadow:0 10px 28px rgba(0,0,0,.35); }
+    .source-save { display:grid; grid-template-columns:1fr auto; gap:5px; }
+    .source-list { height:354px; overflow:auto; padding:7px; display:grid; align-content:start; gap:5px; }
+    .source-card { width:100%; min-height:52px; padding:5px; display:grid;
+      grid-template-columns:42px 1fr; align-items:center; gap:6px; text-align:left; }
+    .source-card.selected { border-color:var(--cyan); background:rgba(99,220,255,.11); }
+    .source-card canvas { width:40px; height:40px; image-rendering:pixelated; background:#101725; }
+    .source-copy { min-width:0; display:grid; gap:2px; }
+    .source-copy strong { overflow:hidden; font-size:8px; text-overflow:ellipsis; white-space:nowrap; }
+    .source-copy span { color:var(--muted); font-size:7px; }
+    .corner-row { display:grid; grid-template-columns:66px minmax(76px,1fr) auto; gap:5px;
+      align-items:center; padding:5px; border:1px solid rgba(255,104,152,.18);
+      border-radius:8px; }
+    .corner-row.configured { border-color:rgba(87,223,188,.28); }
+    .corner-row strong { font-size:8px; }
+    .corner-row span { overflow:hidden; color:var(--muted); font-size:7px;
+      text-overflow:ellipsis; white-space:nowrap; }
+    .corner-mode { min-width:0; }
+    .corner-transform { grid-column:1/-1; display:grid;
+      grid-template-columns:1fr 1fr 1fr 1fr; gap:4px; }
+    .corner-transform select,.corner-transform button { min-height:25px; font-size:7px; }
+    .sandbox-stage { height:360px; padding:12px; overflow:auto; display:grid;
+      place-items:start center; background:#101725; }
+    #sandboxCanvas { display:block; image-rendering:pixelated; border:1px solid var(--line);
+      cursor:crosshair; box-shadow:0 14px 34px rgba(0,0,0,.35); }
+    .sandbox-tools { display:flex; gap:5px; }
+    .empty { padding:18px 8px; color:var(--muted); text-align:center; font-size:9px; }
+    @media(max-width:1080px) {
+      .workspace { grid-template-columns:1fr 1fr; }
+      .set-panel { grid-column:1/-1; }
+    }
+    @media(max-width:680px) {
+      .build-guide,.corner-composite-board { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="root">
+  <div class="toolbar">
+    <div class="brand"><strong>Pattern Studio · Set View</strong>
+      <span>Selecciona tiles, construye bordes y edita sus propiedades</span></div>
+    <label>Zoom<select id="zoom"><option value=".75">75%</option><option value="1" selected>100%</option><option value="1.5">150%</option><option value="2">200%</option></select></label>
+    <button id="importGrid" class="primary">Importar grilla</button>
+    <div class="tool-separator"></div>
+    <button id="buildBlob">Build Borders · Blob</button>
+    <button id="buildWang">Build Borders · Wang</button>
+    <button id="deleteSelection">Eliminar selección</button>
+    <span id="status" class="status">Importa Sources</span>
+  </div>
+  <div id="buildRequirements" class="build-guide">
+    <div class="build-rule"><span class="build-count">1</span><span><strong>Blob 47</strong><br />Selecciona exactamente 1 tile base completo.</span></div>
+    <div class="build-rule"><span class="build-count">2</span><span><strong>Wang 16</strong><br />Selecciona exactamente 2 tiles base completos.</span></div>
+  </div>
+
+  <div class="workspace">
+    <section class="panel set-panel">
+      <div class="head"><div class="title"><strong>Set View</strong>
+        <span class="hint">Sources y sets generados viven en la misma cuadrícula</span></div>
+        <span id="selectionBadge" class="badge">0 seleccionados</span></div>
+      <div id="setStage" class="set-stage">
+        <div id="pickBanner" class="pick-banner" hidden>
+          <strong>Elegir desde Set View</strong>
+          <span id="pickMessage">Haz clic en el tile que contiene el fragmento deseado.</span>
+          <button id="cancelPick">Cancelar · Esc</button>
+        </div>
+        <canvas id="setCanvas"></canvas>
+        <div id="contextMenu" class="context-menu">
+          <button id="contextBlob">Build Borders · Blob</button>
+          <button id="contextWang">Build Borders · Wang</button>
+          <button id="contextDelete">Eliminar</button>
+        </div>
+      </div>
+      <div class="set-footer"><span id="setHint" class="hint">Importa la imagen por grilla o crea Sources desde el panel derecho.</span>
+        <span class="hint">Click · Shift+click · arrastrar selección · arrastrar tiles</span></div>
+    </section>
+
+    <section class="panel">
+      <div class="head"><div class="title"><strong>Tile Properties</strong>
+        <span class="hint">Propiedades de la selección actual</span></div><span id="propertyBadge" class="badge">sin tile</span></div>
+      <div class="inspector-body">
+        <div class="preview-box"><canvas id="tilePreview"></canvas></div>
+        <div class="inspector-title"><strong id="propertyTitle">Nada seleccionado</strong>
+          <span id="propertyHint" class="hint">Selecciona un tile en Set View.</span></div>
+        <div id="sourceTileProperties" class="section" hidden>
+          <span class="section-label">Source tile</span>
+          <div class="action-grid"><button id="buildBlobInspector">Build Blob</button>
+            <button id="buildWangInspector">Build Wang</button></div>
+        </div>
+        <div id="generatedProperties" hidden>
+          <div class="section">
+            <span class="section-label">1 · Tile base</span>
+            <button id="baseSourceSlot" class="base-source-slot"></button>
+            <button id="secondarySourceSlot" class="base-source-slot" hidden></button>
+            <span class="hint">El terreno sólido usado como centro de todas las composiciones.</span>
+          </div>
+          <div class="section" style="margin-top:8px">
+            <div class="board-heading"><span class="section-label">2 · Bordes</span>
+              <button id="rotateAllEdges">Completar 4 por rotación</button></div>
+            <div id="edgeBoard" class="composition-map"></div>
+            <span class="hint">Asigna un tile completo por orientación: debe incluir tanto el terreno como el exterior. Los Sources se recortan y empalman automáticamente.</span>
+            <div class="section"><span class="section-label">Source + transformación + cutoff por orientación</span><div id="edgeRows"></div></div>
+          </div>
+          <div id="cornerSection" class="section" style="margin-top:8px">
+            <span class="section-label">3 · Corners</span>
+            <div id="cornerAutoCard" class="base-source-slot configured">
+              <span style="font-size:24px;text-align:center">⌜</span>
+              <span><strong>Composite automático</strong>
+                <small>Los corners se empalman desde los dos bordes que se intersectan.</small></span>
+              <span class="badge">8 automáticos</span>
+            </div>
+            <div id="cornerCompositeBoard" class="corner-composite-board"></div>
+            <span class="hint">No asignes Sources aquí. Sólo usa Custom corners en Ajustes avanzados cuando el empalme automático no sirva para tu arte.</span>
+          </div>
+          <details class="advanced">
+            <summary>Ajustes avanzados · rotación, flip y reemplazos</summary>
+            <div class="advanced-body">
+              <div id="cutoffSection" class="section">
+                <span id="cutoffTitle" class="section-label">Cutoff rápido · los 4 bordes</span>
+                <label id="cutoffHint" class="hint">Aplica la misma entrada del terreno a todos:
+                  <input id="blobCutoff" type="range" min="0" value="4" />
+                  <strong id="blobCutoffValue">4 px</strong>
+                </label>
+                <span class="hint">Después puedes ajustar cada orientación por separado en Transformaciones de bordes.</span>
+              </div>
+              <div class="section"><span class="section-label">Custom corners · opcionales</span>
+                <span class="hint">Cada fila está en automático hasta que eliges un Source personalizado.</span>
+                <div id="cornerRows"></div></div>
+              <div id="variantOverrideSection" class="section">
+                <span class="section-label">Variante seleccionada</span>
+                <label class="hint"><input id="compositeToggle" type="checkbox" checked /> Usar composición automática</label>
+                <div class="action-grid"><button id="assignOverride">Elegir reemplazo en Set View</button>
+                  <button id="clearOverride">Restaurar generado</button></div>
+              </div>
+            </div>
+          </details>
+        </div>
+        <div id="setProperties" class="section" hidden>
+          <span class="section-label">Generated set</span>
+          <div id="setSummary" class="hint"></div>
+          <button id="deleteSet">Eliminar set generado</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="head"><div class="title"><strong>Sources</strong>
+        <span class="hint">Crea y organiza recortes; asígnalos directamente desde Set View</span></div><span id="sourceBadge" class="badge">0</span></div>
+      <div class="source-stage"><canvas id="sourceCanvas"></canvas></div>
+      <div class="source-tools">
+        <span id="cropHint" class="hint">Arrastra sobre la imagen para crear un Source libre.</span>
+        <div class="source-save"><input id="sourceName" placeholder="Nombre del Source" />
+          <button id="saveSource" disabled>Guardar</button></div>
+      </div>
+      <div id="sourceList" class="source-list"></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="head"><div class="title"><strong>Sandbox</strong>
+      <span class="hint">Prueba el set activo mientras configuras sus Sources</span></div>
+      <div class="sandbox-tools"><button id="paint" class="active">Pintar</button>
+        <button id="erase">Borrar</button><button id="clearMap">Limpiar</button></div></div>
+    <div class="sandbox-stage"><canvas id="sandboxCanvas"></canvas></div>
+  </section>
+</div>
+
+<script>
+const RENDER="streamlit:render",VALUE="streamlit:setComponentValue",HEIGHT="streamlit:setFrameHeight";
+const $=selector=>document.querySelector(selector);
+const setCanvas=$("#setCanvas"),setCtx=setCanvas.getContext("2d");
+const sourceCanvas=$("#sourceCanvas"),sourceCtx=sourceCanvas.getContext("2d",{willReadFrequently:true});
+const tilePreview=$("#tilePreview"),previewCtx=tilePreview.getContext("2d");
+const sandboxCanvas=$("#sandboxCanvas"),sandboxCtx=sandboxCanvas.getContext("2d");
+const sourceBuffer=document.createElement("canvas"),sourceBufferCtx=sourceBuffer.getContext("2d",{willReadFrequently:true});
+const patternBuffer=document.createElement("canvas"),patternBufferCtx=patternBuffer.getContext("2d");
+const state={project:null,roles:[],kind:"blob_47",tileWidth:16,tileHeight:16,imageReady:false,patternReady:false,
+  cell:48,gridCols:34,gridRows:22,crop:null,cropStart:null,pointerStart:null,dragMode:null,
+  marquee:null,assignment:null,highlightFeature:null,mapTool:"paint",mapWidth:15,mapHeight:9,map:[],mapDrawing:false,previews:new Map()};
+function post(type,payload={}){parent.postMessage({isStreamlitMessage:true,type,...payload},"*")}
+function emit(){post(VALUE,{value:{type:"project-change",project:state.project,eventId:crypto.randomUUID()},dataType:"json"})}
+function frameHeight(){post(HEIGHT,{height:document.body.scrollHeight+6})}
+function id(){return crypto.randomUUID()}
+const edgeDirections=["top","right","bottom","left"];
+function cleanTransform(raw){return{...(raw&&typeof raw==="object"?raw:{}),rotation:Number(raw?.rotation)||0,
+  flipX:Boolean(raw?.flipX),flipY:Boolean(raw?.flipY)}}
+function cleanSet(raw){
+  const item=raw&&typeof raw==="object"?raw:{},edges={...(item.edges||{})},edgeTransforms={...(item.edgeTransforms||{})};
+  const edgeCutoffs={...(item.edgeCutoffs||{})};
+  for(const direction of edgeDirections){if(!(direction in edges))edges[direction]=null;
+    edgeTransforms[direction]=cleanTransform(edgeTransforms[direction]);
+    if(direction in edgeCutoffs&&Number.isFinite(Number(edgeCutoffs[direction])))edgeCutoffs[direction]=Number(edgeCutoffs[direction])}
+  const cornerTransforms={...(item.cornerTransforms||{})};
+  for(const [key,value] of Object.entries(cornerTransforms))cornerTransforms[key]=cleanTransform(value);
+  return{...item,kind:["blob_47","wang_16","sides_16"].includes(item.kind)?item.kind:"blob_47",
+    autoOrientEdges:item.autoOrientEdges===true,edges,edgeTransforms,edgeCutoffs,
+    corners:{...(item.corners||{})},customCorners:{...(item.customCorners||{})},cornerTransforms,
+    overrides:{...(item.overrides||{})}};
+}
+function cleanProject(raw){
+  const project={...(raw&&typeof raw==="object"?raw:{}),version:3,
+    sources:Array.isArray(raw?.sources)?raw.sources.map(item=>({...item})):[],
+    tiles:Array.isArray(raw?.tiles)?raw.tiles.map(item=>({...item})):[],
+    sets:Array.isArray(raw?.sets)?raw.sets.map(cleanSet):[],activeSetId:raw?.activeSetId||null,
+    ui:{...(raw?.ui||{}),selectedTileIds:Array.isArray(raw?.ui?.selectedTileIds)?raw.ui.selectedTileIds:[],
+      selectedMask:Number.isInteger(raw?.ui?.selectedMask)?raw.ui.selectedMask:null,
+      activeSourceId:raw?.ui?.activeSourceId||null,selectedSetId:raw?.ui?.selectedSetId||null}};
+  return project;
+}
+function activeSet(){return state.project.sets.find(item=>item.id===state.project.activeSetId)||null}
+function sourceById(sourceId){return state.project.sources.find(item=>item.id===sourceId)||null}
+function tileById(tileId){return state.project.tiles.find(item=>item.id===tileId)||null}
+function selectedTiles(){return state.project.ui.selectedTileIds.map(tileById).filter(Boolean)}
+function selectedRole(){if(state.project.ui.selectedMask===null)return null;
+  return state.roles.find(role=>Number(role.mask)===Number(state.project.ui.selectedMask))||null}
+function sourceBounds(source){return source?{x:Number(source.x)||0,y:Number(source.y)||0,width:Number(source.width)||1,height:Number(source.height)||1}:null}
+function drawChecker(ctx,x,y,w,h,size=5){ctx.fillStyle="#111827";ctx.fillRect(x,y,w,h);ctx.fillStyle="#202b3f";
+  for(let yy=0;yy<h;yy+=size)for(let xx=0;xx<w;xx+=size)if((xx/size+yy/size)%2===0)ctx.fillRect(x+xx,y+yy,size,size)}
+function drawSource(ctx,sourceId,x,y,w,h){const source=sourceById(sourceId),b=sourceBounds(source);if(!b||!state.imageReady)return false;
+  ctx.imageSmoothingEnabled=false;ctx.drawImage(sourceBuffer,b.x,b.y,b.width,b.height,x,y,w,h);return true}
+function drawPatternRole(ctx,role,x,y,w,h){if(!role||!state.patternReady)return false;ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(patternBuffer,Number(role.previewColumn)*state.tileWidth,Number(role.previewRow)*state.tileHeight,
+    state.tileWidth,state.tileHeight,x,y,w,h);return true}
+function rolesForSet(setId){return setId===state.project.activeSetId?state.roles:(state.previews.get(setId)?.roles||[])}
+function drawSetRole(ctx,setId,role,x,y,w,h){
+  if(setId===state.project.activeSetId)return drawPatternRole(ctx,role,x,y,w,h);
+  const preview=state.previews.get(setId);if(!preview?.ready)return false;ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(preview.canvas,Number(role.previewColumn)*state.tileWidth,Number(role.previewRow)*state.tileHeight,
+    state.tileWidth,state.tileHeight,x,y,w,h);return true;
+}
+function setRoleColumn(role){return Number(role.setColumn??role.previewColumn)}
+function setRoleRow(role){return Number(role.setRow??role.previewRow)}
+function setViewColumns(set){return set.kind==="blob_47"?11:Number(set.columns||4)}
+function setViewRows(set){return set.kind==="blob_47"?5:Number(set.rows||4)}
+function cellPoint(event){const rect=setCanvas.getBoundingClientRect(),scaleX=setCanvas.width/rect.width,scaleY=setCanvas.height/rect.height;
+  return{x:Math.floor((event.clientX-rect.left)*scaleX/state.cell),y:Math.floor((event.clientY-rect.top)*scaleY/state.cell)}}
+function generatedAt(x,y){for(const set of [...state.project.sets].reverse()){const role=rolesForSet(set.id).find(item=>
+    Number(set.originX)+setRoleColumn(item)===x&&Number(set.originY)+setRoleRow(item)===y);if(role)return{set,role}}return null}
+function tileAt(x,y){return [...state.project.tiles].reverse().find(tile=>Number(tile.x)===x&&Number(tile.y)===y)||null}
+function renderSetView(){
+  state.gridCols=Math.max(34,...state.project.tiles.map(tile=>Number(tile.x)+2),
+    ...state.project.sets.map(set=>Number(set.originX||0)+setViewColumns(set)+2));
+  state.gridRows=Math.max(22,...state.project.tiles.map(tile=>Number(tile.y)+2),
+    ...state.project.sets.map(set=>Number(set.originY||0)+setViewRows(set)+2));
+  const zoom=Number($("#zoom").value)||1,stateCell=Math.round(48*zoom);state.cell=stateCell;
+  setCanvas.width=state.gridCols*stateCell;setCanvas.height=state.gridRows*stateCell;
+  setCanvas.style.width=`${setCanvas.width}px`;setCanvas.style.height=`${setCanvas.height}px`;
+  setCtx.fillStyle="#111827";setCtx.fillRect(0,0,setCanvas.width,setCanvas.height);
+  setCtx.strokeStyle="rgba(145,205,255,.10)";setCtx.lineWidth=1;
+  for(let x=0;x<=state.gridCols;x++){setCtx.beginPath();setCtx.moveTo(x*stateCell+.5,0);setCtx.lineTo(x*stateCell+.5,setCanvas.height);setCtx.stroke()}
+  for(let y=0;y<=state.gridRows;y++){setCtx.beginPath();setCtx.moveTo(0,y*stateCell+.5);setCtx.lineTo(setCanvas.width,y*stateCell+.5);setCtx.stroke()}
+  const selected=new Set(state.project.ui.selectedTileIds);
+  for(const tile of state.project.tiles){const x=Number(tile.x)*stateCell,y=Number(tile.y)*stateCell;drawChecker(setCtx,x+2,y+2,stateCell-4,stateCell-4,6);
+    drawSource(setCtx,tile.sourceId,x+3,y+3,stateCell-6,stateCell-6);
+    if(state.assignment){setCtx.strokeStyle="rgba(255,199,109,.9)";setCtx.lineWidth=2;setCtx.setLineDash([5,4]);
+      setCtx.strokeRect(x+2.5,y+2.5,stateCell-5,stateCell-5);setCtx.setLineDash([])}
+    if(selected.has(tile.id)){setCtx.strokeStyle="#63dcff";setCtx.lineWidth=3;setCtx.strokeRect(x+1.5,y+1.5,stateCell-3,stateCell-3)}}
+  for(const set of state.project.sets){for(const role of rolesForSet(set.id)){const x=(Number(set.originX)+setRoleColumn(role))*stateCell;
+      const y=(Number(set.originY)+setRoleRow(role))*stateCell;drawChecker(setCtx,x+2,y+2,stateCell-4,stateCell-4,6);
+      drawSetRole(setCtx,set.id,role,x+3,y+3,stateCell-6,stateCell-6);
+      if(set.id===state.project.activeSetId&&state.highlightFeature){const affected=roleUsesFeature(role,set,state.highlightFeature);
+        if(affected){setCtx.fillStyle="rgba(255,199,109,.10)";setCtx.fillRect(x+2,y+2,stateCell-4,stateCell-4);
+          setCtx.strokeStyle="#ffc76d";setCtx.lineWidth=3;setCtx.strokeRect(x+2.5,y+2.5,stateCell-5,stateCell-5)}}
+      if(set.id===state.project.activeSetId&&Number(role.mask)===Number(state.project.ui.selectedMask)){
+        setCtx.strokeStyle="#ff6898";setCtx.lineWidth=3;setCtx.strokeRect(x+1.5,y+1.5,stateCell-3,stateCell-3)}}
+    setCtx.strokeStyle=set.id===state.project.activeSetId?"rgba(87,223,188,.75)":"rgba(145,205,255,.25)";setCtx.lineWidth=2;setCtx.setLineDash([7,5]);
+    setCtx.strokeRect(Number(set.originX)*stateCell+1,Number(set.originY)*stateCell+1,
+      setViewColumns(set)*stateCell-2,setViewRows(set)*stateCell-2);setCtx.setLineDash([])}
+  if(state.marquee){const x=Math.min(state.marquee.x0,state.marquee.x1)*stateCell,y=Math.min(state.marquee.y0,state.marquee.y1)*stateCell;
+    const w=(Math.abs(state.marquee.x1-state.marquee.x0)+1)*stateCell,h=(Math.abs(state.marquee.y1-state.marquee.y0)+1)*stateCell;
+    setCtx.fillStyle="rgba(99,220,255,.10)";setCtx.fillRect(x,y,w,h);setCtx.strokeStyle="#63dcff";setCtx.strokeRect(x+.5,y+.5,w-1,h-1)}
+  $("#selectionBadge").textContent=state.project.ui.selectedMask!==null?"variante seleccionada":`${selected.size} seleccionados`;
+  $("#buildBlob").disabled=selectedTiles().length!==1;$("#buildWang").disabled=selectedTiles().length!==2;
+  $("#deleteSelection").disabled=!selected.size&&state.project.ui.selectedMask===null;
+  setCanvas.classList.toggle("picking",Boolean(state.assignment));$("#pickBanner").hidden=!state.assignment;
+  if(state.assignment)$("#pickMessage").textContent=`${state.assignment.label}: haz clic en un tile Source de esta grilla.`;
+}
+function renderSourceCanvas(){
+  if(!state.imageReady)return;const zoom=Math.max(1,Math.min(4,Math.floor(220/Math.max(sourceBuffer.width,sourceBuffer.height))));
+  sourceCanvas.width=sourceBuffer.width;sourceCanvas.height=sourceBuffer.height;sourceCanvas.style.width=`${sourceBuffer.width*zoom}px`;sourceCanvas.style.height=`${sourceBuffer.height*zoom}px`;
+  sourceCtx.clearRect(0,0,sourceCanvas.width,sourceCanvas.height);sourceCtx.imageSmoothingEnabled=false;sourceCtx.drawImage(sourceBuffer,0,0);
+  if(state.crop){sourceCtx.fillStyle="rgba(99,220,255,.14)";sourceCtx.fillRect(state.crop.x,state.crop.y,state.crop.width,state.crop.height);
+    sourceCtx.strokeStyle="#63dcff";sourceCtx.lineWidth=Math.max(1,2/zoom);sourceCtx.strokeRect(state.crop.x+.5,state.crop.y+.5,state.crop.width-1,state.crop.height-1)}
+  $("#saveSource").disabled=!state.crop;$("#cropHint").textContent=state.crop?`${state.crop.width}×${state.crop.height} px · x${state.crop.x} y${state.crop.y}`:"Arrastra sobre la imagen para crear un Source libre.";
+}
+function renderSources(){
+  $("#sourceBadge").textContent=String(state.project.sources.length);const box=$("#sourceList");box.replaceChildren();
+  if(!state.project.sources.length)box.innerHTML='<div class="empty">Importa la grilla o guarda un recorte libre.</div>';
+  for(const source of state.project.sources){const b=document.createElement("button");b.className="source-card"+(source.id===state.project.ui.activeSourceId?" selected":"");
+    const c=document.createElement("canvas");c.width=state.tileWidth;c.height=state.tileHeight;drawChecker(c.getContext("2d"),0,0,c.width,c.height,3);drawSource(c.getContext("2d"),source.id,0,0,c.width,c.height);
+    const copy=document.createElement("div");copy.className="source-copy";copy.innerHTML="<strong></strong><span></span>";copy.querySelector("strong").textContent=source.name||"Source";
+    copy.querySelector("span").textContent=`${source.width}×${source.height}`;b.append(c,copy);b.onclick=()=>{state.project.ui.activeSourceId=source.id;renderAll()};box.append(b)}
+}
+function neededDirections(role,set){
+  if(!role||!set)return[];if(set.kind==="wang_16"){const mask=Number(role.mask),bits=[Boolean(mask&1),Boolean(mask&2),Boolean(mask&4),Boolean(mask&8)];
+    return Object.entries({top:bits[0]!==bits[1],right:bits[1]!==bits[2],bottom:bits[3]!==bits[2],left:bits[0]!==bits[3]}).filter(x=>x[1]).map(x=>x[0])}
+  const neighbors=new Set(role.neighbors||[]),directions=["top","right","bottom","left"].filter(direction=>!neighbors.has(direction));
+  if(set.kind==="blob_47")for(const [diagonal,first,second] of [["top_left","top","left"],["top_right","top","right"],["bottom_right","bottom","right"],["bottom_left","bottom","left"]])
+    if(neighbors.has(first)&&neighbors.has(second)&&!neighbors.has(diagonal))directions.push(first,second);
+  return [...new Set(directions)]
+}
+const directionLabels={top:"Superior",right:"Derecho",bottom:"Inferior",left:"Izquierdo"};
+const diagonalLabels={top_left:"sup. izq.",top_right:"sup. der.",bottom_right:"inf. der.",bottom_left:"inf. izq."};
+const directionIcons={top:"↑",right:"→",bottom:"↓",left:"←"};
+const diagonalIcons={top_left:"↖",top_right:"↗",bottom_right:"↘",bottom_left:"↙"};
+function cornerFeatures(role,set){
+  if(!role||!set||set.kind!=="blob_47")return[];const neighbors=new Set(role.neighbors||[]);
+  const rules=[["top_left","top","left"],["top_right","top","right"],["bottom_right","bottom","right"],["bottom_left","bottom","left"]];
+  return rules.flatMap(([diagonal,first,second])=>{
+    if(!neighbors.has(first)&&!neighbors.has(second))return[{key:`outer_${diagonal}`,type:"outer",diagonal}];
+    if(neighbors.has(first)&&neighbors.has(second)&&!neighbors.has(diagonal))return[{key:`inner_${diagonal}`,type:"inner",diagonal}];
+    return[];
+  });
+}
+function sourceLabel(sourceId){return sourceById(sourceId)?.name||"Sin Source"}
+function startPick(type,key,label){if(!activeSet())return;state.assignment={type,key,label};closeContext();renderSetView()}
+function cancelPick(){state.assignment=null;renderSetView()}
+function finishPick(sourceId){
+  const set=activeSet(),assignment=state.assignment;if(!set||!assignment||!sourceId)return;
+  if(assignment.type==="base")set.baseSource=sourceId;
+  else if(assignment.type==="secondary")set.secondarySource=sourceId;
+  else if(assignment.type==="edge")set.edges[assignment.key]=sourceId;
+  else if(assignment.type==="corner"){set.corners=set.corners||{};set.customCorners=set.customCorners||{};
+    set.corners[assignment.key]=sourceId;set.customCorners[assignment.key]=true}
+  else if(assignment.type==="override"){set.overrides=set.overrides||{};set.overrides[String(assignment.key)]=sourceId}
+  state.project.ui.activeSourceId=sourceId;state.assignment=null;emit();renderAll();
+}
+function roleUsesFeature(role,set,feature){
+  if(!role||!set||!feature)return false;
+  if(feature.type==="edge")return neededDirections(role,set).includes(feature.key);
+  if(feature.type==="corner")return cornerFeatures(role,set).some(item=>item.key===feature.key);
+  return true;
+}
+function setHighlight(feature){state.highlightFeature=feature;const set=activeSet(),count=set?rolesForSet(set.id).filter(role=>roleUsesFeature(role,set,feature)).length:0;
+  const sourceId=feature.type==="edge"?set?.edges?.[feature.key]:set?.corners?.[feature.key];
+  $("#setHint").textContent=`${feature.type==="edge"?"Borde":"Corner"} ${directionLabels[feature.key]||diagonalLabels[feature.key]||feature.key} · ${count} variantes · ${sourceLabel(sourceId)}`;
+  renderSetView()}
+function clearHighlight(){if(!state.highlightFeature)return;state.highlightFeature=null;
+  $("#setHint").textContent=`${state.project.sources.length} Sources importados desde la grilla.`;renderSetView()}
+function sourceThumbnail(sourceId,transform=null){
+  const canvas=document.createElement("canvas");canvas.width=state.tileWidth;canvas.height=state.tileHeight;
+  const ctx=canvas.getContext("2d");drawChecker(ctx,0,0,canvas.width,canvas.height,3);if(!sourceId)return canvas;
+  if(!transform){drawSource(ctx,sourceId,0,0,canvas.width,canvas.height);return canvas}
+  const raw=document.createElement("canvas");raw.width=canvas.width;raw.height=canvas.height;drawSource(raw.getContext("2d"),sourceId,0,0,raw.width,raw.height);
+  ctx.save();ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate((Number(transform.rotation)||0)*Math.PI/2);
+  ctx.scale(transform.flipX?-1:1,transform.flipY?-1:1);ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(raw,-raw.width/2,-raw.height/2);ctx.restore();return canvas;
+}
+function fillSourceSlot(button,sourceId,title,subtitle){
+  button.replaceChildren();button.classList.toggle("configured",Boolean(sourceId));button.append(sourceThumbnail(sourceId));
+  const copy=document.createElement("span"),strong=document.createElement("strong"),small=document.createElement("small");
+  strong.textContent=title;small.textContent=sourceId?sourceLabel(sourceId):subtitle;copy.append(strong,small);button.append(copy);
+}
+function makeFeatureSlot({sourceId,title,emptyLabel,type,key,pickLabel,transform}){
+  const button=document.createElement("button");button.className="composition-slot"+(type==="corner"?" corner":"");
+  button.classList.toggle("configured",Boolean(sourceId));button.append(sourceThumbnail(sourceId,transform));
+  const strong=document.createElement("strong"),small=document.createElement("small");strong.textContent=title;
+  small.textContent=sourceId?sourceLabel(sourceId):emptyLabel;button.append(strong,small);
+  button.onclick=()=>startPick(type,key,pickLabel);button.onmouseenter=()=>setHighlight({type,key});button.onmouseleave=clearHighlight;return button;
+}
+function renderEdgeBoard(set){
+  const box=$("#edgeBoard");box.replaceChildren();
+  for(const slot of ["top_left","top","top_right","left","center","right","bottom_left","bottom","bottom_right"]){
+    if(slot==="center"){const center=document.createElement("div");center.className="composition-center";center.append(sourceThumbnail(set.baseSource));
+      const label=document.createElement("strong");label.textContent="BASE";center.append(label);box.append(center);continue}
+    if(!["top","right","bottom","left"].includes(slot)){const empty=document.createElement("div");empty.className="composition-center";empty.textContent="";box.append(empty);continue}
+    const transform={...(set.edgeTransforms?.[slot]||{}),rotation:(Number(set.edgeTransforms?.[slot]?.rotation)||0)+
+      (set.autoOrientEdges?["top","right","bottom","left"].indexOf(slot):0)};
+    box.append(makeFeatureSlot({sourceId:set.edges?.[slot],title:`${directionIcons[slot]} ${directionLabels[slot]}`,emptyLabel:"Elegir en grilla",
+      type:"edge",key:slot,pickLabel:`Borde ${directionLabels[slot]}`,transform}));
+  }
+  $("#rotateAllEdges").disabled=!Object.values(set.edges||{}).some(Boolean);
+}
+function renderCornerCompositeBoard(set){
+  const board=$("#cornerCompositeBoard");board.replaceChildren();
+  const rules=[["top_left","top","left"],["top_right","top","right"],["bottom_right","bottom","right"],["bottom_left","bottom","left"]];
+  for(const [diagonal,first,second] of rules){const card=document.createElement("div");card.className="corner-composite";
+    const icon=document.createElement("strong");icon.textContent=diagonalIcons[diagonal];const copy=document.createElement("div"),title=document.createElement("strong"),detail=document.createElement("span");
+    title.textContent=diagonalLabels[diagonal];detail.textContent=`${directionIcons[first]} ${sourceLabel(set.edges?.[first])} + ${directionIcons[second]} ${sourceLabel(set.edges?.[second])}`;
+    copy.append(title,detail);card.append(icon,copy);board.append(card)}
+  const automaticCount=set.kind==="blob_47"?8:4;$("#cornerAutoCard .badge").textContent=`${automaticCount} automáticos`;
+  $("#cornerAutoCard small").textContent=set.kind==="wang_16"
+    ?"Cada unión Wang se resuelve superponiendo los dos bordes que se intersectan."
+    :"Las esquinas internas y externas se empalman desde los dos bordes que se intersectan.";
+}
+function renderConfigurator(set,role){
+  const base=$("#baseSourceSlot");fillSourceSlot(base,set.baseSource,set.kind==="wang_16"?"Terreno A":"Tile base","Elegir en grilla");
+  base.onclick=()=>startPick("base","baseSource",set.kind==="wang_16"?"Terreno A":"Tile base");
+  const secondary=$("#secondarySourceSlot");secondary.hidden=set.kind!=="wang_16";
+  if(set.kind==="wang_16"){fillSourceSlot(secondary,set.secondarySource,"Terreno B","Elegir en grilla");
+    secondary.onclick=()=>startPick("secondary","secondarySource","Terreno B")}
+  const cutoffDefault=Math.max(1,Math.floor(Math.min(state.tileWidth,state.tileHeight)/8));
+  const cutoff=Number.isFinite(Number(set.cutoff))?Number(set.cutoff):(set.kind==="wang_16"?0:cutoffDefault);
+  set.edgeCutoffs=set.edgeCutoffs||{};
+  for(const direction of ["top","right","bottom","left"])
+    if(!Number.isFinite(Number(set.edgeCutoffs[direction])))set.edgeCutoffs[direction]=cutoff;
+  const cutoffLimit=Math.max(1,Math.floor(Math.min(state.tileWidth,state.tileHeight)/2));
+  $("#cutoffSection").hidden=false;$("#blobCutoff").min=String(set.kind==="wang_16"?-cutoffLimit:0);$("#blobCutoff").max=String(cutoffLimit);
+  $("#cutoffTitle").textContent=set.kind==="wang_16"?"Cutoff Wang · admite valores negativos":"Cutoff rápido · los 4 bordes";
+  $("#cutoffHint").firstChild.textContent=set.kind==="wang_16"?"Desplaza la transición de ambos terrenos: ":"Aplica la misma entrada del terreno a todos: ";
+  $("#blobCutoff").value=String(cutoff);$("#blobCutoffValue").textContent=`${cutoff} px`;
+  renderEdgeBoard(set);$("#cornerSection").hidden=false;renderCornerCompositeBoard(set);
+  renderEdgeRows(set);renderCornerRows(set);const override=role?set.overrides?.[String(role.mask)]:null;
+  $("#variantOverrideSection").hidden=!role;$("#compositeToggle").checked=!override;
+  $("#assignOverride").disabled=!role;$("#clearOverride").disabled=!override;
+}
+function renderInspector(){
+  const role=selectedRole(),tiles=selectedTiles(),set=activeSet();tilePreview.width=state.tileWidth;tilePreview.height=state.tileHeight;drawChecker(previewCtx,0,0,tilePreview.width,tilePreview.height,3);
+  $("#sourceTileProperties").hidden=true;$("#generatedProperties").hidden=true;$("#setProperties").hidden=true;
+  $("#buildBlobInspector").disabled=false;$("#buildWangInspector").disabled=false;
+  if(role&&set){drawPatternRole(previewCtx,role,0,0,tilePreview.width,tilePreview.height);$("#propertyBadge").textContent=`mask ${role.mask}`;
+    $("#propertyTitle").textContent=`${set.kind==="wang_16"?"Wang":"Blob"} · variante ${Number(role.index)+1}`;
+    const sourceDirections=neededDirections(role,set).map(direction=>directionLabels[direction]);
+    $("#propertyHint").textContent=sourceDirections.length
+      ?`Composición: Base + ${sourceDirections.join(" + ")}. Selecciona un borde para ver todas sus variantes.`
+      :"Composición: sólo Base; no hay bordes expuestos en esta variante.";
+    $("#generatedProperties").hidden=false;renderConfigurator(set,role);return}
+  if(tiles.length===1){const tile=tiles[0],source=sourceById(tile.sourceId);drawSource(previewCtx,tile.sourceId,0,0,tilePreview.width,tilePreview.height);
+    $("#propertyBadge").textContent="Source tile";$("#propertyTitle").textContent=source?.name||"Tile";
+    $("#propertyHint").textContent="Este tile puede ser el centro de un Blob o parte de una transición Wang.";
+    $("#sourceTileProperties").hidden=false;$("#buildWangInspector").disabled=true;return}
+  if(tiles.length===2){$("#propertyBadge").textContent="2 tiles";$("#propertyTitle").textContent="Selección Wang";
+    $("#propertyHint").textContent="Construye las 16 transiciones entre ambos terrenos.";
+    $("#sourceTileProperties").hidden=false;$("#buildBlobInspector").disabled=true;$("#buildWangInspector").disabled=false;return}
+  if(set&&state.project.ui.selectedSetId===set.id){$("#propertyBadge").textContent="Generated set";$("#propertyTitle").textContent=set.name||"Terrain Set";
+    $("#propertyHint").textContent="Asigna base, bordes y corners sin buscar variantes específicas.";$("#generatedProperties").hidden=false;$("#setProperties").hidden=false;
+    drawSource(previewCtx,set.baseSource,0,0,tilePreview.width,tilePreview.height);renderConfigurator(set,null);
+    $("#setSummary").textContent=`${set.kind==="blob_47"?47:16} variantes · ${Object.values(set.edges||{}).filter(Boolean).length}/4 bordes configurados`;return}
+  $("#propertyBadge").textContent="sin tile";$("#propertyTitle").textContent="Nada seleccionado";$("#propertyHint").textContent="Selecciona uno o dos tiles en Set View.";
+}
+function renderEdgeRows(set){
+  const box=$("#edgeRows");box.replaceChildren();
+  for(const direction of ["top","right","bottom","left"]){const sourceId=set.edges?.[direction],source=sourceById(sourceId),row=document.createElement("div");
+    row.className="edge-row"+(sourceId?" configured":"");row.innerHTML="<strong></strong><span></span><button></button><div class='edge-transform'></div><label class='edge-cutoff'><span>Cutoff</span><input type='range' min='0'><b></b></label>";
+    row.querySelector("strong").textContent=`${directionIcons[direction]} ${directionLabels[direction]}`;row.querySelector("span").textContent=source?.name||"Source requerido";
+    const assign=row.querySelector("button");assign.textContent=sourceId?"Cambiar en grilla":"Elegir en grilla";
+    assign.onclick=()=>startPick("edge",direction,`Borde ${directionLabels[direction]}`);
+    const transform=set.edgeTransforms[direction];const controls=row.querySelector(".edge-transform");
+    controls.innerHTML=`<select aria-label="Rotación ${direction}"><option value="0">0°</option><option value="1">90°</option><option value="2">180°</option><option value="3">270°</option></select><button>Flip X</button><button>Flip Y</button><button>Vaciar</button>`;
+    controls.style.gridTemplateColumns="1fr 1fr 1fr 1fr";const select=controls.querySelector("select");select.value=String(transform.rotation||0);
+    select.onchange=e=>{transform.rotation=Number(e.target.value);emit();renderAll()};const edgeButtons=controls.querySelectorAll("button");
+    edgeButtons[0].classList.toggle("active",Boolean(transform.flipX));edgeButtons[0].onclick=()=>{transform.flipX=!transform.flipX;emit();renderAll()};
+    edgeButtons[1].classList.toggle("active",Boolean(transform.flipY));edgeButtons[1].onclick=()=>{transform.flipY=!transform.flipY;emit();renderAll()};
+    edgeButtons[2].disabled=!sourceId;edgeButtons[2].onclick=()=>assignEdge(direction,null);
+    const cutoff=row.querySelector(".edge-cutoff input"),cutoffValue=row.querySelector(".edge-cutoff b"),axis=direction==="top"||direction==="bottom"?state.tileHeight:state.tileWidth;
+    cutoff.min=String(set.kind==="wang_16"?-Math.floor(axis/2):0);cutoff.max=String(set.kind==="wang_16"?Math.floor(axis/2):axis);
+    cutoff.value=String(set.edgeCutoffs?.[direction]??set.cutoff??0);cutoffValue.textContent=`${cutoff.value} px`;
+    cutoff.oninput=event=>{cutoffValue.textContent=`${event.target.value} px`};cutoff.onchange=event=>{set.edgeCutoffs=set.edgeCutoffs||{};set.edgeCutoffs[direction]=Number(event.target.value)||0;emit()};
+    box.append(row)}
+}
+function renderCornerRows(set){
+  const box=$("#cornerRows");box.replaceChildren();if(set.kind!=="blob_47"){box.innerHTML='<div class="empty">Wang compone cada esquina desde dos Border Sources. Si una unión necesita arte único, selecciona la variante generada y usa su reemplazo completo.</div>';return}
+  const features=["outer","inner"].flatMap(type=>["top_left","top_right","bottom_right","bottom_left"].map(diagonal=>({key:`${type}_${diagonal}`,type,diagonal})));
+  for(const feature of features){const custom=set.customCorners?.[feature.key]===true,sourceId=custom?set.corners?.[feature.key]:null,source=sourceById(sourceId),row=document.createElement("div");
+    row.className="corner-row"+(sourceId?" configured":"");row.innerHTML="<strong></strong><select class='corner-mode' aria-label='Modo de corner'><option value='composite'>Composite</option><option value='custom'>Custom</option></select><button></button><div class='corner-transform'></div>";
+    row.querySelector("strong").textContent=`${diagonalIcons[feature.diagonal]} ${feature.type==="outer"?"Exterior":"Interior"}`;
+    const mode=row.querySelector(".corner-mode");mode.value=custom?"custom":"composite";mode.onchange=()=>{if(mode.value==="custom"){
+      startPick("corner",feature.key,`Corner ${feature.type==="outer"?"exterior":"interior"} ${diagonalLabels[feature.diagonal]}`);return}
+      delete set.corners[feature.key];delete set.customCorners[feature.key];emit();renderAll()};const assign=row.querySelector("button");
+    assign.textContent=sourceId?source.name||"Cambiar Source":"Elegir Source";assign.disabled=!custom;assign.onclick=()=>startPick("corner",feature.key,
+      `Corner ${feature.type==="outer"?"exterior":"interior"} ${diagonalLabels[feature.diagonal]}`);
+    set.cornerTransforms=set.cornerTransforms||{};set.cornerTransforms[feature.key]=set.cornerTransforms[feature.key]||{rotation:0,flipX:false,flipY:false};
+    const transform=set.cornerTransforms[feature.key],controls=row.querySelector(".corner-transform");
+    controls.innerHTML=`<select aria-label="Rotación ${feature.key}"><option value="0">0°</option><option value="1">90°</option><option value="2">180°</option><option value="3">270°</option></select><button>Flip X</button><button>Flip Y</button><button>Volver a Composite</button>`;
+    const select=controls.querySelector("select");select.value=String(transform.rotation||0);select.onchange=e=>{transform.rotation=Number(e.target.value);emit()};
+    const buttons=controls.querySelectorAll("button");select.disabled=!sourceId;buttons[0].disabled=!sourceId;buttons[0].classList.toggle("active",Boolean(transform.flipX));
+    buttons[0].onclick=()=>{transform.flipX=!transform.flipX;emit();renderAll()};buttons[1].disabled=!sourceId;buttons[1].classList.toggle("active",Boolean(transform.flipY));
+    buttons[1].onclick=()=>{transform.flipY=!transform.flipY;emit();renderAll()};buttons[2].disabled=!custom;
+    buttons[2].onclick=()=>{delete set.corners[feature.key];delete set.customCorners[feature.key];emit();renderAll()};box.append(row)}
+}
+function renderStatus(){
+  const set=activeSet(),ready=Boolean(set?.baseSource)&&(set.kind!=="wang_16"||Boolean(set.secondarySource))&&edgeDirections.every(direction=>Boolean(set.edges?.[direction]))&&state.roles.length>0;
+  $("#status").classList.toggle("ready",ready);$("#status").textContent=!state.project.sources.length?"Importa Sources":!set?"Selecciona y construye bordes":ready?`${state.roles.length} tiles listos`:`${Object.values(set.edges||{}).filter(Boolean).length}/4 bordes`;
+}
+function roleForMapCell(x,y){
+  const on=(xx,yy)=>xx>=0&&yy>=0&&xx<state.mapWidth&&yy<state.mapHeight&&state.map[yy*state.mapWidth+xx];
+  const set=activeSet();if(!set)return null;let mask=0;if(set.kind==="wang_16"){if(on(x-1,y-1)||on(x-1,y)||on(x,y-1))mask|=1;
+    if(on(x+1,y-1)||on(x+1,y)||on(x,y-1))mask|=2;if(on(x+1,y+1)||on(x+1,y)||on(x,y+1))mask|=4;if(on(x-1,y+1)||on(x-1,y)||on(x,y+1))mask|=8}
+  else {if(on(x,y-1))mask|=1;if(on(x+1,y))mask|=4;if(on(x,y+1))mask|=16;if(on(x-1,y))mask|=64;
+    if(set.kind==="blob_47"){if((mask&1)&&(mask&4)&&on(x+1,y-1))mask|=2;if((mask&4)&&(mask&16)&&on(x+1,y+1))mask|=8;
+      if((mask&16)&&(mask&64)&&on(x-1,y+1))mask|=32;if((mask&64)&&(mask&1)&&on(x-1,y-1))mask|=128}}
+  return state.roles.find(role=>Number(role.mask)===mask)||state.roles[0]||null;
+}
+function renderSandbox(){
+  const scale=Math.max(2,Math.min(5,Math.floor(330/(state.mapHeight*state.tileHeight))));sandboxCanvas.width=state.mapWidth*state.tileWidth;
+  sandboxCanvas.height=state.mapHeight*state.tileHeight;sandboxCanvas.style.width=`${sandboxCanvas.width*scale}px`;sandboxCanvas.style.height=`${sandboxCanvas.height*scale}px`;
+  sandboxCtx.fillStyle="#0a101a";sandboxCtx.fillRect(0,0,sandboxCanvas.width,sandboxCanvas.height);if(!activeSet()||!state.patternReady)return;
+  for(let y=0;y<state.mapHeight;y++)for(let x=0;x<state.mapWidth;x++)if(state.map[y*state.mapWidth+x]){const role=roleForMapCell(x,y);
+    if(role)sandboxCtx.drawImage(patternBuffer,role.previewColumn*state.tileWidth,role.previewRow*state.tileHeight,state.tileWidth,state.tileHeight,
+      x*state.tileWidth,y*state.tileHeight,state.tileWidth,state.tileHeight)}
+}
+function renderAll(){renderSetView();renderSourceCanvas();renderSources();renderInspector();renderStatus();renderSandbox();requestAnimationFrame(frameHeight)}
+function addSource(bounds,name,gridX=null,gridY=null){
+  const existing=state.project.sources.find(source=>source.x===bounds.x&&source.y===bounds.y&&source.width===bounds.width&&source.height===bounds.height);
+  if(existing)return existing;const source={id:id(),name:name||`Source ${state.project.sources.length+1}`,...bounds};state.project.sources.push(source);
+  const maxY=state.project.tiles.reduce((value,tile)=>Math.max(value,Number(tile.y)||0),0);state.project.tiles.push({id:id(),sourceId:source.id,
+    x:gridX===null?state.project.tiles.length%10:gridX,y:gridY===null?maxY+2:gridY});return source;
+}
+function importGrid(){
+  if(!state.imageReady)return;const columns=Math.floor(sourceBuffer.width/state.tileWidth),rows=Math.floor(sourceBuffer.height/state.tileHeight);
+  const pixels=sourceBufferCtx.getImageData(0,0,sourceBuffer.width,sourceBuffer.height).data;let added=0;
+  for(let row=0;row<rows;row++)for(let column=0;column<columns;column++){let opaque=false;for(let y=0;y<state.tileHeight&&!opaque;y++)for(let x=0;x<state.tileWidth;x++){
+      const px=column*state.tileWidth+x,py=row*state.tileHeight+y;if(pixels[(py*sourceBuffer.width+px)*4+3]>0){opaque=true;break}}
+    if(!opaque)continue;const before=state.project.sources.length;addSource({x:column*state.tileWidth,y:row*state.tileHeight,width:state.tileWidth,height:state.tileHeight},`Tile ${row*columns+column+1}`,column,row);
+    if(state.project.sources.length>before)added++}
+  emit();renderAll();$("#setHint").textContent=added?`${added} Sources importados desde la grilla.`:"La grilla ya estaba importada.";
+}
+function buildSet(kind){
+  const tiles=selectedTiles(),required=kind==="wang_16"?2:1;if(tiles.length!==required)return;
+  const tileMaxY=state.project.tiles.reduce((value,tile)=>Math.max(value,Number(tile.y)||0),0);
+  const maxY=state.project.sets.reduce((value,item)=>Math.max(value,Number(item.originY||0)+setViewRows(item)),tileMaxY),setId=id();
+  const set={id:setId,name:kind==="wang_16"?"Wang Set":"Blob Set",kind,autoOrientEdges:true,baseSource:tiles[0].sourceId,
+    secondarySource:kind==="wang_16"?tiles[1].sourceId:null,originX:0,originY:maxY+2,columns:kind==="blob_47"?11:4,rows:kind==="blob_47"?5:4,
+    cutoff:kind==="blob_47"?Math.max(1,Math.floor(Math.min(state.tileWidth,state.tileHeight)/8)):0,
+    edgeCutoffs:{},
+    edges:{top:null,right:null,bottom:null,left:null},edgeTransforms:{top:{rotation:0,flipX:false,flipY:false},
+      right:{rotation:0,flipX:false,flipY:false},bottom:{rotation:0,flipX:false,flipY:false},left:{rotation:0,flipX:false,flipY:false}},
+    corners:{},customCorners:{},cornerTransforms:{},compositeCorners:true,overrides:{}};state.project.sets.push(set);state.project.activeSetId=setId;state.project.ui.selectedSetId=setId;
+  state.project.ui.selectedTileIds=[];state.project.ui.selectedMask=null;emit();renderAll();closeContext();
+}
+function assignEdge(direction,sourceId){const set=activeSet();if(!set)return;set.edges[direction]=sourceId;emit();renderAll()}
+function completeEdgesByRotation(){
+  const set=activeSet(),directions=["top","right","bottom","left"];if(!set)return;
+  const seedIndex=directions.findIndex(direction=>Boolean(set.edges?.[direction]));if(seedIndex<0)return;
+  const seedDirection=directions[seedIndex],sourceId=set.edges[seedDirection],seedTransform=set.edgeTransforms?.[seedDirection]||{};
+  const seedRotation=Number(seedTransform.rotation)||0;set.edgeTransforms=set.edgeTransforms||{};set.autoOrientEdges=true;
+  directions.forEach(direction=>{set.edges[direction]=sourceId;set.edgeTransforms[direction]={
+    rotation:seedRotation,flipX:Boolean(seedTransform.flipX),flipY:Boolean(seedTransform.flipY)}})
+  emit();renderAll();
+}
+$("#rotateAllEdges").onclick=completeEdgesByRotation;
+$("#blobCutoff").oninput=event=>{$("#blobCutoffValue").textContent=`${event.target.value} px`};
+$("#blobCutoff").onchange=event=>{const set=activeSet();if(!set)return;set.cutoff=Number(event.target.value)||0;
+  set.edgeCutoffs=set.edgeCutoffs||{};for(const direction of ["top","right","bottom","left"])set.edgeCutoffs[direction]=set.cutoff;emit();renderAll()};
+$("#assignOverride").onclick=()=>{const role=selectedRole();if(!activeSet()||!role)return;
+  startPick("override",Number(role.mask),`Reemplazo completo de variante ${Number(role.index)+1}`)};
+$("#clearOverride").onclick=()=>{const set=activeSet(),role=selectedRole();if(!set||!role)return;delete set.overrides[String(role.mask)];emit();renderAll()};
+$("#compositeToggle").onchange=e=>{const set=activeSet(),role=selectedRole();if(!set||!role)return;if(e.target.checked)delete set.overrides[String(role.mask)];set.compositeCorners=e.target.checked;emit();renderAll()};
+function deleteSelection(){
+  const selected=new Set(state.project.ui.selectedTileIds);state.project.tiles=state.project.tiles.filter(tile=>!selected.has(tile.id));
+  state.project.ui.selectedTileIds=[];if(state.project.ui.selectedMask!==null){const set=activeSet();if(set)delete set.overrides[String(state.project.ui.selectedMask)];state.project.ui.selectedMask=null}
+  emit();renderAll();
+}
+function deleteSet(){const set=activeSet();if(!set)return;state.project.sets=state.project.sets.filter(item=>item.id!==set.id);
+  state.project.activeSetId=state.project.sets.at(-1)?.id||null;state.project.ui.selectedSetId=null;state.project.ui.selectedMask=null;emit();renderAll()}
+function openContext(event){event.preventDefault();const menu=$("#contextMenu"),stage=$("#setStage"),rect=stage.getBoundingClientRect();
+  menu.style.left=`${event.clientX-rect.left+stage.scrollLeft}px`;menu.style.top=`${event.clientY-rect.top+stage.scrollTop}px`;menu.classList.add("open");
+  $("#contextBlob").disabled=selectedTiles().length!==1;$("#contextWang").disabled=selectedTiles().length!==2}
+function closeContext(){$("#contextMenu").classList.remove("open")}
+setCanvas.oncontextmenu=openContext;document.addEventListener("pointerdown",event=>{if(!event.target.closest(".context-menu"))closeContext()});
+setCanvas.onpointerdown=event=>{if(event.button!==0)return;const point=cellPoint(event),role=generatedAt(point.x,point.y),tile=tileAt(point.x,point.y);
+  state.pointerStart={point,clientX:event.clientX,clientY:event.clientY};setCanvas.setPointerCapture(event.pointerId);
+  if(state.assignment){state.pointerStart=null;if(tile)finishPick(tile.sourceId);else $("#pickMessage").textContent="Elige uno de los tiles Source originales, no una variante generada.";return}
+  if(role){state.project.activeSetId=role.set.id;state.project.ui.selectedMask=Number(role.role.mask);state.project.ui.selectedTileIds=[];
+    state.project.ui.selectedSetId=role.set.id;state.dragMode="generated";emit();renderAll();return}
+  if(tile){state.project.ui.selectedMask=null;state.project.ui.selectedSetId=null;if(event.shiftKey){const list=state.project.ui.selectedTileIds;
+      state.project.ui.selectedTileIds=list.includes(tile.id)?list.filter(value=>value!==tile.id):[...list,tile.id]}else if(!state.project.ui.selectedTileIds.includes(tile.id))state.project.ui.selectedTileIds=[tile.id];
+    state.project.ui.activeSourceId=tile.sourceId;state.dragMode="tiles";renderAll();return}
+  state.project.ui.selectedMask=null;state.project.ui.selectedSetId=activeSet()?.id||null;if(!event.shiftKey)state.project.ui.selectedTileIds=[];
+  state.marquee={x0:point.x,y0:point.y,x1:point.x,y1:point.y};state.dragMode="marquee";renderAll();
+};
+setCanvas.onpointermove=event=>{if(!state.pointerStart)return;const point=cellPoint(event);if(state.dragMode==="marquee"){state.marquee.x1=point.x;state.marquee.y1=point.y;renderSetView()}};
+setCanvas.onpointerup=event=>{if(!state.pointerStart)return;const point=cellPoint(event);
+  if(state.dragMode==="tiles"){const dx=point.x-state.pointerStart.point.x,dy=point.y-state.pointerStart.point.y;if(dx||dy){const selected=new Set(state.project.ui.selectedTileIds);
+      for(const tile of state.project.tiles)if(selected.has(tile.id)){tile.x=Math.max(0,Number(tile.x)+dx);tile.y=Math.max(0,Number(tile.y)+dy)}emit()}}
+  if(state.dragMode==="marquee"&&state.marquee){const minX=Math.min(state.marquee.x0,state.marquee.x1),maxX=Math.max(state.marquee.x0,state.marquee.x1);
+    const minY=Math.min(state.marquee.y0,state.marquee.y1),maxY=Math.max(state.marquee.y0,state.marquee.y1);state.project.ui.selectedTileIds=state.project.tiles.filter(tile=>tile.x>=minX&&tile.x<=maxX&&tile.y>=minY&&tile.y<=maxY).map(tile=>tile.id)}
+  state.pointerStart=null;state.dragMode=null;state.marquee=null;renderAll();
+};
+function sourcePoint(event){const rect=sourceCanvas.getBoundingClientRect();return{x:Math.max(0,Math.min(sourceCanvas.width-1,Math.floor((event.clientX-rect.left)*sourceCanvas.width/rect.width))),
+  y:Math.max(0,Math.min(sourceCanvas.height-1,Math.floor((event.clientY-rect.top)*sourceCanvas.height/rect.height)))}}
+sourceCanvas.onpointerdown=event=>{state.cropStart=sourcePoint(event);state.crop={...state.cropStart,width:1,height:1};sourceCanvas.setPointerCapture(event.pointerId);renderSourceCanvas()};
+sourceCanvas.onpointermove=event=>{if(!state.cropStart)return;const point=sourcePoint(event),x=Math.min(point.x,state.cropStart.x),y=Math.min(point.y,state.cropStart.y);
+  state.crop={x,y,width:Math.abs(point.x-state.cropStart.x)+1,height:Math.abs(point.y-state.cropStart.y)+1};renderSourceCanvas()};
+sourceCanvas.onpointerup=()=>state.cropStart=null;
+$("#saveSource").onclick=()=>{if(!state.crop)return;const source=addSource(state.crop,$("#sourceName").value.trim());state.project.ui.activeSourceId=source.id;
+  $("#sourceName").value="";emit();renderAll()};
+$("#importGrid").onclick=importGrid;$("#buildBlob").onclick=()=>buildSet("blob_47");$("#buildWang").onclick=()=>buildSet("wang_16");
+$("#buildBlobInspector").onclick=()=>buildSet("blob_47");$("#buildWangInspector").onclick=()=>buildSet("wang_16");
+$("#contextBlob").onclick=()=>buildSet("blob_47");$("#contextWang").onclick=()=>buildSet("wang_16");
+$("#deleteSelection").onclick=deleteSelection;$("#contextDelete").onclick=deleteSelection;$("#deleteSet").onclick=deleteSet;
+$("#cancelPick").onclick=cancelPick;document.addEventListener("keydown",event=>{if(event.key==="Escape"&&state.assignment)cancelPick()});
+$("#zoom").onchange=renderSetView;
+function mapPoint(event){const rect=sandboxCanvas.getBoundingClientRect(),x=Math.floor((event.clientX-rect.left)*sandboxCanvas.width/rect.width/state.tileWidth);
+  const y=Math.floor((event.clientY-rect.top)*sandboxCanvas.height/rect.height/state.tileHeight);return{x,y}}
+function paintMap(event){const p=mapPoint(event);if(p.x<0||p.y<0||p.x>=state.mapWidth||p.y>=state.mapHeight)return;
+  state.map[p.y*state.mapWidth+p.x]=state.mapTool==="paint";renderSandbox()}
+sandboxCanvas.onpointerdown=event=>{state.mapDrawing=true;sandboxCanvas.setPointerCapture(event.pointerId);paintMap(event)};
+sandboxCanvas.onpointermove=event=>{if(state.mapDrawing)paintMap(event)};sandboxCanvas.onpointerup=()=>state.mapDrawing=false;
+$("#paint").onclick=()=>{state.mapTool="paint";$("#paint").classList.add("active");$("#erase").classList.remove("active")};
+$("#erase").onclick=()=>{state.mapTool="erase";$("#erase").classList.add("active");$("#paint").classList.remove("active")};
+$("#clearMap").onclick=()=>{state.map=Array(state.mapWidth*state.mapHeight).fill(false);renderSandbox()};
+window.addEventListener("message",event=>{if(event.data?.type!==RENDER)return;const args=event.data.args||{};
+  state.tileWidth=Math.max(1,Number(args.tileWidth)||16);state.tileHeight=Math.max(1,Number(args.tileHeight)||16);state.kind=args.kind||"blob_47";
+  state.roles=Array.isArray(args.roles)?args.roles:[];state.project=cleanProject(args.project||{});if(!state.map.length)state.map=Array(state.mapWidth*state.mapHeight).fill(false);
+  state.previews=new Map();for(const item of Array.isArray(args.setPreviews)?args.setPreviews:[]){const canvas=document.createElement("canvas");
+    const preview={roles:Array.isArray(item.roles)?item.roles:[],canvas,ready:false};state.previews.set(item.id,preview);const previewImage=new Image();
+    previewImage.onload=()=>{canvas.width=previewImage.naturalWidth;canvas.height=previewImage.naturalHeight;canvas.getContext("2d").drawImage(previewImage,0,0);preview.ready=true;renderSetView()};
+    previewImage.src=item.image}
+  const source=new Image();source.onload=()=>{sourceBuffer.width=source.naturalWidth;sourceBuffer.height=source.naturalHeight;sourceBufferCtx.clearRect(0,0,sourceBuffer.width,sourceBuffer.height);
+    sourceBufferCtx.imageSmoothingEnabled=false;sourceBufferCtx.drawImage(source,0,0);state.imageReady=true;renderAll()};source.src=args.image;
+  const pattern=new Image();pattern.onload=()=>{patternBuffer.width=pattern.naturalWidth;patternBuffer.height=pattern.naturalHeight;patternBufferCtx.clearRect(0,0,patternBuffer.width,patternBuffer.height);
+    patternBufferCtx.imageSmoothingEnabled=false;patternBufferCtx.drawImage(pattern,0,0);state.patternReady=true;renderAll()};pattern.src=args.patternImage;
+});
+post("streamlit:componentReady",{apiVersion:1});frameHeight();
+</script>
+</body>
+</html>

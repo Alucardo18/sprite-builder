@@ -1,0 +1,340 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      181,
+      398
+    ],
+    "canvas_height": 724,
+    "canvas_width": 362,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "bounding_box"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 200.0
+  },
+  "created_at": "2026-07-21T15:55:05.435680+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": true,
+    "padding": 18
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-b2bb0ce394c5",
+    "cell_size": [
+      371,
+      352
+    ],
+    "contact_sheet": null,
+    "crop": {
+      "alpha_threshold": 8,
+      "bbox": [
+        0,
+        223,
+        371,
+        575
+      ],
+      "enabled": true,
+      "padding": 18,
+      "source_size": [
+        371,
+        724
+      ]
+    },
+    "export_kind": "spritesheet",
+    "exported_at": "2026-07-21T16:00:46.317458+00:00",
+    "frame_count": 6,
+    "godot_notes": "6 column(s), 1 row(s); use nearest filtering and lossless compression",
+    "layout": "horizontal",
+    "output_frames": [],
+    "output_frames_dir": null,
+    "output_png": "sheet_sessions/sheet-20260721T155505-0930ab95-69af/exports/export-b2bb0ce394c5/sprite-sheet.png",
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260721T155505-0930ab95-69af/exports/export-b2bb0ce394c5/sprite-sheet.png",
+        "role": "output",
+        "sha256": "8706c8a458e5205a2707f8dcc0f4ab4b6f18d300e4ef724e4b29a1b96cf4d02f",
+        "size_bytes": 560994
+      }
+    ],
+    "preview_gif": null,
+    "primary_output": "sheet_sessions/sheet-20260721T155505-0930ab95-69af/exports/export-b2bb0ce394c5/sprite-sheet.png",
+    "schema_version": "1.0",
+    "session_id": "sheet-20260721T155505-0930ab95-69af",
+    "sha256": "8706c8a458e5205a2707f8dcc0f4ab4b6f18d300e4ef724e4b29a1b96cf4d02f",
+    "status": "manual_review",
+    "validation_warnings": [
+      "alignment stage is not passed",
+      "alignment contains manual_review frames"
+    ]
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        1,
+        38
+      ],
+      "auto_anchor": [
+        182.5,
+        360.5
+      ],
+      "auto_confidence": 0.5,
+      "body_bbox": [
+        46,
+        203,
+        320,
+        519
+      ],
+      "final_anchor": [
+        184.0,
+        398.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        25,
+        32
+      ],
+      "auto_anchor": [
+        158.5,
+        372.5
+      ],
+      "auto_confidence": 0.5,
+      "body_bbox": [
+        16,
+        229,
+        302,
+        517
+      ],
+      "final_anchor": [
+        184.0,
+        404.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 6,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        26,
+        26
+      ],
+      "auto_anchor": [
+        159.5,
+        394.5
+      ],
+      "auto_confidence": 0.5,
+      "body_bbox": [
+        24,
+        269,
+        296,
+        521
+      ],
+      "final_anchor": [
+        185.0,
+        420.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 1,
+      "manual_offset_y": 22,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        34,
+        16
+      ],
+      "auto_anchor": [
+        150.0,
+        425.0
+      ],
+      "auto_confidence": 0.5,
+      "body_bbox": [
+        11,
+        317,
+        290,
+        534
+      ],
+      "final_anchor": [
+        184.0,
+        441.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 43,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -5,
+        7
+      ],
+      "auto_anchor": [
+        189.0,
+        467.5
+      ],
+      "auto_confidence": 0.5,
+      "body_bbox": [
+        5,
+        393,
+        374,
+        543
+      ],
+      "final_anchor": [
+        184.0,
+        475.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 77,
+      "manual_review": true,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -10,
+        -8
+      ],
+      "auto_anchor": [
+        195.0,
+        485.5
+      ],
+      "auto_confidence": 0.5,
+      "body_bbox": [
+        10,
+        414,
+        381,
+        558
+      ],
+      "final_anchor": [
+        185.0,
+        478.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": 1,
+      "manual_offset_y": 80,
+      "manual_review": true,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 0.48686938493434695,
+    "border_rgb": [
+      254,
+      254,
+      254
+    ],
+    "has_alpha": false,
+    "height": 724,
+    "mode": "RGB",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      253,
+      253,
+      255
+    ],
+    "uses_transparency": false,
+    "width": 2172
+  },
+  "layer_document": null,
+  "output_dir": "sheet_sessions/sheet-20260721T155505-0930ab95-69af",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 6,
+    "manual_cut_positions": [
+      348,
+      686,
+      1027,
+      1344,
+      1732
+    ],
+    "manual_cut_positions_x": [
+      348,
+      686,
+      1027,
+      1344,
+      1732
+    ],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260721T155505-0930ab95-69af",
+  "source_image_path": "sheet_sessions/sheet-20260721T155505-0930ab95-69af/source/0930ab958018982bd3128e8ae1790705b84693b1d0d33d921fe655c56cb19aa5.png",
+  "source_sha256": "0930ab958018982bd3128e8ae1790705b84693b1d0d33d921fe655c56cb19aa5",
+  "stages": {
+    "alignment": {
+      "cache_key": "73ebcfa9b4c7b746622c133e87a84eb1f6022afa0d69b7d717e4059f29f7f2a3",
+      "manifest": "sheet_sessions/sheet-20260721T155505-0930ab95-69af/attempts/alignment/73ebcfa9b4c7b746622c133e87a84eb1f6022afa0d69b7d717e4059f29f7f2a3/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260721T155505-0930ab95-69af/attempts/alignment/73ebcfa9b4c7b746622c133e87a84eb1f6022afa0d69b7d717e4059f29f7f2a3/frame_000.png",
+        "sheet_sessions/sheet-20260721T155505-0930ab95-69af/attempts/alignment/73ebcfa9b4c7b746622c133e87a84eb1f6022afa0d69b7d717e4059f29f7f2a3/frame_001.png",
+        "sheet_sessions/sheet-20260721T155505-0930ab95-69af/attempts/alignment/73ebcfa9b4c7b746622c133e87a84eb1f6022afa0d69b7d717e4059f29f7f2a3/frame_002.png",
+        "sheet_sessions/sheet-20260721T155505-0930ab95-69af/attempts/alignment/73ebcfa9b4c7b746622c133e87a84eb1f6022afa0d69b7d717e4059f29f7f2a3/frame_003.png",
+        "sheet_sessions/sheet-20260721T155505-0930ab95-69af/attempts/alignment/73ebcfa9b4c7b746622c133e87a84eb1f6022afa0d69b7d717e4059f29f7f2a3/frame_004.png",
+        "sheet_sessions/sheet-20260721T155505-0930ab95-69af/attempts/alignment/73ebcfa9b4c7b746622c133e87a84eb1f6022afa0d69b7d717e4059f29f7f2a3/frame_005.png"
+      ],
+      "status": "manual_review"
+    },
+    "background": {
+      "cache_key": "33f8fbe2b7654a23ca8cdeec3ba98bc0811e9bc933d7a86c979571cb2cad264f",
+      "manifest": "sheet_sessions/sheet-20260721T155505-0930ab95-69af/attempts/background/33f8fbe2b7654a23ca8cdeec3ba98bc0811e9bc933d7a86c979571cb2cad264f/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260721T155505-0930ab95-69af/attempts/background/33f8fbe2b7654a23ca8cdeec3ba98bc0811e9bc933d7a86c979571cb2cad264f/frame_000.png"
+      ],
+      "status": "passed"
+    },
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260721T155505-0930ab95-69af/exports/export-b2bb0ce394c5/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260721T155505-0930ab95-69af/exports/export-b2bb0ce394c5/sprite-sheet.png"
+      ],
+      "status": "manual_review"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260721T155505-0930ab95-69af/source/0930ab958018982bd3128e8ae1790705b84693b1d0d33d921fe655c56cb19aa5.png",
+      "sha256": "0930ab958018982bd3128e8ae1790705b84693b1d0d33d921fe655c56cb19aa5",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-21T16:00:46.318421+00:00"
+}

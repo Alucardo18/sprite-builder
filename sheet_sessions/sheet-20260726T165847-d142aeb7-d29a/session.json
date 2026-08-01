@@ -1,0 +1,285 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      192,
+      563
+    ],
+    "canvas_height": 1024,
+    "canvas_width": 384,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 200.0
+  },
+  "created_at": "2026-07-26T16:58:47.327856+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": true,
+    "padding": 30
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-cda49997fc12",
+    "cell_size": [
+      384,
+      312
+    ],
+    "contact_sheet": null,
+    "crop": {
+      "alpha_threshold": 8,
+      "bbox": [
+        0,
+        398,
+        384,
+        710
+      ],
+      "enabled": true,
+      "padding": 30,
+      "source_size": [
+        384,
+        1024
+      ]
+    },
+    "export_kind": "spritesheet",
+    "exported_at": "2026-07-26T17:02:48.855043+00:00",
+    "frame_count": 4,
+    "godot_notes": "4 column(s), 1 row(s); use nearest filtering and lossless compression",
+    "layout": "horizontal",
+    "output_frames": [],
+    "output_frames_dir": null,
+    "output_png": "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/exports/export-cda49997fc12/sprite-sheet.png",
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/exports/export-cda49997fc12/sprite-sheet.png",
+        "role": "output",
+        "sha256": "c0dd518d231daf17d70393129c46aff5f45696c80c95560120e12cbc5af9885d",
+        "size_bytes": 262359
+      }
+    ],
+    "preview_gif": null,
+    "primary_output": "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/exports/export-cda49997fc12/sprite-sheet.png",
+    "schema_version": "1.0",
+    "session_id": "sheet-20260726T165847-d142aeb7-d29a",
+    "sha256": "c0dd518d231daf17d70393129c46aff5f45696c80c95560120e12cbc5af9885d",
+    "status": "manual_review",
+    "validation_warnings": [
+      "alignment stage is not passed"
+    ]
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        -24,
+        60
+      ],
+      "auto_anchor": [
+        216.0,
+        503.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        68,
+        368,
+        341,
+        620
+      ],
+      "final_anchor": [
+        192.0,
+        563.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        -2,
+        38
+      ],
+      "auto_anchor": [
+        194.0,
+        525.0
+      ],
+      "auto_confidence": 0.7097283729815766,
+      "body_bbox": [
+        8,
+        396,
+        355,
+        620
+      ],
+      "final_anchor": [
+        192.0,
+        563.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        3,
+        24
+      ],
+      "auto_anchor": [
+        189.0,
+        539.0
+      ],
+      "auto_confidence": 0.7137595388692141,
+      "body_bbox": [
+        3,
+        415,
+        361,
+        621
+      ],
+      "final_anchor": [
+        192.0,
+        563.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        8,
+        50
+      ],
+      "auto_anchor": [
+        184.0,
+        513.0
+      ],
+      "auto_confidence": 0.7424201716622463,
+      "body_bbox": [
+        29,
+        380,
+        312,
+        624
+      ],
+      "final_anchor": [
+        192.0,
+        563.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 0.5136825645035183,
+    "border_rgb": [
+      254,
+      254,
+      254
+    ],
+    "has_alpha": false,
+    "height": 1024,
+    "mode": "RGB",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      253,
+      255,
+      255
+    ],
+    "uses_transparency": false,
+    "width": 1536
+  },
+  "layer_document": {
+    "cache_key": "6ef336af4241f353450d59e4b7524d3b6c6d25bfdb4f7aa41066abb27ae0fc71",
+    "document_id": "sprite-a972edb821f1",
+    "manifest": "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/attempts/layers/6ef336af4241f353450d59e4b7524d3b6c6d25bfdb4f7aa41066abb27ae0fc71/manifest.json",
+    "manifest_sha256": "fdc5883aaba250e1501695f5828c86686b9a458706e9e2b699211768b08511bd",
+    "revision": 1
+  },
+  "output_dir": "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 4,
+    "manual_cut_positions": [
+      410,
+      779,
+      1152
+    ],
+    "manual_cut_positions_x": [
+      410,
+      779,
+      1152
+    ],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260726T165847-d142aeb7-d29a",
+  "source_image_path": "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/source/d142aeb797c12ecad2c5b15a8bda909025c7aebd3ecff29d9c4fb0997d7102e8.png",
+  "source_sha256": "d142aeb797c12ecad2c5b15a8bda909025c7aebd3ecff29d9c4fb0997d7102e8",
+  "stages": {
+    "background": {
+      "cache_key": "bc35ceb5a7631589bc254772752f6121bcc90a4eb47660bd23f6f8b37b4ba451",
+      "manifest": "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/attempts/background/bc35ceb5a7631589bc254772752f6121bcc90a4eb47660bd23f6f8b37b4ba451/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/attempts/background/bc35ceb5a7631589bc254772752f6121bcc90a4eb47660bd23f6f8b37b4ba451/frame_000.png"
+      ],
+      "status": "passed"
+    },
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/exports/export-cda49997fc12/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/exports/export-cda49997fc12/sprite-sheet.png"
+      ],
+      "status": "manual_review"
+    },
+    "segmentation": {
+      "cache_key": "a2630ffd3afd199d7a00eb17d24e3a5df51a779afb9ba96493d826c09c71fbd1",
+      "manifest": "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/attempts/segmentation/a2630ffd3afd199d7a00eb17d24e3a5df51a779afb9ba96493d826c09c71fbd1/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/attempts/segmentation/a2630ffd3afd199d7a00eb17d24e3a5df51a779afb9ba96493d826c09c71fbd1/frame_000.png",
+        "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/attempts/segmentation/a2630ffd3afd199d7a00eb17d24e3a5df51a779afb9ba96493d826c09c71fbd1/frame_001.png",
+        "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/attempts/segmentation/a2630ffd3afd199d7a00eb17d24e3a5df51a779afb9ba96493d826c09c71fbd1/frame_002.png",
+        "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/attempts/segmentation/a2630ffd3afd199d7a00eb17d24e3a5df51a779afb9ba96493d826c09c71fbd1/frame_003.png"
+      ],
+      "status": "passed"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260726T165847-d142aeb7-d29a/source/d142aeb797c12ecad2c5b15a8bda909025c7aebd3ecff29d9c4fb0997d7102e8.png",
+      "sha256": "d142aeb797c12ecad2c5b15a8bda909025c7aebd3ecff29d9c4fb0997d7102e8",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-07-26T17:02:48.855804+00:00"
+}

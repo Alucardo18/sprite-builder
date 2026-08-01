@@ -1,0 +1,158 @@
+{
+  "cache_key": "8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8",
+  "config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 6,
+    "manual_cut_positions": [
+      281,
+      576,
+      846,
+      1120,
+      1404
+    ],
+    "manual_cut_positions_x": [
+      281,
+      576,
+      846,
+      1120,
+      1404
+    ],
+    "manual_cut_positions_y": [],
+    "offset_x": 8,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 34,
+    "spacing_y": 0
+  },
+  "created_at": "2026-07-19T18:19:13.860088+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/source/82950aebd3de34755042f717f1725cb28f2db10c2d760a1b50c26fc368e11288.png",
+      "role": "source",
+      "sha256": "82950aebd3de34755042f717f1725cb28f2db10c2d760a1b50c26fc368e11288",
+      "size_bytes": 1031817
+    }
+  ],
+  "metadata": {
+    "empty_frames": [],
+    "regions": [
+      [
+        8,
+        0,
+        281,
+        919
+      ],
+      [
+        281,
+        0,
+        576,
+        919
+      ],
+      [
+        576,
+        0,
+        846,
+        919
+      ],
+      [
+        846,
+        0,
+        1120,
+        919
+      ],
+      [
+        1120,
+        0,
+        1404,
+        919
+      ],
+      [
+        1404,
+        0,
+        1711,
+        919
+      ]
+    ],
+    "resolved_config": {
+      "cell_height": 919,
+      "cell_width": 255,
+      "columns": 6,
+      "frame_count": 6,
+      "manual_cut_positions": [
+        281,
+        576,
+        846,
+        1120,
+        1404
+      ],
+      "manual_cut_positions_x": [
+        281,
+        576,
+        846,
+        1120,
+        1404
+      ],
+      "manual_cut_positions_y": [],
+      "offset_x": 8,
+      "offset_y": 0,
+      "orientation": "horizontal",
+      "rows": 1,
+      "spacing_x": 34,
+      "spacing_y": 0
+    }
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_000.png",
+      "role": "output",
+      "sha256": "8e9b987c3e3a04f7b1e39becb42d754345a2b3bcff3a9e112806c5495948c574",
+      "size_bytes": 193821
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_001.png",
+      "role": "output",
+      "sha256": "aa1e906840db80c733008a6f0fd7238ebe08ecb5492c2578e95f0fcf772158fb",
+      "size_bytes": 197129
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_002.png",
+      "role": "output",
+      "sha256": "fe2b228bc28a5a2802ec84eab8d3fdda7970f45a31bd28c31d28db209dfb4169",
+      "size_bytes": 182658
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_003.png",
+      "role": "output",
+      "sha256": "7ca5c988c53dc21beec0f75b46bf6a917a99eb4b5f2ee8ca940bee900a34859e",
+      "size_bytes": 178911
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_004.png",
+      "role": "output",
+      "sha256": "b8683037f3042640c65e949996af138738fad235fa55c315b125ccc294e47b6d",
+      "size_bytes": 182139
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260719T181003-82950aeb-920f/attempts/segmentation/8ebdf191f08f541569f3398556a49d7efca26ab3fab28af2bbf0597fe3da33b8/frame_005.png",
+      "role": "output",
+      "sha256": "2be1760883e958ac54624b7bea7cdc85b6b40311ddcbc8978b20fb43890b06a0",
+      "size_bytes": 197080
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260719T181003-82950aeb-920f",
+  "stage": "segmentation",
+  "status": "passed",
+  "warnings": []
+}

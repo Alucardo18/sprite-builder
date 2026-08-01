@@ -1,0 +1,90 @@
+{
+  "cache_key": "89960bd0b8c778689216d598bdcc5f4cc1606713000085f57db0eef6ae3f1166",
+  "config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 2,
+    "manual_cut_positions": [
+      673
+    ],
+    "manual_cut_positions_x": [
+      673
+    ],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "created_at": "2026-07-22T23:53:23.975297+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260722T235008-8d08a4a1-7e8f/source/8d08a4a1960ad30b21127981a2641086b3960697d51f88e6c9b35ea8f5a4b433.png",
+      "role": "source",
+      "sha256": "8d08a4a1960ad30b21127981a2641086b3960697d51f88e6c9b35ea8f5a4b433",
+      "size_bytes": 1040158
+    }
+  ],
+  "metadata": {
+    "empty_frames": [],
+    "regions": [
+      [
+        0,
+        0,
+        673,
+        1024
+      ],
+      [
+        673,
+        0,
+        1536,
+        1024
+      ]
+    ],
+    "resolved_config": {
+      "cell_height": 1024,
+      "cell_width": 768,
+      "columns": 2,
+      "frame_count": 2,
+      "manual_cut_positions": [
+        673
+      ],
+      "manual_cut_positions_x": [
+        673
+      ],
+      "manual_cut_positions_y": [],
+      "offset_x": 0,
+      "offset_y": 0,
+      "orientation": "horizontal",
+      "rows": 1,
+      "spacing_x": 0,
+      "spacing_y": 0
+    }
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260722T235008-8d08a4a1-7e8f/attempts/segmentation/89960bd0b8c778689216d598bdcc5f4cc1606713000085f57db0eef6ae3f1166/frame_000.png",
+      "role": "output",
+      "sha256": "21f6a3542683369827b4c5512ea9fe9ac64b3c4f637efb1a601ebb94af577d70",
+      "size_bytes": 328659
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260722T235008-8d08a4a1-7e8f/attempts/segmentation/89960bd0b8c778689216d598bdcc5f4cc1606713000085f57db0eef6ae3f1166/frame_001.png",
+      "role": "output",
+      "sha256": "a72b23716d29ca5a564731a79833166f4f823a52aaa52e799d308660441e43dd",
+      "size_bytes": 456128
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260722T235008-8d08a4a1-7e8f",
+  "stage": "segmentation",
+  "status": "passed",
+  "warnings": []
+}

@@ -11,7 +11,7 @@ import uuid
 import zipfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import streamlit as st
@@ -29,11 +29,11 @@ from sprite_builder.sheets import (
     SegmentationConfig,
     SheetSessionStore,
     SpriteLayer,
+    analyze_center_frames,
     apply_background_removal,
     apply_manual_background_edits,
-    auto_cut_positions,
     auto_center_frames,
-    analyze_center_frames,
+    auto_cut_positions,
     clear_selection,
     combine_selection_masks,
     composite_document_frame,
@@ -45,35 +45,42 @@ from sprite_builder.sheets import (
     move_document_frame,
     outline_cel_pixels,
     paint_cel_stroke,
+    remove_isolated_pixels,
     render_contact_sheet,
     render_frame_overlay,
     render_segmentation_guides,
     render_selection_overlay,
-    remove_isolated_pixels,
     replace_cel_color,
     resolve_segmentation_config,
     sample_pixel,
     segment_sheet,
     select_similar_pixels,
-    trim_transparent_frames,
+    shift_mask,
     transform_cel_selection,
+    transform_masked_pixels,
+    trim_transparent_frames,
 )
 from sprite_builder.sheets.models import ExportCropConfig
 from sprite_builder.tilesets import (
+    TerrainPatternKind,
     TilesetGrid,
+    build_terrain_pattern_bundle,
     build_tileset_bundle,
+    build_tilesetter_terrain_pattern,
+    render_terrain_bitmask_template,
     resize_tileset,
     resize_tileset_canvas,
     slice_tileset,
+    terrain_pattern_set_layout,
 )
 from sprite_builder.ui.components import (
     header_navigation,
     pixel_editor,
     pixel_image_html,
     status_badge,
+    terrain_pattern_studio,
     tileset_editor,
 )
-
 
 _EDITOR_HISTORY_LIMIT = 75
 _TILESET_STATE_PREFIX = "tileset_builder"
@@ -152,11 +159,10 @@ def _apply_tileset_grid_event(event: Mapping[str, Any]) -> None:
         st.session_state[f"{prefix}:{name}"] = max(0, int(raw.get(name, 0)))
 
 
-def _render_tileset_builder() -> None:
-    """Render the standalone, full-width tileset authoring canvas."""
+def _render_tileset_atlas_editor() -> None:
+    """Render the existing full-width pixel atlas editor."""
 
     prefix = _TILESET_STATE_PREFIX
-    st.subheader("Tileset Builder")
     st.caption(
         "Edita el atlas a píxel real, define su cuadrícula y exporta PNG + metadata."
     )
@@ -376,6 +382,312 @@ def _render_tileset_builder() -> None:
     )
 
 
+def _render_terrain_patterns() -> None:
+    """Render the fragment-first, TileSetter-inspired terrain workspace."""
+
+    prefix = f"{_TILESET_STATE_PREFIX}:patterns"
+    st.caption(
+        "Importa Sources al Set View, selecciona uno o dos tiles y usa Build "
+        "Borders. Configura el set desde Tile Properties mientras el Sandbox "
+        "se actualiza."
+    )
+    image = _tileset_state_image()
+    if image is None:
+        st.warning(
+            "Carga o dibuja una imagen en Atlas. Pattern Studio puede dividirla "
+            "por la grilla o crear Sources desde recortes libres."
+        )
+        return
+
+    grid = _tileset_grid_from_state()
+    project_key = f"{prefix}:set_view_project"
+    raw_project = st.session_state.get(project_key)
+    project: dict[str, Any] = (
+        dict(raw_project) if isinstance(raw_project, Mapping) else {}
+    )
+    if int(project.get("version", 0)) < 3:
+        legacy_sources = project.get("fragments", [])
+        sources = legacy_sources if isinstance(legacy_sources, list) else []
+        project = {
+            "version": 3,
+            "sources": sources,
+            "tiles": [
+                {
+                    "id": f"legacy-tile-{index}",
+                    "sourceId": str(source.get("id", "")),
+                    "x": index % 10,
+                    "y": index // 10,
+                }
+                for index, source in enumerate(sources)
+                if isinstance(source, Mapping) and source.get("id")
+            ],
+            "sets": [],
+            "activeSetId": None,
+            "ui": {
+                "selectedTileIds": [],
+                "selectedMask": None,
+                "activeSourceId": None,
+                "selectedSetId": None,
+            },
+        }
+    project.setdefault("version", 3)
+    project.setdefault("sources", [])
+    project.setdefault("tiles", [])
+    project.setdefault("sets", [])
+    project.setdefault("activeSetId", None)
+    project.setdefault(
+        "ui",
+        {
+            "selectedTileIds": [],
+            "selectedMask": None,
+            "activeSourceId": None,
+            "selectedSetId": None,
+        },
+    )
+    raw_sets = project.get("sets", [])
+    sets = raw_sets if isinstance(raw_sets, list) else []
+    active_set = next(
+        (
+            item
+            for item in sets
+            if isinstance(item, Mapping)
+            and str(item.get("id", "")) == str(project.get("activeSetId", ""))
+        ),
+        None,
+    )
+    kind_value = str(active_set.get("kind", "blob_47")) if active_set else "blob_47"
+    if kind_value not in {"blob_47", "wang_16", "sides_16"}:
+        kind_value = "blob_47"
+    kind = cast(TerrainPatternKind, kind_value)
+    raw_sources = project.get("sources", [])
+    sources = raw_sources if isinstance(raw_sources, list) else []
+    source_mappings = [item for item in sources if isinstance(item, Mapping)]
+    set_results: dict[str, Any] = {}
+    set_previews: list[dict[str, Any]] = []
+    for item in sets:
+        if not isinstance(item, Mapping):
+            continue
+        item_kind_value = str(item.get("kind", "blob_47"))
+        if item_kind_value not in {"blob_47", "wang_16", "sides_16"}:
+            continue
+        item_kind = cast(TerrainPatternKind, item_kind_value)
+        item_result = build_tilesetter_terrain_pattern(
+            image,
+            tile_size=(grid.tile_width, grid.tile_height),
+            sources=source_mappings,
+            set_config=item,
+            kind=item_kind,
+        )
+        set_id = str(item.get("id", ""))
+        set_results[set_id] = item_result
+        set_layout = terrain_pattern_set_layout(item_kind)
+        set_positions = {
+            int(mask): (column, row)
+            for row, layout_row in enumerate(set_layout)
+            for column, mask in enumerate(layout_row)
+            if mask is not None
+        }
+        set_previews.append(
+            {
+                "id": set_id,
+                "kind": item_kind,
+                "image": item_result.image,
+                "roles": [
+                    {
+                        "index": role.index,
+                        "mask": role.mask,
+                        "neighbors": list(role.neighbors),
+                        "previewColumn": role.column,
+                        "previewRow": role.row,
+                        "setColumn": set_positions[role.mask][0],
+                        "setRow": set_positions[role.mask][1],
+                        "generated": role.generated,
+                        "sourceIndex": role.source_index,
+                    }
+                    for role in item_result.tiles
+                ],
+            }
+        )
+    result = set_results.get(str(project.get("activeSetId", "")))
+    if result is None:
+        result = build_tilesetter_terrain_pattern(
+            image,
+            tile_size=(grid.tile_width, grid.tile_height),
+            sources=source_mappings,
+            set_config={},
+            kind=kind,
+        )
+    active_layout = terrain_pattern_set_layout(kind)
+    active_positions = {
+        int(mask): (column, row)
+        for row, layout_row in enumerate(active_layout)
+        for column, mask in enumerate(layout_row)
+        if mask is not None
+    }
+    roles = [
+        {
+            "index": role.index,
+            "mask": role.mask,
+            "neighbors": list(role.neighbors),
+            "previewColumn": role.column,
+            "previewRow": role.row,
+            "setColumn": active_positions[role.mask][0],
+            "setRow": active_positions[role.mask][1],
+            "generated": role.generated,
+            "sourceIndex": role.source_index,
+        }
+        for role in result.tiles
+    ]
+    event = terrain_pattern_studio(
+        image,
+        pattern_image=result.image,
+        image_token=str(
+            st.session_state.setdefault(
+                f"{_TILESET_STATE_PREFIX}:canvas_token",
+                uuid.uuid4().hex,
+            )
+        ),
+        tile_size=(grid.tile_width, grid.tile_height),
+        offset=(0, 0),
+        spacing=(0, 0),
+        kind=kind,
+        roles=roles,
+        project=project,
+        set_previews=set_previews,
+        key=f"{prefix}:studio",
+    )
+    if isinstance(event, Mapping):
+        event_id = str(event.get("eventId", ""))
+        if event_id and event_id != st.session_state.get(f"{prefix}:last_event"):
+            st.session_state[f"{prefix}:last_event"] = event_id
+            incoming = event.get("project")
+            if event.get("type") == "project-change" and isinstance(incoming, Mapping):
+                revised = dict(incoming)
+                if int(revised.get("version", 0)) == 3:
+                    st.session_state[project_key] = revised
+                    st.rerun()
+
+    with st.expander("Proyecto y exportación", expanded=True):
+        name_col, status_col = st.columns((2.7, 1.3), gap="small")
+        terrain_name = name_col.text_input(
+            "Nombre del patrón",
+            value="Terrain",
+            key=f"{prefix}:terrain_name",
+        ).strip() or "Terrain"
+        status_col.metric("Variantes", len(result.tiles))
+        atlas_sha256 = hashlib.sha256(_png_bytes(image)).hexdigest()
+        saved_project = {
+            "schema_version": "3.0",
+            "kind": "tilesetter_set_project",
+            "name": terrain_name,
+            "atlas_sha256": atlas_sha256,
+            "tile_size": [grid.tile_width, grid.tile_height],
+            "studio": project,
+        }
+        project_payload = (
+            json.dumps(saved_project, indent=2, ensure_ascii=False) + "\n"
+        ).encode("utf-8")
+        safe_name = terrain_name.lower().replace(" ", "-")
+        project_col, import_col = st.columns(2, gap="small")
+        project_col.download_button(
+            "Guardar proyecto Set View",
+            data=project_payload,
+            file_name=f"{safe_name}.tilesetter-project.json",
+            mime="application/json",
+            width="stretch",
+            key=f"{prefix}:download_project",
+        )
+        project_upload = import_col.file_uploader(
+            "Abrir proyecto Set View",
+            type=["json"],
+            key=f"{prefix}:project_upload",
+        )
+        if project_upload is not None:
+            payload = project_upload.getvalue()
+            digest = hashlib.sha256(payload).hexdigest()
+            if digest != st.session_state.get(f"{prefix}:project_upload_sha256"):
+                try:
+                    incoming_project = json.loads(payload)
+                    if incoming_project.get("atlas_sha256") != atlas_sha256:
+                        st.error(
+                            "Este proyecto utiliza otra imagen fuente; no se importó."
+                        )
+                    elif incoming_project.get("kind") != "tilesetter_set_project":
+                        raise ValueError("No es un proyecto de Set View")
+                    else:
+                        studio = incoming_project.get("studio")
+                        if not isinstance(studio, Mapping):
+                            raise ValueError("El proyecto no contiene datos del estudio")
+                        st.session_state[project_key] = dict(studio)
+                        st.session_state[f"{prefix}:project_upload_sha256"] = digest
+                        st.rerun()
+                except (AttributeError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                    st.error(f"Proyecto Set View inválido: {exc}")
+
+        if result.complete:
+            st.success(
+                "Patrón completo. Puedes exportarlo, corregir variantes en el "
+                "compositor o seguir probándolo en el mapa."
+            )
+            bundle_col, png_col, guide_col, atlas_col = st.columns(4, gap="small")
+            bundle_col.download_button(
+                "Bundle Godot 4",
+                data=build_terrain_pattern_bundle(result, terrain_name=terrain_name),
+                file_name=f"{safe_name}-godot.zip",
+                mime="application/zip",
+                width="stretch",
+                key=f"{prefix}:download_bundle",
+            )
+            png_col.download_button(
+                "Tileset PNG",
+                data=_png_bytes(result.image),
+                file_name=f"{safe_name}-terrain.png",
+                mime="image/png",
+                width="stretch",
+                key=f"{prefix}:download_png",
+            )
+            guide_col.download_button(
+                "Guía técnica",
+                data=_png_bytes(render_terrain_bitmask_template(kind)),
+                file_name=f"{safe_name}-bitmask-reference.png",
+                mime="image/png",
+                width="stretch",
+                key=f"{prefix}:download_bitmask_guide",
+            )
+            if atlas_col.button(
+                "Abrir resultado en Atlas",
+                width="stretch",
+                key=f"{prefix}:open_in_atlas",
+            ):
+                _set_tileset_image(
+                    result.image,
+                    source_name=f"{safe_name}-terrain.png",
+                    reset_canvas=True,
+                )
+                st.session_state[f"{_TILESET_STATE_PREFIX}:tile_size"] = grid.tile_width
+                st.session_state[f"{_TILESET_STATE_PREFIX}:offset_x"] = 0
+                st.session_state[f"{_TILESET_STATE_PREFIX}:offset_y"] = 0
+                st.session_state[f"{_TILESET_STATE_PREFIX}:spacing_x"] = 0
+                st.session_state[f"{_TILESET_STATE_PREFIX}:spacing_y"] = 0
+                st.rerun()
+        else:
+            st.info(
+                "Importa Sources, selecciona un tile para Blob o dos para Wang y "
+                "ejecuta Build Borders. Después asigna los cuatro Border Sources."
+            )
+
+
+def _render_tileset_builder() -> None:
+    """Render the standalone Tilebuilder page and its authoring tabs."""
+
+    st.subheader("Tileset Builder")
+    atlas_tab, patterns_tab = st.tabs(("Atlas", "Pattern Studio"))
+    with atlas_tab:
+        _render_tileset_atlas_editor()
+    with patterns_tab:
+        _render_terrain_patterns()
+
+
 def _set_editor_width_mode(enabled: bool) -> None:
     if not enabled:
         return
@@ -543,6 +855,13 @@ def _background_history_snapshot(prefix: str) -> dict[str, Any]:
 
 def _clear_background_floating_selection(prefix: str) -> None:
     st.session_state.pop(f"{prefix}:background_floating_selection", None)
+
+
+def _mask_bounds(mask: np.ndarray) -> tuple[int, int, int, int] | None:
+    ys, xs = np.where(np.asarray(mask, dtype=bool))
+    if len(xs) == 0:
+        return None
+    return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
 
 
 def _center_history_snapshot(prefix: str) -> dict[str, Any]:
@@ -725,10 +1044,14 @@ def _history_label(scope: str, event: Mapping[str, Any]) -> str:
     if scope == "background":
         if event_type == "key" and str(event.get("key", "")).lower() in {"delete", "backspace"}:
             return "Borrar selección"
+        if event_type == "pixel-action" and str(event.get("action", "")) == "rotate-selection":
+            return f"Rotar selección {float(event.get('degrees', 0)):g}°"
         if event_type == "key":
             return "Cambiar selección"
         tool = _normalize_background_tool(event.get("tool"))
         if event_type == "floating-transform":
+            if str(event.get("operationKind", "")) == "copy_mask":
+                return "Pegar selección"
             return "Mover selección"
         if event_type == "crop":
             return _background_tool_label(tool)
@@ -1953,6 +2276,7 @@ def _ensure_background_editor_state(
     contiguous_key = f"{prefix}:background_wand_contiguous"
     event_key = f"{prefix}:background_last_event"
     floating_key = f"{prefix}:background_floating_selection"
+    clipboard_key = f"{prefix}:background_clipboard"
     if tool_key not in st.session_state:
         st.session_state[tool_key] = "wand"
     else:
@@ -1977,6 +2301,8 @@ def _ensure_background_editor_state(
         st.session_state[event_key] = None
     if floating_key not in st.session_state:
         st.session_state[floating_key] = None
+    if clipboard_key not in st.session_state:
+        st.session_state[clipboard_key] = None
 
 
 def _selection_mode_from_event(event: dict[str, Any]) -> str:
@@ -2082,6 +2408,229 @@ def _handle_background_editor_event(
         st.session_state[f"{prefix}:background_tool"] = "wand"
         st.session_state[f"{prefix}:background_tool_widget_sync"] = "wand"
         return True
+    if event_type == "clipboard":
+        action = str(event.get("action", ""))
+        frame = frames[selected_frame]
+        floating = st.session_state.get(f"{prefix}:background_floating_selection")
+        selections = list(st.session_state[f"{prefix}:background_selection_masks"])
+        selection = selections[selected_frame]
+        clipboard: dict[str, Any] | None = None
+        if action == "copy":
+            if (
+                isinstance(floating, dict)
+                and int(floating.get("frame_index", -1)) == selected_frame
+                and isinstance(floating.get("mask"), np.ndarray)
+                and isinstance(floating.get("piece"), Image.Image)
+                and isinstance(floating.get("remainder"), Image.Image)
+            ):
+                floating_mask = np.asarray(floating["mask"], dtype=bool)
+                clipboard = {
+                    "frame_index": selected_frame,
+                    "mask": floating_mask.copy(),
+                    "piece": floating["piece"].copy(),
+                    "remainder": floating["remainder"].copy(),
+                    "bounds": tuple(int(value) for value in floating.get("bounds", (0, 0, 0, 0))),
+                    "quarter_turns": int(floating.get("quarter_turns", 0)) % 4,
+                    "source": "floating",
+                }
+            elif isinstance(selection, np.ndarray) and selection.any():
+                remainder, piece = _extract_layer_piece(frame, selection)
+                bounds = _mask_bounds(selection)
+                if bounds is not None:
+                    clipboard = {
+                        "frame_index": selected_frame,
+                        "mask": selection.copy(),
+                        "piece": piece,
+                        "remainder": remainder,
+                        "bounds": bounds,
+                        "quarter_turns": 0,
+                    }
+            if clipboard is None:
+                return False
+            st.session_state[f"{prefix}:background_clipboard"] = clipboard
+            return True
+        if action != "paste":
+            return False
+        clipboard = st.session_state.get(f"{prefix}:background_clipboard")
+        if not isinstance(clipboard, dict):
+            return False
+        raw_mask = clipboard.get("mask")
+        raw_piece = clipboard.get("piece")
+        raw_remainder = clipboard.get("remainder")
+        raw_bounds = clipboard.get("bounds")
+        if (
+            not isinstance(raw_mask, np.ndarray)
+            or not raw_mask.any()
+            or not isinstance(raw_piece, Image.Image)
+            or not isinstance(raw_remainder, Image.Image)
+            or not isinstance(raw_bounds, (list, tuple))
+            or len(raw_bounds) != 4
+        ):
+            return False
+        bounds = tuple(int(value) for value in raw_bounds)
+        paste_base = frame
+        if (
+            clipboard.get("source") == "floating"
+            and isinstance(floating, dict)
+            and int(floating.get("frame_index", -1)) == selected_frame
+        ):
+            pending_mask = floating.get("mask")
+            if not isinstance(pending_mask, np.ndarray) or pending_mask.shape != (
+                frame.height,
+                frame.width,
+            ):
+                return False
+            operation_kind = str(floating.get("operation_kind", "move_mask"))
+            operation_kind = (
+                operation_kind
+                if operation_kind in {"move_mask", "copy_mask"}
+                else "move_mask"
+            )
+            offset_x = int(floating.get("x", 0))
+            offset_y = int(floating.get("y", 0))
+            quarter_turns = int(floating.get("quarter_turns", 0)) % 4
+            operations = {
+                int(index): [dict(item) for item in items]
+                for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
+            }
+            operations.setdefault(selected_frame, []).append(
+                {
+                    "kind": operation_kind,
+                    **encode_mask(pending_mask),
+                    "offset_x": offset_x,
+                    "offset_y": offset_y,
+                    "quarter_turns": quarter_turns,
+                }
+            )
+            st.session_state[f"{prefix}:background_manual_ops"] = operations
+            paste_base, pasted_source_mask = transform_masked_pixels(
+                frame,
+                pending_mask,
+                clear_source=operation_kind == "move_mask",
+                offset_x=offset_x,
+                offset_y=offset_y,
+                quarter_turns=quarter_turns,
+            )
+            pasted_bounds = _mask_bounds(pasted_source_mask)
+            if pasted_bounds is None:
+                return False
+            _, raw_piece = _extract_layer_piece(paste_base, pasted_source_mask)
+            raw_mask = pasted_source_mask
+            bounds = pasted_bounds
+        target_x = int(event.get("x", bounds[0]))
+        target_y = int(event.get("y", bounds[1]))
+        paste_offset_x = target_x - bounds[0]
+        paste_offset_y = target_y - bounds[1]
+        st.session_state[f"{prefix}:background_floating_selection"] = {
+            "frame_index": selected_frame,
+            "mask": raw_mask.copy(),
+            "piece": raw_piece.copy(),
+            "remainder": paste_base.copy(),
+            "tool": "move",
+            "bounds": bounds,
+            "operation_kind": "copy_mask",
+            "quarter_turns": int(clipboard.get("quarter_turns", 0)) % 4,
+            "x": paste_offset_x,
+            "y": paste_offset_y,
+        }
+        selections[selected_frame] = shift_mask(
+            raw_mask,
+            offset_x=paste_offset_x,
+            offset_y=paste_offset_y,
+        )
+        st.session_state[f"{prefix}:background_selection_masks"] = selections
+        st.session_state[f"{prefix}:background_tool"] = "move"
+        st.session_state[f"{prefix}:background_tool_widget_sync"] = "move"
+        return True
+    if event_type == "pixel-action":
+        action = str(event.get("action", ""))
+        if action != "rotate-selection":
+            return False
+        angle_degrees = max(-180.0, min(180.0, float(event.get("degrees", 0))))
+        if abs(angle_degrees) < 1e-9:
+            return False
+        frame = frames[selected_frame]
+        selection_masks = list(st.session_state[f"{prefix}:background_selection_masks"])
+        floating = st.session_state.get(f"{prefix}:background_floating_selection")
+        operations = {
+            int(index): [dict(item) for item in items]
+            for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
+        }
+        working_frame = frame
+        rotation_mask: np.ndarray | None = None
+        if isinstance(floating, dict) and int(floating.get("frame_index", -1)) == selected_frame:
+            mask = floating.get("mask")
+            if not isinstance(mask, np.ndarray) or mask.shape != (frame.height, frame.width):
+                return False
+            operation_kind = str(floating.get("operation_kind", "move_mask"))
+            operation_kind = (
+                operation_kind
+                if operation_kind in {"move_mask", "copy_mask"}
+                else "move_mask"
+            )
+            offset_x = int(floating.get("x", 0))
+            offset_y = int(floating.get("y", 0))
+            quarter_turns = int(floating.get("quarter_turns", 0)) % 4
+            operations.setdefault(selected_frame, []).append(
+                {
+                    "kind": operation_kind,
+                    **encode_mask(mask),
+                    "offset_x": offset_x,
+                    "offset_y": offset_y,
+                    "quarter_turns": quarter_turns,
+                }
+            )
+            working_frame, rotation_mask = transform_masked_pixels(
+                frame,
+                mask,
+                clear_source=operation_kind == "move_mask",
+                offset_x=offset_x,
+                offset_y=offset_y,
+                quarter_turns=quarter_turns,
+            )
+        else:
+            selection = selection_masks[selected_frame]
+            if not isinstance(selection, np.ndarray) or not selection.any():
+                return False
+            rotation_mask = selection
+
+        if rotation_mask is None or not rotation_mask.any():
+            return False
+        operations.setdefault(selected_frame, []).append(
+            {
+                "kind": "rotate_mask",
+                **encode_mask(rotation_mask),
+                "angle_degrees": angle_degrees,
+            }
+        )
+        rotated_frame, rotated_selection = transform_masked_pixels(
+            working_frame,
+            rotation_mask,
+            clear_source=True,
+            angle_degrees=angle_degrees,
+        )
+        remainder, piece = _extract_layer_piece(rotated_frame, rotated_selection)
+        rotated_bounds = _mask_bounds(rotated_selection)
+        if rotated_bounds is None:
+            return False
+        selection_masks[selected_frame] = rotated_selection
+        st.session_state[f"{prefix}:background_manual_ops"] = operations
+        st.session_state[f"{prefix}:background_selection_masks"] = selection_masks
+        st.session_state[f"{prefix}:background_floating_selection"] = {
+            "frame_index": selected_frame,
+            "mask": rotated_selection,
+            "piece": piece,
+            "remainder": remainder,
+            "tool": "wand",
+            "bounds": rotated_bounds,
+            "operation_kind": "move_mask",
+            "quarter_turns": 0,
+            "x": 0,
+            "y": 0,
+        }
+        st.session_state[f"{prefix}:background_tool"] = "move"
+        st.session_state[f"{prefix}:background_tool_widget_sync"] = "move"
+        return True
     if event_type == "crop":
         tool = _normalize_background_tool(
             event.get("tool", st.session_state[f"{prefix}:background_tool"])
@@ -2124,6 +2673,10 @@ def _handle_background_editor_event(
                 int(columns.max()) + 1,
                 int(rows.max()) + 1,
             ),
+            "operation_kind": "move_mask",
+            "quarter_turns": 0,
+            "x": 0,
+            "y": 0,
         }
         st.session_state[f"{prefix}:background_tool"] = "move"
         st.session_state[f"{prefix}:background_tool_widget_sync"] = "move"
@@ -2141,21 +2694,38 @@ def _handle_background_editor_event(
             return False
         delta_x = int(event.get("deltaX", 0))
         delta_y = int(event.get("deltaY", 0))
+        base_x = int(floating.get("x", 0))
+        base_y = int(floating.get("y", 0))
+        offset_x = base_x + delta_x
+        offset_y = base_y + delta_y
+        quarter_turns = int(floating.get("quarter_turns", 0)) % 4
+        requested_operation_kind = str(event.get("operationKind", ""))
+        operation_kind = (
+            requested_operation_kind
+            if requested_operation_kind in {"move_mask", "copy_mask"}
+            else str(floating.get("operation_kind", "move_mask"))
+        )
+        event["operationKind"] = operation_kind
         operations = {
             int(index): [dict(item) for item in items]
             for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
         }
         operations.setdefault(selected_frame, []).append(
             {
-                "kind": "move_mask",
+                "kind": operation_kind if operation_kind in {"move_mask", "copy_mask"} else "move_mask",
                 **encode_mask(mask),
-                "offset_x": delta_x,
-                "offset_y": delta_y,
+                "offset_x": offset_x,
+                "offset_y": offset_y,
+                "quarter_turns": quarter_turns,
             }
         )
         st.session_state[f"{prefix}:background_manual_ops"] = operations
         selections = list(st.session_state[f"{prefix}:background_selection_masks"])
-        selections[selected_frame] = None
+        selections[selected_frame] = shift_mask(
+            mask,
+            offset_x=offset_x,
+            offset_y=offset_y,
+        )
         st.session_state[f"{prefix}:background_selection_masks"] = selections
         next_tool = _normalize_background_tool(floating.get("tool", "wand"))
         _clear_background_floating_selection(prefix)
@@ -3785,6 +4355,8 @@ def main() -> None:
             floating_piece: Image.Image | None = None
             floating_highlight: Image.Image | None = None
             floating_bounds: tuple[int, int, int, int] | None = None
+            floating_x = 0
+            floating_y = 0
             editor_background = background_source
             if (
                 isinstance(floating, dict)
@@ -3797,6 +4369,8 @@ def main() -> None:
                 floating_piece = floating["piece"]
                 editor_background = floating["remainder"]
                 floating_highlight = _floating_selection_highlight(floating["mask"])
+                floating_x = int(floating.get("x", 0))
+                floating_y = int(floating.get("y", 0))
                 raw_bounds = floating.get("bounds")
                 if isinstance(raw_bounds, tuple) and len(raw_bounds) == 4:
                     floating_bounds = tuple(int(value) for value in raw_bounds)
@@ -3836,9 +4410,14 @@ def main() -> None:
                     wand_contiguous=contiguous,
                     floating_selection=floating_piece,
                     floating_highlight=floating_highlight,
-                    floating_selection_x=0,
-                    floating_selection_y=0,
+                    floating_selection_x=floating_x,
+                    floating_selection_y=floating_y,
                     floating_selection_bounds=floating_bounds,
+                    floating_operation_kind=(
+                        str(floating.get("operation_kind", "move_mask"))
+                        if isinstance(floating, dict)
+                        else "move_mask"
+                    ),
                     zoom=tool_zoom,
                     frame_token=(
                         f"{prefix}:background:"
@@ -3876,6 +4455,11 @@ def main() -> None:
                         event_type == "edit-batch"
                         or event_type == "crop"
                         or event_type in {"floating-transform", "floating-selection"}
+                        or (
+                            event_type == "clipboard"
+                            and str(event.get("action", "")) == "paste"
+                        )
+                        or event_type == "pixel-action"
                         or (
                             event_type == "toolbar"
                             and str(event.get("action", "")) == "wand-settings"
@@ -3981,6 +4565,8 @@ def main() -> None:
                                     "erase_brush": "borrador",
                                     "erase_mask": "selección",
                                     "move_mask": "mover selección",
+                                    "copy_mask": "copiar selección",
+                                    "rotate_mask": "rotar selección",
                                 }.get(op["kind"], op["kind"]),
                                 "punto": ",".join(map(str, op.get("point", ()))),
                                 "tol": str(op.get("tolerance", "-")),
