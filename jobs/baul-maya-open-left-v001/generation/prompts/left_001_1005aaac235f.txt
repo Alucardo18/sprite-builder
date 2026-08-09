@@ -1,0 +1,35 @@
+GOAL
+Create one source image for a production 2D top-down roguelike RPG animation.
+Animation: open. Direction: left.
+Frame 2 of 6. Pose phase: latch_release.
+
+CHARACTER CANON
+Compact Maya-themed treasure chest shown in a strict left-facing lateral profile. It is a closed, sturdy wooden trunk with a rounded lid, dark outline, aged gold-bronze bands, emerald-jade inlays, and one simple angular feline latch ornament at the left/front edge.
+
+IMMUTABLE FEATURES
+- compact left-facing side silhouette
+- rounded closed lid with two gold-bronze reinforcement bands
+- dark brown wood with clustered 16-bit shading
+- emerald-jade strip beneath the lid and two vertical jade inlays
+- simple stepped Maya motif centered on the visible side panel
+- small angular feline latch ornament at the left/front edge
+- near-black crisp pixel outline and warm gold highlights
+
+POSE AND CONTINUITY
+Readable walk-cycle pose; stable upright torso; move only limbs required by the phase.
+Keep the torso stable and preserve the exact apparent body scale of the references.
+Show the complete character and shadow without cropping.
+
+VISUAL STYLE
+medium: detailed_clustered_16bit_pixel_art; outline: crisp_near_black_outline; lighting: upper_left; shading: clustered_hard_edged; anti_aliasing: prohibited_after_logical_scale; perspective: strict_orthographic_left_profile; shadow: none
+
+COMPOSITION
+One character only on a flat uniform #FFFFFF background.
+Leave a large clean margin. No text, scenery, borders, panels, gradients, or extra objects.
+
+PROHIBITED CHANGES
+- front view, three-quarter view, or right-facing orientation
+- wide proportions or a tall narrow body
+- open lid before the requested opening phase
+- modern locks, letters, logos, scenery, characters, or extra objects
+- smooth vector curves, anti-aliasing, blur, or photorealistic materials

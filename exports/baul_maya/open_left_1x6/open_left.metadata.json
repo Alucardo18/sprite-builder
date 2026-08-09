@@ -1,0 +1,300 @@
+{
+  "schema_version": "1.0",
+  "animation": "open_left",
+  "fps": 8.0,
+  "loop": false,
+  "sheet": {
+    "path": "/Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/exports/baul_maya/open_left_1x6/open_left.png",
+    "size": [
+      2304,
+      384
+    ],
+    "cell_size": [
+      384,
+      384
+    ],
+    "layout": {
+      "type": "horizontal",
+      "columns": 6,
+      "rows": 1
+    }
+  },
+  "frames": [
+    {
+      "index": 0,
+      "source": "automatic",
+      "source_sha256": "3674933d3dcac5ad197ed1f6745c28c4d9055f9d4a971ee7dce32bea43c07967",
+      "region": [
+        0,
+        0,
+        384,
+        384
+      ],
+      "duration_seconds": 0.125,
+      "frame": 0,
+      "direction": "left",
+      "direction_frame": 0,
+      "auto": [
+        193.0,
+        194.0
+      ],
+      "torso_anchor": [
+        192,
+        280
+      ],
+      "canvas_pivot": [
+        192,
+        280
+      ],
+      "godot_offset": [
+        0.0,
+        -88.0
+      ],
+      "foot_anchor": [
+        196.0,
+        335.0
+      ],
+      "foreground_bbox": [
+        127,
+        219,
+        255,
+        336
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.8431034445762635,
+      "template_score": 1.0,
+      "flow_inlier_ratio": 0.0,
+      "manual_review": false
+    },
+    {
+      "index": 1,
+      "source": "automatic",
+      "source_sha256": "b9ad82699ff00c8e5d996d9489a81a6037c9604a48bc8db0b957f1e10f0d5e6c",
+      "region": [
+        384,
+        0,
+        384,
+        384
+      ],
+      "duration_seconds": 0.125,
+      "frame": 1,
+      "direction": "left",
+      "direction_frame": 1,
+      "auto": [
+        188.0,
+        196.0
+      ],
+      "torso_anchor": [
+        192,
+        280
+      ],
+      "canvas_pivot": [
+        192,
+        280
+      ],
+      "godot_offset": [
+        0.0,
+        -88.0
+      ],
+      "foot_anchor": [
+        202.0,
+        346.0
+      ],
+      "foreground_bbox": [
+        119,
+        204,
+        272,
+        347
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.8093858990828687,
+      "template_score": 0.6827923059463501,
+      "flow_inlier_ratio": 0.82,
+      "manual_review": false
+    },
+    {
+      "index": 2,
+      "source": "automatic",
+      "source_sha256": "e118c07e1e996dbd081c0111ccd2257c63d504141272ae0646680e8b854dde8c",
+      "region": [
+        768,
+        0,
+        384,
+        384
+      ],
+      "duration_seconds": 0.125,
+      "frame": 2,
+      "direction": "left",
+      "direction_frame": 2,
+      "auto": [
+        186.0,
+        206.0
+      ],
+      "torso_anchor": [
+        192,
+        280
+      ],
+      "canvas_pivot": [
+        192,
+        280
+      ],
+      "godot_offset": [
+        0.0,
+        -88.0
+      ],
+      "foot_anchor": [
+        201.5,
+        343.0
+      ],
+      "foreground_bbox": [
+        119,
+        187,
+        277,
+        344
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.6714913757758622,
+      "template_score": 0.592316746711731,
+      "flow_inlier_ratio": 0.86,
+      "manual_review": false
+    },
+    {
+      "index": 3,
+      "source": "automatic",
+      "source_sha256": "70bcbbe919767e37c3465c6f047090d9abfb9377461f34f0c13e07a058fe7371",
+      "region": [
+        1152,
+        0,
+        384,
+        384
+      ],
+      "duration_seconds": 0.125,
+      "frame": 3,
+      "direction": "left",
+      "direction_frame": 3,
+      "auto": [
+        181.0,
+        220.0
+      ],
+      "torso_anchor": [
+        192,
+        280
+      ],
+      "canvas_pivot": [
+        192,
+        280
+      ],
+      "godot_offset": [
+        0.0,
+        -88.0
+      ],
+      "foot_anchor": [
+        201.0,
+        343.0
+      ],
+      "foreground_bbox": [
+        119,
+        159,
+        287,
+        344
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.6925139151152502,
+      "template_score": 0.6162396669387817,
+      "flow_inlier_ratio": 0.74,
+      "manual_review": false
+    },
+    {
+      "index": 4,
+      "source": "automatic",
+      "source_sha256": "0e40b08809dbb80d670e9d4d95b147b6f26f9052e3dd2bbf2a4d9556c4dfded8",
+      "region": [
+        1536,
+        0,
+        384,
+        384
+      ],
+      "duration_seconds": 0.125,
+      "frame": 4,
+      "direction": "left",
+      "direction_frame": 4,
+      "auto": [
+        176.0,
+        222.0
+      ],
+      "torso_anchor": [
+        192,
+        280
+      ],
+      "canvas_pivot": [
+        192,
+        280
+      ],
+      "godot_offset": [
+        0.0,
+        -88.0
+      ],
+      "foot_anchor": [
+        201.5,
+        344.0
+      ],
+      "foreground_bbox": [
+        119,
+        154,
+        297,
+        345
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.6593064366190842,
+      "template_score": 0.6245771646499634,
+      "flow_inlier_ratio": 0.58,
+      "manual_review": false
+    },
+    {
+      "index": 5,
+      "source": "automatic",
+      "source_sha256": "56605d189beabe7d5bd72c57851495a4a5079f3b10a496e7c8d811240bea7143",
+      "region": [
+        1920,
+        0,
+        384,
+        384
+      ],
+      "duration_seconds": 0.125,
+      "frame": 5,
+      "direction": "left",
+      "direction_frame": 5,
+      "auto": [
+        167.0,
+        222.0
+      ],
+      "torso_anchor": [
+        192,
+        280
+      ],
+      "canvas_pivot": [
+        192,
+        280
+      ],
+      "godot_offset": [
+        0.0,
+        -88.0
+      ],
+      "foot_anchor": [
+        201.0,
+        343.0
+      ],
+      "foreground_bbox": [
+        119,
+        156,
+        315,
+        344
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.7218761179432729,
+      "template_score": 0.6165695190429688,
+      "flow_inlier_ratio": 0.98,
+      "manual_review": false
+    }
+  ]
+}

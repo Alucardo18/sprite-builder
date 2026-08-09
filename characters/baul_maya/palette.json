@@ -1,0 +1,19 @@
+{
+  "name": "baul_maya_16bit",
+  "colors": [
+    "#171512",
+    "#2A1A12",
+    "#4A2A18",
+    "#75451F",
+    "#A96A24",
+    "#E0A52A",
+    "#FFD65A",
+    "#0E4A35",
+    "#18714C",
+    "#2CA66C",
+    "#62D7A0",
+    "#FFFFFF"
+  ],
+  "locked": true,
+  "tolerance_delta_e00": 8
+}

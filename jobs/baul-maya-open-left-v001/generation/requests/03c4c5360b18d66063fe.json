@@ -1,0 +1,25 @@
+{
+  "animation": "open",
+  "candidate_index": 0,
+  "character_id": "baul_maya",
+  "direction": "left",
+  "frame_index": 4,
+  "job_id": "baul-maya-open-left-v001",
+  "output_filename": "open_left_004_candidate_00_03c4c5360b18d66063fe.png",
+  "phase": "open",
+  "prompt_path": "jobs/baul-maya-open-left-v001/generation/prompts/left_004_874b506b635a.txt",
+  "quality": "medium",
+  "reference_paths": [
+    "/Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/items/baul_maya_lateral_izquierda_16bit.png",
+    "/Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/items/baul_maya_lateral_izquierda_16bit.png"
+  ],
+  "request_id": "03c4c5360b18d66063fe",
+  "schema_version": "1.0",
+  "seed_source_path": null,
+  "source_kind": "generated",
+  "source_size": [
+    1024,
+    1024
+  ],
+  "status": "prepared"
+}

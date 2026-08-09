@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0",
+  "job_id": "baul-maya-open-left-v001",
+  "canonical_source_body_height": 825,
+  "target_body_height": 170,
+  "frames": [
+    {
+      "source": "jobs/baul-maya-open-left-v001/raw/open_left_000_candidate_00_0d29705b021d3f2181f3.png",
+      "background_rgb": [
+        253,
+        254,
+        255
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        461,
+        204,
+        1104,
+        789
+      ],
+      "output": "jobs/baul-maya-open-left-v001/processed/frame_000.png",
+      "logical_size": [
+        132,
+        121
+      ]
+    },
+    {
+      "source": "jobs/baul-maya-open-left-v001/raw/open_left_001_candidate_00_680bfbee9e665a3e731e.png",
+      "background_rgb": [
+        253,
+        254,
+        255
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        245,
+        229,
+        1006,
+        940
+      ],
+      "output": "jobs/baul-maya-open-left-v001/processed/frame_001.png",
+      "logical_size": [
+        157,
+        147
+      ]
+    },
+    {
+      "source": "jobs/baul-maya-open-left-v001/raw/open_left_002_candidate_00_7f7f81db1fcf716bde4d.png",
+      "background_rgb": [
+        253,
+        254,
+        255
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        246,
+        180,
+        1033,
+        963
+      ],
+      "output": "jobs/baul-maya-open-left-v001/processed/frame_002.png",
+      "logical_size": [
+        162,
+        161
+      ]
+    },
+    {
+      "source": "jobs/baul-maya-open-left-v001/raw/open_left_003_candidate_00_afbb97c78f6e43970229.png",
+      "background_rgb": [
+        253,
+        254,
+        255
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        247,
+        99,
+        1082,
+        1014
+      ],
+      "output": "jobs/baul-maya-open-left-v001/processed/frame_003.png",
+      "logical_size": [
+        172,
+        189
+      ]
+    },
+    {
+      "source": "jobs/baul-maya-open-left-v001/raw/open_left_004_candidate_00_03c4c5360b18d66063fe.png",
+      "background_rgb": [
+        250,
+        253,
+        255
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        243,
+        113,
+        1124,
+        1057
+      ],
+      "output": "jobs/baul-maya-open-left-v001/processed/frame_004.png",
+      "logical_size": [
+        182,
+        195
+      ]
+    },
+    {
+      "source": "jobs/baul-maya-open-left-v001/raw/open_left_005_candidate_00_11b4dcaf02978bda5352.png",
+      "background_rgb": [
+        250,
+        253,
+        255
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        243,
+        125,
+        1215,
+        1057
+      ],
+      "output": "jobs/baul-maya-open-left-v001/processed/frame_005.png",
+      "logical_size": [
+        200,
+        192
+      ]
+    }
+  ]
+}

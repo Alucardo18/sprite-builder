@@ -1,0 +1,58 @@
+schema_version: "1.0"
+character_id: baul_maya
+identity:
+  name: Baúl Maya
+  archetype: ceremonial_treasure_chest
+  description: >-
+    Compact Maya-themed treasure chest shown in a strict left-facing lateral
+    profile. It is a closed, sturdy wooden trunk with a rounded lid, dark
+    outline, aged gold-bronze bands, emerald-jade inlays, and one simple
+    angular feline latch ornament at the left/front edge.
+  immutable_features:
+    - compact left-facing side silhouette
+    - rounded closed lid with two gold-bronze reinforcement bands
+    - dark brown wood with clustered 16-bit shading
+    - emerald-jade strip beneath the lid and two vertical jade inlays
+    - simple stepped Maya motif centered on the visible side panel
+    - small angular feline latch ornament at the left/front edge
+    - near-black crisp pixel outline and warm gold highlights
+  forbidden_changes:
+    - front view, three-quarter view, or right-facing orientation
+    - wide proportions or a tall narrow body
+    - open lid before the requested opening phase
+    - modern locks, letters, logos, scenery, characters, or extra objects
+    - smooth vector curves, anti-aliasing, blur, or photorealistic materials
+
+proportions:
+  target_body_height_px: 170
+  silhouette: compact_item
+  stance: fixed_on_ground
+
+palette:
+  file: characters/baul_maya/palette.json
+  locked: true
+  tolerance_delta_e00: 8
+
+visual_rules:
+  medium: detailed_clustered_16bit_pixel_art
+  outline: crisp_near_black_outline
+  lighting: upper_left
+  shading: clustered_hard_edged
+  anti_aliasing: prohibited_after_logical_scale
+  perspective: strict_orthographic_left_profile
+  shadow: none
+
+equipment:
+  default_weapon: none
+  weapon_palette: []
+  attachment_rules: {}
+
+anchors:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [128, 220]
+  canonical_points:
+    shoulder_left: null
+    shoulder_right: null
+    hip_left: null
+    hip_right: null
+  calibration_status: requires_human_confirmation

@@ -16,7 +16,13 @@ from PIL import Image, ImageDraw
 
 from .core import TilesetGrid, slice_tileset
 
-TerrainPatternKind = Literal["wang_16", "blob_47", "sides_16"]
+TerrainPatternKind = Literal["wang_16", "dual_grid_15", "blob_47", "sides_16"]
+DualGridTerrainProfile = Literal[
+    "clean",
+    "grass_over_dirt",
+    "dirt_over_water",
+    "grass_over_water",
+]
 
 _DIRECTIONS = (
     "top",
@@ -40,6 +46,33 @@ _GODOT_PEERING_BITS = {
     "top_right": 15,
 }
 _WANG_CORNERS = ("top_left", "top_right", "bottom_right", "bottom_left")
+# The 15 artistic roles use the traditional Wang bit order. TileMapDual's
+# terrain scanner reads Godot's corner peers in row order instead, so retain
+# both orders explicitly rather than assuming that mask bits and peer order
+# have the same third/fourth position.
+_DUAL_GRID_TILEMAP_DUAL_PEERING_CORNERS = (
+    "top_left",
+    "top_right",
+    "bottom_left",
+    "bottom_right",
+)
+_DUAL_GRID_EMPTY_POSITION = (0, 3)
+_DUAL_GRID_FOREGROUND_MASK = 15
+_DUAL_GRID_TERRAIN_PROFILES: tuple[DualGridTerrainProfile, ...] = (
+    "clean",
+    "grass_over_dirt",
+    "dirt_over_water",
+    "grass_over_water",
+)
+_DUAL_GRID_EDGE_VARIATION_MAX = 3
+_DUAL_GRID_EDGE_SEED_MAX = 999_999
+_WANG_PATTERN_KINDS = frozenset(("wang_16", "dual_grid_15"))
+_PATTERN_MODES = {
+    "wang_16": "match_corners",
+    "dual_grid_15": "match_corners",
+    "sides_16": "match_sides",
+    "blob_47": "match_corners_and_sides",
+}
 _GODOT_PATTERN_LAYOUTS: dict[
     TerrainPatternKind,
     tuple[tuple[int | None, ...], ...],
@@ -59,6 +92,15 @@ _GODOT_PATTERN_LAYOUTS: dict[
         (5, 14, 15, 11),
         (2, 3, 7, 9),
         (0, 4, 10, 1),
+    ),
+    # TileMapDual's Standard preset is a full 4x4 atlas.  The 15 authored
+    # foreground roles omit mask 0, while the builder fills this physical
+    # slot from the secondary/background Source for runtime export.
+    "dual_grid_15": (
+        (8, 6, 13, 12),
+        (5, 14, 15, 11),
+        (2, 3, 7, 9),
+        (None, 4, 10, 1),
     ),
     # Official Godot 3.x 3x3-minimal-16 arrangement, equivalent to matching
     # cardinal sides while corner cells are ignored.
@@ -113,6 +155,9 @@ class TerrainPatternResult:
     columns: int
     rows: int
     tiles: tuple[TerrainPatternTile, ...]
+    dual_grid_profile: DualGridTerrainProfile | None = None
+    dual_grid_edge_variation: int = 0
+    dual_grid_edge_seed: int = 0
 
     @property
     def complete(self) -> bool:
@@ -138,10 +183,12 @@ def _normalize_blob_mask(mask: int) -> int:
 
 
 def terrain_pattern_masks(kind: TerrainPatternKind) -> tuple[int, ...]:
-    """Return canonical masks for a 16-tile Wang or 47-tile Blob set."""
+    """Return canonical masks for a terrain pattern."""
 
     if kind == "wang_16":
         return tuple(range(16))
+    if kind == "dual_grid_15":
+        return tuple(range(1, 16))
     if kind == "sides_16":
         return tuple(range(16))
     if kind == "blob_47":
@@ -176,6 +223,8 @@ def _role_positions(
     kind: TerrainPatternKind,
     columns: int | None,
 ) -> tuple[dict[int, tuple[int, int]], int, int]:
+    if kind == "dual_grid_15" and columns is not None:
+        raise ValueError("Dual Grid uses TileMapDual's fixed 4x4 layout; omit columns")
     if columns is not None:
         column_count = int(columns)
         if column_count < 1:
@@ -209,21 +258,434 @@ def _fit_source(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     return rgba.resize(size, Image.Resampling.NEAREST)
 
 
-def _wang_bitmap_mask(mask: int, width: int, height: int) -> np.ndarray:
-    nw, ne, se, sw = (
-        1.0 if mask & (1 << index) else 0.0
-        for index in range(4)
-    )
+def _validate_dual_grid_size(
+    kind: TerrainPatternKind,
+    size: tuple[int, int],
+) -> None:
+    """Reject geometries that cannot encode four distinct Dual Grid corners."""
+
+    if kind == "dual_grid_15" and (size[0] < 2 or size[1] < 2):
+        raise ValueError("Dual Grid tiles must be at least 2x2 pixels")
+
+
+def _place_pattern_tile(
+    atlas: Image.Image,
+    tile: Image.Image,
+    offset: tuple[int, int],
+    *,
+    kind: TerrainPatternKind,
+) -> None:
+    """Place a role while preserving raw transparent-pixel provenance for Dual Grid."""
+
+    if kind == "dual_grid_15":
+        # Dual roles never overlap.  Direct paste retains RGB under alpha 0,
+        # which alpha_composite intentionally canonicalizes away.
+        atlas.paste(tile, offset)
+        return
+    atlas.alpha_composite(tile, offset)
+
+
+def _place_dual_grid_background(
+    atlas: Image.Image,
+    background: Image.Image,
+    size: tuple[int, int],
+) -> None:
+    """Materialize TileMapDual's required physical mask-0 atlas cell."""
+
+    column, row = _DUAL_GRID_EMPTY_POSITION
+    atlas.paste(background, (column * size[0], row * size[1]))
+
+
+def _is_wang_pattern(kind: TerrainPatternKind) -> bool:
+    return kind in _WANG_PATTERN_KINDS
+
+
+def _terrain_mode(kind: TerrainPatternKind) -> str:
+    try:
+        return _PATTERN_MODES[kind]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported terrain pattern: {kind}") from exc
+
+
+def dual_grid_terrain_profiles() -> tuple[DualGridTerrainProfile, ...]:
+    """Return the stable terrain-pair profile identifiers exposed by Pattern Studio."""
+
+    return _DUAL_GRID_TERRAIN_PROFILES
+
+
+def _normalize_dual_grid_edge_style(
+    profile: object = "clean",
+    variation: object = 0,
+    seed: object = 0,
+) -> tuple[DualGridTerrainProfile, int, int]:
+    profile_name = str(profile or "clean")
+    if profile_name not in _DUAL_GRID_TERRAIN_PROFILES:
+        raise ValueError(f"Unsupported Dual Grid terrain profile: {profile_name}")
+    try:
+        variation_level = int(variation)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Dual Grid edge variation must be an integer from 0 to 3") from exc
+    if not 0 <= variation_level <= _DUAL_GRID_EDGE_VARIATION_MAX:
+        raise ValueError("Dual Grid edge variation must be an integer from 0 to 3")
+    try:
+        seed_value = int(seed)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Dual Grid edge seed must be an integer from 0 to 999999") from exc
+    if not 0 <= seed_value <= _DUAL_GRID_EDGE_SEED_MAX:
+        raise ValueError("Dual Grid edge seed must be an integer from 0 to 999999")
+    return cast(DualGridTerrainProfile, profile_name), variation_level, seed_value
+
+
+def _wang_bitmap_coverage(mask: int, width: int, height: int) -> np.ndarray:
+    nw, ne, se, sw = (1.0 if mask & (1 << index) else 0.0 for index in range(4))
     xs = (np.arange(width, dtype=np.float32) + 0.5) / width
     ys = (np.arange(height, dtype=np.float32) + 0.5) / height
     u, v = np.meshgrid(xs, ys)
-    coverage = (
-        nw * (1.0 - u) * (1.0 - v)
-        + ne * u * (1.0 - v)
-        + sw * (1.0 - u) * v
-        + se * u * v
+    return nw * (1.0 - u) * (1.0 - v) + ne * u * (1.0 - v) + sw * (1.0 - u) * v + se * u * v
+
+
+def _wang_bitmap_mask(mask: int, width: int, height: int) -> np.ndarray:
+    return _wang_bitmap_coverage(mask, width, height) >= 0.5
+
+
+def _dual_grid_texture_field(
+    width: int,
+    height: int,
+    *,
+    profile: DualGridTerrainProfile,
+    seed: int,
+) -> np.ndarray:
+    """Build a seamless, quarter-turn-covariant field for restrained edge texture."""
+
+    digest = hashlib.sha256(f"dual-grid:{profile}:{seed}".encode()).digest()
+    x = np.arange(width, dtype=np.float32) / max(1, width - 1)
+    y = np.arange(height, dtype=np.float32) / max(1, height - 1)
+    u, v = np.meshgrid(x, y)
+
+    if profile == "grass_over_dirt":
+        low_frequency = 2 + digest[0] % 2
+        high_frequency = 4 + digest[1] % 3
+        bias = 0.10
+        low_weight, high_weight, cross_weight = 0.22, 0.58, 0.20
+    elif profile == "dirt_over_water":
+        low_frequency = 1 + digest[0] % 2
+        high_frequency = 2 + digest[1] % 2
+        bias = 0.28
+        low_weight, high_weight, cross_weight = 0.58, 0.22, 0.20
+    else:  # grass_over_water
+        low_frequency = 2 + digest[0] % 2
+        high_frequency = 3 + digest[1] % 3
+        # Let a restrained amount of water bite into the grass silhouette.
+        # Keeping this bias on the opposite side of the other two profiles is
+        # important on small pixel grids, where sub-pixel waves can otherwise
+        # quantize to the exact same bitmap for every material pair.
+        bias = -0.10
+        low_weight, high_weight, cross_weight = 0.34, 0.46, 0.20
+
+    sign = -1.0 if digest[2] & 1 else 1.0
+    low = (
+        np.cos(2.0 * math.pi * low_frequency * u) + np.cos(2.0 * math.pi * low_frequency * v)
+    ) * 0.5
+    high = (
+        np.cos(2.0 * math.pi * high_frequency * u) + np.cos(2.0 * math.pi * high_frequency * v)
+    ) * 0.5
+    cross = np.cos(2.0 * math.pi * low_frequency * u) * np.cos(2.0 * math.pi * low_frequency * v)
+    field = bias + low_weight * low + sign * high_weight * high + cross_weight * cross
+    peak = float(np.max(np.abs(field)))
+    return field / max(1.0, peak)
+
+
+def _dual_grid_profile_coverage(
+    mask: int,
+    width: int,
+    height: int,
+    *,
+    profile: DualGridTerrainProfile = "clean",
+    variation: int = 0,
+    seed: int = 0,
+) -> np.ndarray:
+    """Return styled coverage while keeping compatible atlas edges deterministic."""
+
+    profile, variation, seed = _normalize_dual_grid_edge_style(profile, variation, seed)
+    coverage = _wang_bitmap_coverage(mask, width, height)
+    if profile == "clean" or variation == 0 or mask in (0, _DUAL_GRID_FOREGROUND_MASK):
+        return coverage
+
+    # A displacement below one source pixel frequently vanishes after the
+    # boolean threshold (all three profiles used to collapse to the same
+    # bitmap at 8x8).  These levels remain restrained, but make even the
+    # "subtle" preset cross a real pixel boundary on practical tile sizes.
+    requested_pixels = (1.2, 1.8, 2.6)[variation - 1]
+    profile_scale = {
+        "grass_over_dirt": 1.0,
+        "dirt_over_water": 0.84,
+        "grass_over_water": 0.92,
+    }[profile]
+    amplitude = min(0.24, requested_pixels * profile_scale / max(2, min(width, height)))
+    field = _dual_grid_texture_field(width, height, profile=profile, seed=seed)
+    x = np.arange(width, dtype=np.float32) / max(1, width - 1)
+    y = np.arange(height, dtype=np.float32) / max(1, height - 1)
+    u, v = np.meshgrid(x, y)
+    # Keep silhouette noise away from the outer pixel ring. The mathematical
+    # edge samples below still let palette bands continue across compatible
+    # roles without inheriting a different local perturbation on either side.
+    edge_distance = np.minimum.reduce((u, 1.0 - u, v, 1.0 - v))
+    seam_envelope = np.clip(edge_distance * 8.0, 0.0, 1.0)
+    styled = coverage + amplitude * field * seam_envelope
+
+    # The ordinary coverage samples pixel centres. On the outer ring that can
+    # make two compatible roles see slightly different distances from their
+    # shared boundary. Sample the exact mathematical edge instead, so shading
+    # bands and ownership meet without a one-pixel colour break.
+    nw, ne, se, sw = (1.0 if mask & (1 << index) else 0.0 for index in range(4))
+    edge_x = (np.arange(width, dtype=np.float32) + 0.5) / width
+    edge_y = (np.arange(height, dtype=np.float32) + 0.5) / height
+    styled[0, :] = nw * (1.0 - edge_x) + ne * edge_x
+    styled[-1, :] = sw * (1.0 - edge_x) + se * edge_x
+    styled[:, 0] = nw * (1.0 - edge_y) + sw * edge_y
+    styled[:, -1] = ne * (1.0 - edge_y) + se * edge_y
+    styled[0, 0], styled[0, -1] = nw, ne
+    styled[-1, -1], styled[-1, 0] = se, sw
+    return styled
+
+
+def _dual_grid_bitmap_mask(
+    mask: int,
+    width: int,
+    height: int,
+    *,
+    profile: DualGridTerrainProfile = "clean",
+    variation: int = 0,
+    seed: int = 0,
+) -> np.ndarray:
+    """Render one Dual Grid role with a deterministic material-pair silhouette."""
+
+    return (
+        _dual_grid_profile_coverage(
+            mask,
+            width,
+            height,
+            profile=profile,
+            variation=variation,
+            seed=seed,
+        )
+        >= 0.5
     )
-    return coverage >= 0.5
+
+
+def _tone_dual_grid_band(
+    output: np.ndarray,
+    band: np.ndarray,
+    samples: np.ndarray,
+    *,
+    target: tuple[int, int, int],
+    amount: float,
+) -> None:
+    """Tone selected RGB pixels without filtering, moving samples, or changing alpha."""
+
+    if not np.any(band):
+        return
+    source_rgb = samples[..., :3].astype(np.float32)
+    target_rgb = np.asarray(target, dtype=np.float32)
+    toned = np.rint(source_rgb * (1.0 - amount) + target_rgb * amount)
+    output[..., :3][band] = np.clip(toned, 0, 255).astype(np.uint8)[band]
+
+
+def _render_dual_grid_pixels(
+    inside: np.ndarray,
+    outside: np.ndarray,
+    mask: int,
+    *,
+    profile: DualGridTerrainProfile = "clean",
+    variation: int = 0,
+    seed: int = 0,
+) -> np.ndarray:
+    """Compose a Dual Grid role with material-specific pixel-art edge bands."""
+
+    profile, variation, seed = _normalize_dual_grid_edge_style(profile, variation, seed)
+    height, width = inside.shape[:2]
+    coverage = _dual_grid_profile_coverage(
+        mask,
+        width,
+        height,
+        profile=profile,
+        variation=variation,
+        seed=seed,
+    )
+    ownership = coverage >= 0.5
+    output = np.where(ownership[..., None], inside, outside).astype(np.uint8)
+    if profile == "clean" or variation == 0 or mask in (0, _DUAL_GRID_FOREGROUND_MASK):
+        return output
+
+    minimum_axis = max(2, min(width, height))
+    size_scale = min(1.75, max(1.0, minimum_axis / 16.0))
+    signed_pixels = (coverage - 0.5) * minimum_axis
+    band_field = _dual_grid_texture_field(
+        width,
+        height,
+        profile=profile,
+        seed=seed ^ 0x5A17,
+    )
+    grain_field = _dual_grid_texture_field(
+        width,
+        height,
+        profile=profile,
+        seed=seed ^ 0x2D6B,
+    )
+    width_modulation = 1.0 + 0.28 * band_field
+    style_limit = minimum_axis * 0.44
+    level = variation - 1
+
+    if profile == "dirt_over_water":
+        shadow_width = np.minimum(
+            (1.0, 1.55, 2.2)[level] * size_scale * width_modulation,
+            style_limit,
+        )
+        water_shadow = (signed_pixels < 0.0) & (signed_pixels >= -shadow_width)
+        deep_shadow = water_shadow & (signed_pixels >= -shadow_width * 0.48)
+        _tone_dual_grid_band(
+            output,
+            water_shadow,
+            outside,
+            target=(28, 72, 78),
+            amount=(0.20, 0.28, 0.34)[level],
+        )
+        _tone_dual_grid_band(
+            output,
+            deep_shadow,
+            outside,
+            target=(18, 52, 58),
+            amount=(0.30, 0.40, 0.50)[level],
+        )
+
+        rim_width = np.minimum(
+            (0.80, 1.05, 1.20)[level] * min(size_scale, 1.35) * width_modulation,
+            style_limit,
+        )
+        rim = (signed_pixels >= 0.0) & (signed_pixels < rim_width)
+        rim &= grain_field > (-1.1, -0.92, -0.72)[level]
+        _tone_dual_grid_band(
+            output,
+            rim,
+            outside,
+            target=(235, 250, 247),
+            amount=(0.58, 0.70, 0.80)[level],
+        )
+
+        light_width = (0.75, 1.25, 1.75)[level] * size_scale * width_modulation
+        light_end = np.minimum(rim_width + light_width, style_limit)
+        light_bank = (signed_pixels >= rim_width) & (signed_pixels < light_end)
+        _tone_dual_grid_band(
+            output,
+            light_bank,
+            inside,
+            target=(220, 155, 105),
+            amount=(0.18, 0.28, 0.38)[level],
+        )
+        bank_glints = light_bank & (grain_field > (0.48, 0.25, 0.05)[level])
+        _tone_dual_grid_band(
+            output,
+            bank_glints,
+            inside,
+            target=(235, 188, 140),
+            amount=(0.22, 0.36, 0.55)[level],
+        )
+
+        dark_width = (0.35, 0.80, 1.25)[level] * size_scale * width_modulation
+        dark_end = np.minimum(light_end + dark_width, style_limit)
+        dark_bank = (signed_pixels >= light_end) & (signed_pixels < dark_end)
+        _tone_dual_grid_band(
+            output,
+            dark_bank,
+            inside,
+            target=(65, 48, 40),
+            amount=(0.14, 0.28, 0.42)[level],
+        )
+    elif profile == "grass_over_water":
+        shadow_width = np.minimum(
+            (0.9, 1.4, 2.0)[level] * size_scale * width_modulation,
+            style_limit,
+        )
+        water_shadow = (signed_pixels < 0.0) & (signed_pixels >= -shadow_width)
+        _tone_dual_grid_band(
+            output,
+            water_shadow,
+            outside,
+            target=(24, 68, 76),
+            amount=(0.22, 0.32, 0.42)[level],
+        )
+
+        wet_width = np.minimum(
+            (0.65, 0.90, 1.10)[level] * min(size_scale, 1.35) * width_modulation,
+            style_limit,
+        )
+        wet_edge = (signed_pixels >= 0.0) & (signed_pixels < wet_width)
+        wet_edge &= grain_field > (0.12, -0.12, -0.35)[level]
+        _tone_dual_grid_band(
+            output,
+            wet_edge,
+            outside,
+            target=(225, 248, 240),
+            amount=(0.42, 0.55, 0.66)[level],
+        )
+
+        root_width = (1.0, 1.55, 2.25)[level] * size_scale * width_modulation
+        root_end = np.minimum(wet_width + root_width, style_limit)
+        grass_roots = (signed_pixels >= wet_width) & (signed_pixels < root_end)
+        _tone_dual_grid_band(
+            output,
+            grass_roots,
+            inside,
+            target=(30, 75, 45),
+            amount=(0.20, 0.29, 0.38)[level],
+        )
+        grass_glints = grass_roots & (grain_field > (0.48, 0.30, 0.12)[level])
+        _tone_dual_grid_band(
+            output,
+            grass_glints,
+            inside,
+            target=(175, 220, 115),
+            amount=(0.14, 0.20, 0.27)[level],
+        )
+    else:  # grass_over_dirt
+        dirt_width = np.minimum(
+            (0.9, 1.4, 1.95)[level] * size_scale * width_modulation,
+            style_limit,
+        )
+        dirt_shadow = (signed_pixels < 0.0) & (signed_pixels >= -dirt_width)
+        _tone_dual_grid_band(
+            output,
+            dirt_shadow,
+            outside,
+            target=(62, 43, 34),
+            amount=(0.18, 0.28, 0.38)[level],
+        )
+
+        root_width = np.minimum(
+            (0.85, 1.35, 1.85)[level] * size_scale * width_modulation,
+            style_limit,
+        )
+        grass_roots = (signed_pixels >= 0.0) & (signed_pixels < root_width)
+        _tone_dual_grid_band(
+            output,
+            grass_roots,
+            inside,
+            target=(35, 76, 38),
+            amount=(0.18, 0.28, 0.37)[level],
+        )
+        glint_width = (0.65, 0.95, 1.30)[level] * size_scale * width_modulation
+        glint_end = np.minimum(root_width + glint_width, style_limit)
+        grass_glints = (signed_pixels >= root_width) & (signed_pixels < glint_end)
+        grass_glints &= grain_field > (0.38, 0.18, -0.02)[level]
+        _tone_dual_grid_band(
+            output,
+            grass_glints,
+            inside,
+            target=(175, 215, 105),
+            amount=(0.14, 0.21, 0.29)[level],
+        )
+
+    return output
 
 
 def _blob_quadrant_values(mask: int, right: bool, bottom: bool) -> tuple[float, ...]:
@@ -244,21 +706,11 @@ def _blob_bitmap_mask(mask: int, width: int, height: int) -> np.ndarray:
     half_height = height / 2.0
     for y in range(height):
         bottom = y + 0.5 >= half_height
-        v = (
-            (height - (y + 0.5)) / half_height
-            if bottom
-            else (y + 0.5) / half_height
-        )
+        v = (height - (y + 0.5)) / half_height if bottom else (y + 0.5) / half_height
         for x in range(width):
             right = x + 0.5 >= half_width
-            u = (
-                (width - (x + 0.5)) / half_width
-                if right
-                else (x + 0.5) / half_width
-            )
-            diagonal, horizontal, vertical = _blob_quadrant_values(
-                mask, right, bottom
-            )
+            u = (width - (x + 0.5)) / half_width if right else (x + 0.5) / half_width
+            diagonal, horizontal, vertical = _blob_quadrant_values(mask, right, bottom)
             coverage = (
                 diagonal * (1.0 - u) * (1.0 - v)
                 + horizontal * u * (1.0 - v)
@@ -270,10 +722,8 @@ def _blob_bitmap_mask(mask: int, width: int, height: int) -> np.ndarray:
 
 
 def _tile_neighbors(kind: TerrainPatternKind, mask: int) -> tuple[str, ...]:
-    if kind == "wang_16":
-        return tuple(
-            name for index, name in enumerate(_WANG_CORNERS) if mask & (1 << index)
-        )
+    if _is_wang_pattern(kind):
+        return tuple(name for index, name in enumerate(_WANG_CORNERS) if mask & (1 << index))
     if kind == "sides_16":
         return tuple(
             name
@@ -284,7 +734,7 @@ def _tile_neighbors(kind: TerrainPatternKind, mask: int) -> tuple[str, ...]:
 
 
 def _relevant_directions(kind: TerrainPatternKind) -> tuple[str, ...]:
-    if kind == "wang_16":
+    if _is_wang_pattern(kind):
         return _WANG_CORNERS
     if kind == "sides_16":
         return ("top", "right", "bottom", "left")
@@ -374,7 +824,7 @@ def render_terrain_bitmask_template(
                     width=1,
                 )
                 continue
-            if kind == "wang_16":
+            if _is_wang_pattern(kind):
                 half = logical_size // 2
                 quadrants = (
                     (0, 0, 1),
@@ -442,11 +892,24 @@ def build_manual_terrain_pattern(
     *,
     kind: TerrainPatternKind = "blob_47",
     columns: int | None = None,
+    background_source: int | None = None,
 ) -> TerrainPatternResult:
-    """Build a role-ordered preview/export atlas from manual source-tile assignments."""
+    """Build a role-ordered preview/export atlas from manual source-tile assignments.
 
+    A Dual Grid also needs an explicit background Source for its physical
+    mask-0 TileMapDual cell; its 15 role assignments alone are not enough.
+    """
+
+    _validate_dual_grid_size(kind, (grid.tile_width, grid.tile_height))
     sources = slice_tileset(atlas, grid)
     source_by_index = {source.index: source for source in sources}
+    if kind == "dual_grid_15" and background_source is None:
+        raise ValueError("Dual Grid manual patterns require background_source")
+    dual_background = (
+        source_by_index.get(int(background_source)) if background_source is not None else None
+    )
+    if kind == "dual_grid_15" and dual_background is None:
+        raise ValueError("Dual Grid background_source references a missing tile")
     masks = terrain_pattern_masks(kind)
     unknown_masks = set(int(mask) for mask in assignments) - set(masks)
     if unknown_masks:
@@ -474,7 +937,12 @@ def build_manual_terrain_pattern(
             )
         )
         column, row = positions[mask]
-        output.alpha_composite(tile, (column * grid.tile_width, row * grid.tile_height))
+        _place_pattern_tile(
+            output,
+            tile,
+            (column * grid.tile_width, row * grid.tile_height),
+            kind=kind,
+        )
         roles.append(
             TerrainPatternTile(
                 index=index,
@@ -485,14 +953,15 @@ def build_manual_terrain_pattern(
                 source_index=int(source_index) if source_index is not None else None,
             )
         )
-    mode = {
-        "wang_16": "match_corners",
-        "sides_16": "match_sides",
-        "blob_47": "match_corners_and_sides",
-    }[kind]
+    if dual_background is not None:
+        _place_dual_grid_background(
+            output,
+            rgba.crop(dual_background.bounds),
+            (grid.tile_width, grid.tile_height),
+        )
     return TerrainPatternResult(
         kind=kind,
-        mode=mode,
+        mode=_terrain_mode(kind),
         image=output,
         tile_width=grid.tile_width,
         tile_height=grid.tile_height,
@@ -607,9 +1076,7 @@ def _render_fragment_layers(
             piece = piece.transpose(Image.Transpose.ROTATE_90)
         opacity = max(0.0, min(1.0, _object_float(layer.get("opacity"), 1.0)))
         if opacity < 1.0:
-            alpha = piece.getchannel("A").point(
-                lambda value, factor=opacity: round(value * factor)
-            )
+            alpha = piece.getchannel("A").point(lambda value, factor=opacity: round(value * factor))
             piece.putalpha(alpha)
         output.alpha_composite(
             piece,
@@ -641,15 +1108,18 @@ def build_fragment_terrain_pattern(
     """
 
     size = (max(1, int(tile_size[0])), max(1, int(tile_size[1])))
+    _validate_dual_grid_size(kind, size)
+    if kind == "dual_grid_15":
+        raise ValueError(
+            "Dual Grid requires two complete textures; use the TileSetter or smart builder"
+        )
     fragment_map = {
         str(fragment.get("id", "")): fragment
         for fragment in fragments
         if str(fragment.get("id", ""))
     }
     layer_by_id = {
-        str(layer.get("id", "")): layer
-        for layer in master_layers
-        if str(layer.get("id", ""))
+        str(layer.get("id", "")): layer for layer in master_layers if str(layer.get("id", ""))
     }
     semantic_layer_ids = {
         str(layer_id)
@@ -676,10 +1146,7 @@ def build_fragment_terrain_pattern(
     inner_corner = semantic_overlay("innerCorner")
     center_layer_id = str(semantic_roles.get("center") or "")
     ready = center_layer_id in layer_by_id and edge is not None
-    overrides = {
-        int(mask): list(layers)
-        for mask, layers in (variant_overrides or {}).items()
-    }
+    overrides = {int(mask): list(layers) for mask, layers in (variant_overrides or {}).items()}
     masks = terrain_pattern_masks(kind)
     unknown_masks = set(overrides) - set(masks)
     if unknown_masks:
@@ -709,7 +1176,7 @@ def build_fragment_terrain_pattern(
             )
         elif ready:
             neighbors = set(_tile_neighbors(kind, mask))
-            if kind == "wang_16":
+            if _is_wang_pattern(kind):
                 corner_neighbors = neighbors
                 neighbors = {
                     direction
@@ -729,27 +1196,24 @@ def build_fragment_terrain_pattern(
                         _transform_layer(edge, size, quarter_turns=direction_index)
                     )
             for diagonal, first, second, turns in corner_rules:
-                if (
-                    outer_corner is not None
-                    and first not in neighbors
-                    and second not in neighbors
-                ):
-                    tile.alpha_composite(
-                        _transform_layer(outer_corner, size, quarter_turns=turns)
-                    )
+                if outer_corner is not None and first not in neighbors and second not in neighbors:
+                    tile.alpha_composite(_transform_layer(outer_corner, size, quarter_turns=turns))
                 elif (
                     inner_corner is not None
                     and first in neighbors
                     and second in neighbors
                     and diagonal not in neighbors
                 ):
-                    tile.alpha_composite(
-                        _transform_layer(inner_corner, size, quarter_turns=turns)
-                    )
+                    tile.alpha_composite(_transform_layer(inner_corner, size, quarter_turns=turns))
         else:
             tile = _placeholder_tile(size, kind=kind, mask=mask)
         column, row = positions[mask]
-        output.alpha_composite(tile, (column * size[0], row * size[1]))
+        _place_pattern_tile(
+            output,
+            tile,
+            (column * size[0], row * size[1]),
+            kind=kind,
+        )
         roles.append(
             TerrainPatternTile(
                 index=index,
@@ -764,11 +1228,7 @@ def build_fragment_terrain_pattern(
         )
     return TerrainPatternResult(
         kind=kind,
-        mode={
-            "wang_16": "match_corners",
-            "sides_16": "match_sides",
-            "blob_47": "match_corners_and_sides",
-        }[kind],
+        mode=_terrain_mode(kind),
         image=output,
         tile_width=size[0],
         tile_height=size[1],
@@ -881,9 +1341,7 @@ def _wang_edge_owner_masks(
     """
 
     canonical = tuple(
-        direction
-        for direction in ("top", "right", "bottom", "left")
-        if direction in directions
+        direction for direction in ("top", "right", "bottom", "left") if direction in directions
     )
     width, height = size
     yy, xx = np.indices((height, width), dtype=np.int64)
@@ -891,12 +1349,8 @@ def _wang_edge_owner_masks(
     vertical_scale = max(1, width - 1)
     distance = {
         "top": (yy + int(cutoffs.get("top", 0))) * vertical_scale,
-        "right": (
-            width - 1 - xx + int(cutoffs.get("right", 0))
-        ) * horizontal_scale,
-        "bottom": (
-            height - 1 - yy + int(cutoffs.get("bottom", 0))
-        ) * vertical_scale,
+        "right": (width - 1 - xx + int(cutoffs.get("right", 0))) * horizontal_scale,
+        "bottom": (height - 1 - yy + int(cutoffs.get("bottom", 0))) * vertical_scale,
         "left": (xx + int(cutoffs.get("left", 0))) * horizontal_scale,
     }
     if not canonical:
@@ -906,8 +1360,7 @@ def _wang_edge_owner_masks(
     tied = scores == minimum
     tie_count = np.sum(tied, axis=0)
     owners = {
-        direction: tied[index] & (tie_count == 1)
-        for index, direction in enumerate(canonical)
+        direction: tied[index] & (tie_count == 1) for index, direction in enumerate(canonical)
     }
 
     # A 45-degree seam belongs to the clockwise-facing Source at each corner.
@@ -1042,9 +1495,7 @@ def _splice_intersecting_edges(
                 output[y, x] = base_pixels[y, x]
                 continue
             output[y, x] = (
-                first_pixels[y, x]
-                if distance_first <= distance_second
-                else second_pixels[y, x]
+                first_pixels[y, x] if distance_first <= distance_second else second_pixels[y, x]
             )
     tile.paste(Image.fromarray(output, mode="RGBA"))
 
@@ -1064,9 +1515,7 @@ def _merge_tilesetter_edges(
     """
 
     directions = [
-        direction
-        for direction in exposed_directions
-        if edge_images.get(direction) is not None
+        direction for direction in exposed_directions if edge_images.get(direction) is not None
     ]
     if not directions:
         return base.copy()
@@ -1114,8 +1563,7 @@ def _erode_blob_core(mask: np.ndarray, cutoff: int, blob_mask: int) -> np.ndarra
     height, width = mask.shape
     padded = np.pad(mask, radius, mode="constant", constant_values=False)
     connected = {
-        direction: bool(blob_mask & _DIRECTION_BITS[direction])
-        for direction in _DIRECTIONS
+        direction: bool(blob_mask & _DIRECTION_BITS[direction]) for direction in _DIRECTIONS
     }
     if connected["top"]:
         padded[:radius, radius : radius + width] = True
@@ -1282,12 +1730,9 @@ def _render_tilesetter_blob_tile(
     """Port TileSetter 2.1's Blob layer compositor for one neighbor matrix."""
 
     width, height = base.size
-    widths = tuple(
-        _tilesetter_edge_width(image, index)
-        for index, image in enumerate(edge_images)
-    )
-    base_clips, base_inner_clips, border_clips, inner_clips, diagonal = (
-        _tilesetter_blob_clip_masks((width, height), widths, cutoffs)
+    widths = tuple(_tilesetter_edge_width(image, index) for index, image in enumerate(edge_images))
+    base_clips, base_inner_clips, border_clips, inner_clips, diagonal = _tilesetter_blob_clip_masks(
+        (width, height), widths, cutoffs
     )
     # Matrix order: NW, N, NE, E, SE, S, SW, W. TileSetter does not use a
     # binary matrix here: diagonals whose two adjacent cardinal neighbors are
@@ -1346,19 +1791,9 @@ def _render_tilesetter_blob_tile(
         west = (7 + rotation * 2) % 8
         north_west = (rotation * 2) % 8
         draw_cardinal = (
-            (
-                matrix[north] is False
-                and matrix[east] is True
-                and matrix[west] is True
-            )
-            or (
-                matrix[north] is False
-                and matrix[west] is False
-            )
-            or (
-                matrix[north] is False
-                and matrix[east] is False
-            )
+            (matrix[north] is False and matrix[east] is True and matrix[west] is True)
+            or (matrix[north] is False and matrix[west] is False)
+            or (matrix[north] is False and matrix[east] is False)
         )
         if draw_cardinal:
             clips: list[np.ndarray] = []
@@ -1380,11 +1815,7 @@ def _render_tilesetter_blob_tile(
                 )
             )
 
-        if (
-            matrix[north_west] is False
-            and matrix[north] is True
-            and matrix[west] is True
-        ):
+        if matrix[north_west] is False and matrix[north] is True and matrix[west] is True:
             clips = []
             if matrix[(2 + rotation * 2) % 8] is False:
                 clips.append(inner_clips[(rotation + 1) % 4])
@@ -1398,21 +1829,13 @@ def _render_tilesetter_blob_tile(
                 clips.append(inner_clips[(rotation + 3) % 4])
             layers.extend(inner_sources(rotation, clips))
 
-    eligible = {
-        direction: np.zeros((height, width), dtype=bool)
-        for direction in directions
-    }
+    eligible = {direction: np.zeros((height, width), dtype=bool) for direction in directions}
     edge_content = {
-        direction: np.asarray(edge_images[index].getchannel("A"), dtype=np.uint8)
-        != 0
+        direction: np.asarray(edge_images[index].getchannel("A"), dtype=np.uint8) != 0
         for index, direction in enumerate(directions)
     }
     for direction, _image, clips in layers:
-        visible = (
-            np.logical_and.reduce(clips)
-            if clips
-            else np.ones((height, width), dtype=bool)
-        )
+        visible = np.logical_and.reduce(clips) if clips else np.ones((height, width), dtype=bool)
         # Transparent padding in an edge Source is not border artwork.  It
         # leaves ownership with the clipped base (custom corner Sources are
         # intentionally exempt because they replace their quadrant later).
@@ -1442,9 +1865,7 @@ def _render_tilesetter_blob_tile(
         for first, second in (("top", "bottom"), ("left", "right")):
             if not np.any(eligible[first]) or not np.any(eligible[second]):
                 continue
-            midpoint = (distance[first] == distance[second]) & (
-                eligible[first] | eligible[second]
-            )
+            midpoint = (distance[first] == distance[second]) & (eligible[first] | eligible[second])
             # Both orientations participate in the geometric tie even when
             # one has transparent padding at this coordinate.  The winning
             # Source's alpha is checked when pixels are copied below; if it is
@@ -1456,10 +1877,7 @@ def _render_tilesetter_blob_tile(
     candidate_count = np.sum(eligibility, axis=0)
     maximum = np.iinfo(np.int64).max
     scores = np.stack(
-        [
-            np.where(eligible[direction], distance[direction], maximum)
-            for direction in directions
-        ]
+        [np.where(eligible[direction], distance[direction], maximum) for direction in directions]
     )
     minimum = np.min(scores, axis=0)
     tied = eligibility & (scores == minimum)
@@ -1488,9 +1906,11 @@ def _render_tilesetter_blob_tile(
     left_right = (tie_count == 2) & tied[1] & tied[3]
     winners[left_right & (2 * yy < height - 1)] = 1
     winners[left_right & (2 * yy > height - 1)] = 3
-    unresolved = (tie_count >= 3) | (
-        top_bottom & (2 * xx == width - 1)
-    ) | (left_right & (2 * yy == height - 1))
+    unresolved = (
+        (tie_count >= 3)
+        | (top_bottom & (2 * xx == width - 1))
+        | (left_right & (2 * yy == height - 1))
+    )
     output[unresolved] = base_pixels[unresolved]
 
     for index, _direction in enumerate(directions):
@@ -1516,11 +1936,7 @@ def _render_tilesetter_blob_tile(
         corner_type: str | None = None
         if first not in neighbors and second not in neighbors:
             corner_type = "outer"
-        elif (
-            first in neighbors
-            and second in neighbors
-            and diagonal_name not in neighbors
-        ):
+        elif first in neighbors and second in neighbors and diagonal_name not in neighbors:
             corner_type = "inner"
         if corner_type is None:
             continue
@@ -1548,6 +1964,16 @@ def build_tilesetter_terrain_pattern(
     """
 
     size = (max(1, int(tile_size[0])), max(1, int(tile_size[1])))
+    _validate_dual_grid_size(kind, size)
+    dual_grid_profile, dual_grid_edge_variation, dual_grid_edge_seed = (
+        _normalize_dual_grid_edge_style(
+            set_config.get("terrainProfile", "clean"),
+            set_config.get("edgeVariation", 0),
+            set_config.get("edgeSeed", 0),
+        )
+        if kind == "dual_grid_15"
+        else (cast(DualGridTerrainProfile, "clean"), 0, 0)
+    )
     base = _tilesetter_source_image(
         atlas,
         sources,
@@ -1563,79 +1989,77 @@ def build_tilesetter_terrain_pattern(
     raw_edges = set_config.get("edges", {})
     edges = raw_edges if isinstance(raw_edges, Mapping) else {}
     raw_transforms = set_config.get("edgeTransforms", {})
-    edge_transforms = (
-        raw_transforms if isinstance(raw_transforms, Mapping) else {}
-    )
-    edge_images: dict[str, Image.Image | None] = {}
+    edge_transforms = raw_transforms if isinstance(raw_transforms, Mapping) else {}
+    edge_images: dict[str, Image.Image | None] = {
+        direction: None for direction in ("top", "right", "bottom", "left")
+    }
     auto_orient_edges = bool(set_config.get("autoOrientEdges", False))
-    for direction in ("top", "right", "bottom", "left"):
-        source = _tilesetter_source_image(
-            atlas,
-            sources,
-            str(edges.get(direction) or "") or None,
-            size,
-        )
-        if source is None or base is None:
-            edge_images[direction] = None
-            continue
-        transform = edge_transforms.get(direction, {})
-        transform_map = transform if isinstance(transform, Mapping) else {}
-        # TileSetter edge Sources are complete tile-sized samples.  They are
-        # clipped against one another later; extracting an alpha overlay here
-        # loses intentional base pixels and makes opaque Sources unusable.
-        edge_layer = (
-            source
-            if kind in {"blob_47", "wang_16"}
-            else _overlay_from_sample(base, source, size)
-        )
-        edge_images[direction] = _transform_layer(
-            edge_layer,
-            size,
-            quarter_turns=(
-                _edge_transform_turns(direction, transform_map)
-                if auto_orient_edges
-                else _object_int(transform_map.get("rotation"), 0)
-            ),
-            flip_x=bool(transform_map.get("flipX", False)),
-            flip_y=bool(transform_map.get("flipY", False)),
-        )
-    raw_corners = set_config.get("corners", {})
-    corners = raw_corners if isinstance(raw_corners, Mapping) else {}
-    raw_corner_transforms = set_config.get("cornerTransforms", {})
-    corner_transforms = (
-        raw_corner_transforms
-        if isinstance(raw_corner_transforms, Mapping)
-        else {}
-    )
-    raw_custom_corners = set_config.get("customCorners", {})
-    custom_corners = (
-        raw_custom_corners if isinstance(raw_custom_corners, Mapping) else {}
-    )
-    corner_images: dict[str, Image.Image | None] = {}
-    for corner_type in ("outer", "inner"):
-        for diagonal in _WANG_CORNERS:
-            corner_key = f"{corner_type}_{diagonal}"
-            if custom_corners.get(corner_key) is not True:
-                corner_images[corner_key] = None
-                continue
+    if kind != "dual_grid_15":
+        for direction in ("top", "right", "bottom", "left"):
             source = _tilesetter_source_image(
                 atlas,
                 sources,
-                str(corners.get(corner_key) or "") or None,
+                str(edges.get(direction) or "") or None,
                 size,
             )
             if source is None or base is None:
-                corner_images[corner_key] = None
                 continue
-            transform = corner_transforms.get(corner_key, {})
+            transform = edge_transforms.get(direction, {})
             transform_map = transform if isinstance(transform, Mapping) else {}
-            corner_images[corner_key] = _transform_layer(
-                source,
+            # TileSetter edge Sources are complete tile-sized samples.  They
+            # are clipped against one another later; extracting an alpha
+            # overlay here loses intentional base pixels and makes opaque
+            # Sources unusable.
+            edge_layer = (
+                source
+                if kind in {"blob_47", "wang_16"}
+                else _overlay_from_sample(base, source, size)
+            )
+            edge_images[direction] = _transform_layer(
+                edge_layer,
                 size,
-                quarter_turns=_object_int(transform_map.get("rotation"), 0),
+                quarter_turns=(
+                    _edge_transform_turns(direction, transform_map)
+                    if auto_orient_edges
+                    else _object_int(transform_map.get("rotation"), 0)
+                ),
                 flip_x=bool(transform_map.get("flipX", False)),
                 flip_y=bool(transform_map.get("flipY", False)),
             )
+    raw_corners = set_config.get("corners", {})
+    corners = raw_corners if isinstance(raw_corners, Mapping) else {}
+    raw_corner_transforms = set_config.get("cornerTransforms", {})
+    corner_transforms = raw_corner_transforms if isinstance(raw_corner_transforms, Mapping) else {}
+    raw_custom_corners = set_config.get("customCorners", {})
+    custom_corners = raw_custom_corners if isinstance(raw_custom_corners, Mapping) else {}
+    corner_images: dict[str, Image.Image | None] = {
+        f"{corner_type}_{diagonal}": None
+        for corner_type in ("outer", "inner")
+        for diagonal in _WANG_CORNERS
+    }
+    if kind != "dual_grid_15":
+        for corner_type in ("outer", "inner"):
+            for diagonal in _WANG_CORNERS:
+                corner_key = f"{corner_type}_{diagonal}"
+                if custom_corners.get(corner_key) is not True:
+                    continue
+                source = _tilesetter_source_image(
+                    atlas,
+                    sources,
+                    str(corners.get(corner_key) or "") or None,
+                    size,
+                )
+                if source is None or base is None:
+                    continue
+                transform = corner_transforms.get(corner_key, {})
+                transform_map = transform if isinstance(transform, Mapping) else {}
+                corner_images[corner_key] = _transform_layer(
+                    source,
+                    size,
+                    quarter_turns=_object_int(transform_map.get("rotation"), 0),
+                    flip_x=bool(transform_map.get("flipX", False)),
+                    flip_y=bool(transform_map.get("flipY", False)),
+                )
     raw_overrides = set_config.get("overrides", {})
     overrides = raw_overrides if isinstance(raw_overrides, Mapping) else {}
     override_sources = {
@@ -1650,24 +2074,24 @@ def build_tilesetter_terrain_pattern(
         (column_count * size[0], row_count * size[1]),
         (0, 0, 0, 0),
     )
-    required_bases = base is not None and (kind != "wang_16" or secondary is not None)
+    required_bases = base is not None and (not _is_wang_pattern(kind) or secondary is not None)
     all_edges_ready = all(edge_images[direction] is not None for direction in edge_images)
-    ready = required_bases and all_edges_ready
-    default_cutoff = 0 if kind == "wang_16" else max(1, min(size) // 8)
+    # Dual Grid depends only on its two terrain Sources. Hidden edge/corner
+    # fields from migrated configurations are deliberately discarded.
+    ready = required_bases and (kind == "dual_grid_15" or all_edges_ready)
+    default_cutoff = 0 if _is_wang_pattern(kind) else max(1, min(size) // 8)
     raw_cutoff = _object_int(set_config.get("cutoff"), default_cutoff)
     cutoff = (
         max(-min(size), min(min(size), raw_cutoff))
-        if kind == "wang_16"
+        if _is_wang_pattern(kind)
         else max(0, min(min(size) // 2, raw_cutoff))
     )
     raw_edge_cutoffs = set_config.get("edgeCutoffs", {})
-    edge_cutoffs = (
-        raw_edge_cutoffs if isinstance(raw_edge_cutoffs, Mapping) else {}
-    )
+    edge_cutoffs = raw_edge_cutoffs if isinstance(raw_edge_cutoffs, Mapping) else {}
     directional_cutoff_map = {
         direction: max(
             -(size[1] if direction in {"top", "bottom"} else size[0])
-            if kind == "wang_16"
+            if _is_wang_pattern(kind)
             else 0,
             min(
                 size[1] if direction in {"top", "bottom"} else size[0],
@@ -1677,8 +2101,7 @@ def build_tilesetter_terrain_pattern(
         for direction in ("top", "right", "bottom", "left")
     }
     directional_cutoffs = tuple(
-        directional_cutoff_map[direction]
-        for direction in ("top", "right", "bottom", "left")
+        directional_cutoff_map[direction] for direction in ("top", "right", "bottom", "left")
     )
     roles: list[TerrainPatternTile] = []
     for index, mask in enumerate(masks):
@@ -1693,20 +2116,34 @@ def build_tilesetter_terrain_pattern(
             tile = override
         elif base is None:
             tile = _placeholder_tile(size, kind=kind, mask=mask)
-        elif kind == "wang_16" and secondary is not None:
-            tile = _render_tilesetter_wang_tile(
-                base,
-                secondary,
-                edge_images,
-                corner_images,
-                mask,
-                directional_cutoff_map,
-            )
+        elif _is_wang_pattern(kind) and secondary is not None:
+            if kind == "dual_grid_15":
+                pixels = _render_dual_grid_pixels(
+                    np.asarray(base, dtype=np.uint8),
+                    np.asarray(secondary, dtype=np.uint8),
+                    mask,
+                    profile=dual_grid_profile,
+                    variation=dual_grid_edge_variation,
+                    seed=dual_grid_edge_seed,
+                )
+                tile = Image.fromarray(
+                    pixels,
+                    mode="RGBA",
+                )
+            else:
+                tile = _render_tilesetter_wang_tile(
+                    base,
+                    secondary,
+                    edge_images,
+                    corner_images,
+                    mask,
+                    directional_cutoff_map,
+                )
             transitions = _wang_transitions(mask)
             for direction, present in transitions.items():
                 if not present:
                     continue
-                if edge_images[direction] is None:
+                if kind != "dual_grid_15" and edge_images[direction] is None:
                     _draw_missing_border(tile, direction)
         else:
             neighbors = set(_tile_neighbors(kind, mask))
@@ -1729,9 +2166,7 @@ def build_tilesetter_terrain_pattern(
                         and diagonal not in neighbors
                     ):
                         inner_corner_directions.extend((first, second_direction))
-            influence_directions = list(
-                dict.fromkeys(exposed_directions + inner_corner_directions)
-            )
+            influence_directions = list(dict.fromkeys(exposed_directions + inner_corner_directions))
             if kind == "blob_47" and all_edges_ready:
                 tile = _render_tilesetter_blob_tile(
                     base,
@@ -1779,7 +2214,12 @@ def build_tilesetter_terrain_pattern(
                     if corner is not None:
                         _replace_corner_quadrant(tile, corner, diagonal)
         column, row = positions[mask]
-        output.alpha_composite(tile, (column * size[0], row * size[1]))
+        _place_pattern_tile(
+            output,
+            tile,
+            (column * size[0], row * size[1]),
+            kind=kind,
+        )
         roles.append(
             TerrainPatternTile(
                 index=index,
@@ -1787,24 +2227,27 @@ def build_tilesetter_terrain_pattern(
                 column=column,
                 row=row,
                 neighbors=_tile_neighbors(kind, mask),
-                source_index=0 if ready or override is not None else None,
+                source_index=(
+                    0 if ready or (kind != "dual_grid_15" and override is not None) else None
+                ),
                 generated=override is None,
                 override_source_index=0 if override is not None else None,
             )
         )
+    if kind == "dual_grid_15" and secondary is not None:
+        _place_dual_grid_background(output, secondary, size)
     return TerrainPatternResult(
         kind=kind,
-        mode={
-            "wang_16": "match_corners",
-            "sides_16": "match_sides",
-            "blob_47": "match_corners_and_sides",
-        }[kind],
+        mode=_terrain_mode(kind),
         image=output,
         tile_width=size[0],
         tile_height=size[1],
         columns=column_count,
         rows=row_count,
         tiles=tuple(roles),
+        dual_grid_profile=dual_grid_profile if kind == "dual_grid_15" else None,
+        dual_grid_edge_variation=(dual_grid_edge_variation if kind == "dual_grid_15" else 0),
+        dual_grid_edge_seed=dual_grid_edge_seed if kind == "dual_grid_15" else 0,
     )
 
 
@@ -1855,10 +2298,19 @@ def build_smart_terrain_pattern(
     inner_corner_source: int | None = None,
     overrides: Mapping[int, int] | None = None,
     columns: int | None = None,
+    terrain_profile: DualGridTerrainProfile = "clean",
+    edge_variation: int = 0,
+    edge_seed: int = 0,
 ) -> TerrainPatternResult:
     """Generate every terrain role from reusable base, edge, and corner Sources."""
 
     size = (grid.tile_width, grid.tile_height)
+    _validate_dual_grid_size(kind, size)
+    dual_grid_profile, dual_grid_edge_variation, dual_grid_edge_seed = (
+        _normalize_dual_grid_edge_style(terrain_profile, edge_variation, edge_seed)
+        if kind == "dual_grid_15"
+        else (cast(DualGridTerrainProfile, "clean"), 0, 0)
+    )
     base = _source_image(atlas, grid, base_source)
     edge = _source_image(atlas, grid, edge_source)
     outer_corner = (
@@ -1903,7 +2355,7 @@ def build_smart_terrain_pattern(
         override_source = override_map.get(mask)
         if override_source is not None:
             tile = _source_image(atlas, grid, override_source)
-        elif kind == "wang_16":
+        elif _is_wang_pattern(kind):
             inside = np.asarray(_fit_source(base, size), dtype=np.uint8)
             outside = np.asarray(
                 _transform_layer(
@@ -1915,9 +2367,20 @@ def build_smart_terrain_pattern(
                 ),
                 dtype=np.uint8,
             )
-            bitmap = _wang_bitmap_mask(mask, size[0], size[1])
+            if kind == "dual_grid_15":
+                pixels = _render_dual_grid_pixels(
+                    inside,
+                    outside,
+                    mask,
+                    profile=dual_grid_profile,
+                    variation=dual_grid_edge_variation,
+                    seed=dual_grid_edge_seed,
+                )
+            else:
+                bitmap = _wang_bitmap_mask(mask, size[0], size[1])
+                pixels = np.where(bitmap[..., None], inside, outside).astype(np.uint8)
             tile = Image.fromarray(
-                np.where(bitmap[..., None], inside, outside).astype(np.uint8),
+                pixels,
                 mode="RGBA",
             )
         else:
@@ -1936,25 +2399,22 @@ def build_smart_terrain_pattern(
                 )
                 tile.alpha_composite(layer)
             for diagonal, first, second, turns in corner_rules:
-                if (
-                    outer_corner is not None
-                    and first not in neighbors
-                    and second not in neighbors
-                ):
-                    tile.alpha_composite(
-                        _transform_layer(outer_corner, size, quarter_turns=turns)
-                    )
+                if outer_corner is not None and first not in neighbors and second not in neighbors:
+                    tile.alpha_composite(_transform_layer(outer_corner, size, quarter_turns=turns))
                 elif (
                     inner_corner is not None
                     and first in neighbors
                     and second in neighbors
                     and diagonal not in neighbors
                 ):
-                    tile.alpha_composite(
-                        _transform_layer(inner_corner, size, quarter_turns=turns)
-                    )
+                    tile.alpha_composite(_transform_layer(inner_corner, size, quarter_turns=turns))
         column, row = positions[mask]
-        output.alpha_composite(tile, (column * size[0], row * size[1]))
+        _place_pattern_tile(
+            output,
+            tile,
+            (column * size[0], row * size[1]),
+            kind=kind,
+        )
         roles.append(
             TerrainPatternTile(
                 index=index,
@@ -1967,19 +2427,30 @@ def build_smart_terrain_pattern(
                 override_source_index=override_source,
             )
         )
+    if kind == "dual_grid_15":
+        _place_dual_grid_background(
+            output,
+            _transform_layer(
+                edge,
+                size,
+                quarter_turns=edge_rotation,
+                flip_x=flip_x,
+                flip_y=flip_y,
+            ),
+            size,
+        )
     return TerrainPatternResult(
         kind=kind,
-        mode={
-            "wang_16": "match_corners",
-            "sides_16": "match_sides",
-            "blob_47": "match_corners_and_sides",
-        }[kind],
+        mode=_terrain_mode(kind),
         image=output,
         tile_width=size[0],
         tile_height=size[1],
         columns=column_count,
         rows=row_count,
         tiles=tuple(roles),
+        dual_grid_profile=dual_grid_profile if kind == "dual_grid_15" else None,
+        dual_grid_edge_variation=(dual_grid_edge_variation if kind == "dual_grid_15" else 0),
+        dual_grid_edge_seed=dual_grid_edge_seed if kind == "dual_grid_15" else 0,
     )
 
 
@@ -1990,6 +2461,9 @@ def generate_terrain_pattern(
     kind: TerrainPatternKind = "wang_16",
     tile_size: tuple[int, int] | None = None,
     columns: int | None = None,
+    terrain_profile: DualGridTerrainProfile = "clean",
+    edge_variation: int = 0,
+    edge_seed: int = 0,
 ) -> TerrainPatternResult:
     """Compose a complete terrain atlas from two reusable bitmap sources."""
 
@@ -1998,6 +2472,12 @@ def generate_terrain_pattern(
     width, height = (int(value) for value in tile_size)
     if not 1 <= width <= 128 or not 1 <= height <= 128:
         raise ValueError("Terrain tiles must be between 1 and 128 pixels per axis")
+    _validate_dual_grid_size(kind, (width, height))
+    dual_grid_profile, dual_grid_edge_variation, dual_grid_edge_seed = (
+        _normalize_dual_grid_edge_style(terrain_profile, edge_variation, edge_seed)
+        if kind == "dual_grid_15"
+        else (cast(DualGridTerrainProfile, "clean"), 0, 0)
+    )
     inside = np.asarray(_fit_source(interior, (width, height)), dtype=np.uint8)
     outside = np.asarray(_fit_source(exterior, (width, height)), dtype=np.uint8)
     masks = terrain_pattern_masks(kind)
@@ -2009,16 +2489,32 @@ def generate_terrain_pattern(
     )
     roles: list[TerrainPatternTile] = []
     for index, mask in enumerate(masks):
-        if kind == "wang_16":
+        if kind == "dual_grid_15":
+            pixels = _render_dual_grid_pixels(
+                inside,
+                outside,
+                mask,
+                profile=dual_grid_profile,
+                variation=dual_grid_edge_variation,
+                seed=dual_grid_edge_seed,
+            )
+        elif _is_wang_pattern(kind):
             bitmap = _wang_bitmap_mask(mask, width, height)
+            pixels = np.where(bitmap[..., None], inside, outside).astype(np.uint8)
         elif kind == "sides_16":
             bitmap = _blob_bitmap_mask(_sides_blob_mask(mask), width, height)
+            pixels = np.where(bitmap[..., None], inside, outside).astype(np.uint8)
         else:
             bitmap = _blob_bitmap_mask(mask, width, height)
-        pixels = np.where(bitmap[..., None], inside, outside).astype(np.uint8)
+            pixels = np.where(bitmap[..., None], inside, outside).astype(np.uint8)
         tile = Image.fromarray(pixels, mode="RGBA")
         column, row = positions[mask]
-        atlas.alpha_composite(tile, (column * width, row * height))
+        _place_pattern_tile(
+            atlas,
+            tile,
+            (column * width, row * height),
+            kind=kind,
+        )
         roles.append(
             TerrainPatternTile(
                 index=index,
@@ -2029,20 +2525,88 @@ def generate_terrain_pattern(
                 source_index=index,
             )
         )
+    if kind == "dual_grid_15":
+        _place_dual_grid_background(
+            atlas,
+            Image.fromarray(outside, mode="RGBA"),
+            (width, height),
+        )
     return TerrainPatternResult(
         kind=kind,
-        mode={
-            "wang_16": "match_corners",
-            "sides_16": "match_sides",
-            "blob_47": "match_corners_and_sides",
-        }[kind],
+        mode=_terrain_mode(kind),
         image=atlas,
         tile_width=width,
         tile_height=height,
         columns=column_count,
         rows=row_count,
         tiles=tuple(roles),
+        dual_grid_profile=dual_grid_profile if kind == "dual_grid_15" else None,
+        dual_grid_edge_variation=(dual_grid_edge_variation if kind == "dual_grid_15" else 0),
+        dual_grid_edge_seed=dual_grid_edge_seed if kind == "dual_grid_15" else 0,
     )
+
+
+def _dual_grid_runtime_roles(
+    result: TerrainPatternResult,
+) -> tuple[tuple[TerrainPatternTile, int], ...]:
+    """Return TileMapDual's 16 physical cells and their terrain assignments.
+
+    The authored pattern deliberately has 15 foreground masks.  TileMapDual
+    nevertheless scans a complete 4x4 atlas: mask 0 identifies the world
+    background, mask 15 identifies the foreground, and transitions must not
+    identify as either terrain or the plugin can select a transition as a
+    world tile.
+    """
+
+    if result.kind != "dual_grid_15":
+        raise ValueError("Dual Grid runtime roles require a dual_grid_15 result")
+    if (result.columns, result.rows) != (4, 4):
+        raise ValueError("Dual Grid runtime export requires TileMapDual's 4x4 layout")
+    _validate_dual_grid_size(result.kind, (result.tile_width, result.tile_height))
+    expected_masks = set(terrain_pattern_masks("dual_grid_15"))
+    by_mask = {tile.mask: tile for tile in result.tiles}
+    if set(by_mask) != expected_masks:
+        raise ValueError("Dual Grid result must contain masks 1 through 15")
+    positions, _, _ = _role_positions("dual_grid_15", None)
+    if any((tile.column, tile.row) != positions[tile.mask] for tile in result.tiles):
+        raise ValueError("Dual Grid result does not use TileMapDual's Standard layout")
+    empty = TerrainPatternTile(
+        index=0,
+        mask=0,
+        column=_DUAL_GRID_EMPTY_POSITION[0],
+        row=_DUAL_GRID_EMPTY_POSITION[1],
+        neighbors=(),
+        generated=True,
+    )
+    return (
+        (empty, 0),
+        *(
+            (by_mask[mask], 1 if mask == _DUAL_GRID_FOREGROUND_MASK else -1)
+            for mask in range(1, _DUAL_GRID_FOREGROUND_MASK + 1)
+        ),
+    )
+
+
+def _tile_peering_bits(
+    result: TerrainPatternResult,
+    tile: TerrainPatternTile,
+) -> dict[str, int]:
+    """Build Godot peer values for one exported tile.
+
+    Standard Godot terrain exports use -1 for empty space.  TileMapDual's
+    Standard preset instead requires an explicit binary 0/1 value at every
+    corner, including all transition tiles.
+    """
+
+    if result.kind == "dual_grid_15":
+        return {
+            str(_GODOT_PEERING_BITS[name]): int(name in tile.neighbors)
+            for name in _DUAL_GRID_TILEMAP_DUAL_PEERING_CORNERS
+        }
+    return {
+        str(_GODOT_PEERING_BITS[name]): (0 if name in tile.neighbors else -1)
+        for name in _relevant_directions(result.kind)
+    }
 
 
 def terrain_pattern_manifest(
@@ -2054,7 +2618,48 @@ def terrain_pattern_manifest(
 
     png = io.BytesIO()
     result.image.save(png, format="PNG", optimize=False)
-    return {
+    godot: dict[str, object] = {
+        "version": 4,
+        "terrain_set": 0,
+        "terrain": 0,
+        "mode": result.mode,
+        "importer": "install_terrain_tileset.gd",
+    }
+    runtime_roles = (
+        _dual_grid_runtime_roles(result)
+        if result.kind == "dual_grid_15"
+        else tuple((tile, 0) for tile in result.tiles)
+    )
+    if result.kind == "dual_grid_15":
+        godot["terrain"] = {
+            "background": 0,
+            "foreground": 1,
+            "transitions": -1,
+        }
+    tiles: list[dict[str, object]] = []
+    for tile, terrain in runtime_roles:
+        entry: dict[str, object] = {
+            "id": tile.mask if result.kind == "dual_grid_15" else tile.index,
+            "column": tile.column,
+            "row": tile.row,
+            "mask": tile.mask,
+            "neighbors": list(tile.neighbors),
+            "source_index": tile.source_index,
+            "generated": tile.generated,
+            "override_source_index": tile.override_source_index,
+            "peering_bits": _tile_peering_bits(result, tile),
+        }
+        if result.kind == "dual_grid_15":
+            entry["terrain"] = terrain
+            entry["role"] = (
+                "background"
+                if tile.mask == 0
+                else "foreground"
+                if tile.mask == _DUAL_GRID_FOREGROUND_MASK
+                else "transition"
+            )
+        tiles.append(entry)
+    manifest: dict[str, object] = {
         "schema_version": "1.0",
         "kind": "terrain_pattern",
         "pattern": result.kind,
@@ -2071,75 +2676,113 @@ def terrain_pattern_manifest(
             "columns": result.columns,
             "rows": result.rows,
         },
-        "godot": {
-            "version": 4,
-            "terrain_set": 0,
-            "terrain": 0,
-            "mode": result.mode,
-            "importer": "install_terrain_tileset.gd",
-        },
-        "tiles": [
-            {
-                "id": tile.index,
-                "column": tile.column,
-                "row": tile.row,
-                "mask": tile.mask,
-                "neighbors": list(tile.neighbors),
-                "source_index": tile.source_index,
-                "generated": tile.generated,
-                "override_source_index": tile.override_source_index,
-                "peering_bits": {
-                    str(_GODOT_PEERING_BITS[name]): (
-                        0 if name in tile.neighbors else -1
-                    )
-                    for name in _relevant_directions(result.kind)
-                },
-            }
-            for tile in result.tiles
-        ],
+        "godot": godot,
+        "tiles": tiles,
     }
+    if result.kind == "dual_grid_15":
+        manifest["dual_grid"] = {
+            "runtime": "TileMapDual",
+            "atlas_layout": "tilemapdual_standard_4x4",
+            "topology": "square",
+            "neighborhood": "square",
+            "terrain_profile": result.dual_grid_profile or "clean",
+            "edge_variation": result.dual_grid_edge_variation,
+            "edge_seed": result.dual_grid_edge_seed,
+            "edge_generation": "deterministic_palette_bands",
+            "logical_grid": "terrain_cells",
+            "display_grid_offset": [-0.5, -0.5],
+            "display_grid_offset_owner": "TileMapDual",
+            "corner_order": list(_WANG_CORNERS),
+            "tilemap_dual_peering_order": list(_DUAL_GRID_TILEMAP_DUAL_PEERING_CORNERS),
+            "empty_mask": 0,
+            "masks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+            "runtime_masks": list(range(16)),
+            "terrain_roles": {
+                "background_mask": 0,
+                "background_terrain": 0,
+                "foreground_mask": _DUAL_GRID_FOREGROUND_MASK,
+                "foreground_terrain": 1,
+                "transition_terrain": -1,
+            },
+        }
+    return manifest
 
 
 def render_godot_terrain_installer(
     result: TerrainPatternResult,
     *,
     terrain_name: str = "Terrain",
-    texture_resource_path: str = "res://terrain_tiles.png",
-    tileset_resource_path: str = "res://terrain_tileset.tres",
+    texture_resource_path: str | None = None,
+    tileset_resource_path: str | None = None,
 ) -> str:
-    """Render an EditorScript that creates a Godot 4 terrain TileSet resource."""
+    """Render an EditorScript that creates a Godot 4 terrain TileSet resource.
+
+    For Dual Grid this is specifically the TileMapDual Standard-preset
+    contract, not a regular one-terrain TileMapLayer autotile.
+    """
 
     for path in (texture_resource_path, tileset_resource_path):
+        if path is None:
+            continue
         if not path.startswith("res://") or path.endswith(".import"):
             raise ValueError("Godot resource paths must use res:// and never .import")
-    mode = (
-        "TileSet.TERRAIN_MODE_MATCH_CORNERS"
-        if result.kind == "wang_16"
-        else (
-            "TileSet.TERRAIN_MODE_MATCH_SIDES"
-            if result.kind == "sides_16"
-            else "TileSet.TERRAIN_MODE_MATCH_CORNERS_AND_SIDES"
-        )
+    needs_script_dir = texture_resource_path is None or tileset_resource_path is None
+    script_dir_setup = (
+        "    var script_dir := get_script().resource_path.get_base_dir()\n"
+        if needs_script_dir
+        else ""
     )
+    texture_path = (
+        'script_dir.path_join("terrain_tiles.png")'
+        if texture_resource_path is None
+        else json.dumps(texture_resource_path)
+    )
+    tileset_path = (
+        'script_dir.path_join("terrain_tileset.tres")'
+        if tileset_resource_path is None
+        else json.dumps(tileset_resource_path)
+    )
+    mode = {
+        "match_corners": "TileSet.TERRAIN_MODE_MATCH_CORNERS",
+        "match_sides": "TileSet.TERRAIN_MODE_MATCH_SIDES",
+        "match_corners_and_sides": ("TileSet.TERRAIN_MODE_MATCH_CORNERS_AND_SIDES"),
+    }[_terrain_mode(result.kind)]
     entry_lines: list[str] = []
-    relevant = _relevant_directions(result.kind)
-    for tile in result.tiles:
+    runtime_roles = (
+        _dual_grid_runtime_roles(result)
+        if result.kind == "dual_grid_15"
+        else tuple((tile, 0) for tile in result.tiles)
+    )
+    for tile, terrain in runtime_roles:
         peers = ", ".join(
-            f"{_GODOT_PEERING_BITS[name]}: {0 if name in tile.neighbors else -1}"
-            for name in relevant
+            f"{peering_bit}: {value}"
+            for peering_bit, value in _tile_peering_bits(result, tile).items()
         )
         entry_lines.append(
-            "        {\"coords\": Vector2i("
-            f"{tile.column}, {tile.row}), \"peers\": {{{peers}}}}},"
+            '        {"coords": Vector2i('
+            f'{tile.column}, {tile.row}), "terrain": {terrain}, '
+            f'"peers": {{{peers}}}}},'
         )
     entries = "\n".join(entry_lines)
+    terrain_setup = (
+        """    tile_set.add_terrain(0)
+    tile_set.set_terrain_name(0, 0, \"Background\")
+    tile_set.add_terrain(0)
+    tile_set.set_terrain_name(0, 1, """
+        + json.dumps(terrain_name, ensure_ascii=False)
+        + ")"
+        if result.kind == "dual_grid_15"
+        else "    tile_set.add_terrain(0)\n    tile_set.set_terrain_name(0, 0, "
+        + json.dumps(terrain_name, ensure_ascii=False)
+        + ")"
+    )
     return f"""@tool
 extends EditorScript
 
 # Generated by sprite-builder. Copy this file beside terrain_tiles.png,
 # open it in Godot 4's script editor, then choose File > Run.
 func _run() -> void:
-    var texture := load({json.dumps(texture_resource_path)})
+{script_dir_setup}    var texture := load({texture_path})
     if texture == null:
         push_error("Import terrain_tiles.png before running this script.")
         return
@@ -2148,8 +2791,7 @@ func _run() -> void:
     tile_set.tile_size = Vector2i({result.tile_width}, {result.tile_height})
     tile_set.add_terrain_set()
     tile_set.set_terrain_set_mode(0, {mode})
-    tile_set.add_terrain(0)
-    tile_set.set_terrain_name(0, 0, {json.dumps(terrain_name, ensure_ascii=False)})
+{terrain_setup}
 
     var atlas := TileSetAtlasSource.new()
     atlas.texture = texture
@@ -2163,15 +2805,15 @@ func _run() -> void:
         atlas.create_tile(coords)
         var tile_data := atlas.get_tile_data(coords, 0)
         tile_data.terrain_set = 0
-        tile_data.terrain = 0
+        tile_data.terrain = entry["terrain"]
         for peering_bit in entry["peers"]:
             tile_data.set_terrain_peering_bit(peering_bit, entry["peers"][peering_bit])
 
-    var error := ResourceSaver.save(tile_set, {json.dumps(tileset_resource_path)})
+    var error := ResourceSaver.save(tile_set, {tileset_path})
     if error != OK:
         push_error("Could not save the TileSet resource (error %s)." % error)
         return
-    print("Created {tileset_resource_path}")
+    print("Created " + {tileset_path})
 """
 
 
@@ -2183,9 +2825,7 @@ def build_terrain_pattern_bundle(
     """Package a generated atlas, lineage metadata, and Godot 4 installer."""
 
     if not result.complete:
-        raise ValueError(
-            f"Terrain pattern has {len(result.unassigned_masks)} unassigned roles"
-        )
+        raise ValueError(f"Terrain pattern has {len(result.unassigned_masks)} unassigned roles")
     atlas = io.BytesIO()
     result.image.save(atlas, format="PNG", optimize=False)
     bitmask_reference = io.BytesIO()
@@ -2195,7 +2835,41 @@ def build_terrain_pattern_bundle(
         optimize=False,
     )
     manifest = terrain_pattern_manifest(result, terrain_name=terrain_name)
-    readme = """Godot 4 terrain pattern
+    if result.kind == "dual_grid_15":
+        readme = """TileMapDual 4x4 Standard pattern
+
+1. Copy all files into one folder in your Godot project.
+2. Install and enable the TileMapDual plugin, then wait for terrain_tiles.png
+   to finish importing.
+3. Open install_terrain_tileset.gd in Godot's script editor and choose
+   File > Run. The script creates terrain_tileset.tres.
+4. Assign that resource to a TileMapDual node with Square topology and the
+   Standard preset. Do not use a normal TileMapLayer terrain-paint workflow.
+   This atlas and its peers do not support isometric, hexagonal, or triangle
+   TileMapDual configurations.
+
+The atlas contains 15 authored foreground masks plus its required physical
+mask-0 background cell at (0, 3). Mask 15 at (2, 1) identifies the foreground
+terrain; masks 1 through 14 are transitions and intentionally have terrain
+-1. Every role has four binary (0/1) corner peers, as TileMapDual requires.
+
+If a material-pair edge profile was selected in Pattern Studio, its profile,
+variation level, and deterministic seed are recorded in terrain_pattern.json.
+The generated material-pair profiles build hard pixel-art palette bands from
+Terrain A and B: shadow, rim, bank/root, and clustered accents. They may derive
+new RGB tones, but never blur or alpha-blend; source alpha remains unchanged.
+
+The artistic mask bit order is NW, NE, SE, SW. TileMapDual reads Godot peer
+corners in TL, TR, BL, BR order; terrain_pattern.json records both orders.
+TileMapDual owns the half-tile display offset between its logical world grid
+and its display layer. The JSON manifest can also drive a procedural map
+generator. The installer resolves terrain_tiles.png and terrain_tileset.tres
+relative to its own folder, so this bundle may live in any project subfolder.
+terrain_bitmask_reference.png is a visual guide; Godot 4 does not import it.
+No .import file is included or created by sprite-builder.
+"""
+    else:
+        readme = """Godot 4 terrain pattern
 
 1. Copy all files into one folder in your Godot project.
 2. Wait for terrain_tiles.png to finish importing.
@@ -2204,6 +2878,8 @@ def build_terrain_pattern_bundle(
 5. Assign that resource to a TileMapLayer and paint terrain 0.
 
 The JSON manifest is engine-neutral and can also drive a procedural map generator.
+The installer resolves terrain_tiles.png and terrain_tileset.tres relative to
+its own folder, so this bundle may live in any project subfolder.
 terrain_bitmask_reference.png is a visual guide; Godot 4 does not import it.
 No .import file is included or created by sprite-builder.
 """

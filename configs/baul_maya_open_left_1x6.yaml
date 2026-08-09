@@ -1,0 +1,54 @@
+schema_version: "1.0"
+job:
+  id: baul-maya-open-left-v001
+
+character:
+  id: baul_maya
+  bible: characters/baul_maya/bible.yaml
+  references:
+    - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/items/baul_maya_lateral_izquierda_16bit.png
+
+animation:
+  name: open
+  directions: [left]
+  frame_count: 6
+  fps: 8
+  loop: false
+  phases: [closed, latch_release, lid_lift, half_open, open, fully_open]
+
+generation:
+  source_size: [1024, 1024]
+  quality: medium
+  candidates_per_frame: 1
+  background:
+    color: "#FFFFFF"
+  use_previous_accepted_frame: true
+  seed:
+    path: /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/items/baul_maya_lateral_izquierda_16bit.png
+    frame_index: 0
+
+render:
+  cell_size: [384, 384]
+  target_body_height_px: 170
+  palette_lock: true
+  dithering: false
+  integrated_shadow: false
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [192, 280]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+export:
+  formats: [individual, horizontal, godot]
+  output_dir: exports/baul_maya/open_left_1x6
+  godot:
+    project_root: /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot
+    resource_dir: res://assets/sprites/items/generated
+
+metadata:
+  item_type: treasure_chest
+  reference_layout: single_lateral_closed
+  requested_sheet: 1x6_horizontal
+  opening_sequence: closed_to_fully_open

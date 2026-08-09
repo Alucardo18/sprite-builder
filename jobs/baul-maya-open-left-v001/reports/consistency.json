@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "job_id": "baul-maya-open-left-v001",
+  "status": "reject",
+  "mean_drift": 22.087204279107,
+  "directions": {
+    "left": {
+      "frames": [
+        {
+          "index": 0,
+          "palette_coverage": 1.0,
+          "silhouette_iou": 1.0,
+          "body_height_deviation": 0.0,
+          "temporal_edge_change": 0.0,
+          "drift_score": 0.0,
+          "status": "pass"
+        },
+        {
+          "index": 1,
+          "palette_coverage": 1.0,
+          "silhouette_iou": 0.6840898670334709,
+          "body_height_deviation": 0.2222222222222222,
+          "temporal_edge_change": 0.006761338975694444,
+          "drift_score": 16.17743299584241,
+          "status": "review"
+        },
+        {
+          "index": 2,
+          "palette_coverage": 1.0,
+          "silhouette_iou": 0.6240221804139023,
+          "body_height_deviation": 0.3418803418803419,
+          "temporal_edge_change": 0.007351345486111111,
+          "drift_score": 20.731965071731366,
+          "status": "review"
+        },
+        {
+          "index": 3,
+          "palette_coverage": 1.0,
+          "silhouette_iou": 0.4971000593688633,
+          "body_height_deviation": 0.5811965811965812,
+          "temporal_edge_change": 0.005744086371527778,
+          "drift_score": 29.799838183174188,
+          "status": "review"
+        },
+        {
+          "index": 4,
+          "palette_coverage": 1.0,
+          "silhouette_iou": 0.4401517922457937,
+          "body_height_deviation": 0.6324786324786325,
+          "temporal_edge_change": 0.0079345703125,
+          "drift_score": 33.03771695221987,
+          "status": "reject"
+        },
+        {
+          "index": 5,
+          "palette_coverage": 1.0,
+          "silhouette_iou": 0.4342678279804028,
+          "body_height_deviation": 0.6068376068376068,
+          "temporal_edge_change": 0.008388943142361112,
+          "drift_score": 32.77627247167415,
+          "status": "reject"
+        }
+      ],
+      "mean_drift": 22.087204279107,
+      "status": "reject"
+    }
+  }
+}

@@ -9,7 +9,7 @@ import json
 import os
 import uuid
 import zipfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, MutableMapping, Sequence
 from pathlib import Path
 from typing import Any, cast
 
@@ -85,6 +85,224 @@ from sprite_builder.ui.components import (
 _EDITOR_HISTORY_LIMIT = 75
 _TILESET_STATE_PREFIX = "tileset_builder"
 _APP_PAGE_KEY = "sprite_builder_page"
+_TILESET_TILE_SIZE_MIN = 1
+_TILESET_TILE_SIZE_MAX = 64
+_UI_PATTERN_KINDS = frozenset({"blob_47", "wang_16", "sides_16", "dual_grid_15"})
+_DUAL_GRID_BACKGROUND_POSITION = (0, 3)
+
+
+def _ui_pattern_kind(value: object, fallback: str = "blob_47") -> str:
+    candidate = str(value or fallback)
+    return candidate if candidate in _UI_PATTERN_KINDS else fallback
+
+
+def _validated_tilesetter_project_tile_size(value: object) -> int:
+    """Return the saved square Tile Size or reject a non-restorable payload."""
+
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        raise ValueError("tile_size debe ser una lista de [ancho, alto].")
+    width, height = value
+    if (
+        isinstance(width, bool)
+        or isinstance(height, bool)
+        or not isinstance(width, int)
+        or not isinstance(height, int)
+    ):
+        raise ValueError("tile_size debe contener dos enteros.")
+    if not (
+        _TILESET_TILE_SIZE_MIN <= width <= _TILESET_TILE_SIZE_MAX
+        and _TILESET_TILE_SIZE_MIN <= height <= _TILESET_TILE_SIZE_MAX
+    ):
+        raise ValueError(
+            "tile_size debe estar entre "
+            f"{_TILESET_TILE_SIZE_MIN} y {_TILESET_TILE_SIZE_MAX} px."
+        )
+    if width != height:
+        raise ValueError("Este editor sólo admite tile_size cuadrado.")
+    return width
+
+
+def _restore_tilesetter_project_import(
+    session_state: MutableMapping[str, Any],
+    *,
+    incoming_project: object,
+    atlas_sha256: str,
+    project_key: str,
+    upload_digest_key: str,
+    upload_sha256: str,
+) -> None:
+    """Atomically restore a compatible Set View project and its Tile Size."""
+
+    if not isinstance(incoming_project, Mapping):
+        raise ValueError("No es un proyecto de Set View")
+    if incoming_project.get("atlas_sha256") != atlas_sha256:
+        raise ValueError("Este proyecto utiliza otra imagen fuente; no se importó.")
+    if incoming_project.get("kind") != "tilesetter_set_project":
+        raise ValueError("No es un proyecto de Set View")
+    studio = incoming_project.get("studio")
+    if not isinstance(studio, Mapping):
+        raise ValueError("El proyecto no contiene datos del estudio")
+    tile_size = _validated_tilesetter_project_tile_size(incoming_project.get("tile_size"))
+
+    session_state[project_key] = dict(studio)
+    session_state[f"{_TILESET_STATE_PREFIX}:tile_size"] = tile_size
+    session_state[upload_digest_key] = upload_sha256
+
+
+def _tilesetter_project_upload_is_new(
+    session_state: Mapping[str, Any],
+    *,
+    upload_digest_key: str,
+    upload_sha256: str,
+) -> bool:
+    """Whether this uploader payload needs one restore and rerun."""
+
+    return upload_sha256 != session_state.get(upload_digest_key)
+
+
+def _terrain_pattern_studio_roles(
+    result: Any,
+    *,
+    set_positions: Mapping[int, tuple[int, int]],
+    kind: str,
+) -> list[dict[str, Any]]:
+    """Convert backend roles to Set View roles without hiding Dual Grid's background.
+
+    The backend intentionally treats masks 1–15 as authored transition roles.
+    TileMapDual still needs the physical mask-0 background slot in the standard
+    4×4 atlas, so expose that already-rendered tile to the UI as a runtime
+    reference rather than pretending it is a sixteenth transition.
+    """
+
+    roles = [
+        {
+            "index": role.index,
+            "mask": role.mask,
+            "neighbors": list(role.neighbors),
+            "previewColumn": role.column,
+            "previewRow": role.row,
+            "setColumn": set_positions[role.mask][0],
+            "setRow": set_positions[role.mask][1],
+            "generated": role.generated,
+            "sourceIndex": role.source_index,
+        }
+        for role in result.tiles
+    ]
+    if kind == "dual_grid_15" and not any(role["mask"] == 0 for role in roles):
+        column, row = _DUAL_GRID_BACKGROUND_POSITION
+        roles.insert(
+            0,
+            {
+                "index": -1,
+                "mask": 0,
+                "neighbors": [],
+                "previewColumn": column,
+                "previewRow": row,
+                "setColumn": column,
+                "setRow": row,
+                "generated": True,
+                "sourceIndex": None,
+                "runtimeRole": "background",
+            },
+        )
+    return roles
+
+
+def _strip_dual_grid_background_overrides(
+    project: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Remove obsolete Dual Grid authoring controls without losing future fields.
+
+    TileMapDual's physical mask 0 is always rendered from ``secondarySource``.
+    Older Set View documents could persist an override for it, which would make
+    the project disagree with the exported atlas. Dual Grid also does not use
+    the hidden border/corner controls from Blob and Wang sets. Only those known
+    obsolete fields and the forbidden mask-0 override are removed; all other
+    set and extension metadata stays intact.
+    """
+
+    revised = dict(project)
+    raw_sets = revised.get("sets")
+    if not isinstance(raw_sets, list):
+        return revised
+    changed = False
+    sets: list[Any] = []
+    legacy_dual_fields = (
+        "autoOrientEdges",
+        "edges",
+        "edgeTransforms",
+        "edgeCutoffs",
+        "cutoff",
+        "corners",
+        "customCorners",
+        "cornerTransforms",
+        "compositeCorners",
+    )
+    for raw_set in raw_sets:
+        if not isinstance(raw_set, Mapping) or raw_set.get("kind") != "dual_grid_15":
+            sets.append(raw_set)
+            continue
+        raw_overrides = raw_set.get("overrides")
+        set_copy = dict(raw_set)
+        set_changed = False
+        for field in legacy_dual_fields:
+            if field in set_copy:
+                del set_copy[field]
+                set_changed = True
+        if isinstance(raw_overrides, Mapping) and any(
+            str(mask) == "0" for mask in raw_overrides
+        ):
+            set_copy["overrides"] = {
+                mask: source_id
+                for mask, source_id in raw_overrides.items()
+                if str(mask) != "0"
+            }
+            set_changed = True
+        sets.append(set_copy if set_changed else raw_set)
+        changed = changed or set_changed
+    if changed:
+        revised["sets"] = sets
+    return revised
+
+
+def _dual_grid_tile_size_error(tile_size: tuple[int, int]) -> str | None:
+    """Return the user-facing guard for a non-representable Dual Grid cell."""
+
+    width, height = (int(value) for value in tile_size)
+    if width < 2 or height < 2:
+        return "Dual Grid requiere tiles de al menos 2×2 px (ancho y alto)."
+    return None
+
+
+def _build_terrain_pattern_safely(
+    image: Image.Image,
+    *,
+    tile_size: tuple[int, int],
+    sources: Sequence[Mapping[str, Any]],
+    set_config: Mapping[str, Any],
+    kind: str,
+) -> tuple[Any | None, str | None]:
+    """Build one Pattern Studio set without letting invalid Dual projects crash UI."""
+
+    if kind == "dual_grid_15":
+        error = _dual_grid_tile_size_error(tile_size)
+        if error is not None:
+            return None, error
+    try:
+        return (
+            build_tilesetter_terrain_pattern(
+                image,
+                tile_size=tile_size,
+                sources=sources,
+                set_config=set_config,
+                kind=cast(TerrainPatternKind, kind),
+            ),
+            None,
+        )
+    except ValueError as exc:
+        if kind == "dual_grid_15":
+            return None, f"Dual Grid inválido: {exc}"
+        raise
 
 
 def _workspace() -> Path:
@@ -136,7 +354,13 @@ def _set_tileset_image(image: Image.Image, *, source_name: str, reset_canvas: bo
 
 def _tileset_grid_from_state() -> TilesetGrid:
     prefix = _TILESET_STATE_PREFIX
-    tile_size = max(1, min(64, int(st.session_state.get(f"{prefix}:tile_size", 16))))
+    tile_size = max(
+        _TILESET_TILE_SIZE_MIN,
+        min(
+            _TILESET_TILE_SIZE_MAX,
+            int(st.session_state.get(f"{prefix}:tile_size", 16)),
+        ),
+    )
     return TilesetGrid(
         tile_width=tile_size,
         tile_height=tile_size,
@@ -153,7 +377,11 @@ def _apply_tileset_grid_event(event: Mapping[str, Any]) -> None:
         return
     prefix = _TILESET_STATE_PREFIX
     st.session_state[f"{prefix}:tile_size"] = max(
-        1, min(64, int(raw.get("tile_size", raw.get("tile_width", 16))))
+        _TILESET_TILE_SIZE_MIN,
+        min(
+            _TILESET_TILE_SIZE_MAX,
+            int(raw.get("tile_size", raw.get("tile_width", 16))),
+        ),
     )
     for name in ("offset_x", "offset_y", "spacing_x", "spacing_y"):
         st.session_state[f"{prefix}:{name}"] = max(0, int(raw.get(name, 0)))
@@ -387,9 +615,9 @@ def _render_terrain_patterns() -> None:
 
     prefix = f"{_TILESET_STATE_PREFIX}:patterns"
     st.caption(
-        "Importa Sources al Set View, selecciona uno o dos tiles y usa Build "
-        "Borders. Configura el set desde Tile Properties mientras el Sandbox "
-        "se actualiza."
+        "Importa Sources al Set View: usa Build Borders para Blob/Wang o "
+        "selecciona exactamente dos tiles y usa Build Dual Grid · 15. "
+        "Configura el set desde Tile Properties mientras el Sandbox se actualiza."
     )
     image = _tileset_state_image()
     if image is None:
@@ -444,6 +672,7 @@ def _render_terrain_patterns() -> None:
             "selectedSetId": None,
         },
     )
+    project = _strip_dual_grid_background_overrides(project)
     raw_sets = project.get("sets", [])
     sets = raw_sets if isinstance(raw_sets, list) else []
     active_set = next(
@@ -455,23 +684,21 @@ def _render_terrain_patterns() -> None:
         ),
         None,
     )
-    kind_value = str(active_set.get("kind", "blob_47")) if active_set else "blob_47"
-    if kind_value not in {"blob_47", "wang_16", "sides_16"}:
-        kind_value = "blob_47"
-    kind = cast(TerrainPatternKind, kind_value)
+    kind = _ui_pattern_kind(active_set.get("kind", "blob_47") if active_set else "blob_47")
     raw_sources = project.get("sources", [])
     sources = raw_sources if isinstance(raw_sources, list) else []
     source_mappings = [item for item in sources if isinstance(item, Mapping)]
     set_results: dict[str, Any] = {}
     set_previews: list[dict[str, Any]] = []
+    invalid_set_errors: dict[str, str] = {}
     for item in sets:
         if not isinstance(item, Mapping):
             continue
-        item_kind_value = str(item.get("kind", "blob_47"))
-        if item_kind_value not in {"blob_47", "wang_16", "sides_16"}:
+        item_kind_value = _ui_pattern_kind(item.get("kind", "blob_47"))
+        if item_kind_value not in _UI_PATTERN_KINDS:
             continue
-        item_kind = cast(TerrainPatternKind, item_kind_value)
-        item_result = build_tilesetter_terrain_pattern(
+        item_kind = item_kind_value
+        item_result, item_error = _build_terrain_pattern_safely(
             image,
             tile_size=(grid.tile_width, grid.tile_height),
             sources=source_mappings,
@@ -479,8 +706,13 @@ def _render_terrain_patterns() -> None:
             kind=item_kind,
         )
         set_id = str(item.get("id", ""))
+        if item_error is not None:
+            invalid_set_errors[set_id] = item_error
+            continue
+        if item_result is None:
+            raise RuntimeError("Terrain pattern build did not return a result or error")
         set_results[set_id] = item_result
-        set_layout = terrain_pattern_set_layout(item_kind)
+        set_layout = terrain_pattern_set_layout(cast(TerrainPatternKind, item_kind))
         set_positions = {
             int(mask): (column, row)
             for row, layout_row in enumerate(set_layout)
@@ -492,55 +724,45 @@ def _render_terrain_patterns() -> None:
                 "id": set_id,
                 "kind": item_kind,
                 "image": item_result.image,
-                "roles": [
-                    {
-                        "index": role.index,
-                        "mask": role.mask,
-                        "neighbors": list(role.neighbors),
-                        "previewColumn": role.column,
-                        "previewRow": role.row,
-                        "setColumn": set_positions[role.mask][0],
-                        "setRow": set_positions[role.mask][1],
-                        "generated": role.generated,
-                        "sourceIndex": role.source_index,
-                    }
-                    for role in item_result.tiles
-                ],
+                "roles": _terrain_pattern_studio_roles(
+                    item_result,
+                    set_positions=set_positions,
+                    kind=item_kind,
+                ),
             }
         )
-    result = set_results.get(str(project.get("activeSetId", "")))
-    if result is None:
-        result = build_tilesetter_terrain_pattern(
+    active_set_id = str(project.get("activeSetId", ""))
+    result = set_results.get(active_set_id)
+    active_set_error = invalid_set_errors.get(active_set_id)
+    if result is None and active_set_error is None:
+        result, active_set_error = _build_terrain_pattern_safely(
             image,
             tile_size=(grid.tile_width, grid.tile_height),
             sources=source_mappings,
             set_config={},
             kind=kind,
         )
-    active_layout = terrain_pattern_set_layout(kind)
+    if active_set_error is not None:
+        invalid_set_errors[active_set_id] = active_set_error
+    active_layout = terrain_pattern_set_layout(cast(TerrainPatternKind, kind))
     active_positions = {
         int(mask): (column, row)
         for row, layout_row in enumerate(active_layout)
         for column, mask in enumerate(layout_row)
         if mask is not None
     }
-    roles = [
-        {
-            "index": role.index,
-            "mask": role.mask,
-            "neighbors": list(role.neighbors),
-            "previewColumn": role.column,
-            "previewRow": role.row,
-            "setColumn": active_positions[role.mask][0],
-            "setRow": active_positions[role.mask][1],
-            "generated": role.generated,
-            "sourceIndex": role.source_index,
-        }
-        for role in result.tiles
-    ]
+    roles = (
+        _terrain_pattern_studio_roles(
+            result,
+            set_positions=active_positions,
+            kind=kind,
+        )
+        if result is not None
+        else []
+    )
     event = terrain_pattern_studio(
         image,
-        pattern_image=result.image,
+        pattern_image=result.image if result is not None else image,
         image_token=str(
             st.session_state.setdefault(
                 f"{_TILESET_STATE_PREFIX}:canvas_token",
@@ -562,10 +784,16 @@ def _render_terrain_patterns() -> None:
             st.session_state[f"{prefix}:last_event"] = event_id
             incoming = event.get("project")
             if event.get("type") == "project-change" and isinstance(incoming, Mapping):
-                revised = dict(incoming)
+                revised = _strip_dual_grid_background_overrides(incoming)
                 if int(revised.get("version", 0)) == 3:
                     st.session_state[project_key] = revised
                     st.rerun()
+
+    for set_id, error in invalid_set_errors.items():
+        if set_id == active_set_id:
+            st.error(error)
+        else:
+            st.warning(f"Set generado inválido ({set_id or 'sin id'}): {error}")
 
     with st.expander("Proyecto y exportación", expanded=True):
         name_col, status_col = st.columns((2.7, 1.3), gap="small")
@@ -574,7 +802,7 @@ def _render_terrain_patterns() -> None:
             value="Terrain",
             key=f"{prefix}:terrain_name",
         ).strip() or "Terrain"
-        status_col.metric("Variantes", len(result.tiles))
+        status_col.metric("Variantes", len(result.tiles) if result is not None else 0)
         atlas_sha256 = hashlib.sha256(_png_bytes(image)).hexdigest()
         saved_project = {
             "schema_version": "3.0",
@@ -605,30 +833,39 @@ def _render_terrain_patterns() -> None:
         if project_upload is not None:
             payload = project_upload.getvalue()
             digest = hashlib.sha256(payload).hexdigest()
-            if digest != st.session_state.get(f"{prefix}:project_upload_sha256"):
+            upload_digest_key = f"{prefix}:project_upload_sha256"
+            if _tilesetter_project_upload_is_new(
+                st.session_state,
+                upload_digest_key=upload_digest_key,
+                upload_sha256=digest,
+            ):
                 try:
                     incoming_project = json.loads(payload)
-                    if incoming_project.get("atlas_sha256") != atlas_sha256:
-                        st.error(
-                            "Este proyecto utiliza otra imagen fuente; no se importó."
-                        )
-                    elif incoming_project.get("kind") != "tilesetter_set_project":
-                        raise ValueError("No es un proyecto de Set View")
-                    else:
-                        studio = incoming_project.get("studio")
-                        if not isinstance(studio, Mapping):
-                            raise ValueError("El proyecto no contiene datos del estudio")
-                        st.session_state[project_key] = dict(studio)
-                        st.session_state[f"{prefix}:project_upload_sha256"] = digest
-                        st.rerun()
+                    _restore_tilesetter_project_import(
+                        st.session_state,
+                        incoming_project=incoming_project,
+                        atlas_sha256=atlas_sha256,
+                        project_key=project_key,
+                        upload_digest_key=upload_digest_key,
+                        upload_sha256=digest,
+                    )
+                    st.rerun()
                 except (AttributeError, TypeError, ValueError, json.JSONDecodeError) as exc:
                     st.error(f"Proyecto Set View inválido: {exc}")
 
-        if result.complete:
-            st.success(
-                "Patrón completo. Puedes exportarlo, corregir variantes en el "
-                "compositor o seguir probándolo en el mapa."
-            )
+        if result is not None and result.complete:
+            if kind == "dual_grid_15":
+                st.success(
+                    "Dual Grid Square completo: 15 transiciones desde dos "
+                    "terrenos y su fondo lógico están listos para exportar. El "
+                    "bundle prepara el atlas; TileMapDual o un adaptador propio "
+                    "realiza el runtime de las cuadrículas lógica/display."
+                )
+            else:
+                st.success(
+                    "Patrón completo. Puedes exportarlo, corregir variantes en el "
+                    "compositor o seguir probándolo en el mapa."
+                )
             bundle_col, png_col, guide_col, atlas_col = st.columns(4, gap="small")
             bundle_col.download_button(
                 "Bundle Godot 4",
@@ -648,7 +885,11 @@ def _render_terrain_patterns() -> None:
             )
             guide_col.download_button(
                 "Guía técnica",
-                data=_png_bytes(render_terrain_bitmask_template(kind)),
+                data=_png_bytes(
+                    render_terrain_bitmask_template(
+                        cast(TerrainPatternKind, kind)
+                    )
+                ),
                 file_name=f"{safe_name}-bitmask-reference.png",
                 mime="image/png",
                 width="stretch",
@@ -672,8 +913,10 @@ def _render_terrain_patterns() -> None:
                 st.rerun()
         else:
             st.info(
-                "Importa Sources, selecciona un tile para Blob o dos para Wang y "
-                "ejecuta Build Borders. Después asigna los cuatro Border Sources."
+                "Importa Sources: Blob requiere un tile y sus cuatro Border "
+                "Sources; Wang requiere dos tiles y sus Border Sources. Dual "
+                "Grid requiere exactamente dos terrenos y no necesita Border "
+                "Sources para quedar listo."
             )
 
 

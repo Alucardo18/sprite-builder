@@ -9,6 +9,7 @@ from .core import (
     slice_tileset,
 )
 from .patterns import (
+    DualGridTerrainProfile,
     TerrainPatternKind,
     TerrainPatternResult,
     TerrainPatternTile,
@@ -17,6 +18,7 @@ from .patterns import (
     build_smart_terrain_pattern,
     build_terrain_pattern_bundle,
     build_tilesetter_terrain_pattern,
+    dual_grid_terrain_profiles,
     generate_terrain_pattern,
     render_godot_terrain_installer,
     render_terrain_bitmask_template,
@@ -29,6 +31,7 @@ from .patterns import (
 __all__ = [
     "TilesetGrid",
     "TilesetSlice",
+    "DualGridTerrainProfile",
     "TerrainPatternKind",
     "TerrainPatternResult",
     "TerrainPatternTile",
@@ -38,6 +41,7 @@ __all__ = [
     "build_smart_terrain_pattern",
     "build_tileset_bundle",
     "build_terrain_pattern_bundle",
+    "dual_grid_terrain_profiles",
     "generate_terrain_pattern",
     "render_godot_terrain_installer",
     "render_terrain_bitmask_template",

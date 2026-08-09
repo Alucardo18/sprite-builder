@@ -42,27 +42,57 @@ generación inspirado en el Set View de Tilesetter:
    crear 47 variantes con placeholders.
 4. Para Wang, seleccione dos tiles y ejecute **Build Borders · Wang**; esos
    tiles representan los dos terrenos de la transición.
-5. Configure el tablero fijo de **Tile Properties**: tile base y cuatro bordes.
-   El compositor recorta la base y los Sources completos con la matriz de ocho
-   vecinos; los corners se forman con los mismos empalmes diagonales.
-6. Pulse cualquier slot y elija su Source haciendo clic directamente en un
-   tile original del **Set View**. La miniatura asignada aparece en el tablero.
-7. Si sólo tiene una muestra de borde, use **Completar 4 por rotación**. Los
-   Cutoffs por orientación, Custom corners, rotación, Flip X y reemplazos por
-   variante permanecen dentro de **Ajustes avanzados**.
-8. Pinte y borre en el **Sandbox** para comprobar las transiciones.
+5. Para **Dual Grid · 15**, seleccione exactamente dos terrenos y ejecute
+   **Build Dual Grid · 15**. Genera las 15 transiciones desde ambas texturas;
+   el atlas 4×4 conserva también el slot de fondo lógico (máscara 0) que espera
+   TileMapDual, pero éste no cuenta como transición. Este perfil sólo cubre la
+   cuadrícula **Square** de cuatro esquinas; no use este atlas para TileMapDual
+   isométrico, hexagonal ni triangular. Cada tile debe medir al menos **2×2 px**.
+6. En un set Dual Grid, abra **Estrategia del borde** y elija
+   **Pasto sobre tierra**, **Tierra sobre agua** o **Pasto sobre agua**.
+   Terreno A debe ser el material indicado antes de “sobre” y Terreno B el
+   material de fondo. El nivel
+   `1` es sutil, `2` moderado y `3` texturizado; la semilla cambia la variante de
+   forma determinista. El perfil clásico y el nivel `0` conservan el borde limpio.
+   Los perfiles materiales generan bandas duras de paleta —sombra, ribete,
+   banco o raíz— derivadas de A/B. No usan blur, antialiasing ni alpha blend;
+   las máscaras puras 0 y 15 siguen siendo B/A sin modificar.
+7. Para **Blob/Wang**, configure **Tile Properties**: el tile base y los cuatro
+   Border Sources. Blob compone sus corners con esos empalmes diagonales; Wang
+   parte además de sus terrenos A/B. Dual Grid sólo expone Terreno A y Terreno B.
+8. En Blob/Wang, pulse un slot y elija su Source haciendo clic directamente en
+   un tile original del **Set View**. En Dual, los únicos ajustes de arte son
+   reemplazos opcionales de las máscaras **1–15**; máscara 0 es el fondo de
+   referencia derivado de Terreno B y no se puede editar.
+9. Si Blob o Wang sólo tiene una muestra de borde, use **Completar 4 por
+   rotación**. Los Cutoffs, rotación y Flip X permanecen en **Ajustes avanzados**;
+   los Custom corners son exclusivos de Blob y los reemplazos por variante están
+   disponibles para los roles editables de cada patrón.
+10. Pinte y borre en el **Sandbox** para comprobar las transiciones. En Dual
+   Grid se pinta la cuadrícula lógica: el display muestra una fila y una
+   columna adicionales, desplazadas medio tile, y calcula cada tile con el
+   orden interno NW, NE, SE, SW. El export traduce ese orden al contrato de
+   TileMapDual; no reordene el arte a mano.
 
 El proyecto JSON conserva Sources, posiciones del Set View, sets generados,
 transformaciones y correcciones, y sólo vuelve a abrirse sobre la misma imagen
-verificada por SHA-256. La exportación conserva los layouts canónicos, el
-manifiesto y el instalador para Godot 4.
+verificada por SHA-256. Restaura el **Tile Size** cuadrado de 1 a 64 px; los
+Sources usan bounds absolutos en píxeles, por lo que los offsets y spacings del
+editor de Atlas no forman parte de ese proyecto. La exportación conserva los
+layouts canónicos, el manifiesto y el instalador para Godot 4.
+La investigación visual y los límites pixel-perfect de los perfiles están en
+[`docs/dual-grid-edge-profiles.md`](docs/dual-grid-edge-profiles.md).
 
 El bundle contiene `terrain_tiles.png`, `terrain_bitmask_reference.png`,
 `terrain_pattern.json`, `install_terrain_tileset.gd` y sus instrucciones. El
-script crea
-`terrain_tileset.tres` dentro de Godot después de importar el PNG. El manifest
-conserva la relación entre máscara, tile fuente, coordenada canónica y peering
-bits para generadores procedurales.
+script crea `terrain_tileset.tres` dentro de Godot después de importar el PNG.
+El manifest conserva la relación entre máscara, tile fuente, coordenada
+canónica y peering bits para generadores procedurales. Para Blob, Wang y Sides,
+el recurso funciona con los Terrains nativos de `TileMapLayer`. Para Dual Grid,
+el bundle prepara el atlas y metadata; el runtime sigue siendo
+[TileMapDual](https://github.com/pablogila/TileMapDual) o un adaptador propio
+que mantenga las cuadrículas lógica y de display. No instala ni reemplaza ese
+plugin/nodo.
 
 Para elegir otro workspace:
 
