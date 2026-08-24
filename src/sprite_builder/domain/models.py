@@ -31,6 +31,15 @@ def _mapping(value: Any, name: str) -> Mapping[str, Any]:
     return value
 
 
+def _fraction_pair(value: Any, name: str) -> tuple[float, float]:
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        raise ConfigurationError(f"{name} must contain exactly two numbers")
+    result = (float(value[0]), float(value[1]))
+    if not 0 <= result[0] < result[1] <= 1:
+        raise ConfigurationError(f"{name} must satisfy 0 <= left < right <= 1")
+    return result
+
+
 @dataclass(frozen=True, slots=True)
 class CharacterSpec:
     id: str
@@ -169,6 +178,72 @@ class AlignmentSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class SemanticIntegritySpec:
+    """Opt-in geometry gates for complete, grounded character silhouettes."""
+
+    enabled: bool = False
+    alpha_threshold: int = 8
+    body_roi_x: tuple[float, float] = (0.18, 0.82)
+    min_bottom_gutter_px: int = 1
+    support_band_height_px: int = 4
+    required_support_components: int = 1
+    max_support_y_jitter_px: float = 1.0
+    max_terminal_taper_ratio: float = 0.80
+    runtime_preview_scales: tuple[float, ...] = (1.0, 0.5)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> SemanticIntegritySpec:
+        alpha_threshold = int(data.get("alpha_threshold", 8))
+        if not 0 <= alpha_threshold <= 254:
+            raise ConfigurationError("quality_gates.semantic_integrity.alpha_threshold invalid")
+        min_gutter = int(data.get("min_bottom_gutter_px", 1))
+        band_height = int(data.get("support_band_height_px", 4))
+        component_count = int(data.get("required_support_components", 1))
+        jitter = float(data.get("max_support_y_jitter_px", 1.0))
+        taper = float(data.get("max_terminal_taper_ratio", 0.80))
+        scales = tuple(float(item) for item in data.get("runtime_preview_scales", (1.0, 0.5)))
+        if min_gutter < 0:
+            raise ConfigurationError("min_bottom_gutter_px must be non-negative")
+        if band_height < 2:
+            raise ConfigurationError("support_band_height_px must be >= 2")
+        if component_count < 1:
+            raise ConfigurationError("required_support_components must be >= 1")
+        if jitter < 0:
+            raise ConfigurationError("max_support_y_jitter_px must be non-negative")
+        if not 0 < taper <= 1:
+            raise ConfigurationError("max_terminal_taper_ratio must be in (0, 1]")
+        if not scales or any(scale <= 0 for scale in scales):
+            raise ConfigurationError("runtime_preview_scales must contain positive values")
+        return cls(
+            enabled=bool(data.get("enabled", False)),
+            alpha_threshold=alpha_threshold,
+            body_roi_x=_fraction_pair(data.get("body_roi_x", (0.18, 0.82)), "body_roi_x"),
+            min_bottom_gutter_px=min_gutter,
+            support_band_height_px=band_height,
+            required_support_components=component_count,
+            max_support_y_jitter_px=jitter,
+            max_terminal_taper_ratio=taper,
+            runtime_preview_scales=scales,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class QualityGatesSpec:
+    semantic_integrity: SemanticIntegritySpec = field(default_factory=SemanticIntegritySpec)
+    block_export_on_review: bool = True
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> QualityGatesSpec:
+        semantic = data.get("semantic_integrity", {})
+        return cls(
+            semantic_integrity=SemanticIntegritySpec.from_dict(
+                _mapping(semantic, "quality_gates.semantic_integrity")
+            ),
+            block_export_on_review=bool(data.get("block_export_on_review", True)),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ExportSpec:
     formats: tuple[str, ...]
     output_dir: Path
@@ -209,6 +284,7 @@ class JobSpec:
     render: RenderSpec
     alignment: AlignmentSpec
     export: ExportSpec
+    quality_gates: QualityGatesSpec = field(default_factory=QualityGatesSpec)
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -231,6 +307,9 @@ class JobSpec:
             render=RenderSpec.from_dict(_mapping(data.get("render", {}), "render")),
             alignment=AlignmentSpec.from_dict(_mapping(data.get("alignment", {}), "alignment")),
             export=ExportSpec.from_dict(_mapping(data.get("export", {}), "export")),
+            quality_gates=QualityGatesSpec.from_dict(
+                _mapping(data.get("quality_gates", {}), "quality_gates")
+            ),
             metadata=dict(data.get("metadata", {})),
         )
 
@@ -290,6 +369,32 @@ class JobSpec:
                 "formats": list(self.export.formats),
                 "output_dir": str(self.export.output_dir),
                 **({"godot": godot} if godot else {}),
+            },
+            "quality_gates": {
+                "block_export_on_review": self.quality_gates.block_export_on_review,
+                "semantic_integrity": {
+                    "enabled": self.quality_gates.semantic_integrity.enabled,
+                    "alpha_threshold": self.quality_gates.semantic_integrity.alpha_threshold,
+                    "body_roi_x": list(self.quality_gates.semantic_integrity.body_roi_x),
+                    "min_bottom_gutter_px": (
+                        self.quality_gates.semantic_integrity.min_bottom_gutter_px
+                    ),
+                    "support_band_height_px": (
+                        self.quality_gates.semantic_integrity.support_band_height_px
+                    ),
+                    "required_support_components": (
+                        self.quality_gates.semantic_integrity.required_support_components
+                    ),
+                    "max_support_y_jitter_px": (
+                        self.quality_gates.semantic_integrity.max_support_y_jitter_px
+                    ),
+                    "max_terminal_taper_ratio": (
+                        self.quality_gates.semantic_integrity.max_terminal_taper_ratio
+                    ),
+                    "runtime_preview_scales": list(
+                        self.quality_gates.semantic_integrity.runtime_preview_scales
+                    ),
+                },
             },
             "metadata": dict(self.metadata),
         }

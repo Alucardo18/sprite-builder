@@ -1,0 +1,329 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      54,
+      100
+    ],
+    "canvas_height": 181,
+    "canvas_width": 108,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-08-22T15:57:29.025953+00:00",
+  "current_stage": "export",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": true,
+    "padding": 0
+  },
+  "export_manifest": {
+    "alpha": true,
+    "attempt_id": "export-31bc3afa8694",
+    "cell_size": [
+      94,
+      103
+    ],
+    "contact_sheet": null,
+    "crop": {
+      "alpha_threshold": 8,
+      "bbox": [
+        20,
+        39,
+        114,
+        142
+      ],
+      "enabled": true,
+      "padding": 0,
+      "source_size": [
+        114,
+        181
+      ]
+    },
+    "export_kind": "spritesheet",
+    "exported_at": "2026-08-22T16:33:35.616844+00:00",
+    "frame_count": 5,
+    "godot_notes": "5 column(s), 1 row(s); use nearest filtering and lossless compression",
+    "layout": "horizontal",
+    "output_frames": [],
+    "output_frames_dir": null,
+    "output_png": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-31bc3afa8694/sprite-sheet.png",
+    "outputs": [
+      {
+        "media_type": "image/png",
+        "path": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-31bc3afa8694/sprite-sheet.png",
+        "role": "output",
+        "sha256": "5f6bbc9f9896c8ba077aa902e0d0e94a58d6bfb087ff4730c5cd39d32ce5b6ad",
+        "size_bytes": 58606
+      }
+    ],
+    "preview_gif": null,
+    "primary_output": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-31bc3afa8694/sprite-sheet.png",
+    "schema_version": "1.0",
+    "session_id": "sheet-20260822T155729-f4d75ac9-00a5",
+    "sha256": "5f6bbc9f9896c8ba077aa902e0d0e94a58d6bfb087ff4730c5cd39d32ce5b6ad",
+    "status": "passed",
+    "validation_warnings": []
+  },
+  "frame_adjustments": [
+    {
+      "applied_translation": [
+        12,
+        2
+      ],
+      "auto_anchor": [
+        42.0,
+        98.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        15,
+        49,
+        76,
+        140
+      ],
+      "final_anchor": [
+        54.0,
+        100.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        16,
+        0
+      ],
+      "auto_anchor": [
+        38.0,
+        100.0
+      ],
+      "auto_confidence": 0.7009707461239035,
+      "body_bbox": [
+        10,
+        39,
+        98,
+        137
+      ],
+      "final_anchor": [
+        54.0,
+        100.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        11,
+        1
+      ],
+      "auto_anchor": [
+        43.0,
+        91.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        18,
+        39,
+        102,
+        137
+      ],
+      "final_anchor": [
+        54.0,
+        92.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": -8,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        4,
+        1
+      ],
+      "auto_anchor": [
+        50.0,
+        91.0
+      ],
+      "auto_confidence": 0.7231689760963111,
+      "body_bbox": [
+        16,
+        52,
+        94,
+        136
+      ],
+      "final_anchor": [
+        54.0,
+        92.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": -8,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        5,
+        -2
+      ],
+      "auto_anchor": [
+        49.0,
+        98.0
+      ],
+      "auto_confidence": 0.7678574532617828,
+      "body_bbox": [
+        22,
+        51,
+        89,
+        140
+      ],
+      "final_anchor": [
+        54.0,
+        96.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": -4,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "inspection": {
+    "background_confidence": 0.2721606648199446,
+    "border_rgb": [
+      254,
+      254,
+      254
+    ],
+    "has_alpha": false,
+    "height": 181,
+    "mode": "RGB",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      253,
+      254,
+      253
+    ],
+    "uses_transparency": false,
+    "width": 543
+  },
+  "layer_document": {
+    "cache_key": "523a6ebd503337d5645f733924bb3ad769b701dc8eb0d2f9d615fe1601520e9d",
+    "document_id": "sprite-ec19e2d878c8",
+    "manifest": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/layers/523a6ebd503337d5645f733924bb3ad769b701dc8eb0d2f9d615fe1601520e9d/manifest.json",
+    "manifest_sha256": "92febd16d95a30f7b60c16acd47a8dc2cf90aaf3d85b2eb8987c594c1e56e817",
+    "revision": 1
+  },
+  "output_dir": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": 181,
+    "cell_width": 108,
+    "columns": 1,
+    "frame_count": 5,
+    "manual_cut_positions": [
+      108,
+      216,
+      324,
+      432
+    ],
+    "manual_cut_positions_x": [
+      108,
+      216,
+      324,
+      432
+    ],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260822T155729-f4d75ac9-00a5",
+  "source_image_path": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/source/f4d75ac9f05546cdb425db4d8421260c34cbc31d5fac535283b8c0b2f9d1fe1b.png",
+  "source_sha256": "f4d75ac9f05546cdb425db4d8421260c34cbc31d5fac535283b8c0b2f9d1fe1b",
+  "stages": {
+    "alignment": {
+      "cache_key": "788cfb0e1a44b3dc3dab0d7d591c7cb3577c65ad6d090547ae279a20c7a0076f",
+      "manifest": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/alignment/788cfb0e1a44b3dc3dab0d7d591c7cb3577c65ad6d090547ae279a20c7a0076f/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/alignment/788cfb0e1a44b3dc3dab0d7d591c7cb3577c65ad6d090547ae279a20c7a0076f/frame_000.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/alignment/788cfb0e1a44b3dc3dab0d7d591c7cb3577c65ad6d090547ae279a20c7a0076f/frame_001.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/alignment/788cfb0e1a44b3dc3dab0d7d591c7cb3577c65ad6d090547ae279a20c7a0076f/frame_002.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/alignment/788cfb0e1a44b3dc3dab0d7d591c7cb3577c65ad6d090547ae279a20c7a0076f/frame_003.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/alignment/788cfb0e1a44b3dc3dab0d7d591c7cb3577c65ad6d090547ae279a20c7a0076f/frame_004.png"
+      ],
+      "status": "passed"
+    },
+    "background": {
+      "cache_key": "afe1758bd4d0ce09c903daeebc8d1b186a3ff86d35fee3b544d798a6827d1fcc",
+      "manifest": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/background/afe1758bd4d0ce09c903daeebc8d1b186a3ff86d35fee3b544d798a6827d1fcc/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/background/afe1758bd4d0ce09c903daeebc8d1b186a3ff86d35fee3b544d798a6827d1fcc/frame_000.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/background/afe1758bd4d0ce09c903daeebc8d1b186a3ff86d35fee3b544d798a6827d1fcc/frame_001.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/background/afe1758bd4d0ce09c903daeebc8d1b186a3ff86d35fee3b544d798a6827d1fcc/frame_002.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/background/afe1758bd4d0ce09c903daeebc8d1b186a3ff86d35fee3b544d798a6827d1fcc/frame_003.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/background/afe1758bd4d0ce09c903daeebc8d1b186a3ff86d35fee3b544d798a6827d1fcc/frame_004.png"
+      ],
+      "status": "passed"
+    },
+    "export": {
+      "manifest": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-31bc3afa8694/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-31bc3afa8694/sprite-sheet.png"
+      ],
+      "status": "passed"
+    },
+    "segmentation": {
+      "cache_key": "4caae78cc5786edffebeacf5eaf7cb459f7ff9b80b340a76d6ca2c6f249e0e7d",
+      "manifest": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/segmentation/4caae78cc5786edffebeacf5eaf7cb459f7ff9b80b340a76d6ca2c6f249e0e7d/manifest.json",
+      "outputs": [
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/segmentation/4caae78cc5786edffebeacf5eaf7cb459f7ff9b80b340a76d6ca2c6f249e0e7d/frame_000.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/segmentation/4caae78cc5786edffebeacf5eaf7cb459f7ff9b80b340a76d6ca2c6f249e0e7d/frame_001.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/segmentation/4caae78cc5786edffebeacf5eaf7cb459f7ff9b80b340a76d6ca2c6f249e0e7d/frame_002.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/segmentation/4caae78cc5786edffebeacf5eaf7cb459f7ff9b80b340a76d6ca2c6f249e0e7d/frame_003.png",
+        "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/attempts/segmentation/4caae78cc5786edffebeacf5eaf7cb459f7ff9b80b340a76d6ca2c6f249e0e7d/frame_004.png"
+      ],
+      "status": "passed"
+    },
+    "source": {
+      "path": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/source/f4d75ac9f05546cdb425db4d8421260c34cbc31d5fac535283b8c0b2f9d1fe1b.png",
+      "sha256": "f4d75ac9f05546cdb425db4d8421260c34cbc31d5fac535283b8c0b2f9d1fe1b",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-08-22T16:33:35.617774+00:00"
+}

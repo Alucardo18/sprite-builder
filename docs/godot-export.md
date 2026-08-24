@@ -81,12 +81,13 @@ recortes libres. Los Tiles que las referencian se organizan en el Set View:
 - En Blob y Wang, Tile Properties muestra el tile base y los cuatro Border
   Sources. Blob genera sus ocho corners interiores/exteriores con clips
   diagonales; Wang parte también de sus terrenos A/B para componer las
-  transiciones.
+  transiciones. Sides usa el mismo tile base y cuatro bordes, e ignora las
+  esquinas para componer sólo relaciones cardinales.
 - En Blob/Wang, una posición se asigna activándola y haciendo clic en el Source
   tile deseado dentro del propio Set View. Dual Grid sólo mantiene Terreno A,
   Terreno B y reemplazos opcionales para máscaras 1–15; máscara 0 es el fondo
   de referencia derivado de Terreno B y no admite override.
-- Los bordes de Blob/Wang pueden completarse desde una muestra mediante
+- Los bordes de Blob/Wang/Sides pueden completarse desde una muestra mediante
   rotaciones automáticas de 0°, 90°, 180° y 270°. Los Custom corners son
   overrides opcionales exclusivos de Blob dentro de Ajustes avanzados.
 
@@ -105,7 +106,8 @@ Durante la edición, Blob 47 usa la composición visual de Tilesetter de 11×5.
 Esas coordenadas sólo organizan el Generated Set; el PNG exportado conserva la
 plantilla Godot de 12×4 y sus peering bits.
 
-Cada borde Blob referencia un Source completo que incluye terreno y exterior.
+Cada borde Blob/Sides referencia un Source completo que incluye terreno y
+exterior.
 El compositor reproduce el flujo de capas de Tilesetter: recorta primero la
 base según los vecinos cardinales e interiores, mide el alfa de cada Source
 para calcular los puntos de unión horizontal y vertical, y después aplica los
@@ -122,7 +124,7 @@ nativos de Godot 4. Eso no sustituye la lógica de un Dual Grid: para ese flujo
 la máscara visual se obtiene de cuatro celdas lógicas, no de la búsqueda nativa
 de combinación de un único `TileMapLayer`.
 
-En Blob/Wang, cada borde admite un Source diferente, rotación, Flip X y
+En Blob/Wang/Sides, cada borde admite un Source diferente, rotación, Flip X y
 Cutoff. Si el empalme automático de Blob no encaja con el arte, cualquiera de
 sus cuatro corners interiores o exteriores puede añadir un Custom corner como
 capa. Una variante editable puede sustituirse con un Source completo, sin
@@ -131,10 +133,11 @@ admite en máscaras 1–15: la máscara 0 siempre es la referencia de fondo de
 Terreno B. La lista lateral de Sources sirve para crear y organizar recortes;
 la asignación visual se realiza desde la grilla.
 
-### Perfiles de borde Dual Grid
+### Perfiles de borde Dual Grid y otros patrones
 
 **Estrategia del borde** aplica una gramática distinta a la silueta entre
-Terreno A y Terreno B:
+materiales. En Wang y Dual Grid esos materiales son Terreno A y Terreno B; en
+Blob/Sides se compone sobre el Tile base y los Border Sources configurados:
 
 - **Pasto sobre tierra** usa irregularidad de frecuencia alta en grupos cortos,
   raíz oscura y mechones iluminados, con pequeñas entradas de tierra.
@@ -142,17 +145,20 @@ Terreno A y Terreno B:
   los dientes aislados y construye sombra acuática, ribete claro y banco terroso.
 - **Pasto sobre agua** conserva salientes vegetales cortos, pero con menos
   rugosidad, una línea húmeda intermitente y raíz vegetal oscura.
-- **Borde limpio** mantiene exactamente la interpolación Dual Grid anterior.
+- **Borde limpio** mantiene exactamente la interpolación anterior de cada patrón.
 
 El nivel de textura está limitado a `0..3`. El nivel `1` ya crea contraste real;
 el `3` combina una desviación de hasta unos 2–3 px con bandas duras de 1–4 px según
 el tamaño del tile. La semilla `0..999999` elige otra variante reproducible. Los
-perfiles pueden derivar tonos RGB de A/B para construir sombra, ribete y banco o
-raíz, pero conservan el alpha, no usan blur, antialiasing ni alpha blend. Los
-bordes físicos se calculan desde la arista matemática compartida para evitar
-costuras; las rotaciones de 90 grados conservan el patrón y las máscaras 0/15
-siguen siendo texturas puras B/A. El manifiesto exporta `terrain_profile`,
-`edge_variation` y `edge_seed` dentro de `dual_grid`.
+perfiles pueden derivar tonos RGB de los Sources para construir sombra, ribete y
+banco o raíz, pero conservan el alpha, no usan blur, antialiasing ni alpha blend.
+En Blob y Wang con Border Sources authored, la cobertura de la banda se toma de
+los píxeles de borde realmente poseídos —no de una curva canónica separada—;
+los Borders y corners originales quedan intactos y no aparece una segunda línea
+en el centro del tile. Las rotaciones de 90 grados conservan el patrón. El
+manifiesto Dual conserva sus claves dentro de `dual_grid`; los demás patrones las
+escriben en `edge_profile`. En ambos casos se conservan
+`terrain_profile`, `edge_variation` y `edge_seed` para reproducir el resultado.
 
 El Sandbox usa el set activo y sus correcciones para validar el autotiling
 antes de exportar. Para Dual Grid, la zona de pintura es la cuadrícula lógica y

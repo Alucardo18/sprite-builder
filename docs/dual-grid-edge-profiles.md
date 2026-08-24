@@ -1,4 +1,4 @@
-# Dual Grid: perfiles de borde por pareja de terrenos
+# Perfiles de borde por pareja de materiales
 
 Esta nota documenta las referencias visuales y las reglas originales usadas por
 Pattern Studio. Las referencias se inspeccionaron a resolución nativa y con
@@ -24,7 +24,9 @@ escalado nearest-neighbor; no se incorpora ni se redistribuye arte de esos juego
   dientes para tierra/agua.
 
 Estas observaciones son reglas de composición, no plantillas copiadas. El código
-genera curvas nuevas a partir de la máscara Dual Grid y de una semilla.
+genera curvas nuevas a partir de la máscara de cada patrón y de una semilla. La
+misma gramática se puede aplicar a Dual Grid, Wang, Sides y Blob; en Blob/Sides
+se conserva además la composición existente de Border Sources y corners.
 
 ### Descomposición de la referencia aportada
 
@@ -60,11 +62,14 @@ contraste y grosor variable de esas bandas, no de ruido aplicado a toda la curva
    banco o raíz de 1–4 px según el tamaño.
 3. La semilla (`0..999999`) selecciona frecuencias y signo de un campo armónico
    determinista. Nunca existe ruido distinto entre ejecuciones.
-4. El campo es periódico y covariante ante giros de 90 grados. Las aristas se
-   evalúan en la coordenada matemática compartida: roles compatibles producen la
-   misma banda en ambos lados de la costura.
-5. Máscara 0 permanece Terreno B puro y máscara 15 permanece Terreno A puro.
-   Los overrides manuales de máscaras 1–15 siguen teniendo prioridad total.
+4. El campo es periódico y covariante ante giros de 90 grados. En generación
+   directa, Wang/Dual/Blob/Sides usan la cobertura matemática de su máscara. En
+   sets TileSetter con Border Sources, Blob y Wang derivan la distancia desde
+   el ownership real de los píxeles no transparentes: conservan Borders y
+   corners authored y sólo estilizan la franja interior adyacente. Así no se
+   crea una segunda transición en el centro de un tile.
+5. Las máscaras vacía y completamente llena permanecen intactas. Los overrides
+   manuales siguen teniendo prioridad total.
 
 El resultado buscado es irregularidad legible, no aleatoriedad visible: bandas
 ordenadas próximas al contorno, regiones interiores intactas y una variante

@@ -1,0 +1,77 @@
+schema_version: '1.0'
+identity:
+  id: xtabay
+  name: xtabay
+  description: Jefa espectral maya de vista frontal, cabello negro-verde muy largo,
+    piel verde pálida, vestido ceremonial marfil desgarrado, cinturón rojo oscuro,
+    collar verde y flor blanca en el cabello; forma monstruosa flotante ligada a la
+    ceiba.
+review:
+  required: true
+  status: approved
+  note: Death-animation concept approved by the user on 2026-08-14.
+visual_rules:
+  immutable_features:
+  - strict frontal orientation with a centered floating torso
+  - extremely long near-black green hair covering the eyes
+  - pale spectral green skin and long thin arms
+  - torn ivory ceremonial dress with dark red belt
+  - green necklace and one white flower with hanging green vine
+  - dark green ghostly lower-body fade and restrained ceiba energy
+  optional_features:
+  - pale green cracks and wisps during death
+  - detached white flower in the final frames
+  - brief translucent human-form echo during the curse break
+  forbidden_changes:
+  - visible eyes or fully revealed face
+  - side view, three-quarter view, walking pose, or grounded legs
+  - extra weapons, jewelry, flowers, skulls, text, scenery, or borders
+  - bright blue, purple, or red magical effects
+  - photorealism, smooth vector rendering, blur, or soft anti-aliased edges
+  - gore, exposed anatomy, or explosive dismemberment
+  silhouette_notes: Preserve the narrow floating body and wide hair mass; dissolve from the ragged hem upward while the torso anchor remains stable.
+  lighting: restrained pale green spectral glow with upper-left ivory highlights
+  outline: crisp near-black pixel clusters matching the existing Godot sprites
+equipment:
+  default_weapon: null
+  attachment_rules: {}
+palette:
+  locked: false
+  file: palette.json
+  tolerance_delta_e00: 8
+reference:
+  source: /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/idletransformed.png.import.png
+  frame_count_detected: 4
+  frame_bboxes:
+  - - 52
+    - 242
+    - 344
+    - 764
+  - - 421
+    - 267
+    - 732
+    - 764
+  - - 808
+    - 241
+    - 1098
+    - 764
+  - - 1193
+    - 254
+    - 1507
+    - 764
+  proportions:
+    content_width_ratio: 0.947266
+    content_height_ratio: 0.510742
+    foreground_occupancy: 0.20993
+    mean_frame_width_px: 301.75
+    mean_frame_height_px: 513.0
+    mean_frame_aspect_ratio: 0.58883
+anchors:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [256, 650]
+  canonical_points:
+    shoulder_left: null
+    shoulder_right: null
+    hip_left: null
+    hip_right: null
+  calibration_status: approved_from_existing_front_atlas

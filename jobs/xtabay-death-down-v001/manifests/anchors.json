@@ -1,0 +1,339 @@
+{
+  "schema_version": "1.0",
+  "job_id": "xtabay-death-down-v001",
+  "frames": [
+    {
+      "frame": 0,
+      "direction": "down",
+      "direction_frame": 0,
+      "auto": [
+        262.0,
+        463.0
+      ],
+      "torso_anchor": [
+        256,
+        650
+      ],
+      "canvas_pivot": [
+        256,
+        650
+      ],
+      "godot_offset": [
+        0.0,
+        -138.0
+      ],
+      "foot_anchor": [
+        243.0,
+        947.0
+      ],
+      "foreground_bbox": [
+        60,
+        450,
+        439,
+        948
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.8291940093040466,
+      "template_score": 1.0,
+      "flow_inlier_ratio": 0.0,
+      "source": "automatic",
+      "manual_review": false
+    },
+    {
+      "frame": 1,
+      "direction": "down",
+      "direction_frame": 1,
+      "auto": [
+        259.0,
+        475.0
+      ],
+      "torso_anchor": [
+        256,
+        650
+      ],
+      "canvas_pivot": [
+        256,
+        650
+      ],
+      "godot_offset": [
+        0.0,
+        -138.0
+      ],
+      "foot_anchor": [
+        243.0,
+        947.0
+      ],
+      "foreground_bbox": [
+        22,
+        426,
+        484,
+        948
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.9368867665521031,
+      "template_score": 0.9845736026763916,
+      "flow_inlier_ratio": 1.0,
+      "source": "automatic",
+      "manual_review": false
+    },
+    {
+      "frame": 2,
+      "direction": "down",
+      "direction_frame": 2,
+      "auto": [
+        258.0,
+        462.0
+      ],
+      "torso_anchor": [
+        256,
+        650
+      ],
+      "canvas_pivot": [
+        256,
+        650
+      ],
+      "godot_offset": [
+        0.0,
+        -138.0
+      ],
+      "foot_anchor": [
+        244.0,
+        947.0
+      ],
+      "foreground_bbox": [
+        28,
+        452,
+        479,
+        948
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.917925693666933,
+      "template_score": 0.9279940724372864,
+      "flow_inlier_ratio": 0.88,
+      "source": "automatic",
+      "manual_review": false
+    },
+    {
+      "frame": 3,
+      "direction": "down",
+      "direction_frame": 3,
+      "auto": [
+        263.0,
+        432.0
+      ],
+      "torso_anchor": [
+        256,
+        650
+      ],
+      "canvas_pivot": [
+        256,
+        650
+      ],
+      "godot_offset": [
+        0.0,
+        -138.0
+      ],
+      "foot_anchor": [
+        269.5,
+        1005.0
+      ],
+      "foreground_bbox": [
+        34,
+        454,
+        463,
+        1006
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.9224919472335654,
+      "template_score": 0.8717203140258789,
+      "flow_inlier_ratio": 0.98,
+      "source": "automatic",
+      "manual_review": false
+    },
+    {
+      "frame": 4,
+      "direction": "down",
+      "direction_frame": 4,
+      "auto": [
+        259.0,
+        438.0
+      ],
+      "torso_anchor": [
+        256,
+        650
+      ],
+      "canvas_pivot": [
+        256,
+        650
+      ],
+      "godot_offset": [
+        0.0,
+        -138.0
+      ],
+      "foot_anchor": [
+        242.0,
+        992.0
+      ],
+      "foreground_bbox": [
+        64,
+        454,
+        441,
+        993
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.8703582561804447,
+      "template_score": 0.8166474103927612,
+      "flow_inlier_ratio": 0.84,
+      "source": "automatic",
+      "manual_review": false
+    },
+    {
+      "frame": 5,
+      "direction": "down",
+      "direction_frame": 5,
+      "auto": [
+        259.0,
+        445.0
+      ],
+      "torso_anchor": [
+        256,
+        650
+      ],
+      "canvas_pivot": [
+        256,
+        650
+      ],
+      "godot_offset": [
+        0.0,
+        -138.0
+      ],
+      "foot_anchor": [
+        242.0,
+        978.0
+      ],
+      "foreground_bbox": [
+        85,
+        454,
+        421,
+        979
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 0.8036312102859539,
+      "template_score": 0.7466349005699158,
+      "flow_inlier_ratio": 0.74,
+      "source": "automatic",
+      "manual_review": false
+    },
+    {
+      "frame": 6,
+      "direction": "down",
+      "direction_frame": 6,
+      "auto": [
+        259.0,
+        446.0
+      ],
+      "torso_anchor": [
+        256,
+        650
+      ],
+      "canvas_pivot": [
+        256,
+        650
+      ],
+      "godot_offset": [
+        0.0,
+        -138.0
+      ],
+      "foot_anchor": [
+        254.0,
+        976.0
+      ],
+      "foreground_bbox": [
+        128,
+        455,
+        377,
+        977
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 1,
+      "template_score": 1,
+      "flow_inlier_ratio": 1,
+      "source": "manual",
+      "manual_review": false
+    },
+    {
+      "frame": 7,
+      "direction": "down",
+      "direction_frame": 7,
+      "auto": [
+        259.0,
+        446.0
+      ],
+      "torso_anchor": [
+        256,
+        650
+      ],
+      "canvas_pivot": [
+        256,
+        650
+      ],
+      "godot_offset": [
+        0.0,
+        -138.0
+      ],
+      "foot_anchor": [
+        272.0,
+        902.0
+      ],
+      "foreground_bbox": [
+        212,
+        528,
+        294,
+        903
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 1,
+      "template_score": 1,
+      "flow_inlier_ratio": 1,
+      "source": "manual",
+      "manual_review": false
+    },
+    {
+      "frame": 8,
+      "direction": "down",
+      "direction_frame": 8,
+      "auto": [
+        259.0,
+        446.0
+      ],
+      "torso_anchor": [
+        256,
+        650
+      ],
+      "canvas_pivot": [
+        256,
+        650
+      ],
+      "godot_offset": [
+        0.0,
+        -138.0
+      ],
+      "foot_anchor": [
+        231.5,
+        740.0
+      ],
+      "foreground_bbox": [
+        178,
+        690,
+        327,
+        741
+      ],
+      "weapon_excluded_from_anchor": true,
+      "confidence": 1,
+      "template_score": 1,
+      "flow_inlier_ratio": 1,
+      "source": "manual",
+      "manual_review": false
+    }
+  ]
+}

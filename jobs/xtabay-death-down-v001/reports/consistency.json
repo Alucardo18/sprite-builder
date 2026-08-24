@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "job_id": "xtabay-death-down-v001",
+  "status": "reject",
+  "mean_drift": 30.091376641113396,
+  "directions": {
+    "down": {
+      "frames": [
+        {
+          "index": 0,
+          "palette_coverage": 0.8861377524386624,
+          "silhouette_iou": 1.0,
+          "body_height_deviation": 0.0,
+          "temporal_edge_change": 0.0,
+          "drift_score": 3.9851786646468144,
+          "status": "pass"
+        },
+        {
+          "index": 1,
+          "palette_coverage": 0.8982371794871795,
+          "silhouette_iou": 0.7219487832188112,
+          "body_height_deviation": 0.04819277108433735,
+          "temporal_edge_change": 0.013916015625,
+          "drift_score": 15.648948289477072,
+          "status": "review"
+        },
+        {
+          "index": 2,
+          "palette_coverage": 0.895265092057395,
+          "silhouette_iou": 0.7815051196900512,
+          "body_height_deviation": 0.004016064257028112,
+          "temporal_edge_change": 0.016605377197265625,
+          "drift_score": 13.053901593706508,
+          "status": "pass"
+        },
+        {
+          "index": 3,
+          "palette_coverage": 0.837330299140312,
+          "silhouette_iou": 0.7528409090909091,
+          "body_height_deviation": 0.10843373493975904,
+          "temporal_edge_change": 0.01663970947265625,
+          "drift_score": 18.17665335796807,
+          "status": "review"
+        },
+        {
+          "index": 4,
+          "palette_coverage": 0.7714956626808166,
+          "silhouette_iou": 0.7276547373913368,
+          "body_height_deviation": 0.0823293172690763,
+          "temporal_edge_change": 0.0156097412109375,
+          "drift_score": 20.737296463949907,
+          "status": "review"
+        },
+        {
+          "index": 5,
+          "palette_coverage": 0.7014257440720058,
+          "silhouette_iou": 0.6884675180984902,
+          "body_height_deviation": 0.05421686746987952,
+          "temporal_edge_change": 0.0147247314453125,
+          "drift_score": 23.910546317961483,
+          "status": "review"
+        },
+        {
+          "index": 6,
+          "palette_coverage": 0.6517009311330322,
+          "silhouette_iou": 0.4054810623418541,
+          "body_height_deviation": 0.04819277108433735,
+          "temporal_edge_change": 0.013662338256835938,
+          "drift_score": 35.328719475749324,
+          "status": "reject"
+        },
+        {
+          "index": 7,
+          "palette_coverage": 0.3232284956422887,
+          "silhouette_iou": 0.026780871683091314,
+          "body_height_deviation": 0.2469879518072289,
+          "temporal_edge_change": 0.007259368896484375,
+          "drift_score": 63.41536806940471,
+          "status": "reject"
+        },
+        {
+          "index": 8,
+          "palette_coverage": 0.3063063063063063,
+          "silhouette_iou": 0.024660029264599044,
+          "body_height_deviation": 0.8975903614457831,
+          "temporal_edge_change": 0.0019779205322265625,
+          "drift_score": 76.56577753715662,
+          "status": "reject"
+        }
+      ],
+      "mean_drift": 30.091376641113396,
+      "status": "reject"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+GOAL
+Create one source image for a production 2D top-down roguelike RPG animation.
+Animation: death. Direction: down.
+Frame 9 of 9. Pose phase: flower_rest.
+
+CHARACTER CANON
+Jefa espectral maya de vista frontal, cabello negro-verde muy largo, piel verde pálida, vestido ceremonial marfil desgarrado, cinturón rojo oscuro, collar verde y flor blanca en el cabello; forma monstruosa flotante ligada a la ceiba.
+
+IMMUTABLE FEATURES
+
+
+POSE AND CONTINUITY
+Readable walk-cycle pose; stable upright torso; move only limbs required by the phase.
+Keep the torso stable and preserve the exact apparent body scale of the references.
+Show the complete character and shadow without cropping.
+
+VISUAL STYLE
+immutable_features: ['strict frontal orientation with a centered floating torso', 'extremely long near-black green hair covering the eyes', 'pale spectral green skin and long thin arms', 'torn ivory ceremonial dress with dark red belt', 'green necklace and one white flower with hanging green vine', 'dark green ghostly lower-body fade and restrained ceiba energy']; optional_features: ['pale green cracks and wisps during death', 'detached white flower in the final frames', 'brief translucent human-form echo during the curse break']; forbidden_changes: ['visible eyes or fully revealed face', 'side view, three-quarter view, walking pose, or grounded legs', 'extra weapons, jewelry, flowers, skulls, text, scenery, or borders', 'bright blue, purple, or red magical effects', 'photorealism, smooth vector rendering, blur, or soft anti-aliased edges', 'gore, exposed anatomy, or explosive dismemberment']; silhouette_notes: Preserve the narrow floating body and wide hair mass; dissolve from the ragged hem upward while the torso anchor remains stable.; lighting: restrained pale green spectral glow with upper-left ivory highlights; outline: crisp near-black pixel clusters matching the existing Godot sprites
+
+COMPOSITION
+One character only on a flat uniform #FF00FF background.
+Leave a large clean margin. No text, scenery, borders, panels, gradients, or extra objects.
+
+PROHIBITED CHANGES

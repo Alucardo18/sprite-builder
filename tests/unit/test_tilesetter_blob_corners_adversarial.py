@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+import numpy as np
 from PIL import Image
 
 from sprite_builder.tilesets.patterns import (
@@ -43,6 +44,20 @@ def _coordinate_sample(
     rows = size if alpha_band is None else alpha_band
     for y in range(rows):
         for x in range(size):
+            sample.putpixel((x, y), (tag, x, y, alpha))
+    return sample
+
+
+def _coordinate_sample_rect(
+    size: tuple[int, int],
+    tag: int,
+    *,
+    alpha: int = 255,
+) -> Image.Image:
+    width, height = size
+    sample = Image.new("RGBA", size, (0, 0, 0, 0))
+    for y in range(height):
+        for x in range(width):
             sample.putpixel((x, y), (tag, x, y, alpha))
     return sample
 
@@ -238,6 +253,177 @@ def test_adjacent_opposite_three_and_four_side_regions_meet_at_geometric_midpoin
     midpoint = size // 2
     assert all(opposite.getpixel((x, midpoint - 1))[0] == _SOURCE_TAG["top"] for x in range(size))
     assert all(opposite.getpixel((x, midpoint))[0] == _SOURCE_TAG["bottom"] for x in range(size))
+
+
+def test_rectangular_outer_corner_uses_normalized_pixel_diagonal() -> None:
+    size = (12, 8)
+    tags = {"base": 17, "top": 41, "right": 73, "bottom": 109, "left": 149}
+    images = {
+        source_id: _coordinate_sample_rect(size, tag)
+        for source_id, tag in tags.items()
+    }
+    atlas = Image.new("RGBA", (size[0] * len(images), size[1]), (0, 0, 0, 0))
+    sources: list[dict[str, object]] = []
+    for index, (source_id, image) in enumerate(images.items()):
+        atlas.paste(image, (index * size[0], 0))
+        sources.append(
+            {
+                "id": source_id,
+                "x": index * size[0],
+                "y": 0,
+                "width": size[0],
+                "height": size[1],
+            }
+        )
+
+    result = build_tilesetter_terrain_pattern(
+        atlas,
+        tile_size=size,
+        sources=sources,
+        set_config={
+            "baseSource": "base",
+            "edges": {direction: direction for direction in _CARDINALS},
+            "cutoff": 0,
+        },
+        kind="blob_47",
+    )
+    width, height = size
+    cases = {
+        28: ("top", "left"),
+        112: ("top", "right"),
+        193: ("bottom", "right"),
+        7: ("bottom", "left"),
+    }
+    distance = {
+        "top": lambda x, y: y * (width - 1),
+        "right": lambda x, y: (width - 1 - x) * (height - 1),
+        "bottom": lambda x, y: (height - 1 - y) * (width - 1),
+        "left": lambda x, y: x * (height - 1),
+    }
+    tie_owner = {
+        frozenset(("top", "left")): "top",
+        frozenset(("top", "right")): "right",
+        frozenset(("right", "bottom")): "bottom",
+        frozenset(("bottom", "left")): "left",
+    }
+
+    for mask, (first, second) in cases.items():
+        rendered = _role_image(result, mask)
+        for y in range(height):
+            for x in range(width):
+                # The diagonal is a comparison of normalized coordinates, not
+                # raw x/y values. On a 12x8 tile, (4, 3) is already closer to
+                # the left side even though y <= x says "top".
+                first_distance = distance[first](x, y)
+                second_distance = distance[second](x, y)
+                if first_distance < second_distance:
+                    expected = first
+                elif second_distance < first_distance:
+                    expected = second
+                else:
+                    expected = tie_owner[frozenset((first, second))]
+                pixel = rendered.getpixel((x, y))
+                assert pixel[0] == _SOURCE_TAG[expected], (
+                    mask,
+                    (x, y),
+                    pixel,
+                    expected,
+                )
+                assert pixel[1:3] == (x, y), (mask, (x, y), pixel)
+
+
+def test_blob_border_band_does_not_leak_into_the_stable_center() -> None:
+    size = 48
+    base_color = (140, 110, 80, 255)
+    border_color = (64, 129, 38, 255)
+    base = Image.new("RGBA", (size, size), base_color)
+    top_border = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    for y in range(6):
+        for x in range(size):
+            top_border.putpixel((x, y), border_color)
+
+    atlas = Image.new("RGBA", (size * 2, size), (0, 0, 0, 0))
+    atlas.paste(base, (0, 0))
+    atlas.paste(top_border, (size, 0))
+    sources = [
+        {"id": "base", "x": 0, "y": 0, "width": size, "height": size},
+        {"id": "edge", "x": size, "y": 0, "width": size, "height": size},
+    ]
+    result = build_tilesetter_terrain_pattern(
+        atlas,
+        tile_size=(size, size),
+        sources=sources,
+        set_config={
+            "baseSource": "base",
+            "autoOrientEdges": True,
+            "edges": {direction: "edge" for direction in _CARDINALS},
+            "cutoff": 6,
+        },
+        kind="blob_47",
+    )
+
+    for role in result.tiles:
+        rendered = _role_image(result, role.mask)
+        center = rendered.crop((10, 10, 38, 38))
+        assert set(center.get_flattened_data()) == {base_color}, role.mask
+
+
+def test_blob_edge_profile_follows_authored_border_without_recoloring_or_center_bands() -> None:
+    size = 48
+    base_color = (140, 110, 80, 255)
+    border_color = (64, 129, 38, 255)
+    base = Image.new("RGBA", (size, size), base_color)
+    top_border = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    for y in range(6):
+        for x in range(size):
+            top_border.putpixel((x, y), border_color)
+
+    atlas = Image.new("RGBA", (size * 2, size), (0, 0, 0, 0))
+    atlas.paste(base, (0, 0))
+    atlas.paste(top_border, (size, 0))
+    sources = [
+        {"id": "base", "x": 0, "y": 0, "width": size, "height": size},
+        {"id": "edge", "x": size, "y": 0, "width": size, "height": size},
+    ]
+    common = {
+        "baseSource": "base",
+        "autoOrientEdges": True,
+        "edges": {direction: "edge" for direction in _CARDINALS},
+        "cutoff": 6,
+    }
+    clean = build_tilesetter_terrain_pattern(
+        atlas,
+        tile_size=(size, size),
+        sources=sources,
+        set_config={**common, "terrainProfile": "clean"},
+        kind="blob_47",
+    )
+    styled = build_tilesetter_terrain_pattern(
+        atlas,
+        tile_size=(size, size),
+        sources=sources,
+        set_config={
+            **common,
+            "terrainProfile": "grass_over_dirt",
+            "edgeVariation": 3,
+            "edgeSeed": 451495,
+        },
+        kind="blob_47",
+    )
+    role = next(item for item in clean.tiles if item.mask == 124)
+    bounds = (
+        role.column * size,
+        role.row * size,
+        (role.column + 1) * size,
+        (role.row + 1) * size,
+    )
+    clean_pixels = np.asarray(clean.image.crop(bounds), dtype=np.uint8)
+    styled_pixels = np.asarray(styled.image.crop(bounds), dtype=np.uint8)
+
+    # The six authored rows are already the border. A material profile must
+    # not repaint them or invent a second edge at the canonical Blob midpoint.
+    assert np.array_equal(styled_pixels[:6], clean_pixels[:6])
+    assert np.array_equal(styled_pixels[12:38, 10:38], clean_pixels[12:38, 10:38])
 
 
 def test_all_automatic_outer_and_inner_corners_are_spliced_from_two_incident_edges() -> None:

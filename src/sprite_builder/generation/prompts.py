@@ -41,6 +41,22 @@ def build_character_context(
     visual = bible.get("visual_rules", {})
     if not isinstance(identity, Mapping) or not isinstance(visual, Mapping):
         raise ConfigurationError(f"Invalid Character Bible: {job.character.bible}")
+    semantic = job.quality_gates.semantic_integrity
+    semantic_contract = (
+        "Keep every foot visible in the pose complete, including heels, soles, and readable toe "
+        "silhouettes inside the frame. "
+        "Transparent padding below a limb does not prove that the limb is complete. "
+        "Preserve a stable ground-support row across frames. Never repair anatomy by pasting, "
+        "stretching, or scaling a rectangular crop from another pose; reconstruct it in the "
+        "current pose while leaving the accepted torso, head, equipment, and canvas scale fixed."
+    )
+    if semantic.enabled:
+        semantic_contract += (
+            f" Deterministic review uses body ROI {semantic.body_roi_x}, at least "
+            f"{semantic.min_bottom_gutter_px}px bottom gutter, "
+            f"{semantic.required_support_components} support component(s), and no more than "
+            f"{semantic.max_support_y_jitter_px:g}px support-row jitter."
+        )
     return {
         "character_description": identity.get(
             "description", identity.get("name", job.character.id)
@@ -49,12 +65,14 @@ def build_character_context(
             f"- {item}" for item in identity.get("immutable_features", ())
         ),
         "pose_rules": (
-            "Readable walk-cycle pose; stable upright torso; move only limbs required by the phase."
+            f"Readable {job.animation.name} pose; stable torso and ground plane; "
+            "move only anatomy and equipment required by the named phase."
         ),
         "style_rules": "; ".join(f"{key}: {item}" for key, item in visual.items()),
         "prohibited_changes": "\n".join(
             f"- {item}" for item in identity.get("forbidden_changes", ())
         ),
+        "semantic_contract": semantic_contract,
     }
 
 

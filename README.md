@@ -129,6 +129,13 @@ sprite-builder run --job configs/examples/tzucan_walk_right.yaml \
   --overrides jobs/tzucan-walk-right-v001/overrides/anchors.json
 ```
 
+Para personajes nuevos puede activar el gate semántico de plantas, gutter y
+deriva de suelo. Este gate no confunde margen transparente con anatomía
+completa, genera previews a escala runtime y bloquea exportaciones en revisión.
+Las reparaciones quirúrgicas se validan con una máscara byte-exact mediante
+`sprite-builder verify-edit`. Consulte el
+[contrato de calidad determinista](docs/deterministic-character-quality.md).
+
 Consulte [la guía de uso](docs/usage.md) para el contrato completo, el flujo en
 Codex, la corrección manual y la integración con Godot.
 

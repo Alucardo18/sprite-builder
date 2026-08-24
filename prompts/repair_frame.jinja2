@@ -4,6 +4,12 @@ Animation {{ animation }}, direction {{ direction }}, phase {{ phase }}.
 DEFECTS
 {{ defects }}
 
+SURGICAL EDIT CONTRACT
+Use an explicit allowed edit mask. Pixels outside it are protected and must remain byte-identical.
+Preserve alpha unless the mask explicitly authorizes silhouette reconstruction.
+Do not paste or resize rectangular anatomy from another frame. Reconstruct the missing form in the
+current pose, then verify the result at native 1x and intended runtime scale.
+
 CANON
 {{ character_description }}
 {{ immutable_features }}

@@ -18,15 +18,17 @@ from sprite_builder.alignment import (
     detect_torso_anchor,
     load_anchor_overrides,
 )
-from sprite_builder.consistency import validate_sprite_consistency
+from sprite_builder.consistency import validate_semantic_integrity, validate_sprite_consistency
 from sprite_builder.domain.models import JobSpec
 from sprite_builder.export import build_spritesheet, export_godot_bundle
-from sprite_builder.orchestration import atomic_write_json
+from sprite_builder.orchestration import atomic_write_json, sha256_file, stable_digest
 from sprite_builder.postprocess import autocut_sprite, normalize_sprite, remove_background
 from sprite_builder.preview import (
     create_anchor_overlay,
     create_animation_gif,
     create_contact_sheet,
+    create_runtime_contact_sheet,
+    create_semantic_overlay,
 )
 
 
@@ -295,14 +297,33 @@ def validate_job(
             palette=palette,
         )
         directions[direction] = report.to_dict()
-        statuses.append(report.status)
+        direction_value = directions[direction]
+        direction_statuses = [report.status]
+        if job.quality_gates.semantic_integrity.enabled:
+            semantic = validate_semantic_integrity(
+                subset, job.quality_gates.semantic_integrity
+            )
+            direction_value["semantic_integrity"] = semantic.to_dict()
+            direction_statuses.append(semantic.status)
+        direction_status = (
+            "reject"
+            if "reject" in direction_statuses
+            else "review"
+            if "review" in direction_statuses
+            else "pass"
+        )
+        direction_value["status"] = direction_status
+        statuses.append(direction_status)
         drifts.append(report.mean_drift)
     status = "reject" if "reject" in statuses else "review" if "review" in statuses else "pass"
     value = {
         "schema_version": "1.0",
         "job_id": job.job_id,
+        "job_contract_digest": stable_digest(job.to_dict()),
         "status": status,
         "mean_drift": float(np.mean(drifts)),
+        "semantic_integrity_enabled": job.quality_gates.semantic_integrity.enabled,
+        "aligned_sha256": {path.name: sha256_file(path) for path in frames},
         "directions": directions,
     }
     _write_json(root / "jobs" / job.job_id / "reports" / "consistency.json", value)
@@ -344,6 +365,28 @@ def preview_job(job: JobSpec, *, workspace: str | Path) -> dict[str, str]:
                 destination / f"{job.animation.name}_{direction}_anchors.png",
             )
         )
+        if job.quality_gates.semantic_integrity.enabled:
+            semantic = validate_semantic_integrity(
+                subset, job.quality_gates.semantic_integrity
+            )
+            semantic_records = [frame.to_dict() for frame in semantic.frames]
+            outputs[f"{prefix}semantic"] = str(
+                create_semantic_overlay(
+                    subset,
+                    semantic_records,
+                    destination / f"{job.animation.name}_{direction}_semantic.png",
+                )
+            )
+            for runtime_scale in job.quality_gates.semantic_integrity.runtime_preview_scales:
+                scale_label = str(runtime_scale).replace(".", "p")
+                outputs[f"{prefix}runtime_{scale_label}x"] = str(
+                    create_runtime_contact_sheet(
+                        subset,
+                        destination
+                        / f"{job.animation.name}_{direction}_runtime_{scale_label}x.png",
+                        runtime_scale=runtime_scale,
+                    )
+                )
     return outputs
 
 
@@ -352,6 +395,23 @@ def export_job(job: JobSpec, *, workspace: str | Path) -> dict[str, str]:
     frames = sorted((root / "jobs" / job.job_id / "aligned").glob("frame_*.png"))
     if not frames:
         raise FileNotFoundError("No aligned frames to export")
+    if (
+        job.quality_gates.semantic_integrity.enabled
+        and job.quality_gates.block_export_on_review
+    ):
+        report_path = root / "jobs" / job.job_id / "reports" / "consistency.json"
+        if not report_path.is_file():
+            raise RuntimeError("QUALITY_GATE_MISSING run validate before export")
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        report_status = str(report.get("status"))
+        if report_status != "pass":
+            raise RuntimeError(f"QUALITY_GATE_BLOCKED status={report_status}")
+        if report.get("job_contract_digest") != stable_digest(job.to_dict()):
+            raise RuntimeError("QUALITY_GATE_STALE job contract changed after validation")
+        expected_hashes = report.get("aligned_sha256", {})
+        actual_hashes = {path.name: sha256_file(path) for path in frames}
+        if expected_hashes != actual_hashes:
+            raise RuntimeError("QUALITY_GATE_STALE aligned frames changed after validation")
     base_destination = root / job.export.output_dir
     base_destination.mkdir(parents=True, exist_ok=True)
     anchors_file = root / "jobs" / job.job_id / "manifests" / "anchors.json"

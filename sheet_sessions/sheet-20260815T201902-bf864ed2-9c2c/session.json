@@ -1,0 +1,87 @@
+{
+  "auto_center_config": {
+    "anchor_strategy": "distance_core_percentiles",
+    "canonical_anchor": [
+      1320,
+      362
+    ],
+    "canvas_height": 724,
+    "canvas_width": 2640,
+    "confidence_threshold": 0.65,
+    "ignore_outliers": true,
+    "method": "body"
+  },
+  "background_removal_config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      0,
+      0,
+      0
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 1,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-08-15T20:19:02.880486+00:00",
+  "current_stage": "source",
+  "export_crop_config": {
+    "alpha_threshold": 8,
+    "enabled": false,
+    "padding": 0
+  },
+  "export_manifest": null,
+  "frame_adjustments": [],
+  "inspection": {
+    "background_confidence": 1.0,
+    "border_rgb": [
+      0,
+      0,
+      0
+    ],
+    "has_alpha": true,
+    "height": 724,
+    "mode": "RGBA",
+    "solid_background_likely": false,
+    "top_left_rgb": [
+      0,
+      0,
+      0
+    ],
+    "uses_transparency": true,
+    "width": 2640
+  },
+  "layer_document": null,
+  "output_dir": "sheet_sessions/sheet-20260815T201902-bf864ed2-9c2c",
+  "schema_version": "1.0",
+  "segmentation_config": {
+    "cell_height": null,
+    "cell_width": null,
+    "columns": 1,
+    "frame_count": 1,
+    "manual_cut_positions": [],
+    "manual_cut_positions_x": [],
+    "manual_cut_positions_y": [],
+    "offset_x": 0,
+    "offset_y": 0,
+    "orientation": "horizontal",
+    "rows": 1,
+    "spacing_x": 0,
+    "spacing_y": 0
+  },
+  "session_id": "sheet-20260815T201902-bf864ed2-9c2c",
+  "source_image_path": "sheet_sessions/sheet-20260815T201902-bf864ed2-9c2c/source/bf864ed237e56f4ac632025505f362159c8e79a9a00785c2f0413ac29fbf03e7.png",
+  "source_sha256": "bf864ed237e56f4ac632025505f362159c8e79a9a00785c2f0413ac29fbf03e7",
+  "stages": {
+    "source": {
+      "path": "sheet_sessions/sheet-20260815T201902-bf864ed2-9c2c/source/bf864ed237e56f4ac632025505f362159c8e79a9a00785c2f0413ac29fbf03e7.png",
+      "sha256": "bf864ed237e56f4ac632025505f362159c8e79a9a00785c2f0413ac29fbf03e7",
+      "status": "passed"
+    }
+  },
+  "updated_at": "2026-08-15T20:19:02.880614+00:00"
+}

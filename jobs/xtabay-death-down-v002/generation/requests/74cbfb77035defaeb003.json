@@ -1,0 +1,26 @@
+{
+  "animation": "death",
+  "candidate_index": 0,
+  "character_id": "xtabay",
+  "direction": "down",
+  "frame_index": 9,
+  "job_id": "xtabay-death-down-v002",
+  "output_filename": "death_down_009_candidate_00_74cbfb77035defaeb003.png",
+  "phase": "human_echo_hold",
+  "prompt_path": "jobs/xtabay-death-down-v002/generation/prompts/down_009_0668c4e0ab40.txt",
+  "quality": "high",
+  "reference_paths": [
+    "/Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/xtabay_death.png",
+    "/Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/idletransformed.png.import.png",
+    "/Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/idlebase 1.png"
+  ],
+  "request_id": "74cbfb77035defaeb003",
+  "schema_version": "1.0",
+  "seed_source_path": null,
+  "source_kind": "generated",
+  "source_size": [
+    1024,
+    1024
+  ],
+  "status": "prepared"
+}

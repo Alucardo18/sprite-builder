@@ -8,6 +8,7 @@ import os
 import platform
 import subprocess
 import sys
+from collections.abc import Iterable
 from dataclasses import fields
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ from PIL import Image
 
 from sprite_builder.batch import batch_status, load_batch, prepare_batch
 from sprite_builder.character import analyze_reference, create_character_skeleton
+from sprite_builder.consistency import render_masked_edit_overlay, verify_masked_edit
 from sprite_builder.domain.config import load_job
 from sprite_builder.domain.models import JobSpec
 from sprite_builder.generation import (
@@ -50,7 +52,11 @@ def _workspace(value: str) -> Path:
 
 
 class _NormalizingArgumentParser(argparse.ArgumentParser):
-    def parse_args(self, args: list[str] | None = None, namespace: argparse.Namespace | None = None):
+    def parse_args(  # type: ignore[override]
+        self,
+        args: Iterable[str] | None = None,
+        namespace: argparse.Namespace | None = None,
+    ) -> argparse.Namespace:
         return super().parse_args(_normalize_argv(args), namespace)
 
 
@@ -67,7 +73,7 @@ def _palette_for(job: Any) -> Path:
     return Path(job.character.bible).parent / "palette.json"
 
 
-def _normalize_argv(argv: list[str] | None) -> list[str] | None:
+def _normalize_argv(argv: Iterable[str] | None) -> list[str] | None:
     if argv is None:
         return None
     tokens = list(argv)
@@ -476,6 +482,35 @@ def command_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_verify_edit(args: argparse.Namespace) -> int:
+    report = verify_masked_edit(
+        args.before,
+        args.after,
+        args.mask,
+        require_alpha_identity=not args.allow_alpha_changes,
+    )
+    value = report.to_dict()
+    if args.overlay:
+        value["overlay"] = str(
+            render_masked_edit_overlay(
+                args.before,
+                args.after,
+                args.mask,
+                args.overlay,
+                scale=args.overlay_scale,
+            )
+        )
+    if args.report:
+        destination = Path(args.report)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(
+            json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    _json_print(value)
+    return {"pass": 0, "review": 3, "reject": 4}[report.status]
+
+
 def command_run(args: argparse.Namespace) -> int:
     job, root = _load(args)
     if args.dry_run:
@@ -587,6 +622,15 @@ def build_parser() -> argparse.ArgumentParser:
     sheet_export.add_argument("--gif", action="store_true")
     sheet_export.add_argument("--fps", type=float, default=8)
     sheet_export.set_defaults(func=command_sheet_export)
+    verify_edit = commands.add_parser("verify-edit")
+    verify_edit.add_argument("--before", required=True)
+    verify_edit.add_argument("--after", required=True)
+    verify_edit.add_argument("--mask", required=True)
+    verify_edit.add_argument("--report")
+    verify_edit.add_argument("--overlay")
+    verify_edit.add_argument("--overlay-scale", type=int, default=4)
+    verify_edit.add_argument("--allow-alpha-changes", action="store_true")
+    verify_edit.set_defaults(func=command_verify_edit)
     for name, function in (
         ("postprocess", command_postprocess),
         ("align", command_align),

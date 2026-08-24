@@ -1,0 +1,59 @@
+schema_version: "1.0"
+job:
+  id: tzukan-bow-attack-right-v001
+
+character:
+  id: tzucan
+  bible: characters/tzucan/bible.yaml
+  references:
+    - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/player/idle/idle_right_sheet.png
+    - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/player/attack/attack_right_sheet.png
+    - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/player/attack/sword/tzukan_macuahuitl.png
+    - /Users/emmanuel/.codex/generated_images/01a025f7-6ab9-7820-b1f0-da9653a1ab7e/exec-5409b4fb-ae16-4334-8407-cfe4515d5ef8.png
+    - /Users/emmanuel/.codex/generated_images/01a025f7-6ab9-7820-b1f0-da9653a1ab7e/exec-f9b0ca24-794c-4bc8-8c92-0326befbf1ec.png
+
+animation:
+  name: bow_attack
+  directions: [right]
+  frame_count: 5
+  fps: 14
+  loop: false
+  phases:
+    - prepare_and_nock_bow_low_arrow_on_string
+    - partial_draw_bow_raised_arrow_horizontal
+    - full_draw_hold_rear_hand_anchored_at_cheek
+    - release_string_forward_no_projectile_in_character_frame
+    - controlled_recovery_bow_lowered_no_arrow
+
+generation:
+  source_size: [1024, 1024]
+  quality: high
+  candidates_per_frame: 1
+  background:
+    color: "#00FF00"
+  use_previous_accepted_frame: true
+
+render:
+  cell_size: [128, 128]
+  target_body_height_px: 74
+  palette_lock: true
+  dithering: false
+  integrated_shadow: false
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [64, 68]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+export:
+  formats: [individual, horizontal]
+  output_dir: /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/artifacts/bow/attack_right
+
+metadata:
+  review_state: production_candidate
+  concept_approved: true
+  direction_contract: right_facing
+  projectile_separate_from_character_after_release: true
+  intended_gameplay_cell_size: [128, 128]
+  integration_authorized: false

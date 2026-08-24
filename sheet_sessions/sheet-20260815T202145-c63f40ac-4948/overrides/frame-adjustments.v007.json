@@ -1,0 +1,169 @@
+{
+  "created_at": "2026-08-15T20:27:57.296216+00:00",
+  "frames": [
+    {
+      "applied_translation": [
+        16,
+        -1
+      ],
+      "auto_anchor": [
+        165.0,
+        399.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        53,
+        195,
+        359,
+        539
+      ],
+      "final_anchor": [
+        181.0,
+        398.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        36,
+        -13
+      ],
+      "auto_anchor": [
+        145.0,
+        406.0
+      ],
+      "auto_confidence": 0.8492209435397178,
+      "body_bbox": [
+        36,
+        212,
+        343,
+        545
+      ],
+      "final_anchor": [
+        181.0,
+        393.0
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": -5,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        42,
+        -21
+      ],
+      "auto_anchor": [
+        139.0,
+        410.0
+      ],
+      "auto_confidence": 0.8182839644095804,
+      "body_bbox": [
+        29,
+        225,
+        338,
+        557
+      ],
+      "final_anchor": [
+        181.0,
+        389.0
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": -9,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        36,
+        -24
+      ],
+      "auto_anchor": [
+        145.0,
+        422.0
+      ],
+      "auto_confidence": 0.8188014678757922,
+      "body_bbox": [
+        24,
+        241,
+        332,
+        557
+      ],
+      "final_anchor": [
+        181.0,
+        398.0
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        51,
+        -26
+      ],
+      "auto_anchor": [
+        130.0,
+        424.0
+      ],
+      "auto_confidence": 0.6703720273520322,
+      "body_bbox": [
+        9,
+        266,
+        294,
+        557
+      ],
+      "final_anchor": [
+        181.0,
+        398.0
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        42,
+        -24
+      ],
+      "auto_anchor": [
+        138.0,
+        405.0
+      ],
+      "auto_confidence": 0.6134383627308628,
+      "body_bbox": [
+        30,
+        215,
+        338,
+        545
+      ],
+      "final_anchor": [
+        180.0,
+        381.0
+      ],
+      "frame_index": 5,
+      "locked": false,
+      "manual_offset_x": -1,
+      "manual_offset_y": -17,
+      "manual_review": true,
+      "notes": ""
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260815T202145-c63f40ac-4948"
+}

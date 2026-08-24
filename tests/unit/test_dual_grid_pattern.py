@@ -21,7 +21,11 @@ from sprite_builder.tilesets import (
     terrain_pattern_masks,
     terrain_pattern_set_layout,
 )
-from sprite_builder.tilesets.patterns import _render_dual_grid_pixels, _wang_bitmap_mask
+from sprite_builder.tilesets.patterns import (
+    _render_dual_grid_pixels,
+    _tile_neighbors,
+    _wang_bitmap_mask,
+)
 
 _DUAL_GRID_LAYOUT = (
     (8, 6, 13, 12),
@@ -355,6 +359,155 @@ def test_styled_dual_grid_roles_keep_compatible_edges_pixel_identical(
                     second_mask,
                     "vertical",
                 )
+
+
+@pytest.mark.parametrize("kind", ["blob_47", "wang_16", "sides_16"])
+@pytest.mark.parametrize("size", [4, 8, 16])
+def test_styled_non_dual_patterns_keep_compatible_edges_pixel_identical(
+    kind: str,
+    size: int,
+) -> None:
+    inside = np.full((size, size, 4), (90, 140, 70, 255), dtype=np.uint8)
+    outside = np.full((size, size, 4), (70, 130, 160, 255), dtype=np.uint8)
+    clean_tiles = {
+        mask: _render_dual_grid_pixels(
+            inside,
+            outside,
+            mask,
+            kind=kind,
+            profile="clean",
+        )
+        for mask in terrain_pattern_masks(kind)
+    }
+    tiles = {
+        mask: _render_dual_grid_pixels(
+            inside,
+            outside,
+            mask,
+            kind=kind,
+            profile="dirt_over_water",
+            variation=3,
+            seed=451495,
+        )
+        for mask in terrain_pattern_masks(kind)
+    }
+
+    def horizontal_match(first_mask: int, second_mask: int) -> bool:
+        if kind == "wang_16":
+            return bool(first_mask & 2) == bool(second_mask & 1) and bool(
+                first_mask & 4
+            ) == bool(second_mask & 8)
+        return ("right" in _tile_neighbors(kind, first_mask)) == (
+            "left" in _tile_neighbors(kind, second_mask)
+        )
+
+    def vertical_match(first_mask: int, second_mask: int) -> bool:
+        if kind == "wang_16":
+            return bool(first_mask & 8) == bool(second_mask & 1) and bool(
+                first_mask & 4
+            ) == bool(second_mask & 2)
+        return ("bottom" in _tile_neighbors(kind, first_mask)) == (
+            "top" in _tile_neighbors(kind, second_mask)
+        )
+
+    for first_mask, first in tiles.items():
+        for second_mask, second in tiles.items():
+            if horizontal_match(first_mask, second_mask) and np.array_equal(
+                clean_tiles[first_mask][:, -1], clean_tiles[second_mask][:, 0]
+            ):
+                assert np.array_equal(first[:, -1], second[:, 0]), (
+                    kind,
+                    size,
+                    first_mask,
+                    second_mask,
+                    "horizontal",
+                )
+            if vertical_match(first_mask, second_mask) and np.array_equal(
+                clean_tiles[first_mask][-1, :], clean_tiles[second_mask][0, :]
+            ):
+                assert np.array_equal(first[-1, :], second[0, :]), (
+                    kind,
+                    size,
+                    first_mask,
+                    second_mask,
+                    "vertical",
+                )
+
+
+@pytest.mark.parametrize("kind", ["blob_47", "wang_16", "sides_16"])
+def test_non_dual_profile_round_trip_metadata(kind: str) -> None:
+    base = Image.new("RGBA", (16, 16), (90, 140, 70, 255))
+    outside = Image.new("RGBA", (16, 16), (70, 130, 160, 255))
+    result = generate_terrain_pattern(
+        base,
+        outside,
+        kind=kind,
+        terrain_profile="grass_over_dirt",
+        edge_variation=2,
+        edge_seed=314,
+    )
+    manifest = terrain_pattern_manifest(result)
+    assert result.terrain_profile == "grass_over_dirt"
+    assert result.edge_variation == 2
+    assert result.edge_seed == 314
+    assert manifest["edge_profile"] == {
+        "terrain_profile": "grass_over_dirt",
+        "edge_variation": 2,
+        "edge_seed": 314,
+        "edge_generation": "deterministic_palette_bands",
+    }
+
+
+@pytest.mark.parametrize("kind", ["blob_47", "wang_16", "sides_16"])
+def test_tilesetter_non_dual_profile_is_applied_after_composition(kind: str) -> None:
+    size = (8, 8)
+    atlas = Image.new("RGBA", (size[0] * 3, size[1]), (0, 0, 0, 0))
+    base = Image.new("RGBA", size, (70, 145, 62, 255))
+    secondary = Image.new("RGBA", size, (70, 130, 160, 255))
+    border = Image.new("RGBA", size, (0, 0, 0, 0))
+    for y in range(3):
+        for x in range(size[0]):
+            border.putpixel((x, y), (112, 79, 68, 255))
+    atlas.paste(base, (0, 0))
+    atlas.paste(secondary, (size[0], 0))
+    atlas.paste(border, (size[0] * 2, 0))
+    sources = [
+        {"id": "base", "x": 0, "y": 0, "width": size[0], "height": size[1]},
+        {"id": "secondary", "x": size[0], "y": 0, "width": size[0], "height": size[1]},
+        {"id": "border", "x": size[0] * 2, "y": 0, "width": size[0], "height": size[1]},
+    ]
+    common = {
+        "baseSource": "base",
+        "secondarySource": "secondary",
+        "edges": {direction: "border" for direction in ("top", "right", "bottom", "left")},
+        "edgeTransforms": {
+            direction: {"rotation": 0}
+            for direction in ("top", "right", "bottom", "left")
+        },
+    }
+    clean = build_tilesetter_terrain_pattern(
+        atlas,
+        tile_size=size,
+        sources=sources,
+        set_config={**common, "terrainProfile": "clean"},
+        kind=kind,
+    )
+    styled = build_tilesetter_terrain_pattern(
+        atlas,
+        tile_size=size,
+        sources=sources,
+        set_config={
+            **common,
+            "terrainProfile": "dirt_over_water",
+            "edgeVariation": 3,
+            "edgeSeed": 451495,
+        },
+        kind=kind,
+    )
+    assert styled.terrain_profile == "dirt_over_water"
+    assert styled.edge_variation == 3
+    assert styled.edge_seed == 451495
+    assert styled.image.tobytes() != clean.image.tobytes()
 
 
 @pytest.mark.parametrize(

@@ -17,12 +17,15 @@ from PIL import Image, ImageDraw
 from .core import TilesetGrid, slice_tileset
 
 TerrainPatternKind = Literal["wang_16", "dual_grid_15", "blob_47", "sides_16"]
-DualGridTerrainProfile = Literal[
+TerrainEdgeProfile = Literal[
     "clean",
     "grass_over_dirt",
     "dirt_over_water",
     "grass_over_water",
 ]
+# Public compatibility alias retained for callers that adopted the original
+# Dual Grid-only API. The same material grammars now apply to every pattern.
+DualGridTerrainProfile = TerrainEdgeProfile
 
 _DIRECTIONS = (
     "top",
@@ -58,12 +61,13 @@ _DUAL_GRID_TILEMAP_DUAL_PEERING_CORNERS = (
 )
 _DUAL_GRID_EMPTY_POSITION = (0, 3)
 _DUAL_GRID_FOREGROUND_MASK = 15
-_DUAL_GRID_TERRAIN_PROFILES: tuple[DualGridTerrainProfile, ...] = (
+_TERRAIN_EDGE_PROFILES: tuple[TerrainEdgeProfile, ...] = (
     "clean",
     "grass_over_dirt",
     "dirt_over_water",
     "grass_over_water",
 )
+_DUAL_GRID_TERRAIN_PROFILES = _TERRAIN_EDGE_PROFILES
 _DUAL_GRID_EDGE_VARIATION_MAX = 3
 _DUAL_GRID_EDGE_SEED_MAX = 999_999
 _WANG_PATTERN_KINDS = frozenset(("wang_16", "dual_grid_15"))
@@ -158,6 +162,9 @@ class TerrainPatternResult:
     dual_grid_profile: DualGridTerrainProfile | None = None
     dual_grid_edge_variation: int = 0
     dual_grid_edge_seed: int = 0
+    terrain_profile: TerrainEdgeProfile | None = None
+    edge_variation: int = 0
+    edge_seed: int = 0
 
     @property
     def complete(self) -> bool:
@@ -307,10 +314,39 @@ def _terrain_mode(kind: TerrainPatternKind) -> str:
         raise ValueError(f"Unsupported terrain pattern: {kind}") from exc
 
 
-def dual_grid_terrain_profiles() -> tuple[DualGridTerrainProfile, ...]:
-    """Return the stable terrain-pair profile identifiers exposed by Pattern Studio."""
+def terrain_edge_profiles() -> tuple[TerrainEdgeProfile, ...]:
+    """Return the stable material-pair profile identifiers for every pattern."""
 
     return _DUAL_GRID_TERRAIN_PROFILES
+
+
+def dual_grid_terrain_profiles() -> tuple[DualGridTerrainProfile, ...]:
+    """Compatibility alias for the original Dual Grid profile API."""
+
+    return terrain_edge_profiles()
+
+
+def _normalize_terrain_edge_style(
+    profile: object = "clean",
+    variation: object = 0,
+    seed: object = 0,
+) -> tuple[TerrainEdgeProfile, int, int]:
+    profile_name = str(profile or "clean")
+    if profile_name not in _DUAL_GRID_TERRAIN_PROFILES:
+        raise ValueError(f"Unsupported terrain edge profile: {profile_name}")
+    try:
+        variation_level = int(cast(str | bytes | bytearray | int | float, variation))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Dual Grid edge variation must be an integer from 0 to 3") from exc
+    if not 0 <= variation_level <= _DUAL_GRID_EDGE_VARIATION_MAX:
+        raise ValueError("Dual Grid edge variation must be an integer from 0 to 3")
+    try:
+        seed_value = int(cast(str | bytes | bytearray | int | float, seed))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Dual Grid edge seed must be an integer from 0 to 999999") from exc
+    if not 0 <= seed_value <= _DUAL_GRID_EDGE_SEED_MAX:
+        raise ValueError("Dual Grid edge seed must be an integer from 0 to 999999")
+    return profile_name, variation_level, seed_value
 
 
 def _normalize_dual_grid_edge_style(
@@ -318,22 +354,32 @@ def _normalize_dual_grid_edge_style(
     variation: object = 0,
     seed: object = 0,
 ) -> tuple[DualGridTerrainProfile, int, int]:
-    profile_name = str(profile or "clean")
-    if profile_name not in _DUAL_GRID_TERRAIN_PROFILES:
-        raise ValueError(f"Unsupported Dual Grid terrain profile: {profile_name}")
+    """Compatibility wrapper retaining the old Dual Grid error contract."""
+
     try:
-        variation_level = int(variation)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("Dual Grid edge variation must be an integer from 0 to 3") from exc
-    if not 0 <= variation_level <= _DUAL_GRID_EDGE_VARIATION_MAX:
-        raise ValueError("Dual Grid edge variation must be an integer from 0 to 3")
-    try:
-        seed_value = int(seed)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("Dual Grid edge seed must be an integer from 0 to 999999") from exc
-    if not 0 <= seed_value <= _DUAL_GRID_EDGE_SEED_MAX:
-        raise ValueError("Dual Grid edge seed must be an integer from 0 to 999999")
-    return cast(DualGridTerrainProfile, profile_name), variation_level, seed_value
+        return _normalize_terrain_edge_style(profile, variation, seed)
+    except ValueError as exc:
+        if str(exc).startswith("Unsupported terrain edge profile:"):
+            message = str(exc).replace(
+                "Unsupported terrain edge profile:",
+                "Unsupported Dual Grid terrain profile:",
+            )
+            raise ValueError(message) from exc
+        raise
+
+
+def _normalize_pattern_edge_style(
+    kind: TerrainPatternKind,
+    profile: object = "clean",
+    variation: object = 0,
+    seed: object = 0,
+) -> tuple[TerrainEdgeProfile, int, int]:
+    normalizer = (
+        _normalize_dual_grid_edge_style
+        if kind == "dual_grid_15"
+        else _normalize_terrain_edge_style
+    )
+    return normalizer(profile, variation, seed)
 
 
 def _wang_bitmap_coverage(mask: int, width: int, height: int) -> np.ndarray:
@@ -352,7 +398,7 @@ def _dual_grid_texture_field(
     width: int,
     height: int,
     *,
-    profile: DualGridTerrainProfile,
+    profile: TerrainEdgeProfile,
     seed: int,
 ) -> np.ndarray:
     """Build a seamless, quarter-turn-covariant field for restrained edge texture."""
@@ -400,15 +446,26 @@ def _dual_grid_profile_coverage(
     width: int,
     height: int,
     *,
-    profile: DualGridTerrainProfile = "clean",
+    kind: TerrainPatternKind = "dual_grid_15",
+    profile: TerrainEdgeProfile = "clean",
     variation: int = 0,
     seed: int = 0,
 ) -> np.ndarray:
     """Return styled coverage while keeping compatible atlas edges deterministic."""
 
-    profile, variation, seed = _normalize_dual_grid_edge_style(profile, variation, seed)
-    coverage = _wang_bitmap_coverage(mask, width, height)
-    if profile == "clean" or variation == 0 or mask in (0, _DUAL_GRID_FOREGROUND_MASK):
+    normalizer = (
+        _normalize_dual_grid_edge_style
+        if kind == "dual_grid_15"
+        else _normalize_terrain_edge_style
+    )
+    profile, variation, seed = normalizer(profile, variation, seed)
+    if _is_wang_pattern(kind):
+        coverage = _wang_bitmap_coverage(mask, width, height)
+    elif kind == "sides_16":
+        coverage = _blob_bitmap_coverage(_sides_blob_mask(mask), width, height)
+    else:
+        coverage = _blob_bitmap_coverage(mask, width, height)
+    if profile == "clean" or variation == 0 or mask in _profile_terminal_masks(kind):
         return coverage
 
     # A displacement below one source pixel frequently vanishes after the
@@ -437,16 +494,67 @@ def _dual_grid_profile_coverage(
     # make two compatible roles see slightly different distances from their
     # shared boundary. Sample the exact mathematical edge instead, so shading
     # bands and ownership meet without a one-pixel colour break.
-    nw, ne, se, sw = (1.0 if mask & (1 << index) else 0.0 for index in range(4))
-    edge_x = (np.arange(width, dtype=np.float32) + 0.5) / width
-    edge_y = (np.arange(height, dtype=np.float32) + 0.5) / height
-    styled[0, :] = nw * (1.0 - edge_x) + ne * edge_x
-    styled[-1, :] = sw * (1.0 - edge_x) + se * edge_x
-    styled[:, 0] = nw * (1.0 - edge_y) + sw * edge_y
-    styled[:, -1] = ne * (1.0 - edge_y) + se * edge_y
-    styled[0, 0], styled[0, -1] = nw, ne
-    styled[-1, -1], styled[-1, 0] = se, sw
-    return styled
+    if _is_wang_pattern(kind):
+        nw, ne, se, sw = (1.0 if mask & (1 << index) else 0.0 for index in range(4))
+        edge_x = (np.arange(width, dtype=np.float32) + 0.5) / width
+        edge_y = (np.arange(height, dtype=np.float32) + 0.5) / height
+        styled[0, :] = nw * (1.0 - edge_x) + ne * edge_x
+        styled[-1, :] = sw * (1.0 - edge_x) + se * edge_x
+        styled[:, 0] = nw * (1.0 - edge_y) + sw * edge_y
+        styled[:, -1] = ne * (1.0 - edge_y) + se * edge_y
+        styled[0, 0], styled[0, -1] = nw, ne
+        styled[-1, -1], styled[-1, 0] = se, sw
+    return np.asarray(styled, dtype=np.float32)
+
+
+def _pixel_distance_to_mask(mask: np.ndarray) -> np.ndarray:
+    """Return a deterministic four-neighbour distance map for a pixel mask."""
+
+    target = np.asarray(mask, dtype=bool)
+    height, width = target.shape
+    unreachable = height + width + 1
+    distance = np.full((height, width), unreachable, dtype=np.int32)
+    distance[target] = 0
+    for y in range(height):
+        for x in range(width):
+            best = int(distance[y, x])
+            if y:
+                best = min(best, int(distance[y - 1, x]) + 1)
+            if x:
+                best = min(best, int(distance[y, x - 1]) + 1)
+            distance[y, x] = best
+    for y in range(height - 1, -1, -1):
+        for x in range(width - 1, -1, -1):
+            best = int(distance[y, x])
+            if y + 1 < height:
+                best = min(best, int(distance[y + 1, x]) + 1)
+            if x + 1 < width:
+                best = min(best, int(distance[y, x + 1]) + 1)
+            distance[y, x] = best
+    return distance
+
+
+def _authored_edge_profile_coverage(
+    edge_ownership: np.ndarray,
+    width: int,
+    height: int,
+) -> np.ndarray | None:
+    """Build a profile edge from the actual authored border ownership.
+
+    TileSetter Sources can place a border anywhere inside a complete tile. The
+    canonical Blob/Wang coverage is therefore not a safe proxy after Sources
+    have been composed: it can put a second material band in the middle of a
+    tile whose authored border already ends at the outer edge.
+    """
+
+    owned = np.asarray(edge_ownership, dtype=bool)
+    if owned.shape != (height, width) or not np.any(owned) or np.all(owned):
+        return None
+    inside_distance = _pixel_distance_to_mask(owned)
+    outside_distance = _pixel_distance_to_mask(~owned)
+    signed_distance = np.where(owned, -outside_distance, inside_distance).astype(np.float32)
+    axis = max(2, min(width, height))
+    return np.clip(0.5 + signed_distance / axis, 0.0, 1.0)
 
 
 def _dual_grid_bitmap_mask(
@@ -454,7 +562,7 @@ def _dual_grid_bitmap_mask(
     width: int,
     height: int,
     *,
-    profile: DualGridTerrainProfile = "clean",
+    profile: TerrainEdgeProfile = "clean",
     variation: int = 0,
     seed: int = 0,
 ) -> np.ndarray:
@@ -465,6 +573,7 @@ def _dual_grid_bitmap_mask(
             mask,
             width,
             height,
+            kind="dual_grid_15",
             profile=profile,
             variation=variation,
             seed=seed,
@@ -496,25 +605,56 @@ def _render_dual_grid_pixels(
     outside: np.ndarray,
     mask: int,
     *,
-    profile: DualGridTerrainProfile = "clean",
+    kind: TerrainPatternKind = "dual_grid_15",
+    profile: TerrainEdgeProfile = "clean",
     variation: int = 0,
     seed: int = 0,
+    base_output: np.ndarray | None = None,
+    coverage_override: np.ndarray | None = None,
+    profile_mask: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Compose a Dual Grid role with material-specific pixel-art edge bands."""
+    """Compose a pattern role with material-specific pixel-art edge bands."""
 
-    profile, variation, seed = _normalize_dual_grid_edge_style(profile, variation, seed)
-    height, width = inside.shape[:2]
-    coverage = _dual_grid_profile_coverage(
-        mask,
-        width,
-        height,
-        profile=profile,
-        variation=variation,
-        seed=seed,
+    normalizer = (
+        _normalize_dual_grid_edge_style
+        if kind == "dual_grid_15"
+        else _normalize_terrain_edge_style
     )
+    profile, variation, seed = normalizer(profile, variation, seed)
+    height, width = inside.shape[:2]
+    coverage = (
+        _dual_grid_profile_coverage(
+            mask,
+            width,
+            height,
+            kind=kind,
+            profile=profile,
+            variation=variation,
+            seed=seed,
+        )
+        if coverage_override is None
+        else np.asarray(coverage_override, dtype=np.float32)
+    )
+    if coverage.shape != (height, width):
+        raise ValueError("Terrain edge coverage must match the tile dimensions")
     ownership = coverage >= 0.5
-    output = np.where(ownership[..., None], inside, outside).astype(np.uint8)
-    if profile == "clean" or variation == 0 or mask in (0, _DUAL_GRID_FOREGROUND_MASK):
+    output = (
+        np.asarray(base_output, dtype=np.uint8).copy()
+        if base_output is not None
+        else np.where(ownership[..., None], inside, outside).astype(np.uint8)
+    )
+    # The first/last atlas pixels are the shared seam of adjacent roles. Keep
+    # their original source pixels for non-Dual patterns; otherwise a profile
+    # can tone one side of a seam while its neighbour remains untouched (most
+    # visible on Blob/Sides where the coverage curve is not corner-linear).
+    seam_reference = output.copy() if kind != "dual_grid_15" else None
+    profile_reference = output.copy() if profile_mask is not None else None
+    normalized_profile_mask: np.ndarray | None = None
+    if profile_mask is not None:
+        normalized_profile_mask = np.asarray(profile_mask, dtype=bool)
+        if normalized_profile_mask.shape != (height, width):
+            raise ValueError("Terrain edge profile mask must match the tile dimensions")
+    if profile == "clean" or variation == 0 or mask in _profile_terminal_masks(kind):
         return output
 
     minimum_axis = max(2, min(width, height))
@@ -685,6 +825,13 @@ def _render_dual_grid_pixels(
             amount=(0.14, 0.21, 0.29)[level],
         )
 
+    if profile_reference is not None and normalized_profile_mask is not None:
+        output[~normalized_profile_mask] = profile_reference[~normalized_profile_mask]
+    if seam_reference is not None:
+        output[0, ...] = seam_reference[0, ...]
+        output[-1, ...] = seam_reference[-1, ...]
+        output[:, 0, ...] = seam_reference[:, 0, ...]
+        output[:, -1, ...] = seam_reference[:, -1, ...]
     return output
 
 
@@ -700,8 +847,8 @@ def _blob_quadrant_values(mask: int, right: bool, bottom: bool) -> tuple[float, 
     return tuple(1.0 if mask & _DIRECTION_BITS[name] else 0.0 for name in names)
 
 
-def _blob_bitmap_mask(mask: int, width: int, height: int) -> np.ndarray:
-    output = np.zeros((height, width), dtype=bool)
+def _blob_bitmap_coverage(mask: int, width: int, height: int) -> np.ndarray:
+    output = np.zeros((height, width), dtype=np.float32)
     half_width = width / 2.0
     half_height = height / 2.0
     for y in range(height):
@@ -717,8 +864,12 @@ def _blob_bitmap_mask(mask: int, width: int, height: int) -> np.ndarray:
                 + vertical * (1.0 - u) * v
                 + u * v
             )
-            output[y, x] = coverage >= 0.5
+            output[y, x] = coverage
     return output
+
+
+def _blob_bitmap_mask(mask: int, width: int, height: int) -> np.ndarray:
+    return _blob_bitmap_coverage(mask, width, height) >= 0.5
 
 
 def _tile_neighbors(kind: TerrainPatternKind, mask: int) -> tuple[str, ...]:
@@ -739,6 +890,14 @@ def _relevant_directions(kind: TerrainPatternKind) -> tuple[str, ...]:
     if kind == "sides_16":
         return ("top", "right", "bottom", "left")
     return _DIRECTIONS
+
+
+def _profile_terminal_masks(kind: TerrainPatternKind) -> tuple[int, int]:
+    """Return the empty/full roles that should never receive an edge band."""
+
+    if kind == "blob_47":
+        return 0, 0xFF
+    return 0, 0x0F
 
 
 def _sides_blob_mask(mask: int) -> int:
@@ -1312,6 +1471,28 @@ def _replace_corner_quadrant(
     tile.paste(corner_sample.crop(bounds), (bounds[0], bounds[1]))
 
 
+def _corner_quadrant_mask(size: tuple[int, int], diagonal: str) -> np.ndarray:
+    """Return the pixels owned by one custom corner Source."""
+
+    width, height = size
+    split_x = width // 2
+    split_y = height // 2
+    far_x = (width + 1) // 2
+    far_y = (height + 1) // 2
+    bounds = {
+        "top_left": (0, 0, split_x, split_y),
+        "top_right": (far_x, 0, width, split_y),
+        "bottom_right": (far_x, far_y, width, height),
+        "bottom_left": (0, far_y, split_x, height),
+    }.get(diagonal)
+    if bounds is None:
+        raise ValueError(f"Unsupported corner direction: {diagonal}")
+    x0, y0, x1, y1 = bounds
+    output = np.zeros((height, width), dtype=bool)
+    output[y0:y1, x0:x1] = True
+    return output
+
+
 def _wang_transitions(mask: int) -> dict[str, bool]:
     """Return the four border endpoints present in a corner-Wang role."""
 
@@ -1426,7 +1607,12 @@ def _render_tilesetter_wang_tile(
         if owner is None or edge is None:
             continue
         edge_pixels = np.asarray(edge, dtype=np.uint8)
-        output[owner] = edge_pixels[owner]
+        edge_content = edge_pixels[..., 3] != 0
+        # A full Border Source owns a geometric region, but transparent
+        # padding inside that Source does not own a pixel. Leave the already
+        # composed base/secondary material visible instead of creating holes.
+        owned_content = owner & edge_content
+        output[owned_content] = edge_pixels[owned_content]
     tile = Image.fromarray(output, mode="RGBA")
 
     corner_bits = dict(
@@ -1671,12 +1857,18 @@ def _tilesetter_blob_clip_masks(
         ~((xx < merge_x) & (yy >= merge_y)),
     )
     # Order matches BorderGeneratorBlob.clipsDiag:
-    # upper-right, lower-right, lower-left, upper-left.
+    # upper-right, lower-right, lower-left, upper-left. Compare normalized
+    # coordinates so the diagonal is geometric on rectangular tiles as well as
+    # square ones; comparing raw x/y values skews the seam toward the longer
+    # axis and can move a Border Source into the interior.
+    x_scale = max(1, width - 1)
+    y_scale = max(1, height - 1)
+    diagonal_scale = x_scale * y_scale
     diagonal = (
-        yy <= xx,
-        xx + yy >= width - 1,
-        yy >= xx,
-        xx + yy <= width - 1,
+        yy * x_scale <= xx * y_scale,
+        xx * y_scale + yy * x_scale >= diagonal_scale,
+        yy * x_scale >= xx * y_scale,
+        xx * y_scale + yy * x_scale <= diagonal_scale,
     )
     return base, base_inner, border, border_inner, diagonal
 
@@ -1718,7 +1910,7 @@ def _tilesetter_blob_neighbor_matrix(mask: int) -> tuple[bool | None, ...]:
     )
 
 
-def _render_tilesetter_blob_tile(
+def _render_tilesetter_blob_tile_with_ownership(
     base: Image.Image,
     edge_images: Sequence[Image.Image],
     corner_images: Mapping[str, Image.Image | None],
@@ -1726,7 +1918,7 @@ def _render_tilesetter_blob_tile(
     cutoffs: Sequence[int],
     *,
     rotation_covariant: bool = False,
-) -> Image.Image:
+) -> tuple[Image.Image, np.ndarray]:
     """Port TileSetter 2.1's Blob layer compositor for one neighbor matrix."""
 
     width, height = base.size
@@ -1759,6 +1951,7 @@ def _render_tilesetter_blob_tile(
     output = np.zeros((height, width, 4), dtype=np.uint8)
     base_pixels = np.asarray(base, dtype=np.uint8)
     output[visible_base] = base_pixels[visible_base]
+    edge_ownership = np.zeros((height, width), dtype=bool)
 
     directions = ("top", "right", "bottom", "left")
     layers: list[tuple[str, Image.Image, list[np.ndarray]]] = []
@@ -1922,6 +2115,7 @@ def _render_tilesetter_blob_tile(
         )
         source_pixels = np.asarray(edge_images[index], dtype=np.uint8)
         output[owned] = source_pixels[owned]
+        edge_ownership[owned] = True
 
     tile = Image.fromarray(output, mode="RGBA")
     incident = {
@@ -1943,6 +2137,29 @@ def _render_tilesetter_blob_tile(
         custom = corner_images.get(f"{corner_type}_{diagonal_name}")
         if custom is not None:
             _replace_corner_quadrant(tile, custom, diagonal_name)
+            edge_ownership |= _corner_quadrant_mask((width, height), diagonal_name)
+    return tile, edge_ownership
+
+
+def _render_tilesetter_blob_tile(
+    base: Image.Image,
+    edge_images: Sequence[Image.Image],
+    corner_images: Mapping[str, Image.Image | None],
+    mask: int,
+    cutoffs: Sequence[int],
+    *,
+    rotation_covariant: bool = False,
+) -> Image.Image:
+    """Compose one Blob tile while retaining the legacy image-only API."""
+
+    tile, _edge_ownership = _render_tilesetter_blob_tile_with_ownership(
+        base,
+        edge_images,
+        corner_images,
+        mask,
+        cutoffs,
+        rotation_covariant=rotation_covariant,
+    )
     return tile
 
 
@@ -1957,22 +2174,21 @@ def build_tilesetter_terrain_pattern(
 ) -> TerrainPatternResult:
     """Render a selection-driven TileSetter-style generated set.
 
-    Blob sets start from one base Source. Wang sets start from two solid
-    Sources. Border and optional inner/outer corner Sources are configured per
-    direction, while any generated role may be replaced with a custom Source
-    through ``overrides``.
+    Blob/Sides sets start from one base Source and may add directional Border
+    Sources. Wang sets start from two solid Sources. For Blob/Wang, a material
+    profile follows the actual non-transparent Border ownership after
+    composition, preserving authored borders/corners and styling only the
+    adjacent interior band. Any generated role may still be replaced with a
+    custom Source through ``overrides``.
     """
 
     size = (max(1, int(tile_size[0])), max(1, int(tile_size[1])))
     _validate_dual_grid_size(kind, size)
-    dual_grid_profile, dual_grid_edge_variation, dual_grid_edge_seed = (
-        _normalize_dual_grid_edge_style(
-            set_config.get("terrainProfile", "clean"),
-            set_config.get("edgeVariation", 0),
-            set_config.get("edgeSeed", 0),
-        )
-        if kind == "dual_grid_15"
-        else (cast(DualGridTerrainProfile, "clean"), 0, 0)
+    terrain_profile_name, terrain_edge_variation, terrain_edge_seed = _normalize_pattern_edge_style(
+        kind,
+        set_config.get("terrainProfile", "clean"),
+        set_config.get("edgeVariation", 0),
+        set_config.get("edgeSeed", 0),
     )
     base = _tilesetter_source_image(
         atlas,
@@ -2112,22 +2328,23 @@ def build_tilesetter_terrain_pattern(
             override_source_id,
             size,
         )
+        authored_edge_ownership: np.ndarray | None = None
         if override is not None:
             tile = override
         elif base is None:
             tile = _placeholder_tile(size, kind=kind, mask=mask)
         elif _is_wang_pattern(kind) and secondary is not None:
             if kind == "dual_grid_15":
-                pixels = _render_dual_grid_pixels(
-                    np.asarray(base, dtype=np.uint8),
-                    np.asarray(secondary, dtype=np.uint8),
-                    mask,
-                    profile=dual_grid_profile,
-                    variation=dual_grid_edge_variation,
-                    seed=dual_grid_edge_seed,
-                )
                 tile = Image.fromarray(
-                    pixels,
+                    _render_dual_grid_pixels(
+                        np.asarray(base, dtype=np.uint8),
+                        np.asarray(secondary, dtype=np.uint8),
+                        mask,
+                        kind=kind,
+                        profile=terrain_profile_name,
+                        variation=terrain_edge_variation,
+                        seed=terrain_edge_seed,
+                    ),
                     mode="RGBA",
                 )
             else:
@@ -2145,6 +2362,59 @@ def build_tilesetter_terrain_pattern(
                     continue
                 if kind != "dual_grid_15" and edge_images[direction] is None:
                     _draw_missing_border(tile, direction)
+            if kind == "wang_16" and terrain_profile_name != "clean":
+                available = tuple(
+                    direction
+                    for direction, present in transitions.items()
+                    if present and edge_images[direction] is not None
+                )
+                authored_edge_ownership = np.zeros((size[1], size[0]), dtype=bool)
+                for direction, owner in _wang_edge_owner_masks(
+                    size,
+                    available,
+                    directional_cutoff_map,
+                ).items():
+                    edge = edge_images[direction]
+                    if edge is not None:
+                        authored_edge_ownership |= owner & (
+                            np.asarray(edge.getchannel("A"), dtype=np.uint8) != 0
+                        )
+                incident = {
+                    "top_left": ("top", "left"),
+                    "top_right": ("top", "right"),
+                    "bottom_right": ("bottom", "right"),
+                    "bottom_left": ("bottom", "left"),
+                }
+                for corner_index, diagonal in enumerate(_WANG_CORNERS):
+                    first, second = incident[diagonal]
+                    corner_type = "outer" if mask & (1 << corner_index) else "inner"
+                    if (
+                        transitions[first]
+                        and transitions[second]
+                        and corner_images.get(f"{corner_type}_{diagonal}") is not None
+                    ):
+                        authored_edge_ownership |= _corner_quadrant_mask(size, diagonal)
+                profile_coverage = _authored_edge_profile_coverage(
+                    authored_edge_ownership,
+                    size[0],
+                    size[1],
+                )
+                if profile_coverage is not None and authored_edge_ownership is not None:
+                    tile = Image.fromarray(
+                        _render_dual_grid_pixels(
+                            np.asarray(base, dtype=np.uint8),
+                            np.asarray(secondary, dtype=np.uint8),
+                            mask,
+                            kind=kind,
+                            profile=terrain_profile_name,
+                            variation=terrain_edge_variation,
+                            seed=terrain_edge_seed,
+                            base_output=np.asarray(tile, dtype=np.uint8),
+                            coverage_override=profile_coverage,
+                            profile_mask=~authored_edge_ownership,
+                        ),
+                        mode="RGBA",
+                    )
         else:
             neighbors = set(_tile_neighbors(kind, mask))
             exposed_directions = [
@@ -2168,7 +2438,7 @@ def build_tilesetter_terrain_pattern(
                         inner_corner_directions.extend((first, second_direction))
             influence_directions = list(dict.fromkeys(exposed_directions + inner_corner_directions))
             if kind == "blob_47" and all_edges_ready:
-                tile = _render_tilesetter_blob_tile(
+                tile, authored_edge_ownership = _render_tilesetter_blob_tile_with_ownership(
                     base,
                     [
                         cast(Image.Image, edge_images[direction])
@@ -2213,6 +2483,60 @@ def build_tilesetter_terrain_pattern(
                     corner = corner_images.get(corner_key)
                     if corner is not None:
                         _replace_corner_quadrant(tile, corner, diagonal)
+            if kind == "blob_47" and terrain_profile_name != "clean":
+                profile_coverage = (
+                    _authored_edge_profile_coverage(
+                        authored_edge_ownership,
+                        size[0],
+                        size[1],
+                    )
+                    if authored_edge_ownership is not None
+                    else None
+                )
+                if profile_coverage is not None and authored_edge_ownership is not None:
+                    tile = Image.fromarray(
+                        _render_dual_grid_pixels(
+                            np.asarray(base, dtype=np.uint8),
+                            np.asarray(
+                                next(
+                                    (edge for edge in edge_images.values() if edge is not None),
+                                    base,
+                                ),
+                                dtype=np.uint8,
+                            ),
+                            mask,
+                            kind=kind,
+                            profile=terrain_profile_name,
+                            variation=terrain_edge_variation,
+                            seed=terrain_edge_seed,
+                            base_output=np.asarray(tile, dtype=np.uint8),
+                            coverage_override=profile_coverage,
+                            profile_mask=~authored_edge_ownership,
+                        ),
+                        mode="RGBA",
+                    )
+            elif terrain_profile_name != "clean":
+                style_outside = (
+                    secondary
+                    if secondary is not None
+                    else next(
+                        (edge for edge in edge_images.values() if edge is not None),
+                        base,
+                    )
+                )
+                tile = Image.fromarray(
+                    _render_dual_grid_pixels(
+                        np.asarray(base, dtype=np.uint8),
+                        np.asarray(style_outside, dtype=np.uint8),
+                        mask,
+                        kind=kind,
+                        profile=terrain_profile_name,
+                        variation=terrain_edge_variation,
+                        seed=terrain_edge_seed,
+                        base_output=np.asarray(tile, dtype=np.uint8),
+                    ),
+                    mode="RGBA",
+                )
         column, row = positions[mask]
         _place_pattern_tile(
             output,
@@ -2245,9 +2569,12 @@ def build_tilesetter_terrain_pattern(
         columns=column_count,
         rows=row_count,
         tiles=tuple(roles),
-        dual_grid_profile=dual_grid_profile if kind == "dual_grid_15" else None,
-        dual_grid_edge_variation=(dual_grid_edge_variation if kind == "dual_grid_15" else 0),
-        dual_grid_edge_seed=dual_grid_edge_seed if kind == "dual_grid_15" else 0,
+        dual_grid_profile=terrain_profile_name if kind == "dual_grid_15" else None,
+        dual_grid_edge_variation=(terrain_edge_variation if kind == "dual_grid_15" else 0),
+        dual_grid_edge_seed=terrain_edge_seed if kind == "dual_grid_15" else 0,
+        terrain_profile=terrain_profile_name,
+        edge_variation=terrain_edge_variation,
+        edge_seed=terrain_edge_seed,
     )
 
 
@@ -2298,7 +2625,7 @@ def build_smart_terrain_pattern(
     inner_corner_source: int | None = None,
     overrides: Mapping[int, int] | None = None,
     columns: int | None = None,
-    terrain_profile: DualGridTerrainProfile = "clean",
+    terrain_profile: TerrainEdgeProfile = "clean",
     edge_variation: int = 0,
     edge_seed: int = 0,
 ) -> TerrainPatternResult:
@@ -2306,10 +2633,8 @@ def build_smart_terrain_pattern(
 
     size = (grid.tile_width, grid.tile_height)
     _validate_dual_grid_size(kind, size)
-    dual_grid_profile, dual_grid_edge_variation, dual_grid_edge_seed = (
-        _normalize_dual_grid_edge_style(terrain_profile, edge_variation, edge_seed)
-        if kind == "dual_grid_15"
-        else (cast(DualGridTerrainProfile, "clean"), 0, 0)
+    terrain_profile_name, terrain_edge_variation, terrain_edge_seed = (
+        _normalize_pattern_edge_style(kind, terrain_profile, edge_variation, edge_seed)
     )
     base = _source_image(atlas, grid, base_source)
     edge = _source_image(atlas, grid, edge_source)
@@ -2353,6 +2678,7 @@ def build_smart_terrain_pattern(
     roles: list[TerrainPatternTile] = []
     for index, mask in enumerate(masks):
         override_source = override_map.get(mask)
+        authored_edge_ownership: np.ndarray | None = None
         if override_source is not None:
             tile = _source_image(atlas, grid, override_source)
         elif _is_wang_pattern(kind):
@@ -2367,18 +2693,15 @@ def build_smart_terrain_pattern(
                 ),
                 dtype=np.uint8,
             )
-            if kind == "dual_grid_15":
-                pixels = _render_dual_grid_pixels(
-                    inside,
-                    outside,
-                    mask,
-                    profile=dual_grid_profile,
-                    variation=dual_grid_edge_variation,
-                    seed=dual_grid_edge_seed,
-                )
-            else:
-                bitmap = _wang_bitmap_mask(mask, size[0], size[1])
-                pixels = np.where(bitmap[..., None], inside, outside).astype(np.uint8)
+            pixels = _render_dual_grid_pixels(
+                inside,
+                outside,
+                mask,
+                kind=kind,
+                profile=terrain_profile_name,
+                variation=terrain_edge_variation,
+                seed=terrain_edge_seed,
+            )
             tile = Image.fromarray(
                 pixels,
                 mode="RGBA",
@@ -2386,6 +2709,7 @@ def build_smart_terrain_pattern(
         else:
             neighbors = set(_tile_neighbors(kind, mask))
             tile = _fit_source(base, size)
+            authored_edge_ownership = np.zeros((size[1], size[0]), dtype=bool)
             for direction_index, direction in enumerate(directions):
                 if direction in neighbors:
                     continue
@@ -2398,9 +2722,15 @@ def build_smart_terrain_pattern(
                     flip_y=flip_y,
                 )
                 tile.alpha_composite(layer)
+                if kind == "blob_47":
+                    authored_edge_ownership |= (
+                        np.asarray(layer.getchannel("A"), dtype=np.uint8) != 0
+                    )
             for diagonal, first, second, turns in corner_rules:
                 if outer_corner is not None and first not in neighbors and second not in neighbors:
                     tile.alpha_composite(_transform_layer(outer_corner, size, quarter_turns=turns))
+                    if kind == "blob_47":
+                        authored_edge_ownership |= _corner_quadrant_mask(size, diagonal)
                 elif (
                     inner_corner is not None
                     and first in neighbors
@@ -2408,6 +2738,44 @@ def build_smart_terrain_pattern(
                     and diagonal not in neighbors
                 ):
                     tile.alpha_composite(_transform_layer(inner_corner, size, quarter_turns=turns))
+                    if kind == "blob_47":
+                        authored_edge_ownership |= _corner_quadrant_mask(size, diagonal)
+            if kind == "blob_47" and terrain_profile_name != "clean":
+                profile_coverage = _authored_edge_profile_coverage(
+                    authored_edge_ownership,
+                    size[0],
+                    size[1],
+                )
+                if profile_coverage is not None and authored_edge_ownership is not None:
+                    tile = Image.fromarray(
+                        _render_dual_grid_pixels(
+                            np.asarray(base, dtype=np.uint8),
+                            np.asarray(edge, dtype=np.uint8),
+                            mask,
+                            kind=kind,
+                            profile=terrain_profile_name,
+                            variation=terrain_edge_variation,
+                            seed=terrain_edge_seed,
+                            base_output=np.asarray(tile, dtype=np.uint8),
+                            coverage_override=profile_coverage,
+                            profile_mask=~authored_edge_ownership,
+                        ),
+                        mode="RGBA",
+                    )
+            elif terrain_profile_name != "clean":
+                tile = Image.fromarray(
+                    _render_dual_grid_pixels(
+                        np.asarray(base, dtype=np.uint8),
+                        np.asarray(edge, dtype=np.uint8),
+                        mask,
+                        kind=kind,
+                        profile=terrain_profile_name,
+                        variation=terrain_edge_variation,
+                        seed=terrain_edge_seed,
+                        base_output=np.asarray(tile, dtype=np.uint8),
+                    ),
+                    mode="RGBA",
+                )
         column, row = positions[mask]
         _place_pattern_tile(
             output,
@@ -2448,9 +2816,12 @@ def build_smart_terrain_pattern(
         columns=column_count,
         rows=row_count,
         tiles=tuple(roles),
-        dual_grid_profile=dual_grid_profile if kind == "dual_grid_15" else None,
-        dual_grid_edge_variation=(dual_grid_edge_variation if kind == "dual_grid_15" else 0),
-        dual_grid_edge_seed=dual_grid_edge_seed if kind == "dual_grid_15" else 0,
+        dual_grid_profile=terrain_profile_name if kind == "dual_grid_15" else None,
+        dual_grid_edge_variation=(terrain_edge_variation if kind == "dual_grid_15" else 0),
+        dual_grid_edge_seed=terrain_edge_seed if kind == "dual_grid_15" else 0,
+        terrain_profile=terrain_profile_name,
+        edge_variation=terrain_edge_variation,
+        edge_seed=terrain_edge_seed,
     )
 
 
@@ -2461,7 +2832,7 @@ def generate_terrain_pattern(
     kind: TerrainPatternKind = "wang_16",
     tile_size: tuple[int, int] | None = None,
     columns: int | None = None,
-    terrain_profile: DualGridTerrainProfile = "clean",
+    terrain_profile: TerrainEdgeProfile = "clean",
     edge_variation: int = 0,
     edge_seed: int = 0,
 ) -> TerrainPatternResult:
@@ -2473,10 +2844,8 @@ def generate_terrain_pattern(
     if not 1 <= width <= 128 or not 1 <= height <= 128:
         raise ValueError("Terrain tiles must be between 1 and 128 pixels per axis")
     _validate_dual_grid_size(kind, (width, height))
-    dual_grid_profile, dual_grid_edge_variation, dual_grid_edge_seed = (
-        _normalize_dual_grid_edge_style(terrain_profile, edge_variation, edge_seed)
-        if kind == "dual_grid_15"
-        else (cast(DualGridTerrainProfile, "clean"), 0, 0)
+    terrain_profile_name, terrain_edge_variation, terrain_edge_seed = (
+        _normalize_pattern_edge_style(kind, terrain_profile, edge_variation, edge_seed)
     )
     inside = np.asarray(_fit_source(interior, (width, height)), dtype=np.uint8)
     outside = np.asarray(_fit_source(exterior, (width, height)), dtype=np.uint8)
@@ -2489,24 +2858,15 @@ def generate_terrain_pattern(
     )
     roles: list[TerrainPatternTile] = []
     for index, mask in enumerate(masks):
-        if kind == "dual_grid_15":
-            pixels = _render_dual_grid_pixels(
-                inside,
-                outside,
-                mask,
-                profile=dual_grid_profile,
-                variation=dual_grid_edge_variation,
-                seed=dual_grid_edge_seed,
-            )
-        elif _is_wang_pattern(kind):
-            bitmap = _wang_bitmap_mask(mask, width, height)
-            pixels = np.where(bitmap[..., None], inside, outside).astype(np.uint8)
-        elif kind == "sides_16":
-            bitmap = _blob_bitmap_mask(_sides_blob_mask(mask), width, height)
-            pixels = np.where(bitmap[..., None], inside, outside).astype(np.uint8)
-        else:
-            bitmap = _blob_bitmap_mask(mask, width, height)
-            pixels = np.where(bitmap[..., None], inside, outside).astype(np.uint8)
+        pixels = _render_dual_grid_pixels(
+            inside,
+            outside,
+            mask,
+            kind=kind,
+            profile=terrain_profile_name,
+            variation=terrain_edge_variation,
+            seed=terrain_edge_seed,
+        )
         tile = Image.fromarray(pixels, mode="RGBA")
         column, row = positions[mask]
         _place_pattern_tile(
@@ -2540,9 +2900,12 @@ def generate_terrain_pattern(
         columns=column_count,
         rows=row_count,
         tiles=tuple(roles),
-        dual_grid_profile=dual_grid_profile if kind == "dual_grid_15" else None,
-        dual_grid_edge_variation=(dual_grid_edge_variation if kind == "dual_grid_15" else 0),
-        dual_grid_edge_seed=dual_grid_edge_seed if kind == "dual_grid_15" else 0,
+        dual_grid_profile=terrain_profile_name if kind == "dual_grid_15" else None,
+        dual_grid_edge_variation=(terrain_edge_variation if kind == "dual_grid_15" else 0),
+        dual_grid_edge_seed=terrain_edge_seed if kind == "dual_grid_15" else 0,
+        terrain_profile=terrain_profile_name,
+        edge_variation=terrain_edge_variation,
+        edge_seed=terrain_edge_seed,
     )
 
 
@@ -2704,6 +3067,13 @@ def terrain_pattern_manifest(
                 "foreground_terrain": 1,
                 "transition_terrain": -1,
             },
+        }
+    else:
+        manifest["edge_profile"] = {
+            "terrain_profile": result.terrain_profile or "clean",
+            "edge_variation": result.edge_variation,
+            "edge_seed": result.edge_seed,
+            "edge_generation": "deterministic_palette_bands",
         }
     return manifest
 

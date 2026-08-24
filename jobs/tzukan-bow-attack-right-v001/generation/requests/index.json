@@ -1,0 +1,12 @@
+{
+  "job_id": "tzukan-bow-attack-right-v001",
+  "request_count": 5,
+  "request_ids": [
+    "c3d02f67b75f1e13c444",
+    "92b486f0df70e3b61fee",
+    "54ea84f7c79dd2947481",
+    "b9d3e6ca7aee3d13329b",
+    "6381f801de1ed57bef15"
+  ],
+  "schema_version": "1.0"
+}

@@ -1,0 +1,142 @@
+{
+  "created_at": "2026-08-22T16:40:02.128764+00:00",
+  "frames": [
+    {
+      "applied_translation": [
+        30,
+        7
+      ],
+      "auto_anchor": [
+        34.0,
+        61.0
+      ],
+      "auto_confidence": 1.0,
+      "body_bbox": [
+        7,
+        12,
+        68,
+        103
+      ],
+      "final_anchor": [
+        64,
+        68
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        30,
+        7
+      ],
+      "auto_anchor": [
+        34.0,
+        61.0
+      ],
+      "auto_confidence": 0.6980445527720143,
+      "body_bbox": [
+        7,
+        0,
+        94,
+        98
+      ],
+      "final_anchor": [
+        64,
+        68
+      ],
+      "frame_index": 1,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        31,
+        16
+      ],
+      "auto_anchor": [
+        33.0,
+        52.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        9,
+        1,
+        93,
+        99
+      ],
+      "final_anchor": [
+        64,
+        68
+      ],
+      "frame_index": 2,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        31,
+        17
+      ],
+      "auto_anchor": [
+        33.0,
+        51.0
+      ],
+      "auto_confidence": 0.6793409144773136,
+      "body_bbox": [
+        0,
+        14,
+        78,
+        98
+      ],
+      "final_anchor": [
+        64,
+        68
+      ],
+      "frame_index": 3,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    },
+    {
+      "applied_translation": [
+        30,
+        10
+      ],
+      "auto_anchor": [
+        34.0,
+        58.0
+      ],
+      "auto_confidence": 0.9,
+      "body_bbox": [
+        7,
+        10,
+        74,
+        99
+      ],
+      "final_anchor": [
+        64,
+        68
+      ],
+      "frame_index": 4,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "notes": ""
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260822T163938-5f6bbc9f-fbf5"
+}

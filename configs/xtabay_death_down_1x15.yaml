@@ -1,0 +1,68 @@
+schema_version: "1.0"
+job:
+  id: xtabay-death-down-v002
+
+character:
+  id: xtabay
+  bible: characters/xtabay/bible.yaml
+  references:
+    - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/xtabay_death.png
+    - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/idletransformed.png.import.png
+    - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/idlebase 1.png
+
+animation:
+  name: death
+  directions: [down]
+  frame_count: 15
+  fps: 4
+  loop: false
+  phases:
+    - fatal_impact
+    - recoil_hold
+    - hair_rise
+    - struggle_hold
+    - chest_crack
+    - first_pulse
+    - ceiba_energy_pull
+    - second_pulse
+    - human_echo_start
+    - human_echo_hold
+    - lower_body_dissolve
+    - middle_body_dissolve
+    - upper_body_dissolve
+    - flower_fall
+    - flower_rest
+
+generation:
+  source_size: [1024, 1024]
+  quality: high
+  candidates_per_frame: 1
+  background:
+    color: "#FF00FF"
+  use_previous_accepted_frame: true
+
+render:
+  cell_size: [512, 1024]
+  target_body_height_px: 520
+  palette_lock: false
+  dithering: false
+  integrated_shadow: false
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [256, 650]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+export:
+  formats: [individual, horizontal, godot]
+  output_dir: exports/xtabay/death_down_1x15
+  godot:
+    project_root: /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot
+    resource_dir: res://assets/sprites/enemies/xtabay/generated
+
+metadata:
+  enemy_type: boss
+  reference_layout: approved_death_v001
+  requested_sheet: 1x15_horizontal
+  death_sequence: dramatic_curse_break_with_two_ceiba_pulses

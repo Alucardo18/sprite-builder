@@ -37,6 +37,19 @@ alignment:
   confidence_review_threshold: 0.65
   allow_manual_override: true
 
+quality_gates:
+  block_export_on_review: true
+  semantic_integrity:
+    enabled: true
+    alpha_threshold: 8
+    body_roi_x: [0.18, 0.82]
+    min_bottom_gutter_px: 2
+    support_band_height_px: 4
+    required_support_components: 2
+    max_support_y_jitter_px: 1
+    max_terminal_taper_ratio: 0.80
+    runtime_preview_scales: [1.0, 0.5]
+
 export:
   formats: [individual, horizontal, godot]
   output_dir: exports/tzucan/walk_right
@@ -47,4 +60,3 @@ export:
 metadata:
   cultural_review_required: true
   reference_layout: four_horizontal_poses
-

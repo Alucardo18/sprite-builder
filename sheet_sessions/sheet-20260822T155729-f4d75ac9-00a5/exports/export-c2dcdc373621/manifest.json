@@ -1,0 +1,89 @@
+{
+  "alpha": true,
+  "attempt_id": "export-c2dcdc373621",
+  "cell_size": [
+    128,
+    128
+  ],
+  "contact_sheet": null,
+  "crop": {
+    "alpha_threshold": 8,
+    "bbox": [
+      0,
+      0,
+      128,
+      128
+    ],
+    "enabled": false,
+    "padding": 0,
+    "source_size": [
+      128,
+      128
+    ]
+  },
+  "export_kind": "mixed",
+  "exported_at": "2026-08-22T16:02:52.669808+00:00",
+  "frame_count": 5,
+  "godot_notes": "5 column(s), 1 row(s); use nearest filtering and lossless compression",
+  "layout": "horizontal",
+  "output_frames": [
+    "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames/frame_000.png",
+    "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames/frame_001.png",
+    "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames/frame_002.png",
+    "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames/frame_003.png",
+    "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames/frame_004.png"
+  ],
+  "output_frames_dir": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames",
+  "output_png": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/sprite-sheet.png",
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/sprite-sheet.png",
+      "role": "output",
+      "sha256": "290e6aa271740392f34325ca52887dcbae066f74711fe2adb4c242798fab1464",
+      "size_bytes": 62682
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames/frame_000.png",
+      "role": "output",
+      "sha256": "d7864070f810c4b54abae7b326961415068ee7e5cad023c48abf621f25415c5c",
+      "size_bytes": 11201
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames/frame_001.png",
+      "role": "output",
+      "sha256": "64a39aad3f5c7c3ca57ad5ef4a4565cad1efabeb41efa2a186f8f276d2d553f0",
+      "size_bytes": 13818
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames/frame_002.png",
+      "role": "output",
+      "sha256": "747201ba6b743be7e8a39ae4852f24c445bba7469572c7cd5864fb67c2a73fbf",
+      "size_bytes": 13213
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames/frame_003.png",
+      "role": "output",
+      "sha256": "bd098e8fa2422d7f0e7c49b6991dd3598b0d5ab3fd4921e2fd7ab524e095f627",
+      "size_bytes": 14046
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/frames/frame_004.png",
+      "role": "output",
+      "sha256": "60a031010236ee21c4f979599f3a47532f7f01d104c42df230e7abdc3c6fead4",
+      "size_bytes": 11005
+    }
+  ],
+  "preview_gif": null,
+  "primary_output": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5/exports/export-c2dcdc373621/sprite-sheet.png",
+  "schema_version": "1.0",
+  "session_id": "sheet-20260822T155729-f4d75ac9-00a5",
+  "sha256": "290e6aa271740392f34325ca52887dcbae066f74711fe2adb4c242798fab1464",
+  "status": "passed",
+  "validation_warnings": []
+}

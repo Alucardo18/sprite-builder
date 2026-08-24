@@ -1,0 +1,22 @@
+{
+  "frames": [
+    {
+      "frame": 6,
+      "override": [259, 446],
+      "author": "Codex",
+      "reason": "The torso is intentionally fragmenting; preserve the last reliable torso anchor from frame 5."
+    },
+    {
+      "frame": 7,
+      "override": [259, 446],
+      "author": "Codex",
+      "reason": "Only the falling flower and residual wisps remain; keep continuity with the original body anchor."
+    },
+    {
+      "frame": 8,
+      "override": [259, 446],
+      "author": "Codex",
+      "reason": "The resting flower has no torso; retain the established canvas anchor so the landing position stays stable."
+    }
+  ]
+}

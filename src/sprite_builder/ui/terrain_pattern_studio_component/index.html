@@ -260,7 +260,7 @@
           <div id="dualProfileSection" class="section" style="margin-top:8px" hidden>
             <span class="section-label">2 · Estrategia del borde</span>
             <div class="terrain-profile-grid">
-              <label class="terrain-profile-control">Pareja de terrenos
+              <label class="terrain-profile-control">Relación de materiales
                 <select id="dualTerrainProfile">
                   <option value="clean">Borde limpio · clásico</option>
                   <option value="grass_over_dirt">Pasto sobre tierra</option>
@@ -367,18 +367,28 @@ const PATTERN_KINDS=["blob_47","wang_16","sides_16","dual_grid_15"];
 const DUAL_GRID_TRANSITION_MASKS=Array.from({length:15},(_,index)=>index+1);
 const DUAL_GRID_NEIGHBOR_ORDER=["NW","NE","SE","SW"];
 const DUAL_GRID_TERRAIN_PROFILES=["clean","grass_over_dirt","dirt_over_water","grass_over_water"];
+const TERRAIN_EDGE_PROFILES=DUAL_GRID_TERRAIN_PROFILES;
+const PROFILED_PATTERN_KINDS=["blob_47","wang_16","sides_16","dual_grid_15"];
 const DUAL_GRID_PROFILE_LABELS={clean:"Borde limpio",grass_over_dirt:"Pasto sobre tierra",dirt_over_water:"Tierra sobre agua",grass_over_water:"Pasto sobre agua"};
+const TERRAIN_EDGE_PROFILE_LABELS=DUAL_GRID_PROFILE_LABELS;
 const DUAL_GRID_PROFILE_COPY={
   clean:"Interpolación clásica entre A y B, sin irregularidad adicional.",
   grass_over_dirt:"A = pasto, B = tierra. Raíz oscura, mechones iluminados y pequeñas entradas de tierra.",
   dirt_over_water:"A = tierra, B = agua. Sombra acuática, ribete claro y banco terroso irregular por capas.",
   grass_over_water:"A = pasto, B = agua. Sombra de agua, línea húmeda intermitente y raíz vegetal oscura."
 };
+const TERRAIN_EDGE_PROFILE_COPY={
+  clean:"Interpolación clásica, sin bandas ni desplazamiento adicional.",
+  grass_over_dirt:"Banda de pasto sobre tierra: raíces oscuras, mechones de luz y pequeñas entradas irregulares.",
+  dirt_over_water:"Banda de tierra sobre agua: sombra húmeda, ribete claro y banco terroso por capas.",
+  grass_over_water:"Banda de pasto sobre agua: sombra acuática, línea húmeda intermitente y raíces vegetales."
+};
 function patternLabel(kind){return kind==="dual_grid_15"?"Dual Grid":kind==="wang_16"?"Wang":kind==="sides_16"?"Sides":"Blob"}
 function variantCount(kind){return kind==="blob_47"?47:kind==="dual_grid_15"?15:16}
 function requiresTwoBases(kind){return kind==="wang_16"||kind==="dual_grid_15"}
 function baseRequirement(kind){return requiresTwoBases(kind)?2:1}
 function isDualGrid(set){return set?.kind==="dual_grid_15"}
+function isTerrainProfilePattern(set){return PROFILED_PATTERN_KINDS.includes(set?.kind)}
 function requiresEdges(set){return !isDualGrid(set)}
 function dualGridRole(role){return DUAL_GRID_TRANSITION_MASKS.includes(Number(role?.mask))}
 function dualGridTileSizeValid(){return state.tileWidth>=2&&state.tileHeight>=2}
@@ -387,6 +397,7 @@ function clampInteger(value,min,max,fallback=0){const number=Number(value);retur
 function dualVariationLabel(value){return ["Sin textura","Sutil","Moderada","Texturizada"][clampInteger(value,0,3)]}
 function dualProfileStatus(set){const profile=DUAL_GRID_TERRAIN_PROFILES.includes(set?.terrainProfile)?set.terrainProfile:"clean";
   const variation=profile==="clean"?0:clampInteger(set?.edgeVariation,0,3,0);return `${DUAL_GRID_PROFILE_LABELS[profile]} · ${dualVariationLabel(variation)}`}
+function terrainEdgeStatus(set){return dualProfileStatus(set)}
 function sandboxDisplayWidth(set){return state.mapWidth+(isDualGrid(set)?1:0)}
 function sandboxDisplayHeight(set){return state.mapHeight+(isDualGrid(set)?1:0)}
 function post(type,payload={}){parent.postMessage({isStreamlitMessage:true,type,...payload},"*")}
@@ -405,10 +416,13 @@ function cleanSet(raw){
   const cornerTransforms={...(item.cornerTransforms||{})};
   for(const [key,value] of Object.entries(cornerTransforms))cornerTransforms[key]=cleanTransform(value);
   const kind=PATTERN_KINDS.includes(item.kind)?item.kind:"blob_47",overrides={...(item.overrides||{})};
-  if(kind==="dual_grid_15"){delete overrides["0"];const terrainProfile=DUAL_GRID_TERRAIN_PROFILES.includes(item.terrainProfile)?item.terrainProfile:"clean";
+  const terrainProfile=DUAL_GRID_TERRAIN_PROFILES.includes(item.terrainProfile)?item.terrainProfile:"clean";
+  const terrainEdgeVariation=clampInteger(item.edgeVariation,0,3,0),terrainEdgeSeed=clampInteger(item.edgeSeed,0,999999,0);
+  if(kind==="dual_grid_15"){delete overrides["0"];
     const dual={...item,kind,overrides,terrainProfile,edgeVariation:clampInteger(item.edgeVariation,0,3,0),edgeSeed:clampInteger(item.edgeSeed,0,999999,0)};
     for(const field of ["autoOrientEdges","edges","edgeTransforms","edgeCutoffs","cutoff","corners","customCorners","cornerTransforms","compositeCorners"])delete dual[field];return dual}
   return{...item,kind,
+    terrainProfile,edgeVariation:terrainEdgeVariation,edgeSeed:terrainEdgeSeed,
     autoOrientEdges:item.autoOrientEdges===true,edges,edgeTransforms,edgeCutoffs,
     corners:{...(item.corners||{})},customCorners:{...(item.customCorners||{})},cornerTransforms,
     overrides};
@@ -609,7 +623,10 @@ function renderDualProfileControls(set){
   $("#dualTerrainProfile").value=profile;$("#dualEdgeVariation").value=String(variation);
   $("#dualEdgeVariation").disabled=profile==="clean";$("#dualEdgeVariationValue").textContent=`${dualVariationLabel(variation)} · ${variation}`;
   $("#dualEdgeSeed").value=String(seed);$("#dualEdgeSeed").disabled=profile==="clean";$("#shuffleDualEdgeSeed").disabled=profile==="clean";
-  $("#dualProfileCopy").textContent=`Aplicado · ${DUAL_GRID_PROFILE_LABELS[profile]}. ${DUAL_GRID_PROFILE_COPY[profile]}`;
+  const grammar=set.kind==="dual_grid_15"||set.kind==="wang_16"
+    ?DUAL_GRID_PROFILE_COPY[profile]
+    :`${TERRAIN_EDGE_PROFILE_COPY[profile]} La textura se compone sobre ${set.kind==="blob_47"?"la base y sus Border Sources":"el tile base y sus bordes"}.`;
+  $("#dualProfileCopy").textContent=`Aplicado · ${DUAL_GRID_PROFILE_LABELS[profile]}. ${grammar}`;
 }
 function renderConfigurator(set,role){
   const base=$("#baseSourceSlot");fillSourceSlot(base,set.baseSource,requiresTwoBases(set.kind)?"Terreno A":"Tile base","Elegir en grilla");
@@ -620,7 +637,8 @@ function renderConfigurator(set,role){
   $("#baseSourceHint").textContent=isDualGrid(set)
     ?"Dual Grid cuadrado genera 15 transiciones con Terreno A y Terreno B. Los Border Sources no son necesarios."
     :"El terreno sólido usado como centro de todas las composiciones.";
-  $("#dualProfileSection").hidden=!isDualGrid(set);if(isDualGrid(set))renderDualProfileControls(set);
+  $("#dualProfileSection").hidden=!isDualGrid(set);
+  $("#dualProfileSection").hidden=!isTerrainProfilePattern(set);if(isTerrainProfilePattern(set))renderDualProfileControls(set);
   const showEdges=requiresEdges(set);$("#edgeSection").hidden=!showEdges;$("#cornerSection").hidden=!showEdges;
   $("#cutoffSection").hidden=!showEdges;
   if(!showEdges){
@@ -725,7 +743,7 @@ function renderStatus(){
   const selectedCount=selectedTiles().length;
   $("#status").classList.toggle("ready",ready);$("#status").textContent=!state.project.sources.length?"Importa Sources":!set
     ?selectedCount===2&&!dualGridTileSizeValid()?dualGridTileSizeMessage():selectedCount===2?"2 tiles seleccionados · listo para Dual Grid":selectedCount===1?"1 tile seleccionado · listo para Blob":"Selecciona 1 tile para Blob o exactamente 2 para Wang / Dual Grid"
-    :ready?isDualGrid(set)?`Dual Grid listo · ${dualProfileStatus(set)}`:`${variantCount(set.kind)} tiles listos`
+    :ready?isDualGrid(set)?`Dual Grid listo · ${dualProfileStatus(set)}`:isTerrainProfilePattern(set)?`${patternLabel(set.kind)} listo · ${terrainEdgeStatus(set)}`:`${variantCount(set.kind)} tiles listos`
     :isDualGrid(set)&&!dualGridTileSizeValid()?dualGridTileSizeMessage():isDualGrid(set)?"Faltan Terreno A o Terreno B · Dual Grid requiere exactamente 2":`${Object.values(set.edges||{}).filter(Boolean).length}/4 bordes · ${variantCount(set.kind)} variantes`;
 }
 function roleForMapCell(x,y){
@@ -786,6 +804,7 @@ function buildSet(kind){
   const set={id:setId,name:kind==="wang_16"?"Wang Set":kind==="dual_grid_15"?"Dual Grid Set":"Blob Set",kind,baseSource:tiles[0].sourceId,
     secondarySource:requiresTwoBases(kind)?tiles[1].sourceId:null,originX:0,originY:maxY+2,columns:kind==="blob_47"?11:4,rows:kind==="blob_47"?5:4,overrides:{}};
   if(isDualGrid(set))Object.assign(set,{terrainProfile:"grass_over_dirt",edgeVariation:1,edgeSeed:0});
+  else Object.assign(set,{terrainProfile:"clean",edgeVariation:0,edgeSeed:0});
   if(!isDualGrid(set))Object.assign(set,{autoOrientEdges:true,cutoff:kind==="blob_47"?Math.max(1,Math.floor(Math.min(state.tileWidth,state.tileHeight)/8)):0,
     edgeCutoffs:{},edges:{top:null,right:null,bottom:null,left:null},edgeTransforms:{top:{rotation:0,flipX:false,flipY:false},
       right:{rotation:0,flipX:false,flipY:false},bottom:{rotation:0,flipX:false,flipY:false},left:{rotation:0,flipX:false,flipY:false}},
@@ -806,12 +825,12 @@ $("#rotateAllEdges").onclick=completeEdgesByRotation;
 $("#blobCutoff").oninput=event=>{$("#blobCutoffValue").textContent=`${event.target.value} px`};
 $("#blobCutoff").onchange=event=>{const set=activeSet();if(!set)return;set.cutoff=Number(event.target.value)||0;
   set.edgeCutoffs=set.edgeCutoffs||{};for(const direction of ["top","right","bottom","left"])set.edgeCutoffs[direction]=set.cutoff;emit();renderAll()};
-$("#dualTerrainProfile").onchange=event=>{const set=activeSet();if(!isDualGrid(set))return;set.terrainProfile=DUAL_GRID_TERRAIN_PROFILES.includes(event.target.value)?event.target.value:"clean";
+$("#dualTerrainProfile").onchange=event=>{const set=activeSet();if(!isTerrainProfilePattern(set))return;set.terrainProfile=DUAL_GRID_TERRAIN_PROFILES.includes(event.target.value)?event.target.value:"clean";
   if(set.terrainProfile==="clean")set.edgeVariation=0;else if(clampInteger(set.edgeVariation,0,3,0)===0)set.edgeVariation=1;emit();renderAll()};
 $("#dualEdgeVariation").oninput=event=>{$("#dualEdgeVariationValue").textContent=`${dualVariationLabel(event.target.value)} · ${event.target.value}`};
-$("#dualEdgeVariation").onchange=event=>{const set=activeSet();if(!isDualGrid(set))return;set.edgeVariation=clampInteger(event.target.value,0,3,1);emit();renderAll()};
-$("#dualEdgeSeed").onchange=event=>{const set=activeSet();if(!isDualGrid(set))return;set.edgeSeed=clampInteger(event.target.value,0,999999,0);emit();renderAll()};
-$("#shuffleDualEdgeSeed").onclick=()=>{const set=activeSet();if(!isDualGrid(set))return;const values=new Uint32Array(1);crypto.getRandomValues(values);
+$("#dualEdgeVariation").onchange=event=>{const set=activeSet();if(!isTerrainProfilePattern(set))return;set.edgeVariation=clampInteger(event.target.value,0,3,1);emit();renderAll()};
+$("#dualEdgeSeed").onchange=event=>{const set=activeSet();if(!isTerrainProfilePattern(set))return;set.edgeSeed=clampInteger(event.target.value,0,999999,0);emit();renderAll()};
+$("#shuffleDualEdgeSeed").onclick=()=>{const set=activeSet();if(!isTerrainProfilePattern(set))return;const values=new Uint32Array(1);crypto.getRandomValues(values);
   set.edgeSeed=values[0]%1000000;emit();renderAll()};
 $("#assignOverride").onclick=()=>{const set=activeSet(),role=selectedRole();if(!set||!role||dualGridBackgroundReference(set,role.mask))return;
   startPick("override",Number(role.mask),`Reemplazo completo de variante ${Number(role.index)+1}`)};

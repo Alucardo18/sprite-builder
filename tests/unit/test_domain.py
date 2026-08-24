@@ -62,6 +62,32 @@ class JobSpecTests(unittest.TestCase):
         with self.assertRaisesRegex(ConfigurationError, "Godot"):
             JobSpec.from_dict(data)
 
+    def test_semantic_quality_contract_is_optional_and_round_trips(self) -> None:
+        legacy = JobSpec.from_dict(valid_job_dict())
+        self.assertFalse(legacy.quality_gates.semantic_integrity.enabled)
+        data = valid_job_dict()
+        data["quality_gates"] = {
+            "block_export_on_review": True,
+            "semantic_integrity": {
+                "enabled": True,
+                "body_roi_x": [0.2, 0.8],
+                "required_support_components": 2,
+                "runtime_preview_scales": [1, 0.5],
+            },
+        }
+        spec = JobSpec.from_dict(data)
+        self.assertTrue(spec.quality_gates.semantic_integrity.enabled)
+        self.assertEqual(spec.quality_gates.semantic_integrity.body_roi_x, (0.2, 0.8))
+        self.assertEqual(JobSpec.from_dict(spec.to_dict()), spec)
+
+    def test_semantic_quality_contract_rejects_invalid_roi(self) -> None:
+        data = valid_job_dict()
+        data["quality_gates"] = {
+            "semantic_integrity": {"enabled": True, "body_roi_x": [0.8, 0.2]}
+        }
+        with self.assertRaisesRegex(ConfigurationError, "body_roi_x"):
+            JobSpec.from_dict(data)
+
 
 if __name__ == "__main__":
     unittest.main()

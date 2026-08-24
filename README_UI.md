@@ -48,19 +48,22 @@ generación inspirado en el Set View de Tilesetter:
    TileMapDual, pero éste no cuenta como transición. Este perfil sólo cubre la
    cuadrícula **Square** de cuatro esquinas; no use este atlas para TileMapDual
    isométrico, hexagonal ni triangular. Cada tile debe medir al menos **2×2 px**.
-6. En un set Dual Grid, abra **Estrategia del borde** y elija
+6. En cualquier set generado, abra **Estrategia del borde** y elija
    **Pasto sobre tierra**, **Tierra sobre agua** o **Pasto sobre agua**.
-   Terreno A debe ser el material indicado antes de “sobre” y Terreno B el
-   material de fondo. El nivel
+   En Wang y Dual, Terreno A debe ser el material indicado antes de “sobre” y
+   Terreno B el material de fondo. En Blob/Sides la misma gramática se aplica
+   sobre el Tile base y sus Border Sources; el primer borde configurado sirve
+   como referencia de paleta cuando no hay un segundo terreno. El nivel
    `1` es sutil, `2` moderado y `3` texturizado; la semilla cambia la variante de
    forma determinista. El perfil clásico y el nivel `0` conservan el borde limpio.
    Los perfiles materiales generan bandas duras de paleta —sombra, ribete,
-   banco o raíz— derivadas de A/B. No usan blur, antialiasing ni alpha blend;
-   las máscaras puras 0 y 15 siguen siendo B/A sin modificar.
+   banco o raíz— derivadas de los Sources. No usan blur, antialiasing ni alpha blend;
+   las máscaras puras permanecen intactas.
 7. Para **Blob/Wang**, configure **Tile Properties**: el tile base y los cuatro
    Border Sources. Blob compone sus corners con esos empalmes diagonales; Wang
-   parte además de sus terrenos A/B. Dual Grid sólo expone Terreno A y Terreno B.
-8. En Blob/Wang, pulse un slot y elija su Source haciendo clic directamente en
+   parte además de sus terrenos A/B. Sides usa el mismo tile base y sus cuatro
+   bordes. Dual Grid sólo expone Terreno A y Terreno B.
+8. En Blob/Wang/Sides, pulse un slot y elija su Source haciendo clic directamente en
    un tile original del **Set View**. En Dual, los únicos ajustes de arte son
    reemplazos opcionales de las máscaras **1–15**; máscara 0 es el fondo de
    referencia derivado de Terreno B y no se puede editar.

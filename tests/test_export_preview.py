@@ -16,6 +16,8 @@ from sprite_builder.preview import (
     create_anchor_overlay,
     create_animation_gif,
     create_contact_sheet,
+    create_runtime_contact_sheet,
+    create_semantic_overlay,
 )
 
 
@@ -132,3 +134,31 @@ def test_previews_are_created_with_expected_geometry(tmp_path: Path) -> None:
         assert contact.size == (32, 40)
     with Image.open(overlay_path) as overlay:
         assert overlay.size == (32, 40)
+
+
+def test_semantic_and_runtime_previews_preserve_exact_pixel_scaling(tmp_path: Path) -> None:
+    frames = _frames(tmp_path)
+    records = [
+        {
+            "status": "pass",
+            "support_y": 5,
+            "landmarks": {
+                "body_core": [4, 4],
+                "top_extent": [4, 1],
+                "ground_support": [4, 5],
+                "left_support": [3, 5],
+                "right_support": [5, 5],
+            },
+        }
+        for _ in frames
+    ]
+    semantic = create_semantic_overlay(
+        frames, records, tmp_path / "semantic.png", columns=2, scale=1
+    )
+    runtime = create_runtime_contact_sheet(
+        frames, tmp_path / "runtime_0p5x.png", columns=2, runtime_scale=0.5
+    )
+    with Image.open(semantic) as image:
+        assert image.size == (16, 32)
+    with Image.open(runtime) as image:
+        assert image.size == (8, 10)

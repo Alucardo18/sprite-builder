@@ -1,0 +1,28 @@
+{
+  "animation": "bow_attack",
+  "candidate_index": 0,
+  "character_id": "tzucan",
+  "direction": "right",
+  "frame_index": 2,
+  "job_id": "tzukan-bow-attack-right-v001",
+  "output_filename": "bow_attack_right_002_candidate_00_54ea84f7c79dd2947481.png",
+  "phase": "full_draw_hold_rear_hand_anchored_at_cheek",
+  "prompt_path": "jobs/tzukan-bow-attack-right-v001/generation/prompts/right_002_326dd8d3e573.txt",
+  "quality": "high",
+  "reference_paths": [
+    "/Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/player/idle/idle_right_sheet.png",
+    "/Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/player/attack/attack_right_sheet.png",
+    "/Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/player/attack/sword/tzukan_macuahuitl.png",
+    "/Users/emmanuel/.codex/generated_images/01a025f7-6ab9-7820-b1f0-da9653a1ab7e/exec-5409b4fb-ae16-4334-8407-cfe4515d5ef8.png",
+    "/Users/emmanuel/.codex/generated_images/01a025f7-6ab9-7820-b1f0-da9653a1ab7e/exec-f9b0ca24-794c-4bc8-8c92-0326befbf1ec.png"
+  ],
+  "request_id": "54ea84f7c79dd2947481",
+  "schema_version": "1.0",
+  "seed_source_path": null,
+  "source_kind": "generated",
+  "source_size": [
+    1024,
+    1024
+  ],
+  "status": "prepared"
+}

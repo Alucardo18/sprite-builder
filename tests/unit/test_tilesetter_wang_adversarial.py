@@ -175,6 +175,109 @@ def _wang_build(
     )
 
 
+def test_wang_edge_profile_preserves_authored_border_pixels() -> None:
+    size = (48, 48)
+    base = Image.new("RGBA", size, (140, 110, 80, 255))
+    secondary = Image.new("RGBA", size, (54, 110, 160, 255))
+    edge = Image.new("RGBA", size, (0, 0, 0, 0))
+    for y in range(6):
+        for x in range(size[0]):
+            edge.putpixel((x, y), (64, 129, 38, 255))
+    atlas, sources = _atlas({"base": base, "secondary": secondary, "top": edge})
+    common = {
+        "baseSource": "base",
+        "secondarySource": "secondary",
+        "edges": {direction: "top" for direction in DIRECTIONS},
+        "edgeTransforms": {
+            "top": {"rotation": 0},
+            "right": {"rotation": 1},
+            "bottom": {"rotation": 2},
+            "left": {"rotation": 3},
+        },
+        "cutoff": 0,
+    }
+    clean = build_tilesetter_terrain_pattern(
+        atlas,
+        tile_size=size,
+        sources=sources,
+        set_config={**common, "terrainProfile": "clean"},
+        kind="wang_16",
+    )
+    styled = build_tilesetter_terrain_pattern(
+        atlas,
+        tile_size=size,
+        sources=sources,
+        set_config={
+            **common,
+            "terrainProfile": "dirt_over_water",
+            "edgeVariation": 3,
+            "edgeSeed": 451495,
+        },
+        kind="wang_16",
+    )
+    mask = 1
+    clean_pixels = np.asarray(_crop_role(clean, mask), dtype=np.uint8)
+    styled_pixels = np.asarray(_crop_role(styled, mask), dtype=np.uint8)
+    transitions = _wang_transitions(mask)
+    available = tuple(direction for direction in DIRECTIONS if transitions[direction])
+    owners = _wang_edge_owner_masks(
+        size,
+        available,
+        {direction: 0 for direction in DIRECTIONS},
+    )
+    transformed_edge = {
+        "top": edge,
+        "right": edge.transpose(Image.Transpose.ROTATE_270),
+        "bottom": edge.transpose(Image.Transpose.ROTATE_180),
+        "left": edge.transpose(Image.Transpose.ROTATE_90),
+    }
+    authored = np.zeros((size[1], size[0]), dtype=bool)
+    for direction, owner in owners.items():
+        authored |= owner & (
+            np.asarray(transformed_edge[direction].getchannel("A"), dtype=np.uint8) != 0
+        )
+
+    assert authored.any()
+    assert np.array_equal(styled_pixels[authored], clean_pixels[authored])
+    assert np.any(styled_pixels[6:12] != clean_pixels[6:12])
+    assert np.array_equal(styled_pixels[12:36, 12:36], clean_pixels[12:36, 12:36])
+
+
+def test_wang_transparent_border_padding_keeps_the_two_materials_visible() -> None:
+    size = (48, 48)
+    base_color = (140, 110, 80, 255)
+    secondary_color = (54, 110, 160, 255)
+    base = Image.new("RGBA", size, base_color)
+    secondary = Image.new("RGBA", size, secondary_color)
+    edge = Image.new("RGBA", size, (0, 0, 0, 0))
+    for y in range(6):
+        for x in range(size[0]):
+            edge.putpixel((x, y), (64, 129, 38, 255))
+    atlas, sources = _atlas({"base": base, "secondary": secondary, "top": edge})
+    result = build_tilesetter_terrain_pattern(
+        atlas,
+        tile_size=size,
+        sources=sources,
+        set_config={
+            "baseSource": "base",
+            "secondarySource": "secondary",
+            "edges": {direction: "top" for direction in DIRECTIONS},
+            "edgeTransforms": {
+                "top": {"rotation": 0},
+                "right": {"rotation": 1},
+                "bottom": {"rotation": 2},
+                "left": {"rotation": 3},
+            },
+        },
+        kind="wang_16",
+    )
+    rendered = np.asarray(_crop_role(result, 1), dtype=np.uint8)
+
+    authored_colors = {base_color, secondary_color, (64, 129, 38, 255)}
+    assert np.all(rendered[..., 3] == 255)
+    assert set(map(tuple, rendered.reshape(-1, 4))) <= authored_colors
+
+
 @pytest.mark.parametrize("size", [(4, 4), (5, 5), (7, 4), (4, 7)])
 def test_wang_all_16_roles_have_single_source_pixel_provenance(
     size: tuple[int, int],

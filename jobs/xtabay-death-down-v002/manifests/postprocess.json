@@ -1,0 +1,308 @@
+{
+  "schema_version": "1.0",
+  "job_id": "xtabay-death-down-v002",
+  "canonical_source_body_height": 493,
+  "target_body_height": 520,
+  "frames": [
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_000_candidate_00_4de700420f99b9449044.png",
+      "background_rgb": [
+        0,
+        0,
+        0
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        54,
+        444,
+        442,
+        955
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_000.png",
+      "logical_size": [
+        409,
+        539
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_001_candidate_00_1c97eff22b457a547e57.png",
+      "background_rgb": [
+        239,
+        10,
+        240
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        207,
+        91,
+        1032,
+        1148
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_001.png",
+      "logical_size": [
+        870,
+        1115
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_002_candidate_00_c48cb2fa11439e5d98ac.png",
+      "background_rgb": [
+        0,
+        0,
+        0
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        16,
+        419,
+        490,
+        955
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_002.png",
+      "logical_size": [
+        500,
+        565
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_003_candidate_00_8e1be103efdcdd5ff5b2.png",
+      "background_rgb": [
+        229,
+        15,
+        232
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        205,
+        100,
+        1049,
+        1144
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_003.png",
+      "logical_size": [
+        890,
+        1101
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_004_candidate_00_f34561f6c51a8057fa2c.png",
+      "background_rgb": [
+        0,
+        0,
+        0
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        23,
+        446,
+        486,
+        955
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_004.png",
+      "logical_size": [
+        488,
+        537
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_005_candidate_00_9544c9b3704cee689dbf.png",
+      "background_rgb": [
+        219,
+        13,
+        222
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        156,
+        79,
+        1096,
+        1186
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_005.png",
+      "logical_size": [
+        991,
+        1168
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_006_candidate_00_842d7ce714135390ad9b.png",
+      "background_rgb": [
+        0,
+        0,
+        0
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        40,
+        447,
+        458,
+        960
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_006.png",
+      "logical_size": [
+        441,
+        541
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_007_candidate_00_c9a427558f4bc7399980.png",
+      "background_rgb": [
+        220,
+        5,
+        217
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        280,
+        110,
+        974,
+        1230
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_007.png",
+      "logical_size": [
+        732,
+        1181
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_008_candidate_00_f681748335c1756ea8ea.png",
+      "background_rgb": [
+        0,
+        0,
+        0
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        57,
+        447,
+        443,
+        959
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_008.png",
+      "logical_size": [
+        407,
+        540
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_009_candidate_00_74cbfb77035defaeb003.png",
+      "background_rgb": [
+        215,
+        8,
+        217
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        251,
+        85,
+        1003,
+        1184
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_009.png",
+      "logical_size": [
+        793,
+        1159
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_010_candidate_00_f2e9385b8cb6d41bae94.png",
+      "background_rgb": [
+        0,
+        0,
+        0
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        78,
+        447,
+        428,
+        903
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_010.png",
+      "logical_size": [
+        369,
+        481
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_011_candidate_00_f3428609df8b545f5c01.png",
+      "background_rgb": [
+        207,
+        15,
+        209
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        273,
+        87,
+        977,
+        1150
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_011.png",
+      "logical_size": [
+        743,
+        1121
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_012_candidate_00_9226e550aa62e5fe3dce.png",
+      "background_rgb": [
+        0,
+        0,
+        0
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        125,
+        448,
+        372,
+        783
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_012.png",
+      "logical_size": [
+        261,
+        353
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_013_candidate_00_6cf7b80400cc381a9148.png",
+      "background_rgb": [
+        0,
+        0,
+        0
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        251,
+        780,
+        302,
+        909
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_013.png",
+      "logical_size": [
+        54,
+        136
+      ]
+    },
+    {
+      "source": "jobs/xtabay-death-down-v002/raw/death_down_014_candidate_00_05306c95d13333206029.png",
+      "background_rgb": [
+        0,
+        0,
+        0
+      ],
+      "background_confidence": 1.0,
+      "source_bbox": [
+        211,
+        681,
+        301,
+        740
+      ],
+      "output": "jobs/xtabay-death-down-v002/processed/frame_014.png",
+      "logical_size": [
+        95,
+        62
+      ]
+    }
+  ]
+}
