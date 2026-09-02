@@ -23,8 +23,8 @@ class TilesetGrid:
     spacing_y: int = 0
 
     def __post_init__(self) -> None:
-        if not 1 <= self.tile_width <= 64 or not 1 <= self.tile_height <= 64:
-            raise ValueError("Tile width and height must be between 1 and 64 pixels")
+        if not 1 <= self.tile_width <= 128 or not 1 <= self.tile_height <= 128:
+            raise ValueError("Tile width and height must be between 1 and 128 pixels")
         if min(self.offset_x, self.offset_y, self.spacing_x, self.spacing_y) < 0:
             raise ValueError("Grid offsets and spacing cannot be negative")
 

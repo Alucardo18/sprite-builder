@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import random
-from collections.abc import Mapping, Sequence
-from typing import Any
+from collections.abc import Sequence
 
 from PIL import Image
 
-from sprite_builder.tilesets.patterns import _GODOT_PATTERN_LAYOUTS, TerrainPatternKind
+from sprite_builder.tilesets.patterns import _GODOT_PATTERN_LAYOUTS
 
 
 def _mask_to_layout_coord(

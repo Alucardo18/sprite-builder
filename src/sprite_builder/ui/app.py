@@ -11,7 +11,7 @@ import uuid
 import zipfile
 from collections.abc import Mapping, MutableMapping, Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import numpy as np
 import streamlit as st
@@ -66,6 +66,7 @@ from sprite_builder.sheets import (
 )
 from sprite_builder.sheets.models import ExportCropConfig
 from sprite_builder.tilesets import (
+    TerrainEdgeProfile,
     TerrainPatternKind,
     TilesetGrid,
     build_terrain_pattern_bundle,
@@ -75,10 +76,6 @@ from sprite_builder.tilesets import (
     generate_procedural_reference_tile,
     get_material_template,
     list_material_templates,
-    paint_tile_matrix,
-    flood_fill_matrix,
-    generate_paths_map,
-    generate_rooms_map,
     render_terrain_bitmask_template,
     resize_tileset,
     resize_tileset_canvas,
@@ -370,16 +367,14 @@ def _extract_palette_colors(image: Image.Image | None, max_colors: int = 24) -> 
             colors = []
     visible_colors = [
         (count, col) for count, col in colors
-        if col[3] > 10
+        if isinstance(col, (tuple, list)) and len(col) >= 4 and col[3] > 10
     ]
     visible_colors.sort(key=lambda x: x[0], reverse=True)
     hex_colors: list[str] = []
     seen: set[str] = set()
-    for _, (r, g, b, a) in visible_colors:
-        if a >= 250:
-            hex_code = f"#{r:02x}{g:02x}{b:02x}"
-        else:
-            hex_code = f"#{r:02x}{g:02x}{b:02x}{a:02x}"
+    for _, col in visible_colors:
+        r, g, b, a = col[:4]
+        hex_code = f"#{r:02x}{g:02x}{b:02x}" if a >= 250 else f"#{r:02x}{g:02x}{b:02x}{a:02x}"
         if hex_code not in seen:
             seen.add(hex_code)
             hex_colors.append(hex_code)
@@ -681,8 +676,8 @@ def _render_tileset_atlas_editor() -> None:
     grid = _tileset_grid_from_state()
     quick_cols = st.columns((2.4, 1, 1, 1, 1, 1, 1), gap="small")
     quick_cols[0].caption(f"Cuadrícula: **{grid.tile_width}×{grid.tile_height} px** (Presets):")
-    for col, sz in zip(quick_cols[1:], (16, 24, 32, 48, 64, 128)):
-        btn_type = "primary" if grid.tile_width == sz else "secondary"
+    for col, sz in zip(quick_cols[1:], (16, 24, 32, 48, 64, 128), strict=False):
+        btn_type: Literal["primary", "secondary"] = "primary" if grid.tile_width == sz else "secondary"
         if col.button(f"{sz}px", key=f"{prefix}:quick_size:{sz}", type=btn_type, width="stretch"):
             st.session_state[f"{prefix}:tile_size"] = sz
             st.rerun()
@@ -788,35 +783,59 @@ def _add_material_tile_to_project(
     project_key = f"{prefix}:set_view_project"
     raw_project = st.session_state.get(project_key)
     project = dict(raw_project) if isinstance(raw_project, Mapping) else {}
+    project.setdefault("version", 3)
     project.setdefault("sources", [])
+    project.setdefault("tiles", [])
     project.setdefault("sets", [])
+    project.setdefault("activeSetId", None)
+    project.setdefault(
+        "ui",
+        {
+            "selectedTileIds": [],
+            "selectedMask": None,
+            "activeSourceId": None,
+            "selectedSetId": None,
+        },
+    )
 
     source_id = f"src_{material_id}_{uuid.uuid4().hex[:6]}"
     source_name = f"AI: {template.name}"
     project["sources"].append({
         "id": source_id,
         "name": source_name,
+        "x": target_x,
+        "y": target_y,
+        "width": tw,
+        "height": th,
         "rect": [target_x, target_y, tw, th],
     })
 
+    project.setdefault("ui", {})
+    project["ui"]["activeSourceId"] = source_id
+
+    sets: list[dict[str, Any]] = [dict(s) for s in project.get("sets", []) if isinstance(s, Mapping)]
     active_set_id = project.get("activeSetId")
-    sets = project.get("sets", [])
-    active_set = next((s for s in sets if isinstance(s, Mapping) and s.get("id") == active_set_id), None)
+    active_set = next((s for s in sets if s.get("id") == active_set_id), None)
+    if active_set is None and sets:
+        active_set = sets[0]
+        active_set_id = active_set.get("id")
+        project["activeSetId"] = active_set_id
+
     if active_set is None:
         active_set_id = f"set_{uuid.uuid4().hex[:6]}"
         active_set = {
             "id": active_set_id,
             "name": "Terreno AI",
             "kind": "dual_grid_15",
-            "baseSource": source_id,
-            "secondarySource": None,
+            "baseSource": None if role == "secondary" else source_id,
+            "secondarySource": source_id if role == "secondary" else None,
             "terrainProfile": template.suggested_profile,
             "cornerRadius": max(2, min(tw, th) // 6),
             "retroOutline": True,
             "edgeVariation": 1,
             "edgeSeed": 42,
         }
-        project["sets"].append(active_set)
+        sets.append(active_set)
         project["activeSetId"] = active_set_id
     else:
         if role == "secondary":
@@ -826,6 +845,7 @@ def _add_material_tile_to_project(
         if active_set.get("terrainProfile") in (None, "clean") and template.suggested_profile != "clean":
             active_set["terrainProfile"] = template.suggested_profile
 
+    project["sets"] = sets
     st.session_state[project_key] = project
 
 
@@ -1040,11 +1060,21 @@ def _render_terrain_patterns() -> None:
             cur_profile = str(active_set.get("terrainProfile") or "clean")
             if cur_profile not in available_profiles:
                 cur_profile = "clean"
-            profile_idx = available_profiles.index(cur_profile)
+            profile_idx = available_profiles.index(cast(TerrainEdgeProfile, cur_profile))
+            profile_labels = {
+                "clean": "Borde limpio",
+                "grass_over_dirt": "Pasto sobre tierra",
+                "dirt_over_water": "Tierra sobre agua",
+                "grass_over_water": "Pasto sobre agua",
+                "rounded_clean": "Bordes redondeados · limpio",
+                "rounded_grass_tufts": "Bordes redondeados · pasto",
+                "rounded_dither": "Bordes redondeados · dither",
+            }
             new_profile = r_col3.selectbox(
                 "Perfil de transición",
                 available_profiles,
                 index=profile_idx,
+                format_func=lambda p: profile_labels.get(p, p),
                 key=f"{prefix}:set_terrain_profile:{active_set_id}",
             )
             cur_var = max(0, min(3, int(active_set.get("edgeVariation", 0))))
@@ -1063,10 +1093,16 @@ def _render_terrain_patterns() -> None:
                 or new_profile != cur_profile
                 or new_var != cur_var
             ):
-                active_set["cornerRadius"] = new_r
-                active_set["retroOutline"] = new_outline
-                active_set["terrainProfile"] = new_profile
-                active_set["edgeVariation"] = new_var
+                active_set_dict = dict(active_set)
+                active_set_dict["cornerRadius"] = new_r
+                active_set_dict["retroOutline"] = new_outline
+                active_set_dict["terrainProfile"] = new_profile
+                active_set_dict["edgeVariation"] = new_var
+                for idx, s in enumerate(sets):
+                    if isinstance(s, Mapping) and str(s.get("id", "")) == str(active_set_id):
+                        sets[idx] = active_set_dict
+                        break
+                project["sets"] = sets
                 st.session_state[project_key] = project
                 st.rerun()
 
@@ -1338,7 +1374,13 @@ def _render_tileset_map_tester() -> None:
 
     map_key = f"{prefix}:matrix"
     curr_matrix = st.session_state.get(map_key)
-    if not isinstance(curr_matrix, list) or len(curr_matrix) != map_h or len(curr_matrix[0]) != map_w:
+    if (
+        not isinstance(curr_matrix, list)
+        or not curr_matrix
+        or len(curr_matrix) != map_h
+        or not isinstance(curr_matrix[0], list)
+        or len(curr_matrix[0]) != map_w
+    ):
         if preset_choice == "Isla central":
             curr_matrix = generate_island_map(map_w, map_h)
         elif preset_choice == "Cueva / Mazmorra":
@@ -1371,12 +1413,25 @@ def _render_tileset_map_tester() -> None:
                 key=f"{prefix}:brush_sz",
             )
         )
+        if f"{prefix}:coord_x" not in st.session_state:
+            st.session_state[f"{prefix}:coord_x"] = min(map_w - 1, map_w // 2)
+        else:
+            st.session_state[f"{prefix}:coord_x"] = min(
+                max(0, map_w - 1),
+                max(0, int(st.session_state[f"{prefix}:coord_x"])),
+            )
+        if f"{prefix}:coord_y" not in st.session_state:
+            st.session_state[f"{prefix}:coord_y"] = min(map_h - 1, map_h // 2)
+        else:
+            st.session_state[f"{prefix}:coord_y"] = min(
+                max(0, map_h - 1),
+                max(0, int(st.session_state[f"{prefix}:coord_y"])),
+            )
         coord_x = int(
             tool_col3.number_input(
                 "X",
                 min_value=0,
                 max_value=max(0, map_w - 1),
-                value=min(map_w - 1, map_w // 2),
                 key=f"{prefix}:coord_x",
             )
         )
@@ -1385,7 +1440,6 @@ def _render_tileset_map_tester() -> None:
                 "Y",
                 min_value=0,
                 max_value=max(0, map_h - 1),
-                value=min(map_h - 1, map_h // 2),
                 key=f"{prefix}:coord_y",
             )
         )
@@ -5214,41 +5268,45 @@ def main() -> None:
     global_history = _history_controls(session)
     history_col1, history_col2, history_status = st.columns((0.8, 0.8, 4.4), gap="small")
     with history_col1:
-        if st.button(
-            "↶ Deshacer",
-            disabled=not global_history["can_undo"],
-            help=(
-                f"Deshacer {global_history['undo_label']}"
-                if global_history["undo_label"]
-                else "No hay acciones para deshacer"
-            ),
-            key=f"{session.session_id}:global_undo",
-            width="stretch",
-        ):
-            if _handle_editor_history_event(
+        if (
+            st.button(
+                "↶ Deshacer",
+                disabled=not global_history["can_undo"],
+                help=(
+                    f"Deshacer {global_history['undo_label']}"
+                    if global_history["undo_label"]
+                    else "No hay acciones para deshacer"
+                ),
+                key=f"{session.session_id}:global_undo",
+                width="stretch",
+            )
+            and _handle_editor_history_event(
                 store,
                 session,
                 {"eventId": uuid.uuid4().hex, "type": "history", "action": "undo"},
-            ):
-                st.rerun()
-    with history_col2:
-        if st.button(
-            "↷ Rehacer",
-            disabled=not global_history["can_redo"],
-            help=(
-                f"Rehacer {global_history['redo_label']}"
-                if global_history["redo_label"]
-                else "No hay acciones para rehacer"
-            ),
-            key=f"{session.session_id}:global_redo",
-            width="stretch",
+            )
         ):
-            if _handle_editor_history_event(
+            st.rerun()
+    with history_col2:
+        if (
+            st.button(
+                "↷ Rehacer",
+                disabled=not global_history["can_redo"],
+                help=(
+                    f"Rehacer {global_history['redo_label']}"
+                    if global_history["redo_label"]
+                    else "No hay acciones para rehacer"
+                ),
+                key=f"{session.session_id}:global_redo",
+                width="stretch",
+            )
+            and _handle_editor_history_event(
                 store,
                 session,
                 {"eventId": uuid.uuid4().hex, "type": "history", "action": "redo"},
-            ):
-                st.rerun()
+            )
+        ):
+            st.rerun()
     with history_status:
         if global_history["undo_label"]:
             st.caption(
@@ -5653,7 +5711,7 @@ def main() -> None:
             selection_masks = st.session_state[f"{prefix}:background_selection_masks"]
             normalized_selection_masks: list[np.ndarray | None] = []
             invalid_mask = False
-            for frame, mask in zip((background_source,), selection_masks):
+            for frame, mask in zip((background_source,), selection_masks, strict=False):
                 if isinstance(mask, np.ndarray) and mask.shape == (frame.height, frame.width):
                     normalized_selection_masks.append(mask)
                 else:

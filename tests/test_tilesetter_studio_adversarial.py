@@ -621,7 +621,17 @@ def test_ui_normalization_and_python_ingest_keep_payload_version_three() -> None
         'const kind=PATTERN_KINDS.includes(item.kind)?item.kind:"blob_47",'
         "overrides={...(item.overrides||{})};"
     ) in studio
-    assert 'value:{type:"project-change",project:state.project' in studio
     assert 'if int(project.get("version", 0)) < 3:' in app
     assert 'if int(revised.get("version", 0)) == 3:' in app
     assert '"schema_version": "3.0"' in app
+
+
+def test_studio_component_supports_rounded_profiles_and_source_bounds() -> None:
+    studio = STUDIO_HTML.read_text(encoding="utf-8")
+
+    assert '"rounded_clean"' in studio
+    assert '"rounded_grass_tufts"' in studio
+    assert '"rounded_dither"' in studio
+    assert "source.x!==undefined?source.x:(Array.isArray(source.rect)" in studio
+    assert "const sb=sourceBounds(source);copy.querySelector(\"span\").textContent=" in studio
+

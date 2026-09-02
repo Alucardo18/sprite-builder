@@ -1,20 +1,20 @@
 """Reusable core for processing existing sprite sheets."""
 
 from .engine import (
-    CenteringResult,
     CenteringAnalysis,
+    CenteringResult,
     ExportCropResult,
     ScaleMeasurement,
+    analyze_center_frames,
     apply_background_removal,
     auto_center_frames,
-    analyze_center_frames,
     checkerboard,
     export_sheet,
+    normalize_frames_by_character_scale,
     pad_frames_to_common_canvas,
     render_contact_sheet,
     render_frame_overlay,
     trim_transparent_frames,
-    normalize_frames_by_character_scale,
 )
 from .inspect import inspect_sheet
 from .layers import (
@@ -26,11 +26,11 @@ from .layers import (
     delete_document_frame,
     duplicate_document_frame,
     fill_cel_selection,
+    move_document_frame,
     outline_cel_pixels,
     paint_cel_stroke,
     remove_isolated_pixels,
     replace_cel_color,
-    move_document_frame,
     transform_cel_selection,
 )
 from .manual import (

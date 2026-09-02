@@ -342,7 +342,11 @@ def _apply_centering(
 
     detections = analysis.detections
     bboxes = analysis.bboxes
-    target = config.canonical_anchor if target_anchor is None else tuple(map(float, target_anchor))
+    target = (
+        config.canonical_anchor
+        if target_anchor is None
+        else (float(target_anchor[0]), float(target_anchor[1]))
+    )
 
     applied_translations: list[tuple[int, int]] | None = None
     cropped_pixel_counts = [0] * len(frames)
@@ -427,9 +431,9 @@ def _apply_centering(
                 target_y = yy + dy
                 target_x = xx + dx
                 valid = (
-                    (0 <= target_y)
+                    (target_y >= 0)
                     & (target_y < canvas_height)
-                    & (0 <= target_x)
+                    & (target_x >= 0)
                     & (target_x < canvas_width)
                 )
                 if np.any(valid):

@@ -123,3 +123,115 @@ def test_studio_component_events_select_and_reorder_the_layer_matrix() -> None:
     assert '"floating-selection",' in source
     assert '"edit-batch",' in source
     assert '"transform",' in source
+
+
+def test_procedural_material_tile_generation_flow() -> None:
+    img = Image.new("RGBA", (64, 64), (100, 150, 200, 255))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    payload = buf.getvalue()
+
+    test_app = AppTest.from_file(str(Path(app.__file__)))
+    test_app.query_params["page"] = "tilesets"
+    test_app.run(timeout=30)
+
+    for uploader in test_app.file_uploader:
+        if "Cargar tileset" in uploader.label:
+            uploader.upload("test_tileset.png", payload, "image/png")
+            break
+
+    test_app.run(timeout=30)
+
+    for b in test_app.button:
+        if "Generar y Asignar Muestra" in b.label:
+            b.click()
+            break
+
+    test_app.run(timeout=30)
+    assert not test_app.exception
+
+    prefix = "tileset_builder:patterns"
+    project = test_app.session_state[f"{prefix}:set_view_project"]
+
+    assert project["version"] == 3
+    assert len(project["sources"]) == 1
+    src = project["sources"][0]
+    assert src["x"] == 64
+    assert src["y"] == 0
+    assert src["width"] == 16
+    assert src["height"] == 16
+    assert src["rect"] == [64, 0, 16, 16]
+    assert project["activeSetId"] is not None
+    assert len(project["sets"]) == 1
+
+    # Rerun retains version 3 without resetting project
+    test_app.run(timeout=30)
+    assert not test_app.exception
+    project_after = test_app.session_state[f"{prefix}:set_view_project"]
+    assert project_after["version"] == 3
+    assert len(project_after["sources"]) == 1
+    assert project_after["activeSetId"] == project["activeSetId"]
+    assert len(project_after["sets"]) == 1
+
+
+def test_tileset_presets_up_to_128px_and_dual_source_assignment() -> None:
+    img = Image.new("RGBA", (128, 128), (100, 150, 200, 255))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    payload = buf.getvalue()
+
+    test_app = AppTest.from_file(str(Path(app.__file__)))
+    test_app.query_params["page"] = "tilesets"
+    test_app.run(timeout=30)
+
+    for uploader in test_app.file_uploader:
+        if "Cargar tileset" in uploader.label:
+            uploader.upload("test_128.png", payload, "image/png")
+            break
+    test_app.run(timeout=30)
+    assert not test_app.exception
+
+    # Test 128px preset button
+    preset_128 = next((b for b in test_app.button if b.label == "128px"), None)
+    assert preset_128 is not None
+    preset_128.click().run(timeout=30)
+    assert not test_app.exception
+    assert test_app.session_state["tileset_builder:tile_size"] == 128
+
+    # Reset back to 16px for dual-grid testing
+    preset_16 = next((b for b in test_app.button if b.label == "16px"), None)
+    assert preset_16 is not None
+    preset_16.click().run(timeout=30)
+    assert not test_app.exception
+
+    prefix = "tileset_builder:patterns"
+    # Assign secondary tile via procedural generation
+    test_app.session_state[f"{prefix}:ai_role_select"] = "Secundario (Suelo/Fondo)"
+    test_app.run(timeout=30)
+
+    gen_btn = next((b for b in test_app.button if "Generar y Asignar Muestra" in b.label), None)
+    assert gen_btn is not None
+    gen_btn.click().run(timeout=30)
+    assert not test_app.exception
+
+    project = test_app.session_state[f"{prefix}:set_view_project"]
+    assert len(project["sets"]) == 1
+    sec_source = project["sets"][0]["secondarySource"]
+    assert sec_source is not None
+
+    # Assign base tile
+    test_app.session_state[f"{prefix}:ai_role_select"] = "Base (Relleno)"
+    test_app.run(timeout=30)
+
+    gen_btn = next((b for b in test_app.button if "Generar y Asignar Muestra" in b.label), None)
+    assert gen_btn is not None
+    gen_btn.click().run(timeout=30)
+    assert not test_app.exception
+
+    project = test_app.session_state[f"{prefix}:set_view_project"]
+    set_obj = project["sets"][0]
+    assert set_obj["baseSource"] is not None
+    assert set_obj["secondarySource"] == sec_source
+    assert set_obj["baseSource"] != set_obj["secondarySource"]
+
+

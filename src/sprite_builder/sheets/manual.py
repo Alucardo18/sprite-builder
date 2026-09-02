@@ -110,7 +110,7 @@ def erase_with_brush(
                     y0 += sy
             return tuple(output)
 
-        for start, end in zip(points, points[1:]):
+        for start, end in zip(points, points[1:], strict=False):
             segment = _line_points(start, end)
             if rasterized and segment and rasterized[-1] == segment[0]:
                 rasterized.extend(segment[1:])
@@ -332,7 +332,6 @@ def decode_mask(payload: Mapping[str, Any], size: tuple[int, int]) -> np.ndarray
     ):
         return mask
     x0, y0, x1, y1 = map(int, bbox)
-    crop_width = max(0, x1 - x0)
     crop_height = max(0, y1 - y0)
     for row_index, spans in enumerate(rows[:crop_height]):
         target_y = y0 + row_index

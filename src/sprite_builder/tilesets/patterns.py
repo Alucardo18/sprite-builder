@@ -1375,10 +1375,33 @@ def _fragment_bounds(
 ) -> tuple[int, int, int, int]:
     """Validate and return an arbitrary pixel selection from a source image."""
 
-    x = max(0, _object_int(fragment.get("x"), 0))
-    y = max(0, _object_int(fragment.get("y"), 0))
-    width = max(1, _object_int(fragment.get("width"), 1))
-    height = max(1, _object_int(fragment.get("height"), 1))
+    if (
+        fragment.get("x") is not None
+        and fragment.get("y") is not None
+        and fragment.get("width") is not None
+        and fragment.get("height") is not None
+    ):
+        rx = fragment.get("x")
+        ry = fragment.get("y")
+        rw = fragment.get("width")
+        rh = fragment.get("height")
+    else:
+        rect = fragment.get("rect")
+        if (
+            isinstance(rect, (list, tuple))
+            and len(rect) == 4
+            and all(isinstance(v, (int, float)) for v in rect)
+        ):
+            rx, ry, rw, rh = rect
+        else:
+            rx = fragment.get("x")
+            ry = fragment.get("y")
+            rw = fragment.get("width")
+            rh = fragment.get("height")
+    x = max(0, _object_int(rx, 0))
+    y = max(0, _object_int(ry, 0))
+    width = max(1, _object_int(rw, 1))
+    height = max(1, _object_int(rh, 1))
     right = min(atlas_size[0], x + width)
     bottom = min(atlas_size[1], y + height)
     if x >= right or y >= bottom:

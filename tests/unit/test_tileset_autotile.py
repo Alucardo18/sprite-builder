@@ -19,7 +19,6 @@ from sprite_builder.tilesets.autotile import (
     invert_tile_matrix,
     paint_tile_matrix,
 )
-from sprite_builder.tilesets.patterns import _GODOT_PATTERN_LAYOUTS
 
 
 def test_map_generators_produce_correct_dimensions_and_types() -> None:

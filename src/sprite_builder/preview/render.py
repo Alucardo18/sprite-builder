@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from math import ceil
 from pathlib import Path
+from typing import cast
 
 from PIL import Image, ImageDraw
 
@@ -202,7 +203,7 @@ def create_semantic_overlay(
                 color = colors[name]
                 draw.line((x - 2, y, x + 2, y), fill=color, width=1)
                 draw.line((x, y - 2, x, y + 2), fill=color, width=1)
-            support_y = int(record.get("support_y", height - 1))
+            support_y = int(cast(int | float | str, record.get("support_y", height - 1)))
             ground_y = min(oy + height + guide_padding - 2, oy + cy + support_y + 2)
             draw.line((ox, ground_y, ox + width - 1, ground_y), fill=(255, 215, 70, 180))
             draw.rectangle(

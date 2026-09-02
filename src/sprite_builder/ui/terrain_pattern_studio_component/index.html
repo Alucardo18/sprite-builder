@@ -266,6 +266,9 @@
                   <option value="grass_over_dirt">Pasto sobre tierra</option>
                   <option value="dirt_over_water">Tierra sobre agua</option>
                   <option value="grass_over_water">Pasto sobre agua</option>
+                  <option value="rounded_clean">Bordes redondeados · limpio</option>
+                  <option value="rounded_grass_tufts">Bordes redondeados · pasto</option>
+                  <option value="rounded_dither">Bordes redondeados · dither</option>
                 </select>
               </label>
               <label class="terrain-profile-control">Detalle del borde
@@ -366,22 +369,28 @@ const state={project:null,roles:[],kind:"blob_47",tileWidth:16,tileHeight:16,ima
 const PATTERN_KINDS=["blob_47","wang_16","sides_16","dual_grid_15"];
 const DUAL_GRID_TRANSITION_MASKS=Array.from({length:15},(_,index)=>index+1);
 const DUAL_GRID_NEIGHBOR_ORDER=["NW","NE","SE","SW"];
-const DUAL_GRID_TERRAIN_PROFILES=["clean","grass_over_dirt","dirt_over_water","grass_over_water"];
+const DUAL_GRID_TERRAIN_PROFILES=["clean","grass_over_dirt","dirt_over_water","grass_over_water","rounded_clean","rounded_grass_tufts","rounded_dither"];
 const TERRAIN_EDGE_PROFILES=DUAL_GRID_TERRAIN_PROFILES;
 const PROFILED_PATTERN_KINDS=["blob_47","wang_16","sides_16","dual_grid_15"];
-const DUAL_GRID_PROFILE_LABELS={clean:"Borde limpio",grass_over_dirt:"Pasto sobre tierra",dirt_over_water:"Tierra sobre agua",grass_over_water:"Pasto sobre agua"};
+const DUAL_GRID_PROFILE_LABELS={clean:"Borde limpio",grass_over_dirt:"Pasto sobre tierra",dirt_over_water:"Tierra sobre agua",grass_over_water:"Pasto sobre agua",rounded_clean:"Bordes redondeados limpios",rounded_grass_tufts:"Bordes redondeados con pasto",rounded_dither:"Bordes redondeados con dither"};
 const TERRAIN_EDGE_PROFILE_LABELS=DUAL_GRID_PROFILE_LABELS;
 const DUAL_GRID_PROFILE_COPY={
   clean:"Interpolación clásica entre A y B, sin irregularidad adicional.",
   grass_over_dirt:"A = pasto, B = tierra. Raíz oscura, mechones iluminados y pequeñas entradas de tierra.",
   dirt_over_water:"A = tierra, B = agua. Sombra acuática, ribete claro y banco terroso irregular por capas.",
-  grass_over_water:"A = pasto, B = agua. Sombra de agua, línea húmeda intermitente y raíz vegetal oscura."
+  grass_over_water:"A = pasto, B = agua. Sombra de agua, línea húmeda intermitente y raíz vegetal oscura.",
+  rounded_clean:"Esquinas y bordes redondeados con corte curvo limpio.",
+  rounded_grass_tufts:"Esquinas y bordes redondeados con mechones orgánicos de vegetación.",
+  rounded_dither:"Esquinas y bordes redondeados con transición dither pixel art."
 };
 const TERRAIN_EDGE_PROFILE_COPY={
   clean:"Interpolación clásica, sin bandas ni desplazamiento adicional.",
   grass_over_dirt:"Banda de pasto sobre tierra: raíces oscuras, mechones de luz y pequeñas entradas irregulares.",
   dirt_over_water:"Banda de tierra sobre agua: sombra húmeda, ribete claro y banco terroso por capas.",
-  grass_over_water:"Banda de pasto sobre agua: sombra acuática, línea húmeda intermitente y raíces vegetales."
+  grass_over_water:"Banda de pasto sobre agua: sombra acuática, línea húmeda intermitente y raíces vegetales.",
+  rounded_clean:"Bordes redondeados con arco limpio sin artefactos.",
+  rounded_grass_tufts:"Bordes redondeados con textura de mechones de pasto.",
+  rounded_dither:"Bordes redondeados con degradado dither retro."
 };
 function patternLabel(kind){return kind==="dual_grid_15"?"Dual Grid":kind==="wang_16"?"Wang":kind==="sides_16"?"Sides":"Blob"}
 function variantCount(kind){return kind==="blob_47"?47:kind==="dual_grid_15"?15:16}
@@ -443,7 +452,12 @@ function tileById(tileId){return state.project.tiles.find(item=>item.id===tileId
 function selectedTiles(){return state.project.ui.selectedTileIds.map(tileById).filter(Boolean)}
 function selectedRole(){if(state.project.ui.selectedMask===null)return null;
   return state.roles.find(role=>Number(role.mask)===Number(state.project.ui.selectedMask))||null}
-function sourceBounds(source){return source?{x:Number(source.x)||0,y:Number(source.y)||0,width:Number(source.width)||1,height:Number(source.height)||1}:null}
+function sourceBounds(source){if(!source)return null;
+  const x=Number(source.x!==undefined?source.x:(Array.isArray(source.rect)?source.rect[0]:0))||0;
+  const y=Number(source.y!==undefined?source.y:(Array.isArray(source.rect)?source.rect[1]:0))||0;
+  const width=Number(source.width!==undefined?source.width:(Array.isArray(source.rect)?source.rect[2]:1))||1;
+  const height=Number(source.height!==undefined?source.height:(Array.isArray(source.rect)?source.rect[3]:1))||1;
+  return{x,y,width,height}}
 function drawChecker(ctx,x,y,w,h,size=5){ctx.fillStyle="#111827";ctx.fillRect(x,y,w,h);ctx.fillStyle="#202b3f";
   for(let yy=0;yy<h;yy+=size)for(let xx=0;xx<w;xx+=size)if((xx/size+yy/size)%2===0)ctx.fillRect(x+xx,y+yy,size,size)}
 function drawSource(ctx,sourceId,x,y,w,h){const source=sourceById(sourceId),b=sourceBounds(source);if(!b||!state.imageReady)return false;
@@ -520,7 +534,7 @@ function renderSources(){
   for(const source of state.project.sources){const b=document.createElement("button");b.className="source-card"+(source.id===state.project.ui.activeSourceId?" selected":"");
     const c=document.createElement("canvas");c.width=state.tileWidth;c.height=state.tileHeight;drawChecker(c.getContext("2d"),0,0,c.width,c.height,3);drawSource(c.getContext("2d"),source.id,0,0,c.width,c.height);
     const copy=document.createElement("div");copy.className="source-copy";copy.innerHTML="<strong></strong><span></span>";copy.querySelector("strong").textContent=source.name||"Source";
-    copy.querySelector("span").textContent=`${source.width}×${source.height}`;b.append(c,copy);b.onclick=()=>{state.project.ui.activeSourceId=source.id;renderAll()};box.append(b)}
+    const sb=sourceBounds(source);copy.querySelector("span").textContent=`${sb.width}×${sb.height}`;b.append(c,copy);b.onclick=()=>{state.project.ui.activeSourceId=source.id;renderAll()};box.append(b)}
 }
 function neededDirections(role,set){
   if(!role||!set)return[];if(set.kind==="wang_16"){const mask=Number(role.mask),bits=[Boolean(mask&1),Boolean(mask&2),Boolean(mask&4),Boolean(mask&8)];

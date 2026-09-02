@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from PIL import Image
 
 from sprite_builder.tilesets import (
@@ -87,4 +86,8 @@ def test_prepare_tile_source_record() -> None:
     )
     assert record["id"] == "src_grass_1"
     assert record["name"] == "Pasto Base"
+    assert record["x"] == 0
+    assert record["y"] == 0
+    assert record["width"] == 32
+    assert record["height"] == 32
     assert record["rect"] == [0, 0, 32, 32]

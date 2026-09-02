@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import hashlib
 import random
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image
 
 MaterialRole = Literal["base", "secondary", "edge", "custom"]
 
@@ -317,6 +315,10 @@ def prepare_tile_source_record(
     return {
         "id": source_id,
         "name": name,
+        "x": int(rect[0]),
+        "y": int(rect[1]),
+        "width": int(rect[2]),
+        "height": int(rect[3]),
         "rect": [int(rect[0]), int(rect[1]), int(rect[2]), int(rect[3])],
         "crop": [int(rect[0]), int(rect[1]), int(rect[2]), int(rect[3])],
     }
