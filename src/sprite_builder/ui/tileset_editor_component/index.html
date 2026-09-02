@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tileset Builder</title>
     <style>
-      :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, sans-serif; }
+      :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, sans-serif; --stage-height: 720px; }
       * { box-sizing: border-box; }
       html, body { margin: 0; background: transparent; color: #f5f7ff; }
       .root { display: grid; gap: 10px; }
@@ -91,8 +91,28 @@
         color: rgba(220,227,245,.48); font: 700 9px/1 ui-monospace, monospace; }
       .wand-contiguous-row { gap: 8px; margin-top: 13px; color: rgba(240,246,255,.84);
         font-size: 11px; cursor: pointer; }
+      .stage-height-select {
+        height: 28px;
+        border-radius: 999px;
+        border: 1px solid rgba(132, 225, 255, 0.25);
+        background: rgba(18, 24, 38, 0.85);
+        color: #e2e8f0;
+        font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        padding: 0 8px;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+      .stage-height-select:hover {
+        border-color: rgba(91, 223, 255, 0.6);
+        background: rgba(28, 36, 56, 0.95);
+      }
+      .stage-height-select:focus {
+        border-color: #5bdfff;
+        box-shadow: 0 0 0 2px rgba(91, 223, 255, 0.2);
+      }
       .stage {
-        position: relative; height: 710px; overflow: auto; border-radius: 18px;
+        position: relative; height: var(--stage-height, 720px); min-height: 380px; overflow: auto; border-radius: 18px;
         border: 1px solid rgba(132,225,255,.2);
         background-color: #202634;
         background-image:
@@ -228,6 +248,11 @@
           <span id="zoomPill" class="toolbar-label">1×</span>
           <button class="icon-button" id="zoomIn" title="Acercar" aria-label="Acercar"><svg class="icon"><use href="#icon-zoom-in"></use></svg></button>
           <button class="icon-button" id="fit" title="Ajustar al lienzo" aria-label="Ajustar al lienzo"><svg class="icon"><use href="#icon-fit"></use></svg></button>
+          <select class="stage-height-select" id="tileset-stage-height-select" title="Altura del lienzo" aria-label="Altura del lienzo">
+            <option value="580">580px</option>
+            <option value="720" selected>720px</option>
+            <option value="900">900px</option>
+          </select>
           <button class="icon-button" id="seamless" title="Previsualizar repetición 3×3" aria-label="Previsualizar repetición"><svg class="icon"><use href="#icon-layers"></use></svg></button>
         </div>
         <span id="status" class="status"></span>
@@ -271,8 +296,46 @@
         window.parent.postMessage({ isStreamlitMessage: true, type, ...payload }, "*");
       }
       function setValue(value) { post(SET_COMPONENT_VALUE, { value, dataType: "json" }); }
-      function frameHeight() { post(SET_FRAME_HEIGHT, { height: document.body.scrollHeight + 4 }); }
+      function frameHeight() {
+        const tb = document.querySelector(".toolbar")?.getBoundingClientRect().height || 0;
+        const st = stage.getBoundingClientRect().height || 0;
+        const contentHeight = Math.ceil(tb + st + 48);
+        post(SET_FRAME_HEIGHT, { height: Math.max(540, Math.max(document.body.scrollHeight + 4, contentHeight)) });
+      }
       function clamp(value, min, max) { return Math.max(min, Math.min(max, Number(value) || min)); }
+
+      const STAGE_HEIGHT_STORAGE_KEY = "sprite-builder:stage-height";
+      const tilesetHeightSelect = document.getElementById("tileset-stage-height-select");
+
+      function applyTilesetStageHeight(height, save = true) {
+        const val = [580, 720, 900].includes(Number(height)) ? Number(height) : 720;
+        document.documentElement.style.setProperty("--stage-height", `${val}px`);
+        if (tilesetHeightSelect && tilesetHeightSelect.value !== String(val)) {
+          tilesetHeightSelect.value = String(val);
+        }
+        if (save) {
+          try {
+            localStorage.setItem(STAGE_HEIGHT_STORAGE_KEY, String(val));
+          } catch (e) {}
+        }
+        requestAnimationFrame(() => {
+          frameHeight();
+        });
+        setTimeout(frameHeight, 60);
+      }
+
+      if (tilesetHeightSelect) {
+        tilesetHeightSelect.addEventListener("change", (e) => {
+          applyTilesetStageHeight(e.target.value, true);
+        });
+      }
+
+      try {
+        const savedHeight = localStorage.getItem(STAGE_HEIGHT_STORAGE_KEY);
+        applyTilesetStageHeight(savedHeight || 720, false);
+      } catch (e) {
+        applyTilesetStageHeight(720, false);
+      }
       function eventId() {
         return globalThis.crypto?.randomUUID?.()
           || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -350,6 +413,10 @@
         }
         updateCursor();
       }
+      function formatTilesetZoom(zoom) {
+        if (zoom >= 1) return `${Math.round(zoom * 10) / 10}×`;
+        return `${Number(zoom.toFixed(2))}×`;
+      }
       function updateSurface() {
         const repeat = state.seamless ? 3 : 1;
         const width = imageCanvas.width * state.zoom * repeat;
@@ -361,10 +428,11 @@
         imageCanvas.style.visibility = state.seamless ? "hidden" : "visible";
         surface.style.width = `${width}px`;
         surface.style.height = `${height}px`;
-        document.querySelector("#zoomPill").textContent = `${state.zoom}×`;
+        const zoomLabel = formatTilesetZoom(state.zoom);
+        document.querySelector("#zoomPill").textContent = zoomLabel;
         drawOverlay();
         document.querySelector("#status").textContent =
-          `${imageCanvas.width}×${imageCanvas.height}px · ${state.zoom}× · tile ${state.tileSize}px`;
+          `${imageCanvas.width}×${imageCanvas.height}px · ${zoomLabel} · tile ${state.tileSize}px`;
       }
       function updateCursor() {
         const visible = state.pointerVisible && !state.seamless && state.initialized;
@@ -1248,20 +1316,61 @@
           if (event.key === "Enter") event.target.blur();
         });
       });
+      function computeTilesetFitZoom() {
+        if (!imageCanvas.width || !imageCanvas.height) return 1;
+        const fitX = (stage.clientWidth - 48) / imageCanvas.width;
+        const fitY = (stage.clientHeight - 48) / imageCanvas.height;
+        const fitScale = Math.min(fitX, fitY);
+        if (fitScale < 1) {
+          return clamp(Math.floor(fitScale * 100) / 100, 0.05, 32);
+        }
+        return clamp(Math.floor(fitScale), 1, 32);
+      }
+
       document.querySelector("#zoomOut").addEventListener("click", () => {
-        state.fitResponsive = false; state.zoom = clamp(state.zoom - 1, 1, 32); updateSurface();
+        state.fitResponsive = false;
+        if (state.zoom <= 1.05) {
+          state.zoom = clamp(Math.round(state.zoom * 0.8 * 100) / 100, 0.05, 32);
+        } else {
+          state.zoom = clamp(state.zoom - 1, 1, 32);
+        }
+        updateSurface();
       });
       document.querySelector("#zoomIn").addEventListener("click", () => {
-        state.fitResponsive = false; state.zoom = clamp(state.zoom + 1, 1, 32); updateSurface();
+        state.fitResponsive = false;
+        if (state.zoom < 0.95) {
+          const next = state.zoom * 1.25;
+          state.zoom = clamp(next >= 0.95 ? 1 : Math.round(next * 100) / 100, 0.05, 32);
+        } else {
+          state.zoom = clamp(state.zoom + 1, 1, 32);
+        }
+        updateSurface();
       });
       document.querySelector("#fit").addEventListener("click", () => {
         state.fitResponsive = true;
-        state.zoom = clamp(Math.min(
-          Math.floor((stage.clientWidth - 48) / imageCanvas.width),
-          Math.floor((stage.clientHeight - 48) / imageCanvas.height),
-        ), 1, 32);
+        state.zoom = computeTilesetFitZoom();
         updateSurface();
       });
+      imageCanvas.addEventListener("wheel", event => {
+        if (!event.ctrlKey) return;
+        event.preventDefault();
+        state.fitResponsive = false;
+        if (event.deltaY < 0) {
+          if (state.zoom < 0.95) {
+            const next = state.zoom * 1.25;
+            state.zoom = clamp(next >= 0.95 ? 1 : Math.round(next * 100) / 100, 0.05, 32);
+          } else {
+            state.zoom = clamp(state.zoom + 1, 1, 32);
+          }
+        } else {
+          if (state.zoom <= 1.05) {
+            state.zoom = clamp(Math.round(state.zoom * 0.8 * 100) / 100, 0.05, 32);
+          } else {
+            state.zoom = clamp(state.zoom - 1, 1, 32);
+          }
+        }
+        updateSurface();
+      }, { passive: false });
       document.querySelector("#seamless").addEventListener("click", event => {
         state.seamless = !state.seamless; event.target.classList.toggle("active", state.seamless);
         updateSurface();
@@ -1318,10 +1427,7 @@
             selectionCanvas.height = incoming.height;
             state.selectionBounds = null;
             state.moveGridSnap = false;
-            state.zoom = clamp(Math.min(
-              Math.floor((stage.clientWidth - 48) / incoming.width),
-              Math.floor((stage.clientHeight - 48) / incoming.height),
-            ), 1, 32);
+            state.zoom = computeTilesetFitZoom();
             state.undo = []; state.redo = []; historyState(); updateSurface(); frameHeight();
           };
           incoming.src = args.image;
@@ -1332,10 +1438,7 @@
         if (!state.fitResponsive || !imageCanvas.width || !imageCanvas.height) return;
         cancelAnimationFrame(state.resizeFrame || 0);
         state.resizeFrame = requestAnimationFrame(() => {
-          state.zoom = clamp(Math.min(
-            Math.floor((stage.clientWidth - 48) / imageCanvas.width),
-            Math.floor((stage.clientHeight - 48) / imageCanvas.height),
-          ), 1, 32);
+          state.zoom = computeTilesetFitZoom();
           updateSurface();
         });
       });

@@ -945,3 +945,46 @@ def test_redraw_does_not_repeat_canvas_or_timeline_work() -> None:
     assert "if (!force && signature === studioTimelineSignature)" in source
     assert "cutGuidesSignature" in source
     assert "if (!force && signature === cutGuidesSignature)" in source
+
+
+def test_stage_height_controls_and_persistence() -> None:
+    source = _component_source()
+    tileset_source = TILESET_COMPONENT_HTML.read_text(encoding="utf-8")
+
+    assert "--stage-height: 720px;" in source
+    assert "height: var(--stage-height);" in source
+    assert 'id="stage-height-select"' in source
+    assert 'id="stage-height-select-center"' in source
+    assert 'id="stage-height-select-cut"' in source
+    assert "applyStageHeight" in source
+    assert "sprite-builder:stage-height" in source
+
+    assert "--stage-height: 720px;" in tileset_source
+    assert "height: var(--stage-height, 720px);" in tileset_source
+    assert 'id="tileset-stage-height-select"' in tileset_source
+    assert "applyTilesetStageHeight" in tileset_source
+    assert "sprite-builder:stage-height" in tileset_source
+
+
+def test_fit_and_zoom_support_fractional_scale_for_large_images() -> None:
+    source = _component_source()
+    tileset_source = TILESET_COMPONENT_HTML.read_text(encoding="utf-8")
+
+    assert "function clampZoom(value, defaultZoom = 8)" in source
+    assert "function formatZoomLabel(zoom)" in source
+    assert "function zoomInStep(current)" in source
+    assert "function zoomOutStep(current)" in source
+    assert "Math.max(0.05, Math.floor(fitScale * 100) / 100)" in source
+
+    assert "function computeTilesetFitZoom()" in tileset_source
+    assert "clamp(Math.floor(fitScale * 100) / 100, 0.05, 32)" in tileset_source
+    assert "function formatTilesetZoom(zoom)" in tileset_source
+
+
+def test_pixel_editor_component_wrapper_accepts_float_zoom() -> None:
+    import inspect
+    from sprite_builder.ui.components import pixel_editor
+
+    sig = inspect.signature(pixel_editor)
+    assert sig.parameters["zoom"].default == 12.0
+

@@ -7,6 +7,7 @@
     <style>
       :root {
         color-scheme: dark;
+        --stage-height: 720px;
       }
 
       html, body {
@@ -493,6 +494,29 @@
         cursor: pointer;
       }
 
+      .stage-height-select {
+        height: 28px;
+        border-radius: 999px;
+        border: 1px solid rgba(132, 225, 255, 0.25);
+        background: rgba(18, 24, 38, 0.85);
+        color: #e2e8f0;
+        font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        padding: 0 8px;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+
+      .stage-height-select:hover {
+        border-color: rgba(91, 223, 255, 0.6);
+        background: rgba(28, 36, 56, 0.95);
+      }
+
+      .stage-height-select:focus {
+        border-color: #5bdfff;
+        box-shadow: 0 0 0 2px rgba(91, 223, 255, 0.2);
+      }
+
       #stage[data-bg="dark"] {
         background-color: #0c101b !important;
         background-image: none !important;
@@ -611,8 +635,8 @@
 
       .stage {
         width: 100%;
-        height: clamp(380px, 68vh, 900px);
-        min-height: 0;
+        height: var(--stage-height);
+        min-height: 380px;
         overflow: auto;
         border-radius: 18px;
         border: 1px solid rgba(132, 225, 255, 0.2);
@@ -1070,8 +1094,8 @@
         grid-column: 2;
         grid-row: 1;
         width: auto;
-        height: clamp(440px, 68vh, 920px);
-        min-height: 0;
+        height: var(--stage-height);
+        min-height: 440px;
         min-width: 0;
         display: grid;
         place-items: center;
@@ -1246,8 +1270,8 @@
 
         body[data-mode="layer-edit"] .stage {
           width: 100%;
-          height: clamp(340px, 62vh, 680px);
-          min-height: 0;
+          height: var(--stage-height);
+          min-height: 340px;
         }
 
         body[data-mode="layer-edit"] .studio-timeline:not([hidden]),
@@ -1349,6 +1373,11 @@
           <span class="pill" id="zoom-pill" title="Nivel de zoom"><svg class="icon"><use href="#icon-zoom-in"></use></svg><span>1×</span></span>
           <button class="icon-button" data-action="zoom-in" id="zoom-in" title="Acercar" aria-label="Acercar"><svg class="icon"><use href="#icon-zoom-in"></use></svg></button>
           <button class="icon-button" data-action="fit" id="fit" title="Ajustar al lienzo" aria-label="Ajustar al lienzo"><svg class="icon"><use href="#icon-fit"></use></svg></button>
+          <select class="stage-height-select" id="stage-height-select" title="Altura del lienzo" aria-label="Altura del lienzo">
+            <option value="580">580px</option>
+            <option value="720" selected>720px</option>
+            <option value="900">900px</option>
+          </select>
         </div>
         <div class="toolgroup sample-pill" data-group="background">
           <span class="pill"><span class="swatch" id="swatch"></span><span id="sample-text">No sample</span></span>
@@ -1391,6 +1420,11 @@
           <span class="pill" id="zoom-pill-center" title="Nivel de zoom"><svg class="icon"><use href="#icon-zoom-in"></use></svg><span>1×</span></span>
           <button class="icon-button" data-action="zoom-in" id="zoom-in-center" title="Acercar" aria-label="Acercar"><svg class="icon"><use href="#icon-zoom-in"></use></svg></button>
           <button class="icon-button" data-action="fit" id="fit-center" title="Ajustar al lienzo" aria-label="Ajustar al lienzo"><svg class="icon"><use href="#icon-fit"></use></svg></button>
+          <select class="stage-height-select" id="stage-height-select-center" title="Altura del lienzo" aria-label="Altura del lienzo">
+            <option value="580">580px</option>
+            <option value="720" selected>720px</option>
+            <option value="900">900px</option>
+          </select>
         </div>
         <div class="toolgroup guide-status" data-group="center">
           <span class="pill" id="mode-pill">Centrado</span>
@@ -1401,6 +1435,11 @@
           <span class="pill" id="zoom-pill-cut" title="Nivel de zoom"><svg class="icon"><use href="#icon-zoom-in"></use></svg><span>1×</span></span>
           <button class="icon-button" data-action="zoom-in" id="zoom-in-cut" title="Acercar" aria-label="Acercar"><svg class="icon"><use href="#icon-zoom-in"></use></svg></button>
           <button class="icon-button" data-action="fit" id="fit-cut" title="Ajustar al lienzo" aria-label="Ajustar al lienzo"><svg class="icon"><use href="#icon-fit"></use></svg></button>
+          <select class="stage-height-select" id="stage-height-select-cut" title="Altura del lienzo" aria-label="Altura del lienzo">
+            <option value="580">580px</option>
+            <option value="720" selected>720px</option>
+            <option value="900">900px</option>
+          </select>
           <span class="pill" id="cut-mode-pill"><svg class="icon"><use href="#icon-cut"></use></svg><span>Cortes</span></span>
         </div>
       </div>
@@ -1519,6 +1558,44 @@
       const zoomOutCutButton = document.getElementById("zoom-out-cut");
       const zoomInCutButton = document.getElementById("zoom-in-cut");
       const fitCutButton = document.getElementById("fit-cut");
+      const stageHeightSelect = document.getElementById("stage-height-select");
+      const stageHeightSelectCenter = document.getElementById("stage-height-select-center");
+      const stageHeightSelectCut = document.getElementById("stage-height-select-cut");
+      const heightSelects = [stageHeightSelect, stageHeightSelectCenter, stageHeightSelectCut].filter(Boolean);
+      const STAGE_HEIGHT_STORAGE_KEY = "sprite-builder:stage-height";
+
+      function applyStageHeight(height, save = true) {
+        const val = [580, 720, 900].includes(Number(height)) ? Number(height) : 720;
+        document.documentElement.style.setProperty("--stage-height", `${val}px`);
+        heightSelects.forEach((select) => {
+          if (select.value !== String(val)) {
+            select.value = String(val);
+          }
+        });
+        if (save) {
+          try {
+            localStorage.setItem(STAGE_HEIGHT_STORAGE_KEY, String(val));
+          } catch (e) {}
+        }
+        requestAnimationFrame(() => {
+          setFrameHeight();
+          scheduleViewportFocus();
+        });
+        setTimeout(setFrameHeight, 60);
+      }
+
+      heightSelects.forEach((select) => {
+        select.addEventListener("change", (e) => {
+          applyStageHeight(e.target.value, true);
+        });
+      });
+
+      try {
+        const savedHeight = localStorage.getItem(STAGE_HEIGHT_STORAGE_KEY);
+        applyStageHeight(savedHeight || 720, false);
+      } catch (e) {
+        applyStageHeight(720, false);
+      }
       const guides = document.getElementById("guides");
       const guideTarget = document.getElementById("guide-target");
       const guideFrame = document.getElementById("guide-frame");
@@ -1893,7 +1970,7 @@
         const stageHeight = Math.ceil(stage.getBoundingClientRect().height || 0);
         const timelineHeight = Math.ceil(studioTimeline?.getBoundingClientRect().height || 0);
         const noteHeight = Math.ceil(document.querySelector(".overlay-note")?.getBoundingClientRect().height || 0);
-        const height = Math.max(480, toolbarHeight + stageHeight + timelineHeight + noteHeight + 32);
+        const height = Math.max(520, toolbarHeight + stageHeight + timelineHeight + noteHeight + 36);
         send(SET_FRAME_HEIGHT, { height });
       }
 
@@ -2060,23 +2137,29 @@
         zoomOutButton.hidden = centerMode;
         zoomInButton.hidden = centerMode;
         fitButton.hidden = centerMode;
+        if (stageHeightSelect) stageHeightSelect.hidden = centerMode;
         zoomOutButton.disabled = centerMode;
         zoomInButton.disabled = centerMode;
         fitButton.disabled = centerMode;
+        if (stageHeightSelect) stageHeightSelect.disabled = centerMode;
         zoomOutCenterButton.hidden = !centerMode;
         zoomInCenterButton.hidden = !centerMode;
         fitCenterButton.hidden = !centerMode;
+        if (stageHeightSelectCenter) stageHeightSelectCenter.hidden = !centerMode;
         zoomOutCenterButton.disabled = !centerMode;
         zoomInCenterButton.disabled = !centerMode;
         fitCenterButton.disabled = !centerMode;
+        if (stageHeightSelectCenter) stageHeightSelectCenter.disabled = !centerMode;
         zoomOutCutButton.hidden = !cutMode;
         zoomInCutButton.hidden = !cutMode;
         fitCutButton.hidden = !cutMode;
+        if (stageHeightSelectCut) stageHeightSelectCut.hidden = !cutMode;
         zoomOutCutButton.disabled = !cutMode;
         zoomInCutButton.disabled = !cutMode;
         fitCutButton.disabled = !cutMode;
+        if (stageHeightSelectCut) stageHeightSelectCut.disabled = !cutMode;
         if (zoomPillCut) {
-          setPillValue(zoomPillCut, `${state.zoom}×`);
+          setPillValue(zoomPillCut, formatZoomLabel(state.zoom));
         }
         autocenterButton.hidden = !centerMode || !state.showAutocenter;
         autocropButton.hidden = !centerMode || !state.showAutocrop;
@@ -2096,9 +2179,11 @@
           zoomOutButton.hidden = true;
           zoomInButton.hidden = true;
           fitButton.hidden = true;
+          if (stageHeightSelect) stageHeightSelect.hidden = true;
           zoomOutCenterButton.hidden = true;
           zoomInCenterButton.hidden = true;
           fitCenterButton.hidden = true;
+          if (stageHeightSelectCenter) stageHeightSelectCenter.hidden = true;
         }
         if (overlayNote) {
           overlayNote.innerHTML = centerMode
@@ -2310,7 +2395,7 @@
         if (!snapshot) {
           return false;
         }
-        state.zoom = Math.max(1, Math.round(Number(snapshot.zoom || args.zoom || state.zoom || 8)));
+        state.zoom = clampZoom(snapshot.zoom || args.zoom || state.zoom || 8);
         state.offsetX = Math.round(Number.isFinite(snapshot.offsetX) ? snapshot.offsetX : state.offsetX);
         state.offsetY = Math.round(Number.isFinite(snapshot.offsetY) ? snapshot.offsetY : state.offsetY);
         state.tool = normalizeTool(String(snapshot.tool || args.tool || state.tool || "wand"));
@@ -2732,16 +2817,52 @@
         requestAnimationFrame(focusViewportOnOverlay);
       }
 
+      function clampZoom(value, defaultZoom = 8) {
+        const parsed = Number(value ?? defaultZoom);
+        if (isNaN(parsed) || parsed <= 0) return defaultZoom;
+        if (parsed >= 1) {
+          return Math.max(1, Math.min(40, Math.round(parsed * 10) / 10));
+        }
+        return Math.max(0.05, Math.min(1, Math.round(parsed * 100) / 100));
+      }
+
+      function formatZoomLabel(zoom) {
+        if (zoom >= 1) {
+          return `${Math.round(zoom * 10) / 10}×`;
+        }
+        return `${Number(zoom.toFixed(2))}×`;
+      }
+
+      function zoomInStep(current) {
+        if (current < 0.95) {
+          const next = current * 1.25;
+          return next >= 0.95 ? 1 : Math.round(next * 100) / 100;
+        }
+        return Math.min(40, Math.round(current + 1));
+      }
+
+      function zoomOutStep(current) {
+        if (current <= 1.05) {
+          const next = Math.max(0.05, current * 0.8);
+          return Math.round(next * 100) / 100;
+        }
+        return Math.max(1, Math.round(current - 1));
+      }
+
       function setZoom(value, announce = false) {
-        const next = Math.max(1, Math.min(40, Math.round(value)));
-        const changed = state.zoom !== next;
+        const next = clampZoom(value, state.zoom || 8);
+        const changed = Math.abs(state.zoom - next) > 0.001;
         state.zoom = next;
         canvas.style.width = `${state.width * next}px`;
         canvas.style.height = `${state.height * next}px`;
-        setPillValue(zoomPill, `${next}×`);
+        const label = formatZoomLabel(next);
+        setPillValue(zoomPill, label);
         const centerPill = document.getElementById("zoom-pill-center");
         if (centerPill) {
-          setPillValue(centerPill, `${next}×`);
+          setPillValue(centerPill, label);
+        }
+        if (zoomPillCut) {
+          setPillValue(zoomPillCut, label);
         }
         if (announce) {
           emitValue({
@@ -2759,11 +2880,16 @@
       }
 
       function computeFitZoom() {
+        if (!state.width || !state.height) return 1;
         const viewportWidth = Math.max(1, stage.clientWidth - 36);
         const viewportHeight = Math.max(1, stage.clientHeight - 36);
         const zoomX = viewportWidth / state.width;
         const zoomY = viewportHeight / state.height;
-        return Math.max(1, Math.min(40, Math.floor(Math.min(zoomX, zoomY))));
+        const fitScale = Math.min(zoomX, zoomY);
+        if (fitScale < 1) {
+          return Math.max(0.05, Math.floor(fitScale * 100) / 100);
+        }
+        return Math.max(1, Math.min(40, Math.floor(fitScale)));
       }
 
       function updateSample(sample) {
@@ -3905,8 +4031,11 @@
           return;
         }
         event.preventDefault();
-        const delta = event.deltaY < 0 ? 1 : -1;
-        setZoom(state.zoom + delta, false);
+        if (event.deltaY < 0) {
+          setZoom(state.zoom < 1 ? zoomInStep(state.zoom) : state.zoom + 1, false);
+        } else {
+          setZoom(state.zoom <= 1 ? zoomOutStep(state.zoom) : state.zoom - 1, false);
+        }
       }, { passive: false });
 
       function handleEditorKeyDown(event) {
@@ -4242,12 +4371,20 @@
           return;
         }
         if (action === "zoom-in") {
-          setZoom(state.zoom + 1, false);
+          if (state.zoom < 1) {
+            setZoom(zoomInStep(state.zoom), false);
+          } else {
+            setZoom(state.zoom + 1, false);
+          }
           focusCanvas();
           return;
         }
         if (action === "zoom-out") {
-          setZoom(state.zoom - 1, false);
+          if (state.zoom <= 1) {
+            setZoom(zoomOutStep(state.zoom), false);
+          } else {
+            setZoom(state.zoom - 1, false);
+          }
           focusCanvas();
           return;
         }
@@ -4829,7 +4966,7 @@
             state.activeFrameToken = state.frameToken;
             const restored = restoreFrameState(frameStateByToken.get(state.frameToken), args);
             if (!restored && state.mode === "segmentation-center") {
-              state.zoom = Math.max(1, Math.round(Number(args.zoom || state.zoom || 8)));
+              state.zoom = clampZoom(args.zoom || state.zoom || 8);
             }
           }
           if (
@@ -4843,7 +4980,7 @@
             state.initialized = true;
             focusAfterRender = true;
           } else if (!state.initialized) {
-            state.zoom = Math.max(1, Math.round(Number(args.zoom || state.zoom || 8)));
+            state.zoom = clampZoom(args.zoom || state.zoom || 8);
             state.initialized = true;
           }
           redraw();

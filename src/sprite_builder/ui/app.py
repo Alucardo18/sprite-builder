@@ -2189,8 +2189,8 @@ def _handle_layer_editor_event(
         return True
     if event_type == "toolbar" and event.get("action") == "zoom":
         st.session_state[f"{prefix}:layer_editor_zoom"] = max(
-            1,
-            min(40, int(event.get("zoom", 12))),
+            0.05,
+            min(40.0, float(event.get("zoom", 12))),
         )
         return True
     if event_type == "toolbar" and event.get("action") == "brush-radius":
@@ -3285,8 +3285,8 @@ def _handle_background_editor_event(
             )
             return True
         if action == "zoom":
-            zoom = int(event.get("zoom", st.session_state.get(f"{prefix}:background_zoom", 8)))
-            st.session_state[f"{prefix}:background_zoom"] = max(1, min(40, zoom))
+            zoom = float(event.get("zoom", st.session_state.get(f"{prefix}:background_zoom", 8)))
+            st.session_state[f"{prefix}:background_zoom"] = max(0.05, min(40.0, zoom))
             return True
         return False
 
@@ -3746,10 +3746,10 @@ def _handle_center_editor_event(
         return False
     st.session_state[f"{prefix}:center_last_event"] = event_id
     if "zoom" in event:
-        zoom = int(event["zoom"])
+        zoom = float(event["zoom"])
         st.session_state[f"{prefix}:center_zoom:{selected_frame}"] = max(
-            1,
-            min(40, zoom),
+            0.05,
+            min(40.0, zoom),
         )
     offsets = list(st.session_state.get(f"{prefix}:offsets", [(0, 0)] * count))
     if len(offsets) != count:
@@ -3794,8 +3794,8 @@ def _handle_center_editor_event(
         return True
     if action == "zoom":
         zoom_key = f"{prefix}:center_zoom:{selected_frame}"
-        zoom = int(event.get("zoom", st.session_state.get(zoom_key, 12)))
-        st.session_state[zoom_key] = max(1, min(40, zoom))
+        zoom = float(event.get("zoom", st.session_state.get(zoom_key, 12)))
+        st.session_state[zoom_key] = max(0.05, min(40.0, zoom))
         return True
     if action == "toggle-guides":
         key = f"{prefix}:center_guides"
@@ -3872,8 +3872,8 @@ def _handle_segmentation_cut_event(
     st.session_state[f"{prefix}:segmentation_cut_last_event"] = event_id
     if event.get("type") != "cut":
         if event.get("type") == "toolbar" and str(event.get("action", "")) == "zoom":
-            zoom = int(event.get("zoom", st.session_state.get(f"{prefix}:segmentation_cut_zoom", 8)))
-            st.session_state[f"{prefix}:segmentation_cut_zoom"] = max(1, min(40, zoom))
+            zoom = float(event.get("zoom", st.session_state.get(f"{prefix}:segmentation_cut_zoom", 8)))
+            st.session_state[f"{prefix}:segmentation_cut_zoom"] = max(0.05, min(40.0, zoom))
             return True
         return False
     if orientation == "grid":
@@ -5377,7 +5377,7 @@ def main() -> None:
                     sample=None,
                     tool="drag",
                     mode="segmentation-cut",
-                    zoom=int(st.session_state[f"{prefix}:segmentation_cut_zoom"]),
+                    zoom=float(st.session_state[f"{prefix}:segmentation_cut_zoom"]),
                     cut_positions=st.session_state[f"{prefix}:segmentation_cut_positions"],
                     cut_positions_x=st.session_state.get(
                         f"{prefix}:segmentation_cut_positions_x", ()
@@ -5525,10 +5525,10 @@ def main() -> None:
                         sample=None,
                         tool="drag",
                         mode="segmentation-center",
-                        zoom=int(
+                        zoom=float(
                             st.session_state.get(
                                 f"{prefix}:center_zoom:{crop_selected}",
-                                8,
+                                8.0,
                             )
                         ),
                         offset_x=crop_position[0],
@@ -5755,7 +5755,7 @@ def main() -> None:
                     else None
                 ),
             )
-            tool_zoom = int(st.session_state[f"{prefix}:background_zoom"])
+            tool_zoom = float(st.session_state[f"{prefix}:background_zoom"])
             editor_box = st.container(border=True)
             with editor_box:
                 st.markdown(
@@ -6694,7 +6694,7 @@ def main() -> None:
                                 tool=_normalize_layer_tool(st.session_state[tool_key]),
                                 mode="layer-edit",
                                 brush_radius=brush_radius,
-                                zoom=int(st.session_state.get(f"{prefix}:layer_editor_zoom", 12)),
+                                zoom=float(st.session_state.get(f"{prefix}:layer_editor_zoom", 12.0)),
                                 offset_x=active_cel.offset_x,
                                 offset_y=active_cel.offset_y,
                                 home_offset_x=active_cel.offset_x,
@@ -6993,8 +6993,8 @@ def main() -> None:
             center_zoom_key = f"{prefix}:center_zoom:{selected}"
             has_persisted_zoom = center_zoom_key in st.session_state
             center_zoom = max(
-                1,
-                min(40, int(st.session_state.get(center_zoom_key, 12))),
+                0.05,
+                min(40.0, float(st.session_state.get(center_zoom_key, 12.0))),
             )
             history_controls = _history_controls(session)
             event = pixel_editor(
