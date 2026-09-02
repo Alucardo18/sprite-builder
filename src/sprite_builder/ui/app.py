@@ -71,10 +71,19 @@ from sprite_builder.tilesets import (
     build_terrain_pattern_bundle,
     build_tileset_bundle,
     build_tilesetter_terrain_pattern,
+    format_tile_prompt,
+    generate_procedural_reference_tile,
+    get_material_template,
+    list_material_templates,
+    paint_tile_matrix,
+    flood_fill_matrix,
+    generate_paths_map,
+    generate_rooms_map,
     render_terrain_bitmask_template,
     resize_tileset,
     resize_tileset_canvas,
     slice_tileset,
+    terrain_edge_profiles,
     terrain_pattern_set_layout,
 )
 from sprite_builder.ui.components import (
@@ -90,7 +99,7 @@ _EDITOR_HISTORY_LIMIT = 75
 _TILESET_STATE_PREFIX = "tileset_builder"
 _APP_PAGE_KEY = "sprite_builder_page"
 _TILESET_TILE_SIZE_MIN = 1
-_TILESET_TILE_SIZE_MAX = 64
+_TILESET_TILE_SIZE_MAX = 128
 _UI_PATTERN_KINDS = frozenset({"blob_47", "wang_16", "sides_16", "dual_grid_15"})
 _DUAL_GRID_BACKGROUND_POSITION = (0, 3)
 
@@ -670,6 +679,13 @@ def _render_tileset_atlas_editor() -> None:
     if image is None:
         return
     grid = _tileset_grid_from_state()
+    quick_cols = st.columns((2.4, 1, 1, 1, 1, 1, 1), gap="small")
+    quick_cols[0].caption(f"Cuadrícula: **{grid.tile_width}×{grid.tile_height} px** (Presets):")
+    for col, sz in zip(quick_cols[1:], (16, 24, 32, 48, 64, 128)):
+        btn_type = "primary" if grid.tile_width == sz else "secondary"
+        if col.button(f"{sz}px", key=f"{prefix}:quick_size:{sz}", type=btn_type, width="stretch"):
+            st.session_state[f"{prefix}:tile_size"] = sz
+            st.rerun()
     event = tileset_editor(
         image,
         image_token=str(
@@ -739,6 +755,78 @@ def _render_tileset_atlas_editor() -> None:
         width="stretch",
         key=f"{prefix}:download_bundle",
     )
+
+
+def _add_material_tile_to_project(
+    material_id: str,
+    role: str,
+    custom_prompt: str = "",
+    seed: int = 42,
+) -> None:
+    template = get_material_template(material_id)
+    if template is None:
+        return
+    grid = _tileset_grid_from_state()
+    tw, th = grid.tile_width, grid.tile_height
+    tile_img = generate_procedural_reference_tile(material_id, (tw, th), seed=seed)
+
+    curr_image = _tileset_state_image()
+    if curr_image is None:
+        target_x, target_y = 0, 0
+        atlas = Image.new("RGBA", (tw * 4, th * 2), (0, 0, 0, 0))
+    else:
+        atlas_w, atlas_h = curr_image.size
+        target_x = atlas_w
+        target_y = 0
+        atlas = Image.new("RGBA", (atlas_w + tw, max(atlas_h, th)), (0, 0, 0, 0))
+        atlas.paste(curr_image, (0, 0))
+
+    atlas.paste(tile_img, (target_x, target_y))
+    _set_tileset_image(atlas, source_name="tileset_ai.png", reset_canvas=False)
+
+    prefix = f"{_TILESET_STATE_PREFIX}:patterns"
+    project_key = f"{prefix}:set_view_project"
+    raw_project = st.session_state.get(project_key)
+    project = dict(raw_project) if isinstance(raw_project, Mapping) else {}
+    project.setdefault("sources", [])
+    project.setdefault("sets", [])
+
+    source_id = f"src_{material_id}_{uuid.uuid4().hex[:6]}"
+    source_name = f"AI: {template.name}"
+    project["sources"].append({
+        "id": source_id,
+        "name": source_name,
+        "rect": [target_x, target_y, tw, th],
+    })
+
+    active_set_id = project.get("activeSetId")
+    sets = project.get("sets", [])
+    active_set = next((s for s in sets if isinstance(s, Mapping) and s.get("id") == active_set_id), None)
+    if active_set is None:
+        active_set_id = f"set_{uuid.uuid4().hex[:6]}"
+        active_set = {
+            "id": active_set_id,
+            "name": "Terreno AI",
+            "kind": "dual_grid_15",
+            "baseSource": source_id,
+            "secondarySource": None,
+            "terrainProfile": template.suggested_profile,
+            "cornerRadius": max(2, min(tw, th) // 6),
+            "retroOutline": True,
+            "edgeVariation": 1,
+            "edgeSeed": 42,
+        }
+        project["sets"].append(active_set)
+        project["activeSetId"] = active_set_id
+    else:
+        if role == "secondary":
+            active_set["secondarySource"] = source_id
+        else:
+            active_set["baseSource"] = source_id
+        if active_set.get("terrainProfile") in (None, "clean") and template.suggested_profile != "clean":
+            active_set["terrainProfile"] = template.suggested_profile
+
+    st.session_state[project_key] = project
 
 
 def _render_terrain_patterns() -> None:
@@ -926,6 +1014,111 @@ def _render_terrain_patterns() -> None:
         else:
             st.warning(f"Set generado inválido ({set_id or 'sin id'}): {error}")
 
+    if active_set is not None:
+        with st.expander("🎨 Bordes Redondeados, Contorno Retro y Texturas", expanded=True):
+            r_col1, r_col2, r_col3, r_col4 = st.columns((1.5, 1.2, 2, 1.3), gap="small")
+            max_r = max(1, min(grid.tile_width, grid.tile_height) // 2)
+            cur_r = max(0, min(max_r, int(active_set.get("cornerRadius", 0))))
+            new_r = int(
+                r_col1.slider(
+                    "Radio de esquina (px)",
+                    min_value=0,
+                    max_value=max_r,
+                    value=cur_r,
+                    key=f"{prefix}:set_corner_radius:{active_set_id}",
+                )
+            )
+            cur_outline = bool(active_set.get("retroOutline", False))
+            new_outline = bool(
+                r_col2.checkbox(
+                    "Contorno retro (1px)",
+                    value=cur_outline,
+                    key=f"{prefix}:set_retro_outline:{active_set_id}",
+                )
+            )
+            available_profiles = list(terrain_edge_profiles())
+            cur_profile = str(active_set.get("terrainProfile") or "clean")
+            if cur_profile not in available_profiles:
+                cur_profile = "clean"
+            profile_idx = available_profiles.index(cur_profile)
+            new_profile = r_col3.selectbox(
+                "Perfil de transición",
+                available_profiles,
+                index=profile_idx,
+                key=f"{prefix}:set_terrain_profile:{active_set_id}",
+            )
+            cur_var = max(0, min(3, int(active_set.get("edgeVariation", 0))))
+            new_var = int(
+                r_col4.slider(
+                    "Variación",
+                    min_value=0,
+                    max_value=3,
+                    value=cur_var,
+                    key=f"{prefix}:set_edge_var:{active_set_id}",
+                )
+            )
+            if (
+                new_r != cur_r
+                or new_outline != cur_outline
+                or new_profile != cur_profile
+                or new_var != cur_var
+            ):
+                active_set["cornerRadius"] = new_r
+                active_set["retroOutline"] = new_outline
+                active_set["terrainProfile"] = new_profile
+                active_set["edgeVariation"] = new_var
+                st.session_state[project_key] = project
+                st.rerun()
+
+    with st.expander("✨ Plantillas IA de Texturas (Generador de Materiales)", expanded=False):
+        st.caption(
+            "Crea muestras de texturas base rápidamente usando plantillas curadas con prompts de IA y síntesis inmediata para autotiling."
+        )
+        t_col1, t_col2 = st.columns((2, 1.5), gap="small")
+        templates = list_material_templates()
+        tmpl_names = [f"{t.name} ({t.category})" for t in templates]
+        selected_tmpl_idx = t_col1.selectbox(
+            "Plantilla de material",
+            range(len(templates)),
+            format_func=lambda i: tmpl_names[i],
+            key=f"{prefix}:ai_template_select",
+        )
+        chosen_tmpl = templates[selected_tmpl_idx]
+        target_role = t_col2.radio(
+            "Asignar como",
+            ("Base (Relleno)", "Secundario (Suelo/Fondo)"),
+            horizontal=True,
+            key=f"{prefix}:ai_role_select",
+        )
+        t_col1.info(f"**Descripción:** {chosen_tmpl.description} · *Perfil sugerido:* `{chosen_tmpl.suggested_profile}`")
+        custom_inst = st.text_input(
+            "Instrucciones o detalles de estilo adicionales (opcional)",
+            placeholder="Ej. estilo 16-bit SNES con flores silvestres, tonalidad otoñal...",
+            key=f"{prefix}:ai_custom_inst",
+        )
+        preview_prompt = format_tile_prompt(
+            chosen_tmpl.id,
+            custom_instruction=custom_inst,
+            tile_size=(grid.tile_width, grid.tile_height),
+        )
+        with st.expander("Ver prompt generado para IA", expanded=False):
+            st.code(preview_prompt, language="markdown")
+
+        gen_col1, gen_col2 = st.columns(2, gap="small")
+        if gen_col1.button(
+            "⚡ Generar y Asignar Muestra de Textura",
+            type="primary",
+            width="stretch",
+            key=f"{prefix}:ai_generate_apply",
+        ):
+            role_key = "secondary" if "Secundario" in target_role else "base"
+            _add_material_tile_to_project(
+                chosen_tmpl.id,
+                role=role_key,
+                custom_prompt=custom_inst,
+            )
+            st.rerun()
+
     with st.expander("Proyecto y exportación", expanded=True):
         name_col, status_col = st.columns((2.7, 1.3), gap="small")
         terrain_name = name_col.text_input(
@@ -1052,22 +1245,29 @@ def _render_terrain_patterns() -> None:
 
 
 def _render_tileset_map_tester() -> None:
-    """Render an interactive map testbed to preview Dual-Grid and Blob autotiles in real time."""
+    """Render an interactive map testbed and editor to preview Dual-Grid and Blob autotiles in real time."""
     from sprite_builder.tilesets.autotile import (
         autotile_blob47,
         autotile_dual_grid,
+        clear_tile_matrix,
+        flood_fill_matrix,
         generate_dungeon_map,
         generate_empty_map,
         generate_filled_map,
         generate_island_map,
         generate_noise_map,
+        generate_paths_map,
+        generate_rooms_map,
+        invert_tile_matrix,
+        paint_tile_matrix,
     )
 
     prefix = f"{_TILESET_STATE_PREFIX}:map_tester"
-    st.subheader("Map Tester")
+    st.subheader("Map Studio & Tester")
     st.caption(
-        "Prueba tus autotiles directamente sobre un mapa interactivo. Observa cómo las reglas "
-        "de conexión (Dual-Grid 15 o Blob 47) resuelven esquinas, bordes y pasillos en tiempo real."
+        "Diseña mapas interactivos y prueba tus autotiles directamente en tiempo real. "
+        "Dibuja con pincel, borrador o cubeta, o genera mapas procedurales (islas, cuevas, habitaciones, caminos) "
+        "con resolución matemática pixel-perfect."
     )
 
     image = _tileset_state_image()
@@ -1120,8 +1320,16 @@ def _render_tileset_map_tester() -> None:
 
     ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns((2, 1.2, 1.2, 1.5), gap="small")
     preset_choice = ctrl_col1.selectbox(
-        "Mapa predefinido",
-        ("Isla central", "Cueva / Mazmorra", "Ruido celular", "Todo lleno", "Vacío"),
+        "Generador procedural / Preset",
+        (
+            "Isla central",
+            "Cueva / Mazmorra",
+            "Habitaciones conectadas",
+            "Caminos / Senderos",
+            "Ruido celular",
+            "Todo lleno",
+            "Vacío",
+        ),
         key=f"{prefix}:preset_choice",
     )
     map_w = int(ctrl_col2.number_input("Columnas", min_value=4, max_value=48, value=16, step=2, key=f"{prefix}:map_w"))
@@ -1135,6 +1343,10 @@ def _render_tileset_map_tester() -> None:
             curr_matrix = generate_island_map(map_w, map_h)
         elif preset_choice == "Cueva / Mazmorra":
             curr_matrix = generate_dungeon_map(map_w, map_h)
+        elif preset_choice == "Habitaciones conectadas":
+            curr_matrix = generate_rooms_map(map_w, map_h)
+        elif preset_choice == "Caminos / Senderos":
+            curr_matrix = generate_paths_map(map_w, map_h)
         elif preset_choice == "Ruido celular":
             curr_matrix = generate_noise_map(map_w, map_h)
         elif preset_choice == "Todo lleno":
@@ -1143,15 +1355,64 @@ def _render_tileset_map_tester() -> None:
             curr_matrix = generate_empty_map(map_w, map_h)
         st.session_state[map_key] = curr_matrix
 
+    with st.expander("🛠️ Herramientas de Edición Manual (Pincel, Borrador, Cubeta)", expanded=True):
+        tool_col1, tool_col2, tool_col3, tool_col4, tool_col5 = st.columns((2.3, 1.2, 1, 1, 1.3), gap="small")
+        paint_tool = tool_col1.radio(
+            "Herramienta",
+            ("✏️ Pincel (Suelo)", "🧹 Borrador (Vacío)", "🪣 Cubeta (Fill)"),
+            horizontal=True,
+            key=f"{prefix}:paint_tool",
+        )
+        brush_sz = int(
+            tool_col2.select_slider(
+                "Tamaño brocha",
+                options=[1, 2, 3],
+                value=1,
+                key=f"{prefix}:brush_sz",
+            )
+        )
+        coord_x = int(
+            tool_col3.number_input(
+                "X",
+                min_value=0,
+                max_value=max(0, map_w - 1),
+                value=min(map_w - 1, map_w // 2),
+                key=f"{prefix}:coord_x",
+            )
+        )
+        coord_y = int(
+            tool_col4.number_input(
+                "Y",
+                min_value=0,
+                max_value=max(0, map_h - 1),
+                value=min(map_h - 1, map_h // 2),
+                key=f"{prefix}:coord_y",
+            )
+        )
+        if tool_col5.button("🎯 Aplicar en (X, Y)", key=f"{prefix}:paint_click", type="primary", width="stretch"):
+            val = "Pincel" in paint_tool
+            if "Cubeta" in paint_tool:
+                st.session_state[map_key] = flood_fill_matrix(st.session_state[map_key], coord_x, coord_y, val)
+            else:
+                st.session_state[map_key] = paint_tile_matrix(
+                    st.session_state[map_key], coord_x, coord_y, val, brush_size=brush_sz
+                )
+            st.rerun()
+
     btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4, gap="small")
     if btn_col1.button("🎲 Regenerar preset", key=f"{prefix}:regen", width="stretch"):
+        import random
+        rnd_seed = random.randint(1, 999999)
         if preset_choice == "Isla central":
             st.session_state[map_key] = generate_island_map(map_w, map_h)
         elif preset_choice == "Cueva / Mazmorra":
             st.session_state[map_key] = generate_dungeon_map(map_w, map_h)
+        elif preset_choice == "Habitaciones conectadas":
+            st.session_state[map_key] = generate_rooms_map(map_w, map_h, seed=rnd_seed)
+        elif preset_choice == "Caminos / Senderos":
+            st.session_state[map_key] = generate_paths_map(map_w, map_h, seed=rnd_seed)
         elif preset_choice == "Ruido celular":
-            import random
-            st.session_state[map_key] = generate_noise_map(map_w, map_h, seed=random.randint(1, 999999))
+            st.session_state[map_key] = generate_noise_map(map_w, map_h, seed=rnd_seed)
         elif preset_choice == "Todo lleno":
             st.session_state[map_key] = generate_filled_map(map_w, map_h)
         else:
@@ -1159,11 +1420,11 @@ def _render_tileset_map_tester() -> None:
         st.rerun()
 
     if btn_col2.button("🧹 Limpiar mapa", key=f"{prefix}:clear", width="stretch"):
-        st.session_state[map_key] = generate_empty_map(map_w, map_h)
+        st.session_state[map_key] = clear_tile_matrix(map_w, map_h)
         st.rerun()
 
     if btn_col3.button("⬛ Invertir terreno", key=f"{prefix}:invert", width="stretch"):
-        st.session_state[map_key] = [[not cell for cell in row] for row in st.session_state[map_key]]
+        st.session_state[map_key] = invert_tile_matrix(st.session_state[map_key])
         st.rerun()
 
     matrix = st.session_state[map_key]
@@ -1191,13 +1452,32 @@ def _render_tileset_map_tester() -> None:
 
     map_png = io.BytesIO()
     rendered.save(map_png, format="PNG")
-    btn_col4.download_button(
-        "💾 Descargar mapa PNG",
+    map_json = json.dumps(
+        {
+            "width": map_w,
+            "height": map_h,
+            "rule": kind,
+            "grid": matrix,
+        },
+        indent=2,
+    ).encode("utf-8")
+
+    dl_col1, dl_col2 = st.columns(2, gap="small")
+    dl_col1.download_button(
+        "💾 Descargar mapa renderizado (PNG)",
         data=map_png.getvalue(),
-        file_name=f"tileset-map-{kind}-{map_w}x{map_h}.png",
+        file_name=f"map-{kind}-{map_w}x{map_h}.png",
         mime="image/png",
         width="stretch",
-        key=f"{prefix}:download_map",
+        key=f"{prefix}:download_map_png",
+    )
+    dl_col2.download_button(
+        "📄 Descargar matriz lógica (JSON)",
+        data=map_json,
+        file_name=f"map-{kind}-{map_w}x{map_h}.json",
+        mime="application/json",
+        width="stretch",
+        key=f"{prefix}:download_map_json",
     )
 
 

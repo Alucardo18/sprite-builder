@@ -469,7 +469,7 @@ def test_set_view_project_import_restores_valid_square_tile_size_atomically() ->
 
 @pytest.mark.parametrize(
     "tile_size",
-    (None, [8], [8, "8"], [0, 0], [65, 65], [8, 16], [True, True]),
+    (None, [8], [8, "8"], [0, 0], [129, 129], [8, 16], [True, True]),
 )
 def test_set_view_project_import_rejects_invalid_tile_size_without_mutation(
     tile_size: object,

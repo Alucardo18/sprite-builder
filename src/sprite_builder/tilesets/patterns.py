@@ -22,6 +22,9 @@ TerrainEdgeProfile = Literal[
     "grass_over_dirt",
     "dirt_over_water",
     "grass_over_water",
+    "rounded_clean",
+    "rounded_grass_tufts",
+    "rounded_dither",
 ]
 # Public compatibility alias retained for callers that adopted the original
 # Dual Grid-only API. The same material grammars now apply to every pattern.
@@ -61,13 +64,21 @@ _DUAL_GRID_TILEMAP_DUAL_PEERING_CORNERS = (
 )
 _DUAL_GRID_EMPTY_POSITION = (0, 3)
 _DUAL_GRID_FOREGROUND_MASK = 15
-_TERRAIN_EDGE_PROFILES: tuple[TerrainEdgeProfile, ...] = (
+_DUAL_GRID_TERRAIN_PROFILES: tuple[DualGridTerrainProfile, ...] = (
     "clean",
     "grass_over_dirt",
     "dirt_over_water",
     "grass_over_water",
 )
-_DUAL_GRID_TERRAIN_PROFILES = _TERRAIN_EDGE_PROFILES
+_TERRAIN_EDGE_PROFILES: tuple[TerrainEdgeProfile, ...] = (
+    "clean",
+    "grass_over_dirt",
+    "dirt_over_water",
+    "grass_over_water",
+    "rounded_clean",
+    "rounded_grass_tufts",
+    "rounded_dither",
+)
 _DUAL_GRID_EDGE_VARIATION_MAX = 3
 _DUAL_GRID_EDGE_SEED_MAX = 999_999
 _WANG_PATTERN_KINDS = frozenset(("wang_16", "dual_grid_15"))
@@ -165,6 +176,8 @@ class TerrainPatternResult:
     terrain_profile: TerrainEdgeProfile | None = None
     edge_variation: int = 0
     edge_seed: int = 0
+    corner_radius: int = 0
+    retro_outline: bool = False
 
     @property
     def complete(self) -> bool:
@@ -317,13 +330,13 @@ def _terrain_mode(kind: TerrainPatternKind) -> str:
 def terrain_edge_profiles() -> tuple[TerrainEdgeProfile, ...]:
     """Return the stable material-pair profile identifiers for every pattern."""
 
-    return _DUAL_GRID_TERRAIN_PROFILES
+    return _TERRAIN_EDGE_PROFILES
 
 
 def dual_grid_terrain_profiles() -> tuple[DualGridTerrainProfile, ...]:
     """Compatibility alias for the original Dual Grid profile API."""
 
-    return terrain_edge_profiles()
+    return _DUAL_GRID_TERRAIN_PROFILES
 
 
 def _normalize_terrain_edge_style(
@@ -332,7 +345,7 @@ def _normalize_terrain_edge_style(
     seed: object = 0,
 ) -> tuple[TerrainEdgeProfile, int, int]:
     profile_name = str(profile or "clean")
-    if profile_name not in _DUAL_GRID_TERRAIN_PROFILES:
+    if profile_name not in _TERRAIN_EDGE_PROFILES:
         raise ValueError(f"Unsupported terrain edge profile: {profile_name}")
     try:
         variation_level = int(cast(str | bytes | bytearray | int | float, variation))
@@ -394,6 +407,148 @@ def _wang_bitmap_mask(mask: int, width: int, height: int) -> np.ndarray:
     return _wang_bitmap_coverage(mask, width, height) >= 0.5
 
 
+def _rounded_corner_coverage(
+    mask: int,
+    width: int,
+    height: int,
+    *,
+    radius: int = 0,
+    kind: TerrainPatternKind = "blob_47",
+) -> np.ndarray:
+    """Compute terrain coverage with analytical rounded corner fillets.
+
+    Calculates quarter-circle fillet curves for outer corners and inner notches,
+    replacing sharp 90-degree or 45-degree seams with smooth curved pixel profiles.
+    """
+    if radius <= 0:
+        if _is_wang_pattern(kind):
+            return _wang_bitmap_coverage(mask, width, height)
+        elif kind == "sides_16":
+            return _blob_bitmap_coverage(_sides_blob_mask(mask), width, height)
+        return _blob_bitmap_coverage(mask, width, height)
+
+    max_r = max(1, min(width, height) // 2)
+    r = min(max_r, max(0, int(radius)))
+
+    if _is_wang_pattern(kind):
+        cov = _wang_bitmap_coverage(mask, width, height).copy()
+        nw, ne, se, sw = (bool(mask & (1 << i)) for i in range(4))
+        # Top-Left (NW)
+        if nw and not ne and not sw:
+            for y in range(r):
+                for x in range(r):
+                    if (r - x) ** 2 + (r - y) ** 2 > r ** 2:
+                        cov[y, x] = min(cov[y, x], 0.2)
+        elif not nw and ne and sw:
+            for y in range(r):
+                for x in range(r):
+                    if x ** 2 + y ** 2 < r ** 2:
+                        cov[y, x] = min(cov[y, x], 0.2)
+        # Top-Right (NE)
+        if ne and not nw and not se:
+            for y in range(r):
+                for dx in range(r):
+                    x = width - 1 - dx
+                    if (r - dx) ** 2 + (r - y) ** 2 > r ** 2:
+                        cov[y, x] = min(cov[y, x], 0.2)
+        elif not ne and nw and se:
+            for y in range(r):
+                for dx in range(r):
+                    x = width - 1 - dx
+                    if dx ** 2 + y ** 2 < r ** 2:
+                        cov[y, x] = min(cov[y, x], 0.2)
+        # Bottom-Right (SE)
+        if se and not ne and not sw:
+            for dy in range(r):
+                y = height - 1 - dy
+                for dx in range(r):
+                    x = width - 1 - dx
+                    if (r - dx) ** 2 + (r - dy) ** 2 > r ** 2:
+                        cov[y, x] = min(cov[y, x], 0.2)
+        elif not se and ne and sw:
+            for dy in range(r):
+                y = height - 1 - dy
+                for dx in range(r):
+                    x = width - 1 - dx
+                    if dx ** 2 + dy ** 2 < r ** 2:
+                        cov[y, x] = min(cov[y, x], 0.2)
+        # Bottom-Left (SW)
+        if sw and not nw and not se:
+            for dy in range(r):
+                y = height - 1 - dy
+                for x in range(r):
+                    if (r - x) ** 2 + (r - dy) ** 2 > r ** 2:
+                        cov[y, x] = min(cov[y, x], 0.2)
+        elif not sw and nw and se:
+            for dy in range(r):
+                y = height - 1 - dy
+                for x in range(r):
+                    if x ** 2 + dy ** 2 < r ** 2:
+                        cov[y, x] = min(cov[y, x], 0.2)
+        return cov
+    else:
+        blob_m = _sides_blob_mask(mask) if kind == "sides_16" else mask
+        cov = _blob_bitmap_coverage(blob_m, width, height).copy()
+        neighbors = set(_tile_neighbors(kind, blob_m))
+
+        corners = (
+            ("top_left", "top", "left", 0, 0, 1, 1),
+            ("top_right", "top", "right", width - 1, 0, -1, 1),
+            ("bottom_right", "bottom", "right", width - 1, height - 1, -1, -1),
+            ("bottom_left", "bottom", "left", 0, height - 1, 1, -1),
+        )
+        for diag, first, second, start_x, start_y, step_x, step_y in corners:
+            # Outer corner: both cardinal edges missing
+            if first not in neighbors and second not in neighbors:
+                for dy in range(r):
+                    py = start_y + dy * step_y
+                    for dx in range(r):
+                        px = start_x + dx * step_x
+                        if (r - dx) ** 2 + (r - dy) ** 2 > r ** 2:
+                            cov[py, px] = 0.0
+            # Inner corner: cardinal edges present but diagonal missing
+            elif first in neighbors and second in neighbors and diag not in neighbors:
+                for dy in range(r):
+                    py = start_y + dy * step_y
+                    for dx in range(r):
+                        px = start_x + dx * step_x
+                        if dx ** 2 + dy ** 2 < r ** 2:
+                            cov[py, px] = 0.0
+        return cov
+
+
+def _apply_retro_outline(
+    image: Image.Image,
+    mask: np.ndarray,
+    *,
+    outline_color: tuple[int, int, int, int] = (22, 26, 34, 255),
+    strength: float = 0.72,
+) -> Image.Image:
+    """Apply a crisp 1-pixel dark retro outline along the terrain perimeter."""
+    arr = np.asarray(image, dtype=np.uint8).copy()
+    h, w = mask.shape
+    inside = np.asarray(mask, dtype=bool)
+
+    if not np.any(inside) or np.all(inside):
+        return image
+
+    padded = np.pad(inside, 1, mode="constant", constant_values=False)
+    up = padded[:h, 1 : w + 1]
+    down = padded[2:, 1 : w + 1]
+    left = padded[1 : h + 1, :w]
+    right = padded[1 : h + 1, 2:]
+
+    border = inside & ~(up & down & left & right)
+    if not np.any(border):
+        return image
+
+    target = np.array(outline_color[:3], dtype=np.float32)
+    original = arr[..., :3].astype(np.float32)
+    blended = original * (1.0 - strength) + target * strength
+    arr[border, :3] = np.clip(blended[border], 0, 255).astype(np.uint8)
+    return Image.fromarray(arr, mode="RGBA")
+
+
 def _dual_grid_texture_field(
     width: int,
     height: int,
@@ -418,15 +573,21 @@ def _dual_grid_texture_field(
         high_frequency = 2 + digest[1] % 2
         bias = 0.28
         low_weight, high_weight, cross_weight = 0.58, 0.22, 0.20
-    else:  # grass_over_water
+    elif profile == "grass_over_water":
         low_frequency = 2 + digest[0] % 2
         high_frequency = 3 + digest[1] % 3
-        # Let a restrained amount of water bite into the grass silhouette.
-        # Keeping this bias on the opposite side of the other two profiles is
-        # important on small pixel grids, where sub-pixel waves can otherwise
-        # quantize to the exact same bitmap for every material pair.
         bias = -0.10
         low_weight, high_weight, cross_weight = 0.34, 0.46, 0.20
+    elif profile == "rounded_grass_tufts":
+        low_frequency = 3 + digest[0] % 2
+        high_frequency = 5 + digest[1] % 2
+        bias = 0.05
+        low_weight, high_weight, cross_weight = 0.40, 0.40, 0.20
+    else:  # rounded_clean, rounded_dither, clean
+        low_frequency = 2
+        high_frequency = 4
+        bias = 0.0
+        low_weight, high_weight, cross_weight = 0.30, 0.50, 0.20
 
     sign = -1.0 if digest[2] & 1 else 1.0
     low = (
@@ -450,6 +611,7 @@ def _dual_grid_profile_coverage(
     profile: TerrainEdgeProfile = "clean",
     variation: int = 0,
     seed: int = 0,
+    corner_radius: int = 0,
 ) -> np.ndarray:
     """Return styled coverage while keeping compatible atlas edges deterministic."""
 
@@ -459,14 +621,35 @@ def _dual_grid_profile_coverage(
         else _normalize_terrain_edge_style
     )
     profile, variation, seed = normalizer(profile, variation, seed)
-    if _is_wang_pattern(kind):
+    if corner_radius > 0 or profile in {"rounded_clean", "rounded_grass_tufts", "rounded_dither"}:
+        eff_radius = (
+            corner_radius
+            if corner_radius > 0
+            else max(1, (variation + 1) * max(1, min(width, height) // 16))
+        )
+        coverage = _rounded_corner_coverage(mask, width, height, radius=eff_radius, kind=kind)
+    elif _is_wang_pattern(kind):
         coverage = _wang_bitmap_coverage(mask, width, height)
     elif kind == "sides_16":
         coverage = _blob_bitmap_coverage(_sides_blob_mask(mask), width, height)
     else:
         coverage = _blob_bitmap_coverage(mask, width, height)
-    if profile == "clean" or variation == 0 or mask in _profile_terminal_masks(kind):
+
+    if profile in {"clean", "rounded_clean"} or variation == 0 or mask in _profile_terminal_masks(kind):
         return coverage
+
+    if profile == "rounded_grass_tufts":
+        field = _dual_grid_texture_field(width, height, profile="rounded_grass_tufts", seed=seed)
+        tufts = (field > 0.40).astype(np.float32) * 0.16
+        coverage = np.clip(coverage + tufts, 0.0, 1.0)
+        return np.asarray(coverage, dtype=np.float32)
+
+    if profile == "rounded_dither":
+        yy, xx = np.indices((height, width))
+        bayer = np.where((xx % 2 == 0) == (yy % 2 == 0), 0.10, -0.10).astype(np.float32)
+        near_boundary = (coverage > 0.3) & (coverage < 0.7)
+        coverage = np.where(near_boundary, np.clip(coverage + bayer, 0.0, 1.0), coverage)
+        return np.asarray(coverage, dtype=np.float32)
 
     # A displacement below one source pixel frequently vanishes after the
     # boolean threshold (all three profiles used to collapse to the same
@@ -477,7 +660,7 @@ def _dual_grid_profile_coverage(
         "grass_over_dirt": 1.0,
         "dirt_over_water": 0.84,
         "grass_over_water": 0.92,
-    }[profile]
+    }.get(profile, 1.0)
     amplitude = min(0.24, requested_pixels * profile_scale / max(2, min(width, height)))
     field = _dual_grid_texture_field(width, height, profile=profile, seed=seed)
     x = np.arange(width, dtype=np.float32) / max(1, width - 1)
@@ -612,6 +795,8 @@ def _render_dual_grid_pixels(
     base_output: np.ndarray | None = None,
     coverage_override: np.ndarray | None = None,
     profile_mask: np.ndarray | None = None,
+    corner_radius: int = 0,
+    retro_outline: bool = False,
 ) -> np.ndarray:
     """Compose a pattern role with material-specific pixel-art edge bands."""
 
@@ -631,6 +816,7 @@ def _render_dual_grid_pixels(
             profile=profile,
             variation=variation,
             seed=seed,
+            corner_radius=corner_radius,
         )
         if coverage_override is None
         else np.asarray(coverage_override, dtype=np.float32)
@@ -654,7 +840,10 @@ def _render_dual_grid_pixels(
         normalized_profile_mask = np.asarray(profile_mask, dtype=bool)
         if normalized_profile_mask.shape != (height, width):
             raise ValueError("Terrain edge profile mask must match the tile dimensions")
-    if profile == "clean" or variation == 0 or mask in _profile_terminal_masks(kind):
+    if profile in {"clean", "rounded_clean"} or variation == 0 or mask in _profile_terminal_masks(kind):
+        if retro_outline and mask not in _profile_terminal_masks(kind):
+            img = _apply_retro_outline(Image.fromarray(output, mode="RGBA"), ownership)
+            output = np.asarray(img, dtype=np.uint8)
         return output
 
     minimum_axis = max(2, min(width, height))
@@ -832,6 +1021,9 @@ def _render_dual_grid_pixels(
         output[-1, ...] = seam_reference[-1, ...]
         output[:, 0, ...] = seam_reference[:, 0, ...]
         output[:, -1, ...] = seam_reference[:, -1, ...]
+    if retro_outline and mask not in _profile_terminal_masks(kind):
+        img = _apply_retro_outline(Image.fromarray(output, mode="RGBA"), ownership)
+        output = np.asarray(img, dtype=np.uint8)
     return output
 
 
@@ -2190,6 +2382,9 @@ def build_tilesetter_terrain_pattern(
         set_config.get("edgeVariation", 0),
         set_config.get("edgeSeed", 0),
     )
+    raw_corner_radius = set_config.get("cornerRadius", set_config.get("corner_radius", 0))
+    corner_radius = max(0, min(min(size) // 2, _object_int(raw_corner_radius, 0)))
+    retro_outline = bool(set_config.get("retroOutline", set_config.get("retro_outline", False)))
     base = _tilesetter_source_image(
         atlas,
         sources,
@@ -2344,6 +2539,8 @@ def build_tilesetter_terrain_pattern(
                         profile=terrain_profile_name,
                         variation=terrain_edge_variation,
                         seed=terrain_edge_seed,
+                        corner_radius=corner_radius,
+                        retro_outline=retro_outline,
                     ),
                     mode="RGBA",
                 )
@@ -2356,6 +2553,8 @@ def build_tilesetter_terrain_pattern(
                     mask,
                     directional_cutoff_map,
                 )
+                if retro_outline and override is None:
+                    tile = _apply_retro_outline(tile, _wang_bitmap_mask(mask, size[0], size[1]))
             transitions = _wang_transitions(mask)
             for direction, present in transitions.items():
                 if not present:
@@ -2537,6 +2736,24 @@ def build_tilesetter_terrain_pattern(
                     ),
                     mode="RGBA",
                 )
+            if (
+                (corner_radius > 0 or terrain_profile_name in {"rounded_clean", "rounded_grass_tufts", "rounded_dither"})
+                and not all_edges_ready
+                and override is None
+            ):
+                r_val = (
+                    corner_radius
+                    if corner_radius > 0
+                    else max(1, (terrain_edge_variation + 1) * max(1, min(size) // 16))
+                )
+                blob_cov = _rounded_corner_coverage(mask, size[0], size[1], radius=r_val, kind=kind)
+                blob_mask = blob_cov >= 0.5
+                tile_arr = np.asarray(tile, dtype=np.uint8).copy()
+                tile_arr[~blob_mask] = [0, 0, 0, 0]
+                tile = Image.fromarray(tile_arr, mode="RGBA")
+            if retro_outline and override is None and kind in {"blob_47", "sides_16"}:
+                b_cov = _rounded_corner_coverage(mask, size[0], size[1], radius=corner_radius, kind=kind)
+                tile = _apply_retro_outline(tile, b_cov >= 0.5)
         column, row = positions[mask]
         _place_pattern_tile(
             output,
@@ -2575,6 +2792,8 @@ def build_tilesetter_terrain_pattern(
         terrain_profile=terrain_profile_name,
         edge_variation=terrain_edge_variation,
         edge_seed=terrain_edge_seed,
+        corner_radius=corner_radius,
+        retro_outline=retro_outline,
     )
 
 
