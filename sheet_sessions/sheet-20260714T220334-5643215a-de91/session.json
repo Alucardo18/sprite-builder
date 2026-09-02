@@ -9,23 +9,29 @@
     "canvas_width": 1254,
     "confidence_threshold": 0.65,
     "ignore_outliers": true,
-    "method": "body"
+    "method": "body",
+    "normalize_scale": false,
+    "scale_max_ratio": 1.333333,
+    "scale_min_ratio": 0.75,
+    "scale_reference": "robust_body",
+    "scale_tolerance_px": 1.0,
+    "target_body_height_px": null
   },
   "background_removal_config": {
     "border_connected_only": true,
     "cleanup_enabled": true,
     "color": [
-      254,
-      254,
-      254
+      0,
+      0,
+      0
     ],
     "color_space": "rgb",
-    "fringe_cleanup_strength": 3,
+    "fringe_cleanup_strength": 1,
     "mode": "chroma",
     "near_transparent_threshold": 8,
     "preserve_outline": true,
     "remove_near_transparent": true,
-    "tolerance": 200.0
+    "tolerance": 24.0
   },
   "created_at": "2026-07-14T22:03:34.189049+00:00",
   "current_stage": "export",
@@ -108,6 +114,7 @@
         1145,
         1027
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         627.0,
         690.0
@@ -117,7 +124,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     }
   ],
   "inspection": {
@@ -143,10 +155,10 @@
   "output_dir": "sheet_sessions/sheet-20260714T220334-5643215a-de91",
   "schema_version": "1.0",
   "segmentation_config": {
-    "cell_height": null,
-    "cell_width": null,
+    "cell_height": 64,
+    "cell_width": 64,
     "columns": 1,
-    "frame_count": 1,
+    "frame_count": 4,
     "manual_cut_positions": [],
     "manual_cut_positions_x": [],
     "manual_cut_positions_y": [],
@@ -183,5 +195,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-07-14T22:05:29.186102+00:00"
+  "updated_at": "2026-09-02T20:11:50.166132+00:00"
 }

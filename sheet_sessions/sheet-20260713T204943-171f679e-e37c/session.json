@@ -9,15 +9,21 @@
     "canvas_width": 3072,
     "confidence_threshold": 0.65,
     "ignore_outliers": true,
-    "method": "body"
+    "method": "body",
+    "normalize_scale": false,
+    "scale_max_ratio": 1.333333,
+    "scale_min_ratio": 0.75,
+    "scale_reference": "robust_body",
+    "scale_tolerance_px": 1.0,
+    "target_body_height_px": null
   },
   "background_removal_config": {
     "border_connected_only": true,
     "cleanup_enabled": true,
     "color": [
-      254,
-      254,
-      254
+      0,
+      0,
+      0
     ],
     "color_space": "rgb",
     "fringe_cleanup_strength": 1,
@@ -59,10 +65,10 @@
   "output_dir": "sheet_sessions/sheet-20260713T204943-171f679e-e37c",
   "schema_version": "1.0",
   "segmentation_config": {
-    "cell_height": null,
-    "cell_width": null,
+    "cell_height": 64,
+    "cell_width": 64,
     "columns": 1,
-    "frame_count": 1,
+    "frame_count": 4,
     "manual_cut_positions": [],
     "manual_cut_positions_x": [],
     "manual_cut_positions_y": [],
@@ -83,5 +89,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-07-13T20:49:43.797769+00:00"
+  "updated_at": "2026-09-02T20:11:50.188139+00:00"
 }

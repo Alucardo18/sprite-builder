@@ -9,18 +9,24 @@
     "canvas_width": 108,
     "confidence_threshold": 0.65,
     "ignore_outliers": true,
-    "method": "body"
+    "method": "body",
+    "normalize_scale": false,
+    "scale_max_ratio": 1.333333,
+    "scale_min_ratio": 0.75,
+    "scale_reference": "robust_body",
+    "scale_tolerance_px": 1.0,
+    "target_body_height_px": null
   },
   "background_removal_config": {
     "border_connected_only": true,
     "cleanup_enabled": true,
     "color": [
-      254,
-      254,
-      254
+      0,
+      0,
+      0
     ],
     "color_space": "rgb",
-    "fringe_cleanup_strength": 3,
+    "fringe_cleanup_strength": 1,
     "mode": "chroma",
     "near_transparent_threshold": 8,
     "preserve_outline": true,
@@ -99,6 +105,7 @@
         76,
         140
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         54.0,
         100.0
@@ -108,7 +115,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -126,6 +138,7 @@
         98,
         137
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         54.0,
         100.0
@@ -135,7 +148,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -153,6 +171,7 @@
         102,
         137
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         54.0,
         92.0
@@ -162,7 +181,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": -8,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -180,6 +204,7 @@
         94,
         136
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         54.0,
         92.0
@@ -189,7 +214,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": -8,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -207,6 +237,7 @@
         89,
         140
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         54.0,
         96.0
@@ -216,7 +247,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": -4,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     }
   ],
   "inspection": {
@@ -248,22 +284,12 @@
   "output_dir": "sheet_sessions/sheet-20260822T155729-f4d75ac9-00a5",
   "schema_version": "1.0",
   "segmentation_config": {
-    "cell_height": 181,
-    "cell_width": 108,
+    "cell_height": 64,
+    "cell_width": 64,
     "columns": 1,
-    "frame_count": 5,
-    "manual_cut_positions": [
-      108,
-      216,
-      324,
-      432
-    ],
-    "manual_cut_positions_x": [
-      108,
-      216,
-      324,
-      432
-    ],
+    "frame_count": 4,
+    "manual_cut_positions": [],
+    "manual_cut_positions_x": [],
     "manual_cut_positions_y": [],
     "offset_x": 0,
     "offset_y": 0,
@@ -325,5 +351,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-08-22T16:33:35.617774+00:00"
+  "updated_at": "2026-09-02T20:11:50.036800+00:00"
 }

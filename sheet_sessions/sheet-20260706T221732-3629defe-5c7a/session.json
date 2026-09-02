@@ -9,7 +9,13 @@
     "canvas_width": 1536,
     "confidence_threshold": 0.65,
     "ignore_outliers": true,
-    "method": "body"
+    "method": "body",
+    "normalize_scale": false,
+    "scale_max_ratio": 1.333333,
+    "scale_min_ratio": 0.75,
+    "scale_reference": "robust_body",
+    "scale_tolerance_px": 1.0,
+    "target_body_height_px": null
   },
   "background_removal_config": {
     "border_connected_only": true,
@@ -55,14 +61,17 @@
     "uses_transparency": true,
     "width": 1536
   },
+  "layer_document": null,
   "output_dir": "sheet_sessions/sheet-20260706T221732-3629defe-5c7a",
   "schema_version": "1.0",
   "segmentation_config": {
-    "cell_height": null,
-    "cell_width": null,
+    "cell_height": 64,
+    "cell_width": 64,
     "columns": 1,
-    "frame_count": 1,
+    "frame_count": 4,
     "manual_cut_positions": [],
+    "manual_cut_positions_x": [],
+    "manual_cut_positions_y": [],
     "offset_x": 0,
     "offset_y": 0,
     "orientation": "horizontal",
@@ -80,5 +89,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-07-06T22:17:32.216310+00:00"
+  "updated_at": "2026-09-02T20:11:50.207311+00:00"
 }

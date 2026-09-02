@@ -9,7 +9,13 @@
     "canvas_width": 256,
     "confidence_threshold": 0.65,
     "ignore_outliers": true,
-    "method": "body"
+    "method": "body",
+    "normalize_scale": false,
+    "scale_max_ratio": 1.333333,
+    "scale_min_ratio": 0.75,
+    "scale_reference": "robust_body",
+    "scale_tolerance_px": 1.0,
+    "target_body_height_px": null
   },
   "background_removal_config": {
     "border_connected_only": true,
@@ -60,9 +66,9 @@
   "schema_version": "1.0",
   "segmentation_config": {
     "cell_height": 64,
-    "cell_width": 256,
+    "cell_width": 64,
     "columns": 1,
-    "frame_count": 10,
+    "frame_count": 4,
     "manual_cut_positions": [],
     "manual_cut_positions_x": [],
     "manual_cut_positions_y": [],
@@ -83,5 +89,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-07-20T22:54:45.192458+00:00"
+  "updated_at": "2026-09-02T20:11:50.123075+00:00"
 }

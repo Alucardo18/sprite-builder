@@ -9,7 +9,13 @@
     "canvas_width": 362,
     "confidence_threshold": 0.65,
     "ignore_outliers": true,
-    "method": "body"
+    "method": "body",
+    "normalize_scale": false,
+    "scale_max_ratio": 1.333333,
+    "scale_min_ratio": 0.75,
+    "scale_reference": "robust_body",
+    "scale_tolerance_px": 1.0,
+    "target_body_height_px": null
   },
   "background_removal_config": {
     "border_connected_only": true,
@@ -102,6 +108,7 @@
         344,
         525
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         190.0,
         398.0
@@ -111,7 +118,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -129,6 +141,7 @@
         348,
         524
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         190.0,
         398.0
@@ -138,7 +151,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -156,6 +174,7 @@
         338,
         524
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         191.0,
         404.0
@@ -165,7 +184,12 @@
       "manual_offset_x": 1,
       "manual_offset_y": 6,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -183,6 +207,7 @@
         357,
         517
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         190.0,
         416.0
@@ -192,7 +217,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 18,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -210,6 +240,7 @@
         352,
         516
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         190.0,
         442.0
@@ -219,7 +250,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 44,
       "manual_review": true,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -237,6 +273,7 @@
         306,
         509
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         191.0,
         455.0
@@ -246,7 +283,12 @@
       "manual_offset_x": 1,
       "manual_offset_y": 57,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     }
   ],
   "inspection": {
@@ -278,24 +320,12 @@
   "output_dir": "sheet_sessions/sheet-20260801T234647-9652a6e4-6f7b",
   "schema_version": "1.0",
   "segmentation_config": {
-    "cell_height": null,
-    "cell_width": null,
+    "cell_height": 64,
+    "cell_width": 64,
     "columns": 1,
-    "frame_count": 6,
-    "manual_cut_positions": [
-      382,
-      748,
-      1118,
-      1489,
-      1850
-    ],
-    "manual_cut_positions_x": [
-      382,
-      748,
-      1118,
-      1489,
-      1850
-    ],
+    "frame_count": 4,
+    "manual_cut_positions": [],
+    "manual_cut_positions_x": [],
     "manual_cut_positions_y": [],
     "offset_x": 0,
     "offset_y": 0,
@@ -342,5 +372,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-08-01T23:53:21.019955+00:00"
+  "updated_at": "2026-09-02T20:11:50.052113+00:00"
 }

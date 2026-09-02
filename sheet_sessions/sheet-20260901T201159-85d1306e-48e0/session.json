@@ -21,9 +21,9 @@
     "border_connected_only": true,
     "cleanup_enabled": true,
     "color": [
-      254,
-      254,
-      254
+      0,
+      0,
+      0
     ],
     "color_space": "rgb",
     "fringe_cleanup_strength": 1,
@@ -65,10 +65,10 @@
   "output_dir": "sheet_sessions/sheet-20260901T201159-85d1306e-48e0",
   "schema_version": "1.0",
   "segmentation_config": {
-    "cell_height": null,
-    "cell_width": null,
+    "cell_height": 64,
+    "cell_width": 64,
     "columns": 1,
-    "frame_count": 1,
+    "frame_count": 4,
     "manual_cut_positions": [],
     "manual_cut_positions_x": [],
     "manual_cut_positions_y": [],
@@ -89,5 +89,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-09-01T20:11:59.864538+00:00"
+  "updated_at": "2026-09-02T20:11:50.029167+00:00"
 }

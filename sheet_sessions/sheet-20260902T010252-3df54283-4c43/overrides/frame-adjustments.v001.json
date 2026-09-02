@@ -1,0 +1,40 @@
+{
+  "created_at": "2026-09-02T20:11:35.943678+00:00",
+  "frames": [
+    {
+      "applied_translation": [
+        -110,
+        -43
+      ],
+      "auto_anchor": [
+        1358.0,
+        531.0
+      ],
+      "auto_confidence": 0.7509842187073641,
+      "body_bbox": [
+        986,
+        175,
+        1664,
+        629
+      ],
+      "cropped_pixel_count": 0,
+      "final_anchor": [
+        1248.0,
+        488.0
+      ],
+      "frame_index": 0,
+      "locked": false,
+      "manual_offset_x": 0,
+      "manual_offset_y": 0,
+      "manual_review": false,
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260902T010252-3df54283-4c43"
+}

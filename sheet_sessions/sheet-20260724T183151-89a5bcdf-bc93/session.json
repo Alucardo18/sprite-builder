@@ -9,23 +9,29 @@
     "canvas_width": 418,
     "confidence_threshold": 0.65,
     "ignore_outliers": true,
-    "method": "body"
+    "method": "body",
+    "normalize_scale": false,
+    "scale_max_ratio": 1.333333,
+    "scale_min_ratio": 0.75,
+    "scale_reference": "robust_body",
+    "scale_tolerance_px": 1.0,
+    "target_body_height_px": null
   },
   "background_removal_config": {
     "border_connected_only": true,
     "cleanup_enabled": true,
     "color": [
-      254,
-      254,
-      254
+      0,
+      0,
+      0
     ],
     "color_space": "rgb",
-    "fringe_cleanup_strength": 3,
+    "fringe_cleanup_strength": 1,
     "mode": "chroma",
     "near_transparent_threshold": 8,
     "preserve_outline": true,
     "remove_near_transparent": true,
-    "tolerance": 200.0
+    "tolerance": 24.0
   },
   "created_at": "2026-07-24T18:31:51.987709+00:00",
   "current_stage": "export",
@@ -168,6 +174,7 @@
         284,
         353
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         214.0,
         230.0
@@ -177,7 +184,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -195,6 +207,7 @@
         289,
         356
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         214.0,
         230.0
@@ -204,7 +217,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -222,6 +240,7 @@
         208,
         349
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         214.0,
         230.0
@@ -231,7 +250,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": true,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -249,6 +273,7 @@
         354,
         332
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         214.0,
         230.0
@@ -258,7 +283,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -276,6 +306,7 @@
         418,
         331
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         214.0,
         230.0
@@ -285,7 +316,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": true,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -303,6 +339,7 @@
         270,
         331
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         214.0,
         230.0
@@ -312,7 +349,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -330,6 +372,7 @@
         353,
         355
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         214.0,
         230.0
@@ -339,7 +382,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -357,6 +405,7 @@
         261,
         357
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         214.0,
         230.0
@@ -366,7 +415,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": false,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     },
     {
       "applied_translation": [
@@ -384,6 +438,7 @@
         282,
         350
       ],
+      "cropped_pixel_count": 0,
       "final_anchor": [
         214.0,
         230.0
@@ -393,7 +448,12 @@
       "manual_offset_x": 0,
       "manual_offset_y": 0,
       "manual_review": true,
-      "notes": ""
+      "normalized_body_height_px": 0.0,
+      "notes": "",
+      "scale_factor": 1.0,
+      "scale_manual_review": false,
+      "scale_reference_height_px": 0.0,
+      "scale_reference_width_px": 0.0
     }
   ],
   "inspection": {
@@ -419,23 +479,17 @@
   "output_dir": "sheet_sessions/sheet-20260724T183151-89a5bcdf-bc93",
   "schema_version": "1.0",
   "segmentation_config": {
-    "cell_height": null,
-    "cell_width": null,
-    "columns": 3,
-    "frame_count": 9,
+    "cell_height": 64,
+    "cell_width": 64,
+    "columns": 1,
+    "frame_count": 4,
     "manual_cut_positions": [],
-    "manual_cut_positions_x": [
-      427,
-      861
-    ],
-    "manual_cut_positions_y": [
-      438,
-      833
-    ],
+    "manual_cut_positions_x": [],
+    "manual_cut_positions_y": [],
     "offset_x": 0,
     "offset_y": 0,
-    "orientation": "grid",
-    "rows": 3,
+    "orientation": "horizontal",
+    "rows": 1,
     "spacing_x": 0,
     "spacing_y": 0
   },
@@ -480,5 +534,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-07-24T18:51:03.591533+00:00"
+  "updated_at": "2026-09-02T20:11:50.077409+00:00"
 }

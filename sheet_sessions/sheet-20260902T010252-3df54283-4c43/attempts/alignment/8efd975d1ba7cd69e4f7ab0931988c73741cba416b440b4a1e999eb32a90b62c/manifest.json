@@ -1,0 +1,139 @@
+{
+  "cache_key": "8efd975d1ba7cd69e4f7ab0931988c73741cba416b440b4a1e999eb32a90b62c",
+  "config": {
+    "auto_center": {
+      "anchor_strategy": "distance_core_percentiles",
+      "canonical_anchor": [
+        887,
+        488
+      ],
+      "canvas_height": 887,
+      "canvas_width": 1774,
+      "confidence_threshold": 0.65,
+      "ignore_outliers": true,
+      "method": "body",
+      "normalize_scale": false,
+      "scale_max_ratio": 1.333333,
+      "scale_min_ratio": 0.75,
+      "scale_reference": "robust_body",
+      "scale_tolerance_px": 1.0,
+      "target_body_height_px": null
+    },
+    "background": {
+      "border_connected_only": true,
+      "cleanup_enabled": true,
+      "color": [
+        237,
+        19,
+        230
+      ],
+      "color_space": "rgb",
+      "fringe_cleanup_strength": 3,
+      "mode": "chroma",
+      "near_transparent_threshold": 8,
+      "preserve_outline": true,
+      "remove_near_transparent": true,
+      "tolerance": 200.0
+    },
+    "manual_offsets": [
+      [
+        0,
+        0
+      ]
+    ],
+    "segmentation": {
+      "cell_height": null,
+      "cell_width": null,
+      "columns": 1,
+      "frame_count": 1,
+      "manual_cut_positions": [],
+      "manual_cut_positions_x": [],
+      "manual_cut_positions_y": [],
+      "offset_x": 0,
+      "offset_y": 0,
+      "orientation": "horizontal",
+      "rows": 1,
+      "spacing_x": 0,
+      "spacing_y": 0
+    }
+  },
+  "created_at": "2026-09-02T20:11:35.942526+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260902T010252-3df54283-4c43/source/3df54283fcf9e803c7770c6eda696e77dff9115dc98ce4f2b2e6b650c9438915.png",
+      "role": "source",
+      "sha256": "3df54283fcf9e803c7770c6eda696e77dff9115dc98ce4f2b2e6b650c9438915",
+      "size_bytes": 1253068
+    }
+  ],
+  "metadata": {
+    "frames": [
+      {
+        "applied_translation": [
+          -110,
+          -43
+        ],
+        "auto_anchor": [
+          1358.0,
+          531.0
+        ],
+        "auto_confidence": 0.7509842187073641,
+        "body_bbox": [
+          986,
+          175,
+          1664,
+          629
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          1248.0,
+          488.0
+        ],
+        "frame_index": 0,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      }
+    ]
+  },
+  "metrics": {
+    "cropped_pixel_max": 0.0,
+    "cropped_pixel_total": 0.0,
+    "final_anchor_max_error": 0.0,
+    "final_anchor_mean_error": 0.0,
+    "manual_offset_max_delta": 0.0,
+    "mean_confidence": 0.7509842187073641,
+    "minimum_confidence": 0.7509842187073641,
+    "normalized_body_height_max_error": 0.0,
+    "scale_factor_max": 1.0,
+    "scale_factor_mean": 1.0,
+    "scale_factor_min": 1.0,
+    "scale_manual_review_count": 0.0,
+    "scale_reference_height_max": 0.0,
+    "scale_reference_height_min": 0.0,
+    "source_anchor_max_delta": 0.0,
+    "source_anchor_mean_delta": 0.0
+  },
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260902T010252-3df54283-4c43/attempts/alignment/8efd975d1ba7cd69e4f7ab0931988c73741cba416b440b4a1e999eb32a90b62c/frame_000.png",
+      "role": "output",
+      "sha256": "cdde751407eb182482fcfdf95878bd9fe5673224be86845b53ea3a4f28403833",
+      "size_bytes": 471965
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260902T010252-3df54283-4c43",
+  "stage": "alignment",
+  "status": "passed",
+  "warnings": []
+}

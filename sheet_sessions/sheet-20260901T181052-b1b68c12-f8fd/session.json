@@ -21,17 +21,17 @@
     "border_connected_only": true,
     "cleanup_enabled": true,
     "color": [
-      241,
-      17,
-      237
+      0,
+      0,
+      0
     ],
     "color_space": "rgb",
-    "fringe_cleanup_strength": 3,
+    "fringe_cleanup_strength": 1,
     "mode": "chroma",
     "near_transparent_threshold": 8,
     "preserve_outline": true,
     "remove_near_transparent": true,
-    "tolerance": 200.0
+    "tolerance": 24.0
   },
   "created_at": "2026-09-01T18:10:52.188643+00:00",
   "current_stage": "background",
@@ -65,10 +65,10 @@
   "output_dir": "sheet_sessions/sheet-20260901T181052-b1b68c12-f8fd",
   "schema_version": "1.0",
   "segmentation_config": {
-    "cell_height": null,
-    "cell_width": null,
+    "cell_height": 64,
+    "cell_width": 64,
     "columns": 1,
-    "frame_count": 1,
+    "frame_count": 4,
     "manual_cut_positions": [],
     "manual_cut_positions_x": [],
     "manual_cut_positions_y": [],
@@ -97,5 +97,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-09-01T18:20:23.287035+00:00"
+  "updated_at": "2026-09-02T20:11:50.031875+00:00"
 }
