@@ -29,8 +29,8 @@ def write_batch_workspace(root: Path) -> None:
     (root / "prompts").mkdir()
     (root / "characters/hero").mkdir(parents=True)
     (root / "characters/enemy").mkdir(parents=True)
-    (root / "prompts/animation_frame.jinja2").write_text(
-        "{{ character_description }} {{ animation }} {{ direction }} {{ phase }} "
+    (root / "prompts/animation_sheet.jinja2").write_text(
+        "{{ character_description }} {{ animation }} {{ direction }} {{ frame_count }} "
         "{{ background_color }}",
         encoding="utf-8",
     )
@@ -57,7 +57,7 @@ def write_batch_workspace(root: Path) -> None:
             job["animation"]["name"] = animation  # type: ignore[index]
             job["animation"]["frame_count"] = 1  # type: ignore[index]
             job["animation"]["phases"] = ["key"]  # type: ignore[index]
-            job["generation"]["candidates_per_frame"] = 1  # type: ignore[index]
+            job["generation"]["candidates_per_sheet"] = 1  # type: ignore[index]
             (root / f"configs/{character_id}-{animation}.json").write_text(
                 json.dumps(job), encoding="utf-8"
             )
@@ -111,7 +111,7 @@ class BatchSpecTests(unittest.TestCase):
                 (request_dir / f"{index['request_ids'][0]}.json").read_text(encoding="utf-8")
             )
             raw = root / "jobs/hero-walk/raw" / request["output_filename"]
-            raw.parent.mkdir(parents=True)
+            raw.parent.mkdir(parents=True, exist_ok=True)
             raw.write_bytes(b"ingested fixture")
 
             resumed = batch_status(spec, workspace=root)

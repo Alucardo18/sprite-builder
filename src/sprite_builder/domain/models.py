@@ -14,6 +14,15 @@ VALID_DIRECTIONS = frozenset(
 )
 VALID_LAYOUTS = frozenset({"individual", "horizontal", "grid", "godot"})
 VALID_QUALITIES = frozenset({"low", "medium", "high", "auto"})
+VALID_GENERATION_MODES = frozenset({"sheet"})
+VALID_SHEET_LAYOUTS = frozenset({"horizontal", "vertical", "grid"})
+VALID_BACKGROUND_MODES = frozenset({"chroma", "transparent_preferred", "transparent_required"})
+VALID_BACKGROUND_FALLBACKS = frozenset(
+    {"strict_chroma", "manual_ui", "manual_review", "reject"}
+)
+VALID_RESAMPLE_METHODS = frozenset(
+    {"legacy", "premultiplied_area", "premultiplied_lanczos", "pixel_majority", "edge_aware"}
+)
 
 
 def _pair(value: Any, name: str) -> tuple[int, int]:
@@ -90,23 +99,178 @@ class AnimationSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class PromptSpec:
+    """Stable creative contract appended to every generated animation sheet."""
+
+    style: str = (
+        "16-bit pixel art for a top-down action RPG, authored at the requested source resolution; "
+        "hard pixel clusters, crisp stepped silhouettes, no anti-aliasing, no vector smoothness, "
+        "no painterly texture, no photorealism"
+    )
+    pixel_language: str = (
+        "Use deliberate 1-pixel and 2-pixel clusters, readable dark outline hierarchy, controlled "
+        "selective dithering only when it improves a material, and nearest-neighbor pixel logic"
+    )
+    camera: str = (
+        "Keep one consistent orthographic top-down three-quarter camera, identical scale, crop, "
+        "ground line, and facing convention in every cell"
+    )
+    palette: str = (
+        "Use the locked Character Bible palette and material roles; preserve hue families for "
+        "skin, "
+        "cloth, hair, wood, metal, magic, and shadow instead of inventing new colors"
+    )
+    lighting: str = (
+        "Keep one stable light direction and value hierarchy across the sheet; animate only the "
+        "light changes explicitly required by the named phase"
+    )
+    identity: str = (
+        "Treat the first approved reference as the identity anchor: same head shape, torso width, "
+        "hair mass, clothing construction, equipment proportions, outline weight, and body scale"
+    )
+    animation: str = (
+        "Change pose only between adjacent cells as required by the phase list; preserve anatomy, "
+        "equipment ownership, contact points, and a stable support/ground row"
+    )
+    negative: str = (
+        "No text, labels, numbers, watermark, UI, borders, panels, scenery, extra characters, "
+        "duplicate limbs, missing feet, floating body, collage, contact sheet preview, perspective "
+        "drift, frame captions, transparent checkerboard, or cropped body parts"
+    )
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> PromptSpec:
+        defaults = cls()
+        values: dict[str, str] = {}
+        for key in (
+            "style",
+            "pixel_language",
+            "camera",
+            "palette",
+            "lighting",
+            "identity",
+            "animation",
+            "negative",
+        ):
+            raw = data.get(key, getattr(defaults, key))
+            value = str(raw).strip()
+            if not value:
+                raise ConfigurationError(f"generation.prompt.{key} must not be empty")
+            values[key] = value
+        return cls(**values)
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "style": self.style,
+            "pixel_language": self.pixel_language,
+            "camera": self.camera,
+            "palette": self.palette,
+            "lighting": self.lighting,
+            "identity": self.identity,
+            "animation": self.animation,
+            "negative": self.negative,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SheetLayoutSpec:
+    """Layout contract for the one native-resolution image returned by the model."""
+
+    layout: str = "horizontal"
+    rows: int = 0
+    columns: int = 0
+    gutter_px: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> SheetLayoutSpec:
+        layout = str(data.get("layout", "horizontal"))
+        if layout not in VALID_SHEET_LAYOUTS:
+            raise ConfigurationError(
+                f"generation.sheet.layout must be one of {sorted(VALID_SHEET_LAYOUTS)}"
+            )
+        rows = int(data.get("rows", 0))
+        columns = int(data.get("columns", 0))
+        gutter = int(data.get("gutter_px", 0))
+        if rows < 0 or columns < 0:
+            raise ConfigurationError("generation.sheet.rows/columns must be non-negative")
+        if gutter < 0:
+            raise ConfigurationError("generation.sheet.gutter_px must be non-negative")
+        return cls(layout=layout, rows=rows, columns=columns, gutter_px=gutter)
+
+    def resolve(self, frame_count: int) -> tuple[int, int]:
+        if frame_count < 1:
+            raise ConfigurationError("generation.sheet requires at least one frame")
+        if self.layout == "horizontal":
+            rows, columns = 1, self.columns or frame_count
+        elif self.layout == "vertical":
+            rows, columns = self.rows or frame_count, 1
+        else:
+            columns = self.columns or max(1, int(frame_count**0.5))
+            if not self.columns:
+                while columns * columns < frame_count:
+                    columns += 1
+            rows = self.rows or (frame_count + columns - 1) // columns
+        if rows * columns < frame_count:
+            raise ConfigurationError(
+                "generation.sheet rows*columns must cover animation.frame_count"
+            )
+        return rows, columns
+
+    def to_dict(self) -> dict[str, int | str]:
+        return {
+            "layout": self.layout,
+            "rows": self.rows,
+            "columns": self.columns,
+            "gutter_px": self.gutter_px,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class GenerationSpec:
     source_size: tuple[int, int] = (1024, 1024)
     quality: str = "medium"
-    candidates_per_frame: int = 1
+    mode: str = "sheet"
+    candidates_per_sheet: int = 1
+    sheet: SheetLayoutSpec = field(default_factory=SheetLayoutSpec)
+    prompt: PromptSpec = field(default_factory=PromptSpec)
     background_color: str = "#00FF00"
-    use_previous_accepted_frame: bool = True
-    seed_frame: Path | None = None
-    seed_frame_index: int = 0
+    background_mode: str = "chroma"
+    background_fallback: str = "strict_chroma"
+    max_alpha_retries: int = 2
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> GenerationSpec:
         quality = str(data.get("quality", data.get("final_quality", "medium")))
         if quality not in VALID_QUALITIES:
             raise ConfigurationError(f"generation.quality must be one of {sorted(VALID_QUALITIES)}")
-        candidates = int(data.get("candidates_per_frame", 1))
-        if candidates < 1 or candidates > 8:
-            raise ConfigurationError("generation.candidates_per_frame must be between 1 and 8")
+        generation_mode = str(data.get("mode", "sheet"))
+        if generation_mode not in VALID_GENERATION_MODES:
+            raise ConfigurationError(
+                "Only generation.mode=sheet is supported; frame_sequence has been removed"
+            )
+        removed_fields = {
+            "candidates_per_frame": "use candidates_per_sheet",
+            "use_previous_accepted_frame": "the complete sheet prompt",
+            "seed": "character.references with a full-sheet reference",
+        }
+        for removed_field, replacement in removed_fields.items():
+            if removed_field in data:
+                raise ConfigurationError(
+                    f"generation.{removed_field} is no longer supported; use {replacement}"
+                )
+        candidates_per_sheet_value = data.get("candidates_per_sheet")
+        candidates_per_sheet = int(
+            candidates_per_sheet_value if candidates_per_sheet_value is not None else 1
+        )
+        if not 1 <= candidates_per_sheet <= 8:
+            raise ConfigurationError("generation.candidates_per_sheet must be between 1 and 8")
+        sheet_data = data.get("sheet", {})
+        sheet_data = sheet_data if isinstance(sheet_data, Mapping) else {}
+        sheet = SheetLayoutSpec.from_dict(sheet_data)
+        prompt_data = data.get("prompt", {})
+        prompt = PromptSpec.from_dict(
+            prompt_data if isinstance(prompt_data, Mapping) else {}
+        )
         background = data.get("background", {})
         color = (
             str(background.get("color", "#00FF00"))
@@ -115,23 +279,75 @@ class GenerationSpec:
         )
         if len(color) != 7 or not color.startswith("#"):
             raise ConfigurationError("generation.background_color must be #RRGGBB")
-        seed = data.get("seed", {})
-        seed = seed if isinstance(seed, Mapping) else {}
-        seed_path = seed.get("path")
-        seed_index = int(seed.get("frame_index", 0))
-        if seed_path is not None and seed_index < 0:
-            raise ConfigurationError("generation.seed.frame_index must be non-negative")
+        mode = (
+            str(background.get("mode", "chroma"))
+            if isinstance(background, Mapping)
+            else "chroma"
+        )
+        fallback = (
+            str(
+                background.get(
+                    "fallback",
+                    "strict_chroma" if mode == "chroma" else "manual_ui",
+                )
+            )
+            if isinstance(background, Mapping)
+            else "strict_chroma"
+        )
+        if mode not in VALID_BACKGROUND_MODES:
+            raise ConfigurationError(
+                f"generation.background.mode must be one of {sorted(VALID_BACKGROUND_MODES)}"
+            )
+        if fallback not in VALID_BACKGROUND_FALLBACKS:
+            raise ConfigurationError(
+                "generation.background.fallback must be one of "
+                f"{sorted(VALID_BACKGROUND_FALLBACKS)}"
+            )
+        max_attempts_value = (
+            background.get("max_attempts") if isinstance(background, Mapping) else None
+        )
+        legacy_retries_value = (
+            background.get("max_alpha_retries") if isinstance(background, Mapping) else None
+        )
+        if max_attempts_value is not None:
+            max_attempts = int(max_attempts_value)
+            if not 1 <= max_attempts <= 3:
+                raise ConfigurationError("generation.background.max_attempts must be 1..3")
+            max_alpha_retries = max_attempts - 1
+            if (
+                legacy_retries_value is not None
+                and int(legacy_retries_value) != max_alpha_retries
+            ):
+                raise ConfigurationError(
+                    "generation.background.max_attempts conflicts with max_alpha_retries"
+                )
+        else:
+            max_alpha_retries = (
+                int(legacy_retries_value) if legacy_retries_value is not None else 2
+            )
+        if not 0 <= max_alpha_retries <= 2:
+            raise ConfigurationError("generation.background.max_alpha_retries must be 0..2")
         return cls(
             source_size=_pair(
                 data.get("source_size", data.get("size", (1024, 1024))), "source_size"
             ),
             quality=quality,
-            candidates_per_frame=candidates,
+            mode=generation_mode,
+            candidates_per_sheet=candidates_per_sheet,
+            sheet=sheet,
+            prompt=prompt,
             background_color=color.upper(),
-            use_previous_accepted_frame=bool(data.get("use_previous_accepted_frame", True)),
-            seed_frame=Path(str(seed_path)) if seed_path else None,
-            seed_frame_index=seed_index,
+            background_mode=mode,
+            background_fallback=fallback,
+            max_alpha_retries=max_alpha_retries,
         )
+
+    @property
+    def is_sheet(self) -> bool:
+        return self.mode == "sheet"
+
+    def resolved_sheet_grid(self, frame_count: int) -> tuple[int, int]:
+        return self.sheet.resolve(frame_count)
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +357,10 @@ class RenderSpec:
     palette_lock: bool = True
     dithering: bool = False
     integrated_shadow: bool = True
+    resample_methods: tuple[str, ...] = ("legacy",)
+    resample_selection: str = "auto"
+    save_resize_variants: bool = False
+    palette_max_delta_e00: float | None = None
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> RenderSpec:
@@ -148,12 +368,33 @@ class RenderSpec:
         height = int(data.get("target_body_height_px", 0))
         if not 1 <= height <= cell_size[1]:
             raise ConfigurationError("target_body_height_px must fit inside cell height")
+        resampling = data.get("resampling", {})
+        resampling = resampling if isinstance(resampling, Mapping) else {}
+        methods = tuple(str(item) for item in resampling.get("methods", ("legacy",)))
+        invalid_methods = set(methods) - VALID_RESAMPLE_METHODS
+        if not methods or invalid_methods:
+            raise ConfigurationError(
+                f"render.resampling.methods invalid: {sorted(invalid_methods)}"
+            )
+        selection = str(resampling.get("selection", "auto"))
+        if selection != "auto" and selection not in methods:
+            raise ConfigurationError(
+                "render.resampling.selection must be auto or a configured method"
+            )
+        palette_max = data.get("palette_max_delta_e00")
+        palette_max = float(palette_max) if palette_max is not None else None
+        if palette_max is not None and palette_max <= 0:
+            raise ConfigurationError("render.palette_max_delta_e00 must be positive")
         return cls(
             cell_size,
             height,
             bool(data.get("palette_lock", True)),
             bool(data.get("dithering", False)),
             bool(data.get("integrated_shadow", True)),
+            methods,
+            selection,
+            bool(resampling.get("save_variants", False)),
+            palette_max,
         )
 
 
@@ -228,16 +469,47 @@ class SemanticIntegritySpec:
 
 
 @dataclass(frozen=True, slots=True)
+class AlphaIntegritySpec:
+    """Thresholds for accepting native or fallback-produced transparency."""
+
+    min_transparent_ratio: float = 0.05
+    min_border_transparent_ratio: float = 0.98
+    max_foreground_border_ratio: float = 0.01
+    alpha_threshold: int = 8
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> AlphaIntegritySpec:
+        transparent = float(data.get("min_transparent_ratio", 0.05))
+        border = float(data.get("min_border_transparent_ratio", 0.98))
+        spill = float(data.get("max_foreground_border_ratio", 0.01))
+        threshold = int(data.get("alpha_threshold", 8))
+        if not 0 <= transparent < 1:
+            raise ConfigurationError("alpha_integrity.min_transparent_ratio invalid")
+        if not 0 <= border <= 1:
+            raise ConfigurationError("alpha_integrity.min_border_transparent_ratio invalid")
+        if not 0 <= spill <= 1:
+            raise ConfigurationError("alpha_integrity.max_foreground_border_ratio invalid")
+        if not 0 <= threshold <= 254:
+            raise ConfigurationError("alpha_integrity.alpha_threshold invalid")
+        return cls(transparent, border, spill, threshold)
+
+
+@dataclass(frozen=True, slots=True)
 class QualityGatesSpec:
     semantic_integrity: SemanticIntegritySpec = field(default_factory=SemanticIntegritySpec)
+    alpha_integrity: AlphaIntegritySpec = field(default_factory=AlphaIntegritySpec)
     block_export_on_review: bool = True
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> QualityGatesSpec:
         semantic = data.get("semantic_integrity", {})
+        alpha = data.get("alpha_integrity", {})
         return cls(
             semantic_integrity=SemanticIntegritySpec.from_dict(
                 _mapping(semantic, "quality_gates.semantic_integrity")
+            ),
+            alpha_integrity=AlphaIntegritySpec.from_dict(
+                _mapping(alpha, "quality_gates.alpha_integrity")
             ),
             block_export_on_review=bool(data.get("block_export_on_review", True)),
         )
@@ -338,19 +610,17 @@ class JobSpec:
             "generation": {
                 "source_size": list(self.generation.source_size),
                 "quality": self.generation.quality,
-                "candidates_per_frame": self.generation.candidates_per_frame,
-                "background": {"color": self.generation.background_color},
-                "use_previous_accepted_frame": self.generation.use_previous_accepted_frame,
-                **(
-                    {
-                        "seed": {
-                            "path": str(self.generation.seed_frame),
-                            "frame_index": self.generation.seed_frame_index,
-                        }
-                    }
-                    if self.generation.seed_frame
-                    else {}
-                ),
+                "mode": self.generation.mode,
+                "candidates_per_sheet": self.generation.candidates_per_sheet,
+                "sheet": self.generation.sheet.to_dict(),
+                "prompt": self.generation.prompt.to_dict(),
+                "background": {
+                    "color": self.generation.background_color,
+                    "mode": self.generation.background_mode,
+                    "fallback": self.generation.background_fallback,
+                    "max_attempts": self.generation.max_alpha_retries + 1,
+                    "max_alpha_retries": self.generation.max_alpha_retries,
+                },
             },
             "render": {
                 "cell_size": list(self.render.cell_size),
@@ -358,6 +628,12 @@ class JobSpec:
                 "palette_lock": self.render.palette_lock,
                 "dithering": self.render.dithering,
                 "integrated_shadow": self.render.integrated_shadow,
+                "resampling": {
+                    "methods": list(self.render.resample_methods),
+                    "selection": self.render.resample_selection,
+                    "save_variants": self.render.save_resize_variants,
+                },
+                "palette_max_delta_e00": self.render.palette_max_delta_e00,
             },
             "alignment": {
                 "method": self.alignment.method,
@@ -372,6 +648,18 @@ class JobSpec:
             },
             "quality_gates": {
                 "block_export_on_review": self.quality_gates.block_export_on_review,
+                "alpha_integrity": {
+                    "min_transparent_ratio": (
+                        self.quality_gates.alpha_integrity.min_transparent_ratio
+                    ),
+                    "min_border_transparent_ratio": (
+                        self.quality_gates.alpha_integrity.min_border_transparent_ratio
+                    ),
+                    "max_foreground_border_ratio": (
+                        self.quality_gates.alpha_integrity.max_foreground_border_ratio
+                    ),
+                    "alpha_threshold": self.quality_gates.alpha_integrity.alpha_threshold,
+                },
                 "semantic_integrity": {
                     "enabled": self.quality_gates.semantic_integrity.enabled,
                     "alpha_threshold": self.quality_gates.semantic_integrity.alpha_threshold,

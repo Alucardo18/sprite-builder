@@ -210,6 +210,7 @@ def pixel_editor(
     animation_frames: Sequence[Image.Image] | None = None,
     animation_fps: int = 8,
     animation_durations: Sequence[int] | None = None,
+    palette_colors: Sequence[str] | None = None,
     key: str,
 ) -> dict[str, Any] | None:
     image_uri = image_data_uri(image)
@@ -290,6 +291,7 @@ def pixel_editor(
             if animation_durations is None
             else [max(16, int(value)) for value in animation_durations]
         ),
+        paletteColors=[str(c) for c in palette_colors] if palette_colors else [],
         key=key,
         default=None,
     )

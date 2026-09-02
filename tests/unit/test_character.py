@@ -47,6 +47,10 @@ def test_create_skeleton_is_reviewable_and_non_destructive(tmp_path: Path) -> No
     assert bible["identity"]["id"] == "tzucan-test"
     assert bible["review"]["required"] is True
     assert bible["reference"]["frame_count_detected"] == 2
+    assert bible["scale_profile"]["reference_animation"] == "idle"
+    assert bible["scale_profile"]["status"] == "pending_idle_approval"
+    assert bible["scale_profile"]["target_body_height_px"] is None
+    assert "staffs" in bible["scale_profile"]["exclude_from_measurement"]
     assert len(palette["colors"]) == 3  # capped by unique foreground colours
     original = result.bible.read_text(encoding="utf-8")
     with pytest.raises(FileExistsError, match="refusing to overwrite"):

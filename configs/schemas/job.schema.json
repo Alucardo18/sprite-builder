@@ -50,24 +50,49 @@
     },
     "generation": {
       "type": "object",
-      "required": ["source_size", "candidates_per_frame"],
+      "additionalProperties": false,
+      "required": ["source_size"],
       "properties": {
         "source_size": {"$ref": "#/$defs/positivePair"},
         "quality": {"enum": ["low", "medium", "high", "auto"]},
-        "candidates_per_frame": {"type": "integer", "minimum": 1, "maximum": 8},
-        "background": {
-          "type": "object",
-          "properties": {"color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"}}
-        },
-        "use_previous_accepted_frame": {"type": "boolean"}
-        ,
-        "seed": {
+        "mode": {"const": "sheet", "default": "sheet"},
+        "candidates_per_sheet": {"type": "integer", "minimum": 1, "maximum": 8},
+        "sheet": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["path"],
           "properties": {
-            "path": {"type": "string", "minLength": 1},
-            "frame_index": {"type": "integer", "minimum": 0}
+            "layout": {"enum": ["horizontal", "vertical", "grid"]},
+            "rows": {"type": "integer", "minimum": 0},
+            "columns": {"type": "integer", "minimum": 0},
+            "gutter_px": {"type": "integer", "minimum": 0}
+          }
+        },
+        "prompt": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "style": {"type": "string", "minLength": 1},
+            "pixel_language": {"type": "string", "minLength": 1},
+            "camera": {"type": "string", "minLength": 1},
+            "palette": {"type": "string", "minLength": 1},
+            "lighting": {"type": "string", "minLength": 1},
+            "identity": {"type": "string", "minLength": 1},
+            "animation": {"type": "string", "minLength": 1},
+            "negative": {"type": "string", "minLength": 1}
+          }
+        },
+        "background": {
+          "type": "object",
+          "properties": {
+            "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+            "mode": {
+              "enum": ["chroma", "transparent_preferred", "transparent_required"]
+            },
+            "fallback": {
+              "enum": ["strict_chroma", "manual_ui", "manual_review", "reject"]
+            },
+            "max_attempts": {"type": "integer", "minimum": 1, "maximum": 3},
+            "max_alpha_retries": {"type": "integer", "minimum": 0, "maximum": 2}
           }
         }
       }
@@ -80,7 +105,39 @@
         "target_body_height_px": {"type": "integer", "minimum": 1},
         "palette_lock": {"type": "boolean"},
         "dithering": {"type": "boolean"},
-        "integrated_shadow": {"type": "boolean"}
+        "integrated_shadow": {"type": "boolean"},
+        "palette_max_delta_e00": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "resampling": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "methods": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "legacy",
+                  "premultiplied_area",
+                  "premultiplied_lanczos",
+                  "pixel_majority",
+                  "edge_aware"
+                ]
+              }
+            },
+            "selection": {
+              "enum": [
+                "auto",
+                "legacy",
+                "premultiplied_area",
+                "premultiplied_lanczos",
+                "pixel_majority",
+                "edge_aware"
+              ]
+            },
+            "save_variants": {"type": "boolean"}
+          }
+        }
       }
     },
     "alignment": {
@@ -117,6 +174,16 @@
       "additionalProperties": false,
       "properties": {
         "block_export_on_review": {"type": "boolean", "default": true},
+        "alpha_integrity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min_transparent_ratio": {"type": "number", "minimum": 0, "exclusiveMaximum": 1},
+            "min_border_transparent_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+            "max_foreground_border_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+            "alpha_threshold": {"type": "integer", "minimum": 0, "maximum": 254}
+          }
+        },
         "semantic_integrity": {
           "type": "object",
           "additionalProperties": false,

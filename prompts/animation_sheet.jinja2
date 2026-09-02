@@ -1,0 +1,50 @@
+SHEET GENERATION CONTRACT - HIGHEST PRIORITY
+Create one complete native-resolution sprite sheet for a production 2D top-down action RPG.
+This is one animation and one direction, not a single frame and not a contact-sheet preview.
+Animation: {{ animation }}. Direction: {{ direction }}.
+Requested source canvas: {{ source_width }} × {{ source_height }} pixels.
+Layout: {{ sheet_layout }}; {{ sheet_rows }} row(s) × {{ sheet_columns }} column(s); frame cells are
+read in deterministic order {{ sheet_order }}. Approximate cell size: {{ sheet_cell_width }} ×
+{{ sheet_cell_height }} pixels. Gutter between cells: {{ sheet_gutter_px }} pixels.
+The sheet must contain exactly {{ frame_count }} animation cells and no extra poses.
+
+PIXEL-ART STYLE CONTRACT
+{{ prompt_style }}.
+{{ pixel_language }}.
+{{ prompt_camera }}.
+{{ prompt_palette }}.
+{{ prompt_lighting }}.
+
+CHARACTER IDENTITY CONTRACT
+{{ prompt_identity }}.
+
+CHARACTER CANON
+{{ character_description }}
+
+IMMUTABLE FEATURES
+{{ immutable_features }}
+
+ANIMATION CONTINUITY CONTRACT
+{{ prompt_animation }}.
+{{ pose_rules }}
+{{ shadow_instruction }}
+{{ semantic_contract }}
+{{ scale_contract }}
+
+FRAME PLAN
+{% for item in frame_plan %}Cell {{ item.number }}: phase {{ item.phase }}; {{ item.directive }}.
+{% endfor %}
+
+COMPOSITION AND OUTPUT
+{{ background_instruction }}
+Keep every cell's character fully inside its own cell with generous, even breathing room.
+Use identical body scale, camera, anchor, ground/support row, outline weight, and palette logic
+throughout the sheet. Do not allow one pose to borrow pixels, overlap, or bleed into another cell.
+Do not crop, trim, autocenter, rescale, interpolate, anti-alias, or rearrange the generated sheet.
+The returned PNG itself is the authoritative source artifact; downstream code may only record
+logical cell regions for an atlas.
+
+PROHIBITED CONTENT
+{{ prompt_negative }}.
+{{ prohibited_changes }}
+No labels, captions, separators, grid lines, layout guides, debug marks, or explanatory text.

@@ -4,6 +4,7 @@ from .engine import (
     CenteringResult,
     CenteringAnalysis,
     ExportCropResult,
+    ScaleMeasurement,
     apply_background_removal,
     auto_center_frames,
     analyze_center_frames,
@@ -13,6 +14,7 @@ from .engine import (
     render_contact_sheet,
     render_frame_overlay,
     trim_transparent_frames,
+    normalize_frames_by_character_scale,
 )
 from .inspect import inspect_sheet
 from .layers import (
@@ -72,6 +74,7 @@ __all__ = [
     "CenteringResult",
     "ExportCropConfig",
     "ExportCropResult",
+    "ScaleMeasurement",
     "FrameAdjustment",
     "LayeredSpriteDocument",
     "SegmentationConfig",
@@ -118,6 +121,7 @@ __all__ = [
     "shift_mask",
     "segment_sheet",
     "trim_transparent_frames",
+    "normalize_frames_by_character_scale",
     "transform_cel_selection",
     "transform_masked_pixels",
 ]

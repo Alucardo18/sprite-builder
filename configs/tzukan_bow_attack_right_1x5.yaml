@@ -28,10 +28,15 @@ animation:
 generation:
   source_size: [1024, 1024]
   quality: high
-  candidates_per_frame: 1
+  mode: sheet
+  candidates_per_sheet: 1
+  sheet:
+    layout: horizontal
+    rows: 1
+    columns: 5
+    gutter_px: 0
   background:
     color: "#00FF00"
-  use_previous_accepted_frame: true
 
 render:
   cell_size: [128, 128]

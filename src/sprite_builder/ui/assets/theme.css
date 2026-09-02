@@ -69,6 +69,27 @@ html, body, [data-testid="stAppViewContainer"] {
   font-weight: 650;
 }
 
+[data-testid="stSidebar"] [data-testid="stExpander"] {
+  border: 1px solid rgba(132, 225, 255, 0.15);
+  border-radius: 14px;
+  background: rgba(18, 24, 38, 0.65);
+  backdrop-filter: blur(12px);
+  margin-bottom: 0.65rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-testid="stSidebar"] [data-testid="stExpander"]:hover {
+  border-color: rgba(91, 223, 255, 0.35);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+}
+
+[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #e8edfb;
+}
+
 h1, h2, h3 {
   letter-spacing: -0.025em;
 }
@@ -312,6 +333,29 @@ p, label, [data-testid="stCaptionContainer"] {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+/* Map Tester & Batch action styles */
+.map-tester-stage {
+  border: 1px solid var(--sb-border);
+  border-radius: 14px;
+  background: rgba(10, 16, 26, 0.85);
+  padding: 1rem;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+[data-testid="stSidebar"] button[kind="secondary"] {
+  border-radius: 10px;
+  border: 1px solid rgba(132, 225, 255, 0.18);
+  transition: all 0.2s ease;
+}
+
+[data-testid="stSidebar"] button[kind="secondary"]:hover {
+  border-color: rgba(91, 223, 255, 0.45);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 #MainMenu, footer { visibility: hidden; }

@@ -6,9 +6,9 @@ character:
   id: xtabay
   bible: characters/xtabay/bible.yaml
   references:
-    - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/idletransformed.png.import.png
     - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/idlebase 1.png
     - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/transform2.png
+    - /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/idletransformed.png.import.png
 
 animation:
   name: death
@@ -30,13 +30,15 @@ animation:
 generation:
   source_size: [1024, 1024]
   quality: high
-  candidates_per_frame: 1
+  mode: sheet
+  candidates_per_sheet: 1
+  sheet:
+    layout: horizontal
+    rows: 1
+    columns: 9
+    gutter_px: 0
   background:
     color: "#FF00FF"
-  use_previous_accepted_frame: true
-  seed:
-    path: /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot/assets/sprites/enemies/xtabay/idletransformed.png.import.png
-    frame_index: 0
 
 render:
   cell_size: [512, 1024]

@@ -19,10 +19,18 @@ animation:
 generation:
   source_size: [1024, 1024]
   quality: medium
-  candidates_per_frame: 1
+  mode: sheet
+  candidates_per_sheet: 1
+  sheet:
+    layout: horizontal
+    rows: 1
+    columns: 4
+    gutter_px: 0
   background:
+    mode: transparent_preferred
+    fallback: manual_ui
+    max_alpha_retries: 2
     color: "#00FF00"
-  use_previous_accepted_frame: true
 
 render:
   cell_size: [128, 128]
@@ -30,6 +38,11 @@ render:
   palette_lock: true
   dithering: false
   integrated_shadow: true
+  palette_max_delta_e00: 10
+  resampling:
+    methods: [premultiplied_area, premultiplied_lanczos, pixel_majority, edge_aware]
+    selection: auto
+    save_variants: true
 
 alignment:
   method: torso_hybrid_v1
@@ -37,10 +50,17 @@ alignment:
   confidence_review_threshold: 0.65
   allow_manual_override: true
 
+quality_gates:
+  block_export_on_review: true
+  alpha_integrity:
+    min_transparent_ratio: 0.05
+    min_border_transparent_ratio: 0.98
+    max_foreground_border_ratio: 0.01
+    alpha_threshold: 8
+
 export:
   formats: [individual, horizontal, godot]
   output_dir: exports/tzucan/idle_right
   godot:
     project_root: /Users/emmanuel/Documents/GODOT/The-legend-of-Tzukan/godot
     resource_dir: res://assets/textures/sprites/player/idle/generated
-

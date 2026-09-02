@@ -126,13 +126,19 @@
         "anchor_strategy"
       ],
       "properties": {
-        "method": {"enum": ["body", "bounding_box"]},
+        "method": {"enum": ["body", "feet", "bounding_box"]},
         "canvas_width": {"type": "integer", "minimum": 1},
         "canvas_height": {"type": "integer", "minimum": 1},
         "canonical_anchor": {"$ref": "#/$defs/numberPair"},
         "confidence_threshold": {"type": "number", "minimum": 0, "maximum": 1},
         "ignore_outliers": {"type": "boolean"},
-        "anchor_strategy": {"type": "string"}
+        "anchor_strategy": {"type": "string"},
+        "normalize_scale": {"type": "boolean"},
+        "target_body_height_px": {"type": ["integer", "null"], "minimum": 1},
+        "scale_tolerance_px": {"type": "number", "minimum": 0},
+        "scale_min_ratio": {"type": "number", "exclusiveMinimum": 0},
+        "scale_max_ratio": {"type": "number", "exclusiveMinimum": 0},
+        "scale_reference": {"type": "string"}
       }
     },
     "frame_adjustments": {
@@ -190,6 +196,12 @@
           ],
           "items": false
         },
+        "scale_factor": {"type": "number", "exclusiveMinimum": 0},
+        "scale_reference_width_px": {"type": "number", "minimum": 0},
+        "scale_reference_height_px": {"type": "number", "minimum": 0},
+        "normalized_body_height_px": {"type": "number", "minimum": 0},
+        "scale_manual_review": {"type": "boolean"},
+        "cropped_pixel_count": {"type": "integer", "minimum": 0},
         "locked": {"type": "boolean"},
         "notes": {"type": "string"},
         "manual_review": {"type": "boolean"}

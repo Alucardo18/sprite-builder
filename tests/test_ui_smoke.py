@@ -37,11 +37,11 @@ def test_streamlit_app_opens_with_all_workflow_tabs(
     assert not test_app.exception
     assert test_app.title[0].value == "sprite-builder"
     assert [tab.label for tab in test_app.tabs] == [
-        "Sheet",
-        "Background",
-        "Studio",
-        "Segmentación + Auto Center",
-        "Export",
+        "1. Fondo",
+        "2. Segmentación",
+        "3. Alineación & Anchors",
+        "4. Studio",
+        "5. Export",
     ]
 
 
@@ -59,6 +59,7 @@ def test_tileset_builder_is_available_without_a_sprite_session(
     assert [tab.label for tab in test_app.tabs] == [
         "Atlas",
         "Pattern Studio",
+        "Map Tester",
     ]
     assert any(
         uploader.label == "Cargar tileset PNG"
@@ -78,7 +79,7 @@ def test_tileset_builder_is_a_page_not_a_sprite_workflow_tab() -> None:
     assert 'textContent.trim() === "Deploy"' in header_source
     assert "deployButton.parentElement.insertBefore(navigation, deployButton)" in header_source
     assert "with tileset_tab:" not in source
-    assert 'st.tabs(("Atlas", "Pattern Studio"))' in source
+    assert 'st.tabs(("Atlas", "Pattern Studio", "Map Tester"))' in source
     assert "Tile Size" in (
         Path(app.__file__).parent / "tileset_editor_component" / "index.html"
     ).read_text(encoding="utf-8")

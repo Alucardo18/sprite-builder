@@ -855,7 +855,8 @@ def test_dual_grid_manifest_and_installer_follow_tilemapdual_v5_contract() -> No
     assert 'tile_data.terrain = entry["terrain"]' in installer
     assert installer.count('"coords": Vector2i(') == 16
     assert installer.count('"terrain": -1') == 14
-    assert "var script_dir := get_script().resource_path.get_base_dir()" in installer
+    assert "var current_script := get_script() as Script" in installer
+    assert "var script_dir: String = current_script.resource_path.get_base_dir()" in installer
     assert 'load(script_dir.path_join("terrain_tiles.png"))' in installer
     assert 'ResourceSaver.save(tile_set, script_dir.path_join("terrain_tileset.tres"))' in installer
     assert "res://terrain_tiles" not in installer
@@ -932,7 +933,8 @@ def test_dual_grid_bundle_contains_a_tilemapdual_ready_background_slot_and_check
     assert "may live in any project subfolder" in readme
     # For example, extraction at res://tilesets/dual makes script_dir that
     # subfolder; no bundle file is pinned to project root.
-    assert "var script_dir := get_script().resource_path.get_base_dir()" in installer
+    assert "var current_script := get_script() as Script" in installer
+    assert "var script_dir: String = current_script.resource_path.get_base_dir()" in installer
     assert 'load(script_dir.path_join("terrain_tiles.png"))' in installer
     assert 'ResourceSaver.save(tile_set, script_dir.path_join("terrain_tileset.tres"))' in installer
     assert "res://terrain_tiles" not in installer

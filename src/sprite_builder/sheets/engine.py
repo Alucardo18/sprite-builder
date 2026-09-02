@@ -17,9 +17,10 @@ from sprite_builder.alignment import (
     calibrate_torso_automatically,
     detect_torso_anchor,
     estimate_body_anchor,
+    estimate_feet_anchor,
 )
 from sprite_builder.export import SheetResult, build_spritesheet
-from sprite_builder.postprocess import remove_background
+from sprite_builder.postprocess import remove_background, resize_sprite_variants
 from sprite_builder.sheets.models import (
     AutoCenterConfig,
     BackgroundRemovalConfig,
@@ -49,7 +50,18 @@ class ExportCropResult:
     source_size: tuple[int, int]
 
 
-OverflowStrategy = Literal["strict", "clamp"]
+@dataclass(frozen=True, slots=True)
+class ScaleMeasurement:
+    """One frame's deterministic character-scale normalization evidence."""
+
+    factor: float = 1.0
+    reference_width_px: float = 0.0
+    reference_height_px: float = 0.0
+    normalized_body_height_px: float = 0.0
+    manual_review: bool = False
+
+
+OverflowStrategy = Literal["strict", "clamp", "clip"]
 
 
 def apply_background_removal(
@@ -91,6 +103,83 @@ def pad_frames_to_common_canvas(
         canvas.paste(frame, (0, 0))
         padded.append(canvas)
     return tuple(padded)
+
+
+def normalize_frames_by_character_scale(
+    frames: Sequence[Image.Image],
+    config: AutoCenterConfig,
+) -> tuple[tuple[Image.Image, ...], tuple[ScaleMeasurement, ...]]:
+    """Normalize frame scale from the character body, not extended props.
+
+    ImageGen sheets often make a raised staff or a dramatic gesture occupy more
+    canvas without actually changing the shaman's body size.  The robust body
+    measurement comes from central foreground quantiles, so thin staff/head
+    extensions do not control the scale.  The complete frame is then resized
+    with premultiplied area sampling before torso alignment.  This is a scale
+    normalization step, not a pixel-art style filter.
+    """
+
+    rgba_frames = tuple(frame.convert("RGBA") for frame in frames)
+    if not rgba_frames:
+        raise ValueError("At least one frame is required")
+    if not config.normalize_scale:
+        return rgba_frames, tuple(
+            ScaleMeasurement(
+                factor=1.0,
+                reference_width_px=0.0,
+                reference_height_px=0.0,
+                normalized_body_height_px=0.0,
+                manual_review=False,
+            )
+            for _ in rgba_frames
+        )
+    target = config.target_body_height_px
+    if target is None or target <= 0:
+        raise ValueError(
+            "target_body_height_px is required when normalize_scale is enabled"
+        )
+    estimates = tuple(estimate_body_anchor(frame) for frame in rgba_frames)
+    measured = np.asarray(
+        [max(2.0, estimate.scale_reference_height) for estimate in estimates],
+        dtype=np.float64,
+    )
+    factors = float(target) / measured
+    baseline = float(np.median(factors))
+    if baseline <= 0:
+        raise ValueError("Character scale baseline must be positive")
+
+    normalized: list[Image.Image] = []
+    measurements: list[ScaleMeasurement] = []
+    for frame, estimate, factor in zip(rgba_frames, estimates, factors, strict=True):
+        size = (
+            max(1, round(frame.width * float(factor))),
+            max(1, round(frame.height * float(factor))),
+        )
+        variant = resize_sprite_variants(
+            frame,
+            size,
+            methods=("premultiplied_area",),
+        )[0]
+        scaled = variant.image
+        normalized_estimate = estimate_body_anchor(scaled)
+        normalized_height = float(normalized_estimate.scale_reference_height)
+        relative_factor = float(factor) / baseline
+        review = (
+            relative_factor < config.scale_min_ratio
+            or relative_factor > config.scale_max_ratio
+            or abs(normalized_height - float(target)) > config.scale_tolerance_px
+        )
+        normalized.append(scaled)
+        measurements.append(
+            ScaleMeasurement(
+                factor=float(factor),
+                reference_width_px=float(estimate.scale_reference_width),
+                reference_height_px=float(estimate.scale_reference_height),
+                normalized_body_height_px=normalized_height,
+                manual_review=review,
+            )
+        )
+    return tuple(normalized), tuple(measurements)
 
 
 def trim_transparent_frames(
@@ -188,6 +277,27 @@ def _body_detections(
     return detections, bboxes
 
 
+def _feet_detections(
+    frames: Sequence[Image.Image],
+) -> tuple[list[AnchorDetection], list[tuple[int, int, int, int]]]:
+    detections: list[AnchorDetection] = []
+    bboxes: list[tuple[int, int, int, int]] = []
+    for frame in frames:
+        estimate = estimate_feet_anchor(frame)
+        detections.append(
+            AnchorDetection(
+                estimate.anchor,
+                estimate.confidence,
+                0.0,
+                0.0,
+                estimate.confidence,
+                "feet_support",
+            )
+        )
+        bboxes.append(estimate.body_bbox)
+    return detections, bboxes
+
+
 def analyze_center_frames(
     frames: Sequence[Image.Image],
     config: AutoCenterConfig,
@@ -196,6 +306,8 @@ def analyze_center_frames(
         raise ValueError("At least one frame is required")
     if config.method == "body":
         detections, bboxes = _body_detections(frames)
+    elif config.method == "feet":
+        detections, bboxes = _feet_detections(frames)
     elif config.method == "bounding_box":
         pairs = [_bbox_detection(frame) for frame in frames]
         detections = [item[0] for item in pairs]
@@ -215,6 +327,7 @@ def _apply_centering(
     notes: Sequence[str] | None = None,
     overflow_strategy: OverflowStrategy = "strict",
     target_anchor: tuple[float, float] | None = None,
+    scale_measurements: Sequence[ScaleMeasurement] | None = None,
 ) -> CenteringResult:
     offsets = tuple(manual_offsets or ((0, 0),) * len(frames))
     locks = tuple(locked or (False,) * len(frames))
@@ -223,12 +336,16 @@ def _apply_centering(
         raise ValueError("Frame adjustment counts differ")
     if len(analysis.detections) != len(frames) or len(analysis.bboxes) != len(frames):
         raise ValueError("Frame analysis counts differ")
+    scales = tuple(scale_measurements or (ScaleMeasurement(),) * len(frames))
+    if len(scales) != len(frames):
+        raise ValueError("Frame scale measurement counts differ")
 
     detections = analysis.detections
     bboxes = analysis.bboxes
     target = config.canonical_anchor if target_anchor is None else tuple(map(float, target_anchor))
 
     applied_translations: list[tuple[int, int]] | None = None
+    cropped_pixel_counts = [0] * len(frames)
     canvas_shift_x = 0
     canvas_shift_y = 0
     if overflow_strategy == "strict":
@@ -239,6 +356,35 @@ def _apply_centering(
             target_anchor=target,
             manual_offsets=offsets,
         )
+    elif overflow_strategy == "clip":
+        aligned = []
+        applied_translations = []
+        for index, frame in enumerate(frames):
+            arr = np.asarray(frame.convert("RGBA"))
+            yy, xx = np.where(arr[:, :, 3] > 0)
+            if not len(yy):
+                raise ValueError(f"Frame {index} is empty")
+            detection = detections[index]
+            manual = offsets[index]
+            dx = round(target[0] - detection.anchor[0]) + int(manual[0])
+            dy = round(target[1] - detection.anchor[1]) + int(manual[1])
+            target_y = yy + dy
+            target_x = xx + dx
+            valid = (
+                (target_y >= 0)
+                & (target_y < config.canvas_height)
+                & (target_x >= 0)
+                & (target_x < config.canvas_width)
+            )
+            canvas = np.zeros(
+                (config.canvas_height, config.canvas_width, 4),
+                np.uint8,
+            )
+            if np.any(valid):
+                canvas[target_y[valid], target_x[valid]] = arr[yy[valid], xx[valid]]
+            applied_translations.append((dx, dy))
+            cropped_pixel_counts[index] = int(len(yy) - int(valid.sum()))
+            aligned.append(Image.fromarray(canvas, "RGBA"))
     elif overflow_strategy == "clamp":
         aligned = []
         applied_translations = []
@@ -295,8 +441,8 @@ def _apply_centering(
     residuals: list[float] = []
     source_deltas: list[float] = []
     manual_deltas: list[float] = []
-    for index, (detection, offset, bbox) in enumerate(
-        zip(detections, offsets, bboxes, strict=True)
+    for index, (detection, offset, bbox, scale) in enumerate(
+        zip(detections, offsets, bboxes, scales, strict=True)
     ):
         dx = round(target[0] - detection.anchor[0]) + offset[0]
         dy = round(target[1] - detection.anchor[1]) + offset[1]
@@ -329,11 +475,20 @@ def _apply_centering(
                 final_anchor=expected,
                 applied_translation=(dx, dy),
                 body_bbox=bbox,
+                scale_factor=scale.factor,
+                scale_reference_width_px=scale.reference_width_px,
+                scale_reference_height_px=scale.reference_height_px,
+                normalized_body_height_px=scale.normalized_body_height_px,
+                scale_manual_review=scale.manual_review,
+                cropped_pixel_count=cropped_pixel_counts[index],
                 locked=locks[index],
                 notes=frame_notes[index],
                 manual_review=(
-                    detection.confidence < config.confidence_threshold
-                    and not locks[index]
+                    scale.manual_review
+                    or (
+                        detection.confidence < config.confidence_threshold
+                        and not locks[index]
+                    )
                 ),
             )
         )
@@ -351,6 +506,32 @@ def _apply_centering(
         "final_anchor_max_error": max(residuals, default=0.0),
         "minimum_confidence": min(item.auto_confidence for item in adjustments),
         "mean_confidence": float(np.mean([item.auto_confidence for item in adjustments])),
+        "scale_factor_min": min(item.scale_factor for item in adjustments),
+        "scale_factor_max": max(item.scale_factor for item in adjustments),
+        "scale_factor_mean": float(np.mean([item.scale_factor for item in adjustments])),
+        "scale_reference_height_min": min(
+            item.scale_reference_height_px for item in adjustments
+        ),
+        "scale_reference_height_max": max(
+            item.scale_reference_height_px for item in adjustments
+        ),
+        "normalized_body_height_max_error": max(
+            (
+                abs(item.normalized_body_height_px - float(config.target_body_height_px))
+                for item in adjustments
+                if config.target_body_height_px is not None and item.normalized_body_height_px > 0
+            ),
+            default=0.0,
+        ),
+        "scale_manual_review_count": float(
+            sum(item.scale_manual_review for item in adjustments)
+        ),
+        "cropped_pixel_total": float(
+            sum(item.cropped_pixel_count for item in adjustments)
+        ),
+        "cropped_pixel_max": float(
+            max((item.cropped_pixel_count for item in adjustments), default=0)
+        ),
     }
     return CenteringResult(tuple(aligned), tuple(adjustments), jitter, status)
 
@@ -372,9 +553,18 @@ def auto_center_frames(
         raise ValueError("Canvas dimensions must be positive")
     if not 0 <= config.confidence_threshold <= 1:
         raise ValueError("Confidence threshold must be between 0 and 1")
-    analysis = analysis or analyze_center_frames(frames, config)
-    return _apply_centering(
+    normalized_frames, scale_measurements = normalize_frames_by_character_scale(
         frames,
+        config,
+    )
+    # A caller may have cached analysis for the unscaled source frames.  Once
+    # normalization is enabled, that analysis is intentionally invalidated so
+    # anchors are measured in the same coordinate system as the pixels aligned.
+    if config.normalize_scale:
+        analysis = None
+    analysis = analysis or analyze_center_frames(normalized_frames, config)
+    return _apply_centering(
+        normalized_frames,
         config,
         analysis,
         manual_offsets=manual_offsets,
@@ -382,6 +572,7 @@ def auto_center_frames(
         notes=notes,
         overflow_strategy=overflow_strategy,
         target_anchor=target_anchor,
+        scale_measurements=scale_measurements,
     )
 
 

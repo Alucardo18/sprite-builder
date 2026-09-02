@@ -18,6 +18,11 @@ import streamlit as st
 from PIL import Image, ImageDraw
 
 from sprite_builder.domain.errors import ArtifactIntegrityError
+from sprite_builder.export import (
+    export_native_godot_bundle,
+    preserve_native_sheet,
+    write_native_manifest,
+)
 from sprite_builder.sheets import (
     AutoCenterConfig,
     BackgroundRemovalConfig,
@@ -34,15 +39,14 @@ from sprite_builder.sheets import (
     apply_manual_background_edits,
     auto_center_frames,
     auto_cut_positions,
-    clear_selection,
     combine_selection_masks,
     composite_document_frame,
-    composite_document_frames,
     delete_document_frame,
     duplicate_document_frame,
     encode_mask,
     fill_cel_selection,
     move_document_frame,
+    normalize_frames_by_character_scale,
     outline_cel_pixels,
     paint_cel_stroke,
     remove_isolated_pixels,
@@ -330,6 +334,133 @@ def _render_header_navigation() -> str:
 def _png_bytes(image: Image.Image) -> bytes:
     buffer = io.BytesIO()
     image.convert("RGBA").save(buffer, format="PNG", optimize=False)
+    return buffer.getvalue()
+
+
+_PALETTE_CACHE: dict[tuple[int, int, bytes], list[str]] = {}
+
+
+def _extract_palette_colors(image: Image.Image | None, max_colors: int = 24) -> list[str]:
+    """Extract dominant unique RGBA/RGB colors from a sprite image, sorted by frequency (cached)."""
+    if image is None:
+        return []
+    w, h = image.size
+    raw_sample = image.tobytes()[:512] + image.tobytes()[-512:] if w * h > 256 else image.tobytes()
+    cache_key = (w, h, raw_sample)
+    cached = _PALETTE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    rgba = image.convert("RGBA")
+    colors = rgba.getcolors(maxcolors=min(16384, rgba.width * rgba.height))
+    if not colors:
+        try:
+            reduced = rgba.quantize(colors=max_colors, method=Image.Quantize.FASTOCTREE).convert("RGBA")
+            colors = reduced.getcolors(maxcolors=max_colors * 2) or []
+        except Exception:
+            colors = []
+    visible_colors = [
+        (count, col) for count, col in colors
+        if col[3] > 10
+    ]
+    visible_colors.sort(key=lambda x: x[0], reverse=True)
+    hex_colors: list[str] = []
+    seen: set[str] = set()
+    for _, (r, g, b, a) in visible_colors:
+        if a >= 250:
+            hex_code = f"#{r:02x}{g:02x}{b:02x}"
+        else:
+            hex_code = f"#{r:02x}{g:02x}{b:02x}{a:02x}"
+        if hex_code not in seen:
+            seen.add(hex_code)
+            hex_colors.append(hex_code)
+        if len(hex_colors) >= max_colors:
+            break
+
+    if len(_PALETTE_CACHE) > 128:
+        _PALETTE_CACHE.clear()
+    _PALETTE_CACHE[cache_key] = hex_colors
+    return hex_colors
+
+
+def _replicate_session_config(
+    store: SheetSessionStore,
+    source_session: Any,
+    target_session_ids: Sequence[str],
+    *,
+    copy_background: bool = True,
+    copy_segmentation: bool = True,
+) -> int:
+    """Replicate background and/or segmentation settings from one session to target sessions."""
+    count = 0
+    for target_id in target_session_ids:
+        if target_id == source_session.session_id:
+            continue
+        try:
+            target = store.load(target_id)
+            if copy_background:
+                target.background_removal_config = source_session.background_removal_config
+            if copy_segmentation:
+                target.segmentation_config = source_session.segmentation_config
+            store.save(target)
+            count += 1
+        except Exception:
+            continue
+    return count
+
+
+def _build_batch_export_zip(
+    store: SheetSessionStore,
+    session_ids: Sequence[str],
+) -> bytes:
+    """Build a consolidated ZIP archive containing clean frames, sheets and metadata for multiple sessions."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for session_id in session_ids:
+            try:
+                session = store.load(session_id)
+            except Exception:
+                continue
+
+            folder_name = session_id
+            if hasattr(session, "source_image_path") and session.source_image_path:
+                src_stem = Path(session.source_image_path).stem
+                if src_stem and src_stem != "uploaded":
+                    folder_name = f"{src_stem}_{session_id.split('-')[-1]}"
+
+            session_json_path = store.session_path(session_id)
+            if session_json_path.is_file():
+                archive.writestr(
+                    f"{folder_name}/session.json",
+                    session_json_path.read_text(encoding="utf-8"),
+                )
+
+            aligned_paths = store.stage_paths(session, "alignment")
+            bg_paths = store.stage_paths(session, "background")
+            seg_paths = store.stage_paths(session, "segmentation")
+
+            frames_to_export = aligned_paths or bg_paths or seg_paths
+            if frames_to_export:
+                for idx, f_path in enumerate(frames_to_export):
+                    if f_path.is_file():
+                        archive.writestr(
+                            f"{folder_name}/frames/frame_{idx:03d}.png",
+                            f_path.read_bytes(),
+                        )
+
+            export_manifest = session.stages.get("export")
+            if isinstance(export_manifest, Mapping) and "path" in export_manifest:
+                exp_path = store.workspace / str(export_manifest["path"])
+                if exp_path.is_file():
+                    archive.writestr(
+                        f"{folder_name}/sheet.png",
+                        exp_path.read_bytes(),
+                    )
+            elif hasattr(session, "source_image_path") and session.source_image_path:
+                src_path = store.workspace / session.source_image_path
+                if src_path.is_file():
+                    archive.writestr(f"{folder_name}/sheet.png", src_path.read_bytes())
+
     return buffer.getvalue()
 
 
@@ -920,15 +1051,167 @@ def _render_terrain_patterns() -> None:
             )
 
 
+def _render_tileset_map_tester() -> None:
+    """Render an interactive map testbed to preview Dual-Grid and Blob autotiles in real time."""
+    from sprite_builder.tilesets.autotile import (
+        autotile_blob47,
+        autotile_dual_grid,
+        generate_dungeon_map,
+        generate_empty_map,
+        generate_filled_map,
+        generate_island_map,
+        generate_noise_map,
+    )
+
+    prefix = f"{_TILESET_STATE_PREFIX}:map_tester"
+    st.subheader("Map Tester")
+    st.caption(
+        "Prueba tus autotiles directamente sobre un mapa interactivo. Observa cómo las reglas "
+        "de conexión (Dual-Grid 15 o Blob 47) resuelven esquinas, bordes y pasillos en tiempo real."
+    )
+
+    image = _tileset_state_image()
+    grid = _tileset_grid_from_state()
+    tile_size = (grid.tile_width, grid.tile_height)
+
+    patterns_prefix = f"{_TILESET_STATE_PREFIX}:patterns"
+    raw_project = st.session_state.get(f"{patterns_prefix}:set_view_project")
+    project: dict[str, Any] = dict(raw_project) if isinstance(raw_project, Mapping) else {}
+    active_set = None
+    if isinstance(project, Mapping):
+        sets = project.get("sets", [])
+        active_set_id = project.get("activeSetId")
+        if isinstance(sets, list):
+            active_set = next(
+                (s for s in sets if isinstance(s, Mapping) and s.get("id") == active_set_id),
+                None,
+            )
+
+    kind = _ui_pattern_kind(active_set.get("kind", "dual_grid_15") if active_set else "dual_grid_15")
+
+    pattern_image = None
+    if image is not None:
+        source_mappings = [s for s in project.get("sources", []) if isinstance(s, Mapping)] if isinstance(project, Mapping) else []
+        pattern_result, _ = _build_terrain_pattern_safely(
+            image,
+            tile_size=tile_size,
+            sources=source_mappings,
+            set_config=active_set or {},
+            kind=kind,
+        )
+        if pattern_result is not None:
+            pattern_image = pattern_result.image
+
+    if pattern_image is None:
+        st.info("💡 Usando atlas de demostración con texturas procedurales mientras configuras un set en Pattern Studio.")
+        tw, th = tile_size
+        demo_cols = 4 if kind in {"dual_grid_15", "wang_16"} else 12
+        demo_rows = 4
+        pattern_image = Image.new("RGBA", (demo_cols * tw, demo_rows * th), (30, 42, 60, 255))
+        demo_draw = ImageDraw.Draw(pattern_image)
+        for r in range(demo_rows):
+            for c in range(demo_cols):
+                color = (40 + c * 15, 80 + r * 35, 120 + ((c + r) * 10) % 100, 255)
+                demo_draw.rectangle(
+                    (c * tw, r * th, (c + 1) * tw - 1, (r + 1) * th - 1),
+                    fill=color,
+                    outline=(100, 180, 255, 180),
+                )
+
+    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns((2, 1.2, 1.2, 1.5), gap="small")
+    preset_choice = ctrl_col1.selectbox(
+        "Mapa predefinido",
+        ("Isla central", "Cueva / Mazmorra", "Ruido celular", "Todo lleno", "Vacío"),
+        key=f"{prefix}:preset_choice",
+    )
+    map_w = int(ctrl_col2.number_input("Columnas", min_value=4, max_value=48, value=16, step=2, key=f"{prefix}:map_w"))
+    map_h = int(ctrl_col3.number_input("Filas", min_value=4, max_value=36, value=10, step=2, key=f"{prefix}:map_h"))
+    zoom = int(ctrl_col4.slider("Zoom de visualización", min_value=1, max_value=5, value=2, key=f"{prefix}:zoom"))
+
+    map_key = f"{prefix}:matrix"
+    curr_matrix = st.session_state.get(map_key)
+    if not isinstance(curr_matrix, list) or len(curr_matrix) != map_h or len(curr_matrix[0]) != map_w:
+        if preset_choice == "Isla central":
+            curr_matrix = generate_island_map(map_w, map_h)
+        elif preset_choice == "Cueva / Mazmorra":
+            curr_matrix = generate_dungeon_map(map_w, map_h)
+        elif preset_choice == "Ruido celular":
+            curr_matrix = generate_noise_map(map_w, map_h)
+        elif preset_choice == "Todo lleno":
+            curr_matrix = generate_filled_map(map_w, map_h)
+        else:
+            curr_matrix = generate_empty_map(map_w, map_h)
+        st.session_state[map_key] = curr_matrix
+
+    btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4, gap="small")
+    if btn_col1.button("🎲 Regenerar preset", key=f"{prefix}:regen", width="stretch"):
+        if preset_choice == "Isla central":
+            st.session_state[map_key] = generate_island_map(map_w, map_h)
+        elif preset_choice == "Cueva / Mazmorra":
+            st.session_state[map_key] = generate_dungeon_map(map_w, map_h)
+        elif preset_choice == "Ruido celular":
+            import random
+            st.session_state[map_key] = generate_noise_map(map_w, map_h, seed=random.randint(1, 999999))
+        elif preset_choice == "Todo lleno":
+            st.session_state[map_key] = generate_filled_map(map_w, map_h)
+        else:
+            st.session_state[map_key] = generate_empty_map(map_w, map_h)
+        st.rerun()
+
+    if btn_col2.button("🧹 Limpiar mapa", key=f"{prefix}:clear", width="stretch"):
+        st.session_state[map_key] = generate_empty_map(map_w, map_h)
+        st.rerun()
+
+    if btn_col3.button("⬛ Invertir terreno", key=f"{prefix}:invert", width="stretch"):
+        st.session_state[map_key] = [[not cell for cell in row] for row in st.session_state[map_key]]
+        st.rerun()
+
+    matrix = st.session_state[map_key]
+    if kind == "blob_47":
+        rendered = autotile_blob47(matrix, pattern_image, tile_size)
+    else:
+        rendered = autotile_dual_grid(matrix, pattern_image, tile_size)
+
+    stage_box = st.container(border=True)
+    with stage_box:
+        disp_width = rendered.width * zoom
+        st.image(
+            rendered,
+            caption=f"Vista previa de autotiling ({kind}) · {rendered.width}×{rendered.height} px · Zoom {zoom}×",
+            width=disp_width,
+        )
+
+    active_cells = sum(sum(1 for c in row if c) for row in matrix)
+    total_cells = map_w * map_h
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Regla de terreno", "Dual-Grid (15 tiles)" if kind != "blob_47" else "Blob (47 tiles)")
+    m2.metric("Dimensiones lógicas", f"{map_w} × {map_h} celdas")
+    m3.metric("Resolución mapa", f"{rendered.width} × {rendered.height} px")
+    m4.metric("Celdas activas", f"{active_cells} / {total_cells} ({(active_cells/total_cells*100):.1f}%)")
+
+    map_png = io.BytesIO()
+    rendered.save(map_png, format="PNG")
+    btn_col4.download_button(
+        "💾 Descargar mapa PNG",
+        data=map_png.getvalue(),
+        file_name=f"tileset-map-{kind}-{map_w}x{map_h}.png",
+        mime="image/png",
+        width="stretch",
+        key=f"{prefix}:download_map",
+    )
+
+
 def _render_tileset_builder() -> None:
     """Render the standalone Tilebuilder page and its authoring tabs."""
 
     st.subheader("Tileset Builder")
-    atlas_tab, patterns_tab = st.tabs(("Atlas", "Pattern Studio"))
+    atlas_tab, patterns_tab, test_map_tab = st.tabs(("Atlas", "Pattern Studio", "Map Tester"))
     with atlas_tab:
         _render_tileset_atlas_editor()
     with patterns_tab:
         _render_terrain_patterns()
+    with test_map_tab:
+        _render_tileset_map_tester()
 
 
 def _set_editor_width_mode(enabled: bool) -> None:
@@ -1582,6 +1865,15 @@ def _handle_layer_editor_event(
             min(24, int(event.get("brushRadius", 1))),
         )
         return True
+    if event_type == "sample":
+        raw_sample = event.get("sample")
+        if isinstance(raw_sample, (list, tuple)) and len(raw_sample) == 4:
+            sampled = tuple(int(channel) for channel in raw_sample)
+            st.session_state[f"{prefix}:layer_editor_color"] = sampled
+            st.session_state[f"{prefix}:layer_editor_color_picker_sync"] = _rgb_to_hex(
+                sampled[:3]
+            )
+            return True
     if event_type == "studio":
         action = str(event.get("action", ""))
         requested_layer_id = str(event.get("layerId", ""))
@@ -2415,6 +2707,28 @@ def _load_stage_manifest(
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _segmentation_saved_for_processing(
+    store: SheetSessionStore,
+    session: Any,
+    *,
+    processing_signature: str,
+    frame_count: int,
+) -> bool:
+    """Return whether the current cuts have an immutable segmentation attempt."""
+
+    manifest = _load_stage_manifest(store, session, "segmentation")
+    if not manifest or manifest.get("status") != "passed":
+        return False
+    metadata = manifest.get("metadata")
+    outputs = manifest.get("outputs")
+    return bool(
+        isinstance(metadata, dict)
+        and metadata.get("processing_signature") == processing_signature
+        and isinstance(outputs, list)
+        and len(outputs) == frame_count
+    )
+
+
 def _alignment_export_readiness(
     manifest: dict[str, Any] | None,
     *,
@@ -2975,6 +3289,13 @@ def _handle_background_editor_event(
         st.session_state[f"{prefix}:background_tool"] = next_tool
         st.session_state[f"{prefix}:background_tool_widget_sync"] = next_tool
         return True
+    if event_type == "sample":
+        raw_sample = event.get("sample")
+        if isinstance(raw_sample, (list, tuple)) and len(raw_sample) == 4:
+            st.session_state[f"{prefix}:background_sampled_color"] = tuple(
+                int(channel) for channel in raw_sample
+            )
+            return True
     if event_type == "edit-batch":
         raw_sample = event.get("sample")
         if isinstance(raw_sample, (list, tuple)) and len(raw_sample) == 4:
@@ -3306,6 +3627,49 @@ def _load_stage_frames(
     )
 
 
+def _native_stage_source(
+    store: SheetSessionStore,
+    session: Any,
+) -> tuple[Path | None, str | None]:
+    """Return the one full RGBA background output eligible for native export."""
+
+    try:
+        paths = store.stage_paths(session, "background")
+    except ArtifactIntegrityError as exc:
+        return None, f"La etapa background no pasó la verificación: {exc}"
+    if len(paths) != 1:
+        return None, "La exportación nativa requiere un único output de hoja completa."
+    path = paths[0]
+    try:
+        with Image.open(path) as image:
+            if image.size != (session.inspection.width, session.inspection.height):
+                return None, (
+                    "El output background ya no conserva el tamaño nativo "
+                    f"{image.size} de la fuente."
+                )
+            if image.mode != "RGBA":
+                return None, "El output background debe conservar canal RGBA."
+    except (OSError, ValueError) as exc:
+        return None, f"No se pudo abrir el output background: {exc}"
+    return path, None
+
+
+def _native_atlas_regions(
+    bounds: Sequence[Sequence[int]],
+) -> tuple[tuple[int, int, int, int], ...]:
+    """Translate segmentation crop bounds to AtlasTexture regions in memory."""
+
+    return tuple(
+        (
+            int(region[0]),
+            int(region[1]),
+            int(region[2]) - int(region[0]),
+            int(region[3]) - int(region[1]),
+        )
+        for region in bounds
+    )
+
+
 def _ensure_adjustment_state(session: Any, count: int) -> None:
     prefix = session.session_id
     offsets_key = f"{prefix}:offsets"
@@ -3351,6 +3715,47 @@ def _ensure_adjustment_state(session: Any, count: int) -> None:
     st.session_state[offsets_key] = offsets
     st.session_state[locks_key] = locks
     st.session_state[notes_key] = notes
+
+
+def _reset_alignment_state_for_segmentation(
+    session_state: MutableMapping[str, Any],
+    session: Any,
+    frame_count: int,
+) -> None:
+    """Discard offsets and center history that belong to older frame cuts."""
+
+    prefix = session.session_id
+    session_state[f"{prefix}:offsets"] = [(0, 0) for _ in range(frame_count)]
+    session_state[f"{prefix}:locks"] = [False for _ in range(frame_count)]
+    session_state[f"{prefix}:notes"] = ["" for _ in range(frame_count)]
+    for key in tuple(session_state):
+        if key.startswith(
+            (
+                f"{prefix}:offset_x_widget:",
+                f"{prefix}:offset_y_widget:",
+                f"{prefix}:locked:",
+                f"{prefix}:note:",
+                f"{prefix}:center_zoom:",
+            )
+        ):
+            session_state.pop(key, None)
+    for suffix in (
+        "center_analysis_cache",
+        "center_result_cache",
+        "sheet_crop_selected_frame",
+    ):
+        session_state.pop(f"{prefix}:{suffix}", None)
+    history = session_state.get(f"{prefix}:editor_history")
+    if isinstance(history, dict):
+        for stack_name in ("undo", "redo"):
+            stack = history.get(stack_name)
+            if isinstance(stack, list):
+                history[stack_name] = [
+                    item
+                    for item in stack
+                    if not isinstance(item, dict) or item.get("scope") != "center"
+                ]
+    session.frame_adjustments = []
 
 
 def _sync_center_lock(prefix: str, frame_index: int) -> None:
@@ -3493,7 +3898,7 @@ def _center_analysis_signature(
     frames_signature: str | None = None,
 ) -> str:
     digest = hashlib.sha256()
-    digest.update(config.method.encode("utf-8"))
+    digest.update(json.dumps(config.to_dict(), sort_keys=True).encode("utf-8"))
     digest.update(str(len(frames)).encode("ascii"))
     if frames_signature:
         digest.update(frames_signature.encode("utf-8"))
@@ -3524,7 +3929,10 @@ def _ensure_center_analysis(
         analysis = cached.get("analysis")
         if isinstance(analysis, CenteringAnalysis):
             return analysis
-    analysis = analyze_center_frames(frames, config)
+    analysis_frames = frames
+    if config.normalize_scale:
+        analysis_frames, _ = normalize_frames_by_character_scale(frames, config)
+    analysis = analyze_center_frames(analysis_frames, config)
     st.session_state[cache_key] = {
         "signature": signature,
         "analysis": analysis,
@@ -3657,6 +4065,7 @@ def _alignment_workspace_preview(
     columns: int,
     *,
     origin_offset: tuple[int, int] = (0, 0),
+    show_cell_guides: bool = False,
 ) -> Image.Image:
     sheet_frames = [frame.convert("RGBA") for frame in frames]
     sheet_frames[selected_frame] = Image.new("RGBA", sheet_frames[selected_frame].size, (0, 0, 0, 0))
@@ -3666,6 +4075,35 @@ def _alignment_workspace_preview(
         columns=columns,
         scale=1,
         origin_offset=origin_offset,
+        show_cell_guides=show_cell_guides,
+        show_anchor_guides=not show_cell_guides,
+        show_bbox=False,
+    )
+
+
+def _alignment_drag_overlay(
+    source_frame: Image.Image,
+    adjustment: FrameAdjustment,
+    *,
+    frame_index: int,
+    columns: int,
+    cell_size: tuple[int, int],
+) -> tuple[Image.Image, tuple[int, int]]:
+    """Return the movable opaque bounds and their current sheet position."""
+
+    rgba = source_frame.convert("RGBA")
+    bbox = rgba.getchannel("A").getbbox()
+    if bbox is None:
+        raise ValueError("Cannot move an empty frame")
+    origin_x, origin_y = _contact_sheet_frame_origin(
+        frame_index,
+        columns,
+        cell_size,
+    )
+    dx, dy = adjustment.applied_translation
+    return rgba.crop(bbox), (
+        origin_x + bbox[0] + int(dx),
+        origin_y + bbox[1] + int(dy),
     )
 
 
@@ -3771,6 +4209,18 @@ def _safe_trim_transparent_frames(
     return trim_transparent_frames(frames, config), None
 
 
+def _format_session(s: str) -> str:
+    if s == "Nueva sesión…":
+        return "➕ Nueva sesión…"
+    parts = s.split("-")
+    if len(parts) >= 3 and "T" in parts[1]:
+        d = parts[1]
+        date_str = f"{d[:4]}-{d[4:6]}-{d[6:8]} {d[9:11]}:{d[11:13]}"
+        short_id = parts[-1]
+        return f"📁 {date_str} ({short_id})"
+    return f"📁 {s}"
+
+
 def _new_or_existing_session(store: SheetSessionStore) -> Any | None:
     sessions = store.list_sessions()
     active = st.session_state.get("active_sheet_session")
@@ -3781,7 +4231,7 @@ def _new_or_existing_session(store: SheetSessionStore) -> Any | None:
     st.sidebar.markdown("### Sesión")
     options = ["Nueva sesión…", *sessions]
     index = options.index(active) if active in options else 0
-    selected = st.sidebar.selectbox("Abrir sesión", options, index=index)
+    selected = st.sidebar.selectbox("Abrir sesión", options, index=index, format_func=_format_session)
     if selected != "Nueva sesión…" and selected != active:
         st.session_state.active_sheet_session = selected
         st.rerun()
@@ -3880,53 +4330,53 @@ def main() -> None:
     inspection = session.inspection
     badge, tone = _session_badge(session)
 
-    st.sidebar.markdown("### Fondo")
-    use_corner = st.sidebar.toggle(
-        "Usar esquina superior izquierda",
-        value=False,
-        key=f"{session.session_id}:use_corner",
-    )
-    color_hex = st.sidebar.color_picker(
-        "Color a remover",
-        value=_rgb_to_hex(session.background_removal_config.color),
-        disabled=use_corner,
-        key=f"{session.session_id}:background_color",
-    )
-    background_rgb = inspection.top_left_rgb if use_corner else _hex_to_rgb(color_hex)
-    tolerance = float(
-        st.sidebar.slider(
-            "Tolerancia RGB",
-            min_value=0,
-            max_value=200,
-            value=int(session.background_removal_config.tolerance),
-            key=f"{session.session_id}:tolerance",
+    with st.sidebar.expander("🧹 Remoción de fondo", expanded=True):
+        use_corner = st.toggle(
+            "Usar esquina superior izquierda",
+            value=False,
+            key=f"{session.session_id}:use_corner",
         )
-    )
-    cleanup = st.sidebar.toggle(
-        "Cleanup de fringe",
-        value=session.background_removal_config.cleanup_enabled,
-        key=f"{session.session_id}:cleanup",
-    )
-    fringe = int(
-        st.sidebar.slider(
-            "Fuerza de cleanup",
-            0,
-            3,
-            session.background_removal_config.fringe_cleanup_strength,
-            disabled=not cleanup,
-            key=f"{session.session_id}:fringe",
+        color_hex = st.color_picker(
+            "Color a remover",
+            value=_rgb_to_hex(session.background_removal_config.color),
+            disabled=use_corner,
+            key=f"{session.session_id}:background_color",
         )
-    )
-    preserve_outline = st.sidebar.toggle(
-        "Preservar outline",
-        value=session.background_removal_config.preserve_outline,
-        key=f"{session.session_id}:preserve_outline",
-    )
-    remove_near = st.sidebar.toggle(
-        "Quitar casi transparentes",
-        value=session.background_removal_config.remove_near_transparent,
-        key=f"{session.session_id}:remove_near",
-    )
+        background_rgb = inspection.top_left_rgb if use_corner else _hex_to_rgb(color_hex)
+        tolerance = float(
+            st.slider(
+                "Tolerancia RGB",
+                min_value=0,
+                max_value=200,
+                value=int(session.background_removal_config.tolerance),
+                key=f"{session.session_id}:tolerance",
+            )
+        )
+        cleanup = st.toggle(
+            "Cleanup de fringe",
+            value=session.background_removal_config.cleanup_enabled,
+            key=f"{session.session_id}:cleanup",
+        )
+        fringe = int(
+            st.slider(
+                "Fuerza de cleanup",
+                0,
+                3,
+                session.background_removal_config.fringe_cleanup_strength,
+                disabled=not cleanup,
+                key=f"{session.session_id}:fringe",
+            )
+        )
+        preserve_outline = st.toggle(
+            "Preservar outline",
+            value=session.background_removal_config.preserve_outline,
+            key=f"{session.session_id}:preserve_outline",
+        )
+        remove_near = st.toggle(
+            "Quitar casi transparentes",
+            value=session.background_removal_config.remove_near_transparent,
+            key=f"{session.session_id}:remove_near",
+        )
     background_config = BackgroundRemovalConfig(
         color=background_rgb,
         tolerance=tolerance,
@@ -3936,127 +4386,126 @@ def main() -> None:
         preserve_outline=preserve_outline,
     )
 
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### Segmentación")
-    orientation_labels = {
-        "Horizontal": "horizontal",
-        "Vertical": "vertical",
-        "Grid": "grid",
-    }
-    current_orientation = session.segmentation_config.orientation
-    orientation_label = st.sidebar.selectbox(
-        "Orientación",
-        tuple(orientation_labels),
-        index=list(orientation_labels.values()).index(current_orientation),
-        key=f"{session.session_id}:orientation",
-    )
-    orientation = orientation_labels[orientation_label]
-    rows = int(
-        st.sidebar.number_input(
-            "Filas",
-            min_value=1,
-            max_value=512,
-            value=max(1, session.segmentation_config.rows),
-            disabled=orientation != "grid",
-            key=f"{session.session_id}:rows",
+    with st.sidebar.expander("📐 Configuración de Grid", expanded=False):
+        orientation_labels = {
+            "Horizontal": "horizontal",
+            "Vertical": "vertical",
+            "Grid": "grid",
+        }
+        current_orientation = session.segmentation_config.orientation
+        orientation_label = st.selectbox(
+            "Orientación",
+            tuple(orientation_labels),
+            index=list(orientation_labels.values()).index(current_orientation),
+            key=f"{session.session_id}:orientation",
         )
-    )
-    columns = int(
-        st.sidebar.number_input(
-            "Columnas",
-            min_value=1,
-            max_value=512,
-            value=max(1, session.segmentation_config.columns),
-            disabled=orientation != "grid",
-            key=f"{session.session_id}:columns",
-        )
-    )
-    if orientation == "grid":
-        requested_frame_count = session.segmentation_config.frame_count
-        frame_count = _effective_segmentation_frame_count(
-            orientation,
-            requested_frame_count,
-            rows,
-            columns,
-        )
-        st.sidebar.metric("Número de frames", frame_count)
-        st.sidebar.caption(
-            f"Grid completo: {rows} filas × {columns} columnas = {frame_count} frames"
-        )
-    else:
-        requested_frame_count = int(
-            st.sidebar.number_input(
-                "Número de frames",
+        orientation = orientation_labels[orientation_label]
+        rows = int(
+            st.number_input(
+                "Filas",
                 min_value=1,
                 max_value=512,
-                value=session.segmentation_config.frame_count,
-                step=1,
-                key=f"{session.session_id}:frame_count",
+                value=max(1, session.segmentation_config.rows),
+                disabled=orientation != "grid",
+                key=f"{session.session_id}:rows",
             )
         )
-        frame_count = _effective_segmentation_frame_count(
-            orientation,
-            requested_frame_count,
-            rows,
-            columns,
+        columns = int(
+            st.number_input(
+                "Columnas",
+                min_value=1,
+                max_value=512,
+                value=max(1, session.segmentation_config.columns),
+                disabled=orientation != "grid",
+                key=f"{session.session_id}:columns",
+            )
         )
-    auto_cell = st.sidebar.toggle(
-        "Auto-calcular tamaño de celda",
-        value=session.segmentation_config.cell_width is None,
-        key=f"{session.session_id}:auto_cell",
-    )
-    cell_width = int(
-        st.sidebar.number_input(
-            "Cell width",
-            min_value=1,
-            value=session.segmentation_config.cell_width or inspection.width,
-            disabled=auto_cell,
-            key=f"{session.session_id}:cell_width",
+        if orientation == "grid":
+            requested_frame_count = session.segmentation_config.frame_count
+            frame_count = _effective_segmentation_frame_count(
+                orientation,
+                requested_frame_count,
+                rows,
+                columns,
+            )
+            st.metric("Número de frames", frame_count)
+            st.caption(
+                f"Grid completo: {rows} filas × {columns} columnas = {frame_count} frames"
+            )
+        else:
+            requested_frame_count = int(
+                st.number_input(
+                    "Número de frames",
+                    min_value=1,
+                    max_value=512,
+                    value=session.segmentation_config.frame_count,
+                    step=1,
+                    key=f"{session.session_id}:frame_count",
+                )
+            )
+            frame_count = _effective_segmentation_frame_count(
+                orientation,
+                requested_frame_count,
+                rows,
+                columns,
+            )
+        auto_cell = st.toggle(
+            "Auto-calcular tamaño de celda",
+            value=session.segmentation_config.cell_width is None,
+            key=f"{session.session_id}:auto_cell",
         )
-    )
-    cell_height = int(
-        st.sidebar.number_input(
-            "Cell height",
-            min_value=1,
-            value=session.segmentation_config.cell_height or inspection.height,
-            disabled=auto_cell,
-            key=f"{session.session_id}:cell_height",
+        cell_width = int(
+            st.number_input(
+                "Cell width",
+                min_value=1,
+                value=session.segmentation_config.cell_width or inspection.width,
+                disabled=auto_cell,
+                key=f"{session.session_id}:cell_width",
+            )
         )
-    )
-    cut_col1, cut_col2 = st.sidebar.columns(2)
-    offset_x = int(
-        cut_col1.number_input(
-            "Offset X",
-            min_value=0,
-            value=session.segmentation_config.offset_x,
-            key=f"{session.session_id}:offset_x",
+        cell_height = int(
+            st.number_input(
+                "Cell height",
+                min_value=1,
+                value=session.segmentation_config.cell_height or inspection.height,
+                disabled=auto_cell,
+                key=f"{session.session_id}:cell_height",
+            )
         )
-    )
-    offset_y = int(
-        cut_col2.number_input(
-            "Offset Y",
-            min_value=0,
-            value=session.segmentation_config.offset_y,
-            key=f"{session.session_id}:offset_y",
+        cut_col1, cut_col2 = st.columns(2)
+        offset_x = int(
+            cut_col1.number_input(
+                "Offset X",
+                min_value=0,
+                value=session.segmentation_config.offset_x,
+                key=f"{session.session_id}:offset_x",
+            )
         )
-    )
-    gap_col1, gap_col2 = st.sidebar.columns(2)
-    spacing_x = int(
-        gap_col1.number_input(
-            "Spacing X",
-            min_value=0,
-            value=session.segmentation_config.spacing_x,
-            key=f"{session.session_id}:spacing_x",
+        offset_y = int(
+            cut_col2.number_input(
+                "Offset Y",
+                min_value=0,
+                value=session.segmentation_config.offset_y,
+                key=f"{session.session_id}:offset_y",
+            )
         )
-    )
-    spacing_y = int(
-        gap_col2.number_input(
-            "Spacing Y",
-            min_value=0,
-            value=session.segmentation_config.spacing_y,
-            key=f"{session.session_id}:spacing_y",
+        gap_col1, gap_col2 = st.columns(2)
+        spacing_x = int(
+            gap_col1.number_input(
+                "Spacing X",
+                min_value=0,
+                value=session.segmentation_config.spacing_x,
+                key=f"{session.session_id}:spacing_x",
+            )
         )
-    )
+        spacing_y = int(
+            gap_col2.number_input(
+                "Spacing Y",
+                min_value=0,
+                value=session.segmentation_config.spacing_y,
+                key=f"{session.session_id}:spacing_y",
+            )
+        )
     segmentation_config = SegmentationConfig(
         frame_count=frame_count,
         orientation=orientation,  # type: ignore[arg-type]
@@ -4069,6 +4518,61 @@ def main() -> None:
         spacing_x=spacing_x,
         spacing_y=spacing_y,
     )
+    other_sessions = [s for s in store.list_sessions() if s != session.session_id]
+    with st.sidebar.expander("📦 Gestión por Lotes (Batch)", expanded=False):
+        st.caption(f"{len(other_sessions) + 1} sesiones en workspace.")
+        if other_sessions:
+            st.markdown("**Replicar configuración actual**")
+            target_selection = st.multiselect(
+                "Sesiones objetivo",
+                other_sessions,
+                default=other_sessions,
+                format_func=_format_session,
+                key=f"{session.session_id}:batch_targets",
+            )
+            copy_bg = st.checkbox("Copiar remoción de fondo", value=True, key=f"{session.session_id}:copy_bg")
+            copy_grid = st.checkbox("Copiar configuración de grilla", value=True, key=f"{session.session_id}:copy_grid")
+            if st.button(
+                "Aplicar a seleccionadas",
+                width="stretch",
+                disabled=not target_selection or (not copy_bg and not copy_grid),
+                key=f"{session.session_id}:apply_batch_config",
+            ):
+                updated = _replicate_session_config(
+                    store,
+                    session,
+                    target_selection,
+                    copy_background=copy_bg,
+                    copy_segmentation=copy_grid,
+                )
+                st.success(f"Configuración copiada a {updated} sesiones.")
+                st.rerun()
+
+            st.markdown("---")
+            st.markdown("**Exportación masiva de lote**")
+            all_sessions_to_export = [session.session_id, *target_selection]
+            batch_zip_key = f"{session.session_id}:batch_zip_bytes"
+            if st.button(
+                "📦 Preparar paquete ZIP del lote",
+                key=f"{session.session_id}:prepare_batch_zip",
+                width="stretch",
+            ):
+                with st.spinner("Empaquetando lote en ZIP..."):
+                    st.session_state[batch_zip_key] = _build_batch_export_zip(store, all_sessions_to_export)
+                st.success("Paquete ZIP listo para descarga.")
+
+            batch_zip_data = st.session_state.get(batch_zip_key)
+            if batch_zip_data:
+                st.download_button(
+                    "💾 Descargar sprite_batch_bundle.zip",
+                    data=batch_zip_data,
+                    file_name="sprite_batch_bundle.zip",
+                    mime="application/zip",
+                    width="stretch",
+                    key=f"{session.session_id}:download_batch_zip",
+                )
+        else:
+            st.info("Carga más de una sesión para copiar parámetros o exportar en lote.")
     current_cut_positions = (
         ()
         if segmentation_config.orientation == "grid"
@@ -4155,6 +4659,13 @@ def main() -> None:
     except ValueError:
         resolved_cell = source.size
 
+    feet_auto_align_key = f"{session.session_id}:feet_auto_align"
+    st.session_state.setdefault(
+        feet_auto_align_key,
+        session.auto_center_config.method == "feet",
+    )
+    feet_auto_align = bool(st.session_state[feet_auto_align_key])
+
     st.sidebar.markdown("### Auto Center")
     auto_canvas = st.sidebar.toggle(
         "Canvas igual a celda",
@@ -4189,20 +4700,31 @@ def main() -> None:
     if auto_canvas:
         canvas_col1.metric("Canvas W", canvas_width)
         canvas_col2.metric("Canvas H", canvas_height)
-    method_label = st.sidebar.radio(
-        "Método",
-        ("Body / torso anchor", "Bounding box simple"),
-        index=0 if session.auto_center_config.method == "body" else 1,
-        key=f"{session.session_id}:center_method",
-    )
+    if feet_auto_align:
+        method_label = "Feet / ground support"
+        st.sidebar.info(
+            "Método activo: soporte de pies. Sólo traslada pixels y amplía el canvas."
+        )
+    else:
+        method_label = st.sidebar.radio(
+            "Método",
+            ("Body / torso anchor", "Bounding box simple"),
+            index=0 if session.auto_center_config.method == "body" else 1,
+            key=f"{session.session_id}:center_method",
+        )
     auto_target = st.sidebar.toggle(
         "Anchor recomendado",
         value=True,
         key=f"{session.session_id}:auto_target",
     )
     anchor_col1, anchor_col2 = st.sidebar.columns(2)
+    recommended_anchor_y = (
+        round(canvas_height * 0.8125)
+        if feet_auto_align
+        else round(canvas_height * 0.55)
+    )
     canonical_anchor = (
-        (canvas_width // 2, round(canvas_height * 0.55))
+        (canvas_width // 2, recommended_anchor_y)
         if auto_target
         else (
             int(
@@ -4244,12 +4766,85 @@ def main() -> None:
             key=f"{session.session_id}:confidence",
         )
     )
+    st.sidebar.markdown("#### Escala del personaje")
+    if feet_auto_align:
+        normalize_scale = False
+        st.sidebar.caption(
+            "Escala bloqueada en 1:1 mientras la alineación por pies está activa."
+        )
+    else:
+        normalize_scale = st.sidebar.toggle(
+            "Normalizar por torso/cuerpo",
+            value=bool(session.auto_center_config.normalize_scale),
+            help=(
+                "Ajusta cada frame al tamaño canónico del personaje antes de anclarlo. "
+                "Las extensiones finas, como un báculo elevado, no cambian la escala."
+            ),
+            key=f"{session.session_id}:normalize_scale",
+        )
+    target_body_height_px: int | None = None
+    scale_tolerance_px = float(session.auto_center_config.scale_tolerance_px)
+    scale_min_ratio = float(session.auto_center_config.scale_min_ratio)
+    scale_max_ratio = float(session.auto_center_config.scale_max_ratio)
+    scale_reference = str(session.auto_center_config.scale_reference)
+    if normalize_scale:
+        target_body_height_px = int(
+            st.sidebar.number_input(
+                "Altura corporal canónica (px)",
+                min_value=1,
+                value=int(session.auto_center_config.target_body_height_px or 44),
+                key=f"{session.session_id}:target_body_height_px",
+            )
+        )
+        scale_tolerance_px = float(
+            st.sidebar.number_input(
+                "Tolerancia de escala (px)",
+                min_value=0.0,
+                max_value=8.0,
+                value=scale_tolerance_px,
+                step=0.5,
+                key=f"{session.session_id}:scale_tolerance_px",
+            )
+        )
+        with st.sidebar.expander("Límites de revisión", expanded=False):
+            scale_min_ratio = float(
+                st.number_input(
+                    "Factor mínimo relativo",
+                    min_value=0.1,
+                    max_value=1.0,
+                    value=scale_min_ratio,
+                    step=0.05,
+                    key=f"{session.session_id}:scale_min_ratio",
+                )
+            )
+            scale_max_ratio = float(
+                st.number_input(
+                    "Factor máximo relativo",
+                    min_value=1.0,
+                    max_value=3.0,
+                    value=scale_max_ratio,
+                    step=0.05,
+                    key=f"{session.session_id}:scale_max_ratio",
+                )
+            )
     center_config = AutoCenterConfig(
-        method="body" if method_label.startswith("Body") else "bounding_box",
+        method=(
+            "feet"
+            if feet_auto_align
+            else "body"
+            if method_label.startswith("Body")
+            else "bounding_box"
+        ),
         canvas_width=canvas_width,
         canvas_height=canvas_height,
         canonical_anchor=canonical_anchor,
         confidence_threshold=confidence,
+        normalize_scale=normalize_scale,
+        target_body_height_px=target_body_height_px,
+        scale_tolerance_px=scale_tolerance_px,
+        scale_min_ratio=scale_min_ratio,
+        scale_max_ratio=scale_max_ratio,
+        scale_reference=scale_reference,
     )
 
     background_source = source
@@ -4383,13 +4978,13 @@ def main() -> None:
         else:
             st.caption("Historial listo · cada pincelada o drag cuenta como una acción")
 
-    sheet_tab, background_tab, studio_tab, align_tab, export_tab = st.tabs(
+    background_tab, sheet_tab, align_tab, studio_tab, export_tab = st.tabs(
         (
-            "Sheet",
-            "Background",
-            "Studio",
-            "Segmentación + Auto Center",
-            "Export",
+            "1. Fondo",
+            "2. Segmentación",
+            "3. Alineación & Anchors",
+            "4. Studio",
+            "5. Export",
         )
     )
     history_notice_key = f"{session.session_id}:editor_history_notice"
@@ -4398,6 +4993,24 @@ def main() -> None:
 
     with sheet_tab:
         st.subheader("Carga y segmentación")
+        with st.container(border=True):
+            feet_toggle_col, feet_copy_col = st.columns((1, 2.4), gap="large")
+            with feet_toggle_col:
+                st.toggle(
+                    "Auto alinear por pies",
+                    key=feet_auto_align_key,
+                    help=(
+                        "Detecta el soporte inferior de la figura, alinea todos los frames "
+                        "a la misma línea de suelo y amplía el canvas cuando haga falta."
+                    ),
+                )
+            with feet_copy_col:
+                st.markdown("**Alineación 1:1 sin reescalado**")
+                st.caption(
+                    "Usa el borde inferior del cuerpo como anchor. Manos, penacho y báculo "
+                    "pueden extenderse libremente. Aumenta Canvas W/H si necesitas conservar "
+                    "lo que sobresale."
+                )
         if segmentation:
             prefix = session.session_id
             _ensure_segmentation_cut_controls_state(session)
@@ -4473,6 +5086,209 @@ def main() -> None:
                     # Stop it before rendering the expensive downstream tabs and
                     # immediately acknowledge the optimistic local position.
                     st.rerun()
+
+            st.markdown("#### Frames extraídos")
+            gallery = st.columns(min(6, len(segmentation.frames)))
+            for index, frame in enumerate(segmentation.frames):
+                with gallery[index % len(gallery)]:
+                    _show_pixel(frame, f"Frame {index}", max_height=180)
+
+            segmentation_saved = _segmentation_saved_for_processing(
+                store,
+                session,
+                processing_signature=processing_signature,
+                frame_count=len(segmentation.frames),
+            )
+            if st.button(
+                "Guardar segmentación",
+                type="primary",
+                key=f"{session.session_id}:save_segmentation",
+            ):
+                if not segmentation_saved:
+                    _reset_alignment_state_for_segmentation(
+                        st.session_state,
+                        session,
+                        len(segmentation.frames),
+                    )
+                session.segmentation_config = segmentation_config
+                store.commit_stage(
+                    session,
+                    "segmentation",
+                    segmentation.frames,
+                    config=segmentation_config.to_dict(),
+                    warnings=segmentation.warnings,
+                    metadata={
+                        "regions": [list(region) for region in segmentation.regions],
+                        "resolved_config": segmentation.resolved_config.to_dict(),
+                        "empty_frames": list(segmentation.empty_frames),
+                        "processing_signature": processing_signature,
+                    },
+                )
+                segmentation_saved = True
+                st.success("Segmentación guardada como intento inmutable.")
+
+            if feet_auto_align and not segmentation_saved:
+                st.info(
+                    "Guarda primero la segmentación actual. Después podrás mover y "
+                    "recortar cada sprite dentro de su frame."
+                )
+
+            if (
+                feet_auto_align
+                and segmentation_saved
+                and working_frames
+                and center_analysis is not None
+            ):
+                with st.container(border=True):
+                    st.markdown("#### Mover y recortar cada frame")
+                    st.caption(
+                        "Selecciona un frame y arrastra el personaje. La celda permanece "
+                        "fija; al soltar, lo que quede fuera del marco se recorta. "
+                        "La imagen nunca se escala."
+                    )
+                    crop_result = auto_center_frames(
+                        working_frames,
+                        center_config,
+                        manual_offsets=st.session_state[f"{prefix}:offsets"],
+                        locked=st.session_state[f"{prefix}:locks"],
+                        notes=st.session_state[f"{prefix}:notes"],
+                        overflow_strategy="clip",
+                        analysis=center_analysis,
+                        target_anchor=center_config.canonical_anchor,
+                    )
+                    crop_selected = st.selectbox(
+                        "Frame a mover",
+                        tuple(range(len(crop_result.frames))),
+                        key=f"{prefix}:sheet_crop_selected_frame",
+                    )
+                    crop_columns = _export_preview_columns(
+                        segmentation_config.orientation,
+                        len(crop_result.frames),
+                        segmentation_config.columns,
+                    )
+                    crop_canvas = _alignment_workspace_preview(
+                        crop_result.frames,
+                        crop_result.adjustments,
+                        crop_selected,
+                        crop_columns,
+                        show_cell_guides=True,
+                    )
+                    crop_overlay, crop_position = _alignment_drag_overlay(
+                        working_frames[crop_selected],
+                        crop_result.adjustments[crop_selected],
+                        frame_index=crop_selected,
+                        columns=crop_columns,
+                        cell_size=(center_config.canvas_width, center_config.canvas_height),
+                    )
+                    crop_offset = st.session_state[f"{prefix}:offsets"][crop_selected]
+                    crop_event = pixel_editor(
+                        crop_canvas,
+                        overlay=crop_overlay,
+                        sample=None,
+                        tool="drag",
+                        mode="segmentation-center",
+                        zoom=int(
+                            st.session_state.get(
+                                f"{prefix}:center_zoom:{crop_selected}",
+                                8,
+                            )
+                        ),
+                        offset_x=crop_position[0],
+                        offset_y=crop_position[1],
+                        home_offset_x=crop_position[0],
+                        home_offset_y=crop_position[1],
+                        show_guides=False,
+                        allow_drag=True,
+                        show_autocenter=False,
+                        show_autocrop=False,
+                        fit_on_load=True,
+                        fit_token=(
+                            f"{prefix}:sheet-crop:{crop_selected}:"
+                            f"{crop_canvas.width}x{crop_canvas.height}"
+                        ),
+                        frame_token=(
+                            f"{prefix}:sheet-crop:{crop_selected}:"
+                            f"offset:{crop_offset[0]}:{crop_offset[1]}"
+                        ),
+                        **_history_controls(session),
+                        key=f"{prefix}:sheet_crop_editor",
+                    )
+                    if _handle_editor_history_event(store, session, crop_event):
+                        st.rerun()
+                    crop_history_before = _center_history_snapshot(prefix)
+                    crop_changed = _handle_center_editor_event(
+                        session,
+                        len(crop_result.frames),
+                        crop_selected,
+                        crop_event,
+                        home_offset=crop_position,
+                        base_manual_offset=crop_offset,
+                    )
+                    if crop_changed and crop_event:
+                        _record_editor_history(
+                            session,
+                            scope="center",
+                            label="Mover frame dentro de celda",
+                            before=crop_history_before,
+                            after=_center_history_snapshot(prefix),
+                        )
+                    if crop_changed and crop_event and crop_event.get("type") == "transform":
+                        st.rerun()
+
+                    crop_adjustment = crop_result.adjustments[crop_selected]
+                    crop_metric_col, reset_col, save_col = st.columns((1.2, 1, 1.35))
+                    crop_metric_col.metric(
+                        "Pixels fuera del frame",
+                        crop_adjustment.cropped_pixel_count,
+                    )
+                    if reset_col.button(
+                        "Reaplicar pies",
+                        width="stretch",
+                        key=f"{prefix}:sheet_crop_reset_all",
+                    ):
+                        history_before = _center_history_snapshot(prefix)
+                        st.session_state[f"{prefix}:offsets"] = [
+                            (0, 0) for _ in crop_result.frames
+                        ]
+                        _record_editor_history(
+                            session,
+                            scope="center",
+                            label="Reaplicar alineación por pies",
+                            before=history_before,
+                            after=_center_history_snapshot(prefix),
+                        )
+                        st.rerun()
+                    if save_col.button(
+                        "Guardar posiciones y recorte",
+                        type="primary",
+                        width="stretch",
+                        key=f"{prefix}:save_sheet_crop_alignment",
+                    ):
+                        session.background_removal_config = background_config
+                        session.auto_center_config = center_config
+                        store.commit_stage(
+                            session,
+                            "alignment",
+                            crop_result.frames,
+                            config={
+                                "segmentation": segmentation_config.to_dict(),
+                                "background": background_config.to_dict(),
+                                "auto_center": center_config.to_dict(),
+                                "manual_offsets": list(
+                                    st.session_state[f"{prefix}:offsets"]
+                                ),
+                                "overflow_strategy": "clip",
+                            },
+                            status=crop_result.status,
+                            metrics=crop_result.jitter_report,
+                            metadata={
+                                "frames": [
+                                    item.to_dict() for item in crop_result.adjustments
+                                ]
+                            },
+                        )
+                        store.save_adjustments(session, crop_result.adjustments)
+                        st.success("Posiciones y recorte guardados para exportación.")
         else:
             with st.container(border=True):
                 _show_pixel(source, "Sprite sheet original")
@@ -4509,7 +5325,7 @@ def main() -> None:
                     key=f"{session.session_id}:segmentation_auto_cut",
                 ):
                     history_before = _cut_history_snapshot(session.session_id)
-                    auto_cuts = _set_auto_segmentation_cuts(
+                    _set_auto_segmentation_cuts(
                         session,
                         background_source,
                         segmentation_config,
@@ -4535,32 +5351,6 @@ def main() -> None:
                 st.caption(
                     "El zoom y el encuadre viven directamente en la barra del lienzo."
                 )
-        if segmentation:
-            st.markdown("#### Frames extraídos")
-            gallery = st.columns(min(6, len(segmentation.frames)))
-            for index, frame in enumerate(segmentation.frames):
-                with gallery[index % len(gallery)]:
-                    _show_pixel(frame, f"Frame {index}", max_height=180)
-            if st.button(
-                "Guardar segmentación",
-                type="primary",
-                key=f"{session.session_id}:save_segmentation",
-            ):
-                session.segmentation_config = segmentation_config
-                store.commit_stage(
-                    session,
-                    "segmentation",
-                    segmentation.frames,
-                    config=segmentation_config.to_dict(),
-                    warnings=segmentation.warnings,
-                    metadata={
-                        "regions": [list(region) for region in segmentation.regions],
-                        "resolved_config": segmentation.resolved_config.to_dict(),
-                        "empty_frames": list(segmentation.empty_frames),
-                    },
-                )
-                st.success("Segmentación guardada como intento inmutable.")
-
     with background_tab:
         st.subheader("Remoción de fondo")
         if background_source:
@@ -4643,6 +5433,7 @@ def main() -> None:
                     unsafe_allow_html=True,
                 )
                 history_controls = _history_controls(session)
+                bg_palette = _extract_palette_colors(editor_background)
                 event = pixel_editor(
                     editor_background,
                     overlay=overlay,
@@ -4651,6 +5442,7 @@ def main() -> None:
                     brush_radius=int(st.session_state[brush_key]),
                     wand_tolerance=int(manual_tolerance),
                     wand_contiguous=contiguous,
+                    palette_colors=bg_palette,
                     floating_selection=floating_piece,
                     floating_highlight=floating_highlight,
                     floating_selection_x=floating_x,
@@ -5553,12 +6345,14 @@ def main() -> None:
                                 for index in range(document.frame_count)
                             )
                             history_controls = _history_controls(session)
+                            studio_palette = _extract_palette_colors(composite)
                             event = pixel_editor(
                                 composite,
                                 overlay=move_overlay,
                                 move_base=move_base,
                                 sample=tuple(st.session_state[color_key]),
                                 paint_color=tuple(st.session_state[color_key]),
+                                palette_colors=studio_palette,
                                 tool=_normalize_layer_tool(st.session_state[tool_key]),
                                 mode="layer-edit",
                                 brush_radius=brush_radius,
@@ -5726,6 +6520,12 @@ def main() -> None:
                             confidence_threshold=old_center.confidence_threshold,
                             ignore_outliers=old_center.ignore_outliers,
                             anchor_strategy=old_center.anchor_strategy,
+                            normalize_scale=old_center.normalize_scale,
+                            target_body_height_px=old_center.target_body_height_px,
+                            scale_tolerance_px=old_center.scale_tolerance_px,
+                            scale_min_ratio=old_center.scale_min_ratio,
+                            scale_max_ratio=old_center.scale_max_ratio,
+                            scale_reference=old_center.scale_reference,
                         )
                         _save_layer_document_with_history(
                             store,
@@ -6001,10 +6801,18 @@ def main() -> None:
                         "frame": item.frame_index,
                         "anchor_x": round(item.auto_anchor[0], 2),
                         "anchor_y": round(item.auto_anchor[1], 2),
+                        "scale": round(item.scale_factor, 4),
+                        "body_px": round(item.normalized_body_height_px, 2),
                         "confidence": round(item.auto_confidence, 3),
                         "offset_x": item.manual_offset_x,
                         "offset_y": item.manual_offset_y,
-                        "status": "review" if item.manual_review else "passed",
+                        "status": (
+                            "review-scale"
+                            if item.scale_manual_review
+                            else "review"
+                            if item.manual_review
+                            else "passed"
+                        ),
                     }
                     for item in centered.adjustments
                 ],
@@ -6244,6 +7052,103 @@ def main() -> None:
 
     with export_tab:
         st.subheader("Export")
+        if segmentation:
+            native_source, native_reason = _native_stage_source(store, session)
+            native_segmentation_saved = _segmentation_saved_for_processing(
+                store,
+                session,
+                processing_signature=processing_signature,
+                frame_count=len(segmentation.frames),
+            )
+            with st.container(border=True):
+                st.markdown("#### Hoja nativa completa")
+                st.caption(
+                    "Conserva el PNG RGBA completo a resolución nativa. Sólo se guardan "
+                    "regiones AtlasTexture; no ejecuta Auto Center, recorte ni resampling."
+                )
+                native_animation_key = f"{session.session_id}:native_animation"
+                native_texture_key = f"{session.session_id}:native_texture_path"
+                st.session_state.setdefault(native_animation_key, "native_sheet")
+                st.session_state.setdefault(native_texture_key, "res://native-sheet.png")
+                native_animation = st.text_input(
+                    "Nombre de animación nativa",
+                    key=native_animation_key,
+                ).strip()
+                native_texture_path = st.text_input(
+                    "Ruta Texture2D Godot",
+                    key=native_texture_key,
+                    help="Debe empezar con res:// si vas a consumir el .tres en Godot.",
+                ).strip()
+                native_ready = (
+                    native_source is not None
+                    and native_segmentation_saved
+                    and bool(native_animation)
+                    and native_texture_path.startswith("res://")
+                )
+                if native_reason:
+                    st.warning(native_reason)
+                if not native_segmentation_saved:
+                    st.warning(
+                        "Guarda primero la segmentación actual; el atlas nativo no "
+                        "debe usar cortes que todavía no tengan intento inmutable."
+                    )
+                if not native_texture_path.startswith("res://"):
+                    st.warning("La ruta Texture2D Godot debe comenzar con `res://`.")
+                if st.button(
+                    "Exportar hoja nativa completa",
+                    type="primary",
+                    width="stretch",
+                    disabled=not native_ready,
+                    key=f"{session.session_id}:native_export",
+                ):
+                    assert native_source is not None
+                    native_regions = _native_atlas_regions(segmentation.regions)
+                    native_output_dir = workspace / session.output_dir / "exports" / "native"
+                    native_sheet = preserve_native_sheet(
+                        native_source,
+                        native_output_dir / "native-sheet.png",
+                        regions=native_regions,
+                    )
+                    metadata_path, tres_path = export_native_godot_bundle(
+                        sheet=native_sheet,
+                        output_directory=native_output_dir,
+                        texture_resource_path=native_texture_path,
+                        animation=native_animation,
+                        fps=8.0,
+                        loop=False,
+                        frame_indices=tuple(range(len(native_regions))),
+                    )
+                    manifest_path = write_native_manifest(
+                        native_sheet,
+                        native_output_dir / f"{native_animation}.native-export.json",
+                        animation=native_animation,
+                        metadata_path=metadata_path,
+                        tres_path=tres_path,
+                        texture_resource_path=native_texture_path,
+                        frame_indices=tuple(range(len(native_regions))),
+                    )
+                    st.session_state[f"{session.session_id}:last_native_export"] = {
+                        "sheet": native_sheet.output_path,
+                        "metadata": metadata_path,
+                        "sprite_frames": tres_path,
+                        "manifest": manifest_path,
+                    }
+                    st.success(
+                        "Hoja nativa exportada sin crop ni resampling; "
+                        f"SHA-256 `{native_sheet.output_sha256}`."
+                    )
+                native_export = st.session_state.get(
+                    f"{session.session_id}:last_native_export"
+                )
+                if isinstance(native_export, dict):
+                    st.caption(
+                        "Archivos: "
+                        + ", ".join(
+                            str(value)
+                            for value in native_export.values()
+                            if isinstance(value, Path)
+                        )
+                    )
         if centered:
             prefix = session.session_id
             export_frames_source = centered.frames

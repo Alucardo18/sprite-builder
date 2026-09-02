@@ -11,7 +11,6 @@ import sys
 from collections.abc import Iterable
 from dataclasses import fields
 from pathlib import Path
-from typing import Any
 
 from PIL import Image
 
@@ -20,21 +19,24 @@ from sprite_builder.character import analyze_reference, create_character_skeleto
 from sprite_builder.consistency import render_masked_edit_overlay, verify_masked_edit
 from sprite_builder.domain.config import load_job
 from sprite_builder.domain.models import JobSpec
+from sprite_builder.export import (
+    export_native_godot_bundle,
+    preserve_native_sheet,
+    write_native_manifest,
+)
 from sprite_builder.generation import (
     GenerationRequest,
     PromptCompiler,
     build_character_context,
+    generate_openai_candidate,
     ingest_candidate,
     latest_request_decision,
+    plan_openai_request,
     prepare_requests,
     record_request_decision,
 )
 from sprite_builder.pipeline import (
-    align_job,
-    export_job,
-    postprocess_job,
-    preview_job,
-    validate_job,
+    validate_sheet_sources,
 )
 from sprite_builder.sheets import (
     AutoCenterConfig,
@@ -67,10 +69,6 @@ def _request(path: str | Path) -> GenerationRequest:
     value["reference_paths"] = tuple(value.get("reference_paths", ()))
     value["source_size"] = tuple(value.get("source_size", (1024, 1024)))
     return GenerationRequest(**value)
-
-
-def _palette_for(job: Any) -> Path:
-    return Path(job.character.bible).parent / "palette.json"
 
 
 def _normalize_argv(argv: Iterable[str] | None) -> list[str] | None:
@@ -107,6 +105,28 @@ def _rgb_hex(value: str) -> tuple[int, int, int]:
         raise argparse.ArgumentTypeError("Expected a colour in #RRGGBB format") from exc
 
 
+def _frame_indices(value: str) -> tuple[int, ...]:
+    tokens = tuple(item.strip() for item in value.split(","))
+    if not tokens or any(not item for item in tokens):
+        raise argparse.ArgumentTypeError("Frame indices must be comma-separated integers")
+    try:
+        indices = tuple(int(item) for item in tokens)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "Frame indices must be comma-separated integers"
+        ) from exc
+    if any(index < 0 for index in indices) or len(set(indices)) != len(indices):
+        raise argparse.ArgumentTypeError("Frame indices must be unique and non-negative")
+    return indices
+
+
+def _workspace_path(root: Path, value: str | None) -> Path | None:
+    if value is None:
+        return None
+    path = Path(value).expanduser()
+    return path if path.is_absolute() else root / path
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     checks = {
         "python": platform.python_version(),
@@ -114,12 +134,18 @@ def command_doctor(args: argparse.Namespace) -> int:
         "pillow": False,
         "numpy": False,
         "opencv": False,
-        "openai_api_used": False,
+        "openai_image_api_installed": False,
+        "openai_api_key_present": bool(os.environ.get("OPENAI_API_KEY")),
         "codex_skill": (
             _workspace(args.workspace) / ".codex/skills/sprite-builder/SKILL.md"
         ).is_file(),
     }
-    for module, key in (("PIL", "pillow"), ("numpy", "numpy"), ("cv2", "opencv")):
+    for module, key in (
+        ("PIL", "pillow"),
+        ("numpy", "numpy"),
+        ("cv2", "opencv"),
+        ("openai", "openai_image_api_installed"),
+    ):
         try:
             __import__(module)
             checks[key] = True
@@ -173,7 +199,14 @@ def command_prepare(args: argparse.Namespace) -> int:
         prompt_compiler=compiler,
         character_context=build_character_context(job, workspace=root),
     )
-    _json_print({"job_id": job.job_id, "prepared": len(requests)})
+    _json_print(
+        {
+            "job_id": job.job_id,
+            "prepared": len(requests),
+            "requests_per_direction": job.generation.candidates_per_sheet,
+            "frame_count_per_sheet": job.animation.frame_count,
+        }
+    )
     return 0
 
 
@@ -200,17 +233,24 @@ def command_queue(args: argparse.Namespace) -> int:
         records.append(
             {
                 "request_id": request.request_id,
-                "frame": request.frame_index,
+                "request_kind": request.request_kind,
+                "sheet_frame_count": request.sheet_frame_count,
+                "sheet_layout": request.sheet_layout,
                 "candidate": request.candidate_index,
                 "status": (
                     decision.status
                     if decision is not None
                     else "ingested"
                     if raw.exists()
+                    else request.status
+                    if request.status != "prepared"
                     else "pending"
                 ),
                 "source_kind": request.source_kind,
-                "seed_source": request.seed_source_path,
+                "alpha_retry_index": request.alpha_retry_index,
+                "attempt": request.attempt_number,
+                "max_attempts": request.max_attempts,
+                "manual_session_id": request.manual_session_id,
                 "request": str(path),
                 "expected_output": str(raw),
             }
@@ -227,6 +267,28 @@ def command_ingest(args: argparse.Namespace) -> int:
         record.__dict__
         if hasattr(record, "__dict__")
         else {field.name: getattr(record, field.name) for field in fields(record)}
+    )
+    return 0
+
+
+def command_generate_openai(args: argparse.Namespace) -> int:
+    request = _request(args.request)
+    if args.dry_run:
+        _json_print(plan_openai_request(request, model=args.model).to_dict())
+        return 0
+    result = generate_openai_candidate(
+        request,
+        workspace=_workspace(args.workspace),
+        model=args.model,
+    )
+    _json_print(
+        {
+            "generation": result.generation.to_dict(),
+            "ingest": {
+                field.name: getattr(result.ingest, field.name)
+                for field in fields(result.ingest)
+            },
+        }
     )
     return 0
 
@@ -328,7 +390,12 @@ def command_sheet_process(args: argparse.Namespace) -> int:
         remove_near_transparent=args.remove_near_transparent,
         preserve_outline=not args.no_preserve_outline,
     )
-    transparent = apply_background_removal(segmented.frames, background_config)
+    if args.manual_alpha:
+        # Sheet Studio has already authored the alpha.  Do not run chroma
+        # removal again: it can damage the deliberate 16-bit outline colors.
+        transparent = tuple(frame.convert("RGBA") for frame in segmented.frames)
+    else:
+        transparent = apply_background_removal(segmented.frames, background_config)
     assert segmented.resolved_config.cell_width is not None
     assert segmented.resolved_config.cell_height is not None
     canvas_width = args.canvas_width or segmented.resolved_config.cell_width
@@ -343,6 +410,12 @@ def command_sheet_process(args: argparse.Namespace) -> int:
         canvas_height=canvas_height,
         canonical_anchor=anchor,
         confidence_threshold=args.confidence_threshold,
+        normalize_scale=args.normalize_scale,
+        target_body_height_px=args.target_body_height_px,
+        scale_tolerance_px=args.scale_tolerance_px,
+        scale_min_ratio=args.scale_min_ratio,
+        scale_max_ratio=args.scale_max_ratio,
+        scale_reference=args.scale_reference,
     )
     previous = {
         item.frame_index: item
@@ -439,47 +512,116 @@ def command_sheet_export(args: argparse.Namespace) -> int:
     return 0
 
 
-def _load(args: argparse.Namespace) -> tuple[JobSpec, Path]:
-    return load_job(args.job), _workspace(args.workspace)
+def command_sheet_native_export(args: argparse.Namespace) -> int:
+    """Export a full manually cleaned sheet and logical atlas regions only."""
 
+    root = _workspace(args.workspace)
+    store = SheetSessionStore(root)
+    session = store.load(args.session)
+    background_paths = store.stage_paths(session, "background")
+    if len(background_paths) != 1:
+        raise ValueError(
+            "NATIVE_EXPORT_BLOCKED: expected exactly one full-sheet background/manual-alpha output"
+        )
+    source_path = background_paths[0]
+    with Image.open(source_path) as image:
+        if image.size != (session.inspection.width, session.inspection.height):
+            raise ValueError(
+                "NATIVE_EXPORT_BLOCKED: background output is not the full native sheet "
+                f"{image.size} != {(session.inspection.width, session.inspection.height)}"
+            )
+        if image.mode != "RGBA":
+            raise ValueError(
+                f"NATIVE_EXPORT_BLOCKED: background output must be RGBA, got {image.mode}"
+            )
 
-def command_postprocess(args: argparse.Namespace) -> int:
-    job, root = _load(args)
+    # This call computes rectangles in memory.  It deliberately does not write
+    # the cropped ``segmented.frames``; the native exporter copies source bytes
+    # and records only the resulting AtlasTexture regions.
+    segmented = segment_sheet(
+        source_path,
+        session.segmentation_config,
+        background_rgb=session.inspection.border_rgb,
+    )
+    indices = (
+        tuple(range(len(segmented.regions)))
+        if args.frame_indices is None
+        else tuple(args.frame_indices)
+    )
+    if not indices:
+        raise ValueError("NATIVE_EXPORT_BLOCKED: at least one frame index is required")
+    if any(index >= len(segmented.regions) for index in indices):
+        raise ValueError(
+            "NATIVE_EXPORT_BLOCKED: frame index exceeds the manual segmentation regions"
+        )
+    # ``segment_sheet`` exposes crop bounds as (x0, y0, x1, y1), while an
+    # AtlasTexture region is (x, y, width, height).  This is a metadata-only
+    # conversion; no crop is materialized or written.
+    regions = tuple(
+        (
+            bounds[0],
+            bounds[1],
+            bounds[2] - bounds[0],
+            bounds[3] - bounds[1],
+        )
+        for bounds in (segmented.regions[index] for index in indices)
+    )
+    output_directory = _workspace_path(root, args.output_dir)
+    assert output_directory is not None
+    native_sheet_path = _workspace_path(root, args.native_sheet_output)
+    if native_sheet_path is None:
+        native_sheet_path = output_directory / args.sheet_name
+    native_sheet = preserve_native_sheet(
+        source_path,
+        native_sheet_path,
+        regions=regions,
+    )
+    metadata_path, tres_path = export_native_godot_bundle(
+        sheet=native_sheet,
+        output_directory=output_directory,
+        texture_resource_path=args.texture_resource_path,
+        animation=args.animation,
+        fps=args.fps,
+        loop=args.loop,
+        frame_indices=indices,
+    )
+    manifest_path = write_native_manifest(
+        native_sheet,
+        output_directory / f"{args.animation}.native-export.json",
+        animation=args.animation,
+        metadata_path=metadata_path,
+        tres_path=tres_path,
+        texture_resource_path=args.texture_resource_path,
+        frame_indices=indices,
+    )
     _json_print(
         {
-            "frames": [
-                str(path)
-                for path in postprocess_job(job, workspace=root, palette_path=_palette_for(job))
-            ]
+            "session_id": session.session_id,
+            "source_stage": "background",
+            "source_path": str(source_path),
+            "output_directory": str(output_directory),
+            "native_sheet": native_sheet.as_dict(),
+            "animation": args.animation,
+            "frame_indices": list(indices),
+            "regions": [list(region) for region in regions],
+            "metadata": str(metadata_path),
+            "sprite_frames": str(tres_path),
+            "manifest": str(manifest_path),
+            "warnings": list(segmented.warnings),
         }
     )
     return 0
 
 
-def command_align(args: argparse.Namespace) -> int:
+def _load(args: argparse.Namespace) -> tuple[JobSpec, Path]:
+    return load_job(args.job), _workspace(args.workspace)
+
+
+def command_sheet_source_validate(args: argparse.Namespace) -> int:
     job, root = _load(args)
-    paths, anchors = align_job(job, workspace=root, overrides_path=args.overrides)
-    _json_print({"frames": [str(path) for path in paths], "anchors": anchors})
-    return 3 if any(item["manual_review"] for item in anchors) else 0
-
-
-def command_validate(args: argparse.Namespace) -> int:
-    job, root = _load(args)
-    report = validate_job(job, workspace=root, palette_path=_palette_for(job))
-    _json_print(report)
-    return {"pass": 0, "review": 3, "reject": 4}.get(report["status"], 4)
-
-
-def command_preview(args: argparse.Namespace) -> int:
-    job, root = _load(args)
-    _json_print(preview_job(job, workspace=root))
-    return 0
-
-
-def command_export(args: argparse.Namespace) -> int:
-    job, root = _load(args)
-    _json_print(export_job(job, workspace=root))
-    return 0
+    manifest = validate_sheet_sources(job, workspace=root)
+    _json_print(manifest)
+    return 3
 
 
 def command_verify_edit(args: argparse.Namespace) -> int:
@@ -511,25 +653,6 @@ def command_verify_edit(args: argparse.Namespace) -> int:
     return {"pass": 0, "review": 3, "reject": 4}[report.status]
 
 
-def command_run(args: argparse.Namespace) -> int:
-    job, root = _load(args)
-    if args.dry_run:
-        return command_prepare(args)
-    postprocess_job(job, workspace=root, palette_path=_palette_for(job))
-    _, anchors = align_job(job, workspace=root, overrides_path=args.overrides)
-    if any(item["manual_review"] for item in anchors) and not args.allow_review:
-        _json_print({"status": "manual_review", "reason": "low-confidence torso anchor"})
-        return 3
-    report = validate_job(job, workspace=root, palette_path=_palette_for(job))
-    if report["status"] == "reject":
-        _json_print(report)
-        return 4
-    previews = preview_job(job, workspace=root)
-    outputs = export_job(job, workspace=root)
-    _json_print({"status": report["status"], "previews": previews, "outputs": outputs})
-    return 0 if report["status"] == "pass" else 3
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = _NormalizingArgumentParser(prog="sprite-builder")
     parser.add_argument("--workspace", default=".")
@@ -557,6 +680,11 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--request", required=True)
     ingest.add_argument("--image", required=True)
     ingest.set_defaults(func=command_ingest)
+    generate_openai = commands.add_parser("generate-openai")
+    generate_openai.add_argument("--request", required=True)
+    generate_openai.add_argument("--model", choices=("gpt-image-2",), default="gpt-image-2")
+    generate_openai.add_argument("--dry-run", action="store_true")
+    generate_openai.set_defaults(func=command_generate_openai)
     request_review = commands.add_parser("request-review")
     request_review.add_argument("--request", required=True)
     request_review.add_argument("--status", choices=("accepted", "rejected"), required=True)
@@ -593,6 +721,11 @@ def build_parser() -> argparse.ArgumentParser:
     sheet_process.add_argument("--spacing-x", type=int, default=0)
     sheet_process.add_argument("--spacing-y", type=int, default=0)
     sheet_process.add_argument("--background-color", type=_rgb_hex)
+    sheet_process.add_argument(
+        "--manual-alpha",
+        action="store_true",
+        help="Use the already-cleaned RGBA frames; skip automatic chroma removal",
+    )
     sheet_process.add_argument("--tolerance", type=float, default=24)
     sheet_process.add_argument("--no-cleanup", action="store_true")
     sheet_process.add_argument("--fringe-cleanup", type=int, default=1)
@@ -600,7 +733,7 @@ def build_parser() -> argparse.ArgumentParser:
     sheet_process.add_argument("--no-preserve-outline", action="store_true")
     sheet_process.add_argument(
         "--center-method",
-        choices=("body", "bounding_box"),
+        choices=("body", "feet", "bounding_box"),
         default="body",
     )
     sheet_process.add_argument("--canvas-width", type=int)
@@ -608,6 +741,16 @@ def build_parser() -> argparse.ArgumentParser:
     sheet_process.add_argument("--anchor-x", type=int)
     sheet_process.add_argument("--anchor-y", type=int)
     sheet_process.add_argument("--confidence-threshold", type=float, default=0.65)
+    sheet_process.add_argument(
+        "--normalize-scale",
+        action="store_true",
+        help="Normalize character scale from robust body measurements before alignment",
+    )
+    sheet_process.add_argument("--target-body-height-px", type=int)
+    sheet_process.add_argument("--scale-tolerance-px", type=float, default=1.0)
+    sheet_process.add_argument("--scale-min-ratio", type=float, default=0.75)
+    sheet_process.add_argument("--scale-max-ratio", type=float, default=1.333333)
+    sheet_process.add_argument("--scale-reference", default="robust_body")
     sheet_process.set_defaults(func=command_sheet_process)
     sheet_export = commands.add_parser("sheet-export")
     sheet_export.add_argument("--session", required=True)
@@ -622,6 +765,29 @@ def build_parser() -> argparse.ArgumentParser:
     sheet_export.add_argument("--gif", action="store_true")
     sheet_export.add_argument("--fps", type=float, default=8)
     sheet_export.set_defaults(func=command_sheet_export)
+    sheet_native_export = commands.add_parser(
+        "sheet-native-export",
+        help="Preserve a full manual RGBA sheet and export logical Godot atlas regions",
+    )
+    sheet_native_export.add_argument("--session", required=True)
+    sheet_native_export.add_argument("--animation", required=True)
+    sheet_native_export.add_argument("--output-dir", required=True)
+    sheet_native_export.add_argument(
+        "--native-sheet-output",
+        help="Path for the one full native PNG; defaults to output-dir/native-sheet.png",
+    )
+    sheet_native_export.add_argument("--sheet-name", default="native-sheet.png")
+    sheet_native_export.add_argument("--texture-resource-path", required=True)
+    sheet_native_export.add_argument("--frame-indices", type=_frame_indices)
+    sheet_native_export.add_argument("--fps", type=float, default=8.0)
+    sheet_native_export.add_argument("--loop", action="store_true")
+    sheet_native_export.set_defaults(func=command_sheet_native_export)
+    sheet_source_validate = commands.add_parser(
+        "sheet-source-validate",
+        help="Validate complete native sheet sources without cropping or resampling",
+    )
+    sheet_source_validate.add_argument("--job", required=True)
+    sheet_source_validate.set_defaults(func=command_sheet_source_validate)
     verify_edit = commands.add_parser("verify-edit")
     verify_edit.add_argument("--before", required=True)
     verify_edit.add_argument("--after", required=True)
@@ -631,22 +797,6 @@ def build_parser() -> argparse.ArgumentParser:
     verify_edit.add_argument("--overlay-scale", type=int, default=4)
     verify_edit.add_argument("--allow-alpha-changes", action="store_true")
     verify_edit.set_defaults(func=command_verify_edit)
-    for name, function in (
-        ("postprocess", command_postprocess),
-        ("align", command_align),
-        ("validate", command_validate),
-        ("preview", command_preview),
-        ("export", command_export),
-        ("run", command_run),
-    ):
-        command = commands.add_parser(name)
-        command.add_argument("--job", required=True)
-        if name in {"align", "run"}:
-            command.add_argument("--overrides")
-        if name == "run":
-            command.add_argument("--dry-run", action="store_true")
-            command.add_argument("--allow-review", action="store_true")
-        command.set_defaults(func=function)
     return parser
 
 

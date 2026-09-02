@@ -1,53 +1,61 @@
 from __future__ import annotations
 
 import io
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw
 
+from sprite_builder.alignment import estimate_feet_anchor
 from sprite_builder.sheets import (
     AutoCenterConfig,
     BackgroundRemovalConfig,
-    auto_cut_positions,
-    analyze_center_frames,
     ExportCropConfig,
     FrameAdjustment,
     SegmentationConfig,
     SheetSessionStore,
-    apply_manual_background_edits,
+    analyze_center_frames,
     apply_background_removal,
+    apply_manual_background_edits,
     auto_center_frames,
+    auto_cut_positions,
     clear_selection,
     combine_selection_masks,
     decode_mask,
     encode_mask,
     erase_similar_pixels,
     erase_with_brush,
+    normalize_frames_by_character_scale,
     pad_frames_to_common_canvas,
     render_contact_sheet,
     render_frame_overlay,
-    render_selection_overlay,
-    select_similar_pixels,
-    segment_sheet,
     render_segmentation_region_guides,
-    trim_transparent_frames,
+    render_selection_overlay,
+    segment_sheet,
+    select_similar_pixels,
     shift_mask,
+    trim_transparent_frames,
 )
-from sprite_builder.ui.app import _clamp_manual_offsets_to_canvas
-from sprite_builder.ui.app import _normalized_segmentation_cut_positions
-from sprite_builder.ui.app import _normalized_grid_cut_positions
-from sprite_builder.ui.app import _effective_segmentation_frame_count
-from sprite_builder.ui.app import _safe_trim_transparent_frames
-from sprite_builder.ui.app import _handle_center_editor_event
-from sprite_builder.ui.app import _handle_background_editor_event
-from sprite_builder.ui.app import _export_preview_columns
-from sprite_builder.ui.app import _alignment_export_readiness
-from sprite_builder.ui.app import _center_history_snapshot
-from sprite_builder.ui.app import _handle_editor_history_event
-from sprite_builder.ui.app import _pack_selection_masks
-from sprite_builder.ui.app import _record_editor_history
-from sprite_builder.ui.app import _unpack_selection_masks
+from sprite_builder.ui.app import (
+    _alignment_drag_overlay,
+    _alignment_export_readiness,
+    _center_history_snapshot,
+    _clamp_manual_offsets_to_canvas,
+    _effective_segmentation_frame_count,
+    _export_preview_columns,
+    _handle_background_editor_event,
+    _handle_center_editor_event,
+    _handle_editor_history_event,
+    _normalized_grid_cut_positions,
+    _normalized_segmentation_cut_positions,
+    _pack_selection_masks,
+    _record_editor_history,
+    _reset_alignment_state_for_segmentation,
+    _safe_trim_transparent_frames,
+    _segmentation_saved_for_processing,
+    _unpack_selection_masks,
+)
 
 
 def _sheet(count: int = 4, cell: tuple[int, int] = (16, 20)) -> Image.Image:
@@ -407,6 +415,169 @@ def test_weapon_does_not_drag_body_anchor() -> None:
     first, second = result.adjustments
     assert abs(first.auto_anchor[0] - second.auto_anchor[0]) <= 3
     assert all(frame.size == (80, 64) for frame in result.frames)
+
+
+def test_feet_anchor_ignores_hands_and_staff_below_ground() -> None:
+    frame = Image.new("RGBA", (96, 96), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(frame)
+    draw.rectangle((32, 18, 57, 67), fill=(180, 90, 30, 255))
+    draw.rectangle((27, 64, 40, 78), fill=(210, 120, 45, 255))
+    draw.rectangle((49, 64, 62, 78), fill=(210, 120, 45, 255))
+    # Arm and staff are connected to the body. The staff reaches lower than
+    # the feet but is outside the robust lower-body corridor.
+    draw.rectangle((55, 28, 83, 34), fill=(180, 90, 30, 255))
+    draw.rectangle((81, 5, 85, 90), fill=(95, 60, 20, 255))
+
+    estimate = estimate_feet_anchor(frame)
+
+    assert estimate.ground_y == 78
+    assert 39 <= estimate.anchor[0] <= 51
+    assert estimate.support_bbox[3] == 79
+    assert estimate.confidence >= 0.65
+
+
+def test_feet_alignment_expands_canvas_and_preserves_rgba_pixels() -> None:
+    frames: list[Image.Image] = []
+    for staff_x, arm_x in ((66, 60), (2, 8)):
+        frame = Image.new("RGBA", (72, 64), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(frame)
+        draw.rectangle((26, 14, 45, 47), fill=(181, 91, 31, 255))
+        draw.rectangle((22, 44, 32, 56), fill=(211, 121, 46, 255))
+        draw.rectangle((39, 44, 49, 56), fill=(212, 122, 47, 255))
+        draw.rectangle((min(arm_x, 26), 24, max(arm_x, 45), 28), fill=(182, 92, 32, 255))
+        draw.rectangle((staff_x, 2, staff_x + 3, 61), fill=(96, 61, 21, 255))
+        frames.append(frame)
+
+    result = auto_center_frames(
+        frames,
+        AutoCenterConfig(
+            method="feet",
+            canvas_width=48,
+            canvas_height=48,
+            canonical_anchor=(24, 39),
+            confidence_threshold=0,
+        ),
+        overflow_strategy="clamp",
+    )
+
+    assert len({frame.size for frame in result.frames}) == 1
+    assert result.frames[0].width > 48
+    assert result.frames[0].height > 48
+    assert all(item.scale_factor == 1.0 for item in result.adjustments)
+    assert len({round(item.final_anchor[1], 4) for item in result.adjustments}) == 1
+    for source, aligned in zip(frames, result.frames, strict=True):
+        source_pixels = np.asarray(source)
+        aligned_pixels = np.asarray(aligned)
+        source_colors = Counter(
+            map(tuple, source_pixels[source_pixels[:, :, 3] > 0].tolist())
+        )
+        aligned_colors = Counter(
+            map(tuple, aligned_pixels[aligned_pixels[:, :, 3] > 0].tolist())
+        )
+        assert aligned_colors == source_colors
+
+
+def test_clip_alignment_keeps_fixed_canvas_and_reports_cropped_pixels() -> None:
+    frame = Image.new("RGBA", (20, 20), (0, 0, 0, 0))
+    ImageDraw.Draw(frame).rectangle((2, 3, 17, 18), fill=(91, 173, 244, 255))
+    source_alpha = int((np.asarray(frame)[:, :, 3] > 0).sum())
+
+    result = auto_center_frames(
+        [frame],
+        AutoCenterConfig(
+            method="bounding_box",
+            canvas_width=12,
+            canvas_height=12,
+            canonical_anchor=(2, 2),
+            confidence_threshold=0,
+        ),
+        overflow_strategy="clip",
+    )
+
+    output = np.asarray(result.frames[0])
+    output_alpha = int((output[:, :, 3] > 0).sum())
+    assert result.frames[0].size == (12, 12)
+    assert result.adjustments[0].scale_factor == 1.0
+    assert result.adjustments[0].cropped_pixel_count == source_alpha - output_alpha
+    assert result.adjustments[0].cropped_pixel_count > 0
+    assert result.jitter_report["cropped_pixel_total"] > 0
+
+
+def test_alignment_drag_overlay_uses_opaque_bounds_and_current_translation() -> None:
+    frame = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    ImageDraw.Draw(frame).rectangle((3, 4, 8, 10), fill=(255, 128, 32, 255))
+    adjustment = FrameAdjustment(
+        frame_index=1,
+        applied_translation=(2, -1),
+    )
+
+    overlay, position = _alignment_drag_overlay(
+        frame,
+        adjustment,
+        frame_index=1,
+        columns=2,
+        cell_size=(10, 12),
+    )
+
+    assert overlay.size == (6, 7)
+    assert position == (15, 3)
+
+
+def test_character_scale_normalization_ignores_thin_staff_extension() -> None:
+    frames: list[Image.Image] = []
+    # The body changes source size between frames while a thin staff reaches
+    # much higher. The scale reference must follow the robust body, not the
+    # total foreground height.
+    for body_height, staff_top in ((100, 8), (120, 8)):
+        image = Image.new("RGBA", (200, 260), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        body_bottom = 170 if body_height == 100 else 190
+        body_top = body_bottom - body_height
+        draw.rectangle((78, body_top, 121, body_bottom), fill=(180, 90, 30, 255))
+        draw.rectangle((120, staff_top, 123, body_top), fill=(100, 70, 20, 255))
+        frames.append(image)
+
+    config = AutoCenterConfig(
+        canvas_width=96,
+        canvas_height=96,
+        canonical_anchor=(48, 55),
+        confidence_threshold=0,
+        normalize_scale=True,
+        target_body_height_px=44,
+        scale_tolerance_px=1,
+    )
+    normalized, measurements = normalize_frames_by_character_scale(frames, config)
+    assert len(normalized) == len(measurements) == 2
+    assert measurements[0].factor > measurements[1].factor
+    assert all(
+        abs(item.normalized_body_height_px - 44) <= 1
+        for item in measurements
+    )
+    assert all(item.manual_review is False for item in measurements)
+
+
+def test_auto_center_records_scale_evidence_before_alignment() -> None:
+    frame = Image.new("RGBA", (180, 220), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(frame)
+    draw.rectangle((70, 80, 110, 179), fill=(180, 90, 30, 255))
+    draw.rectangle((108, 10, 112, 80), fill=(100, 70, 20, 255))
+    result = auto_center_frames(
+        [frame],
+        AutoCenterConfig(
+            canvas_width=96,
+            canvas_height=96,
+            canonical_anchor=(48, 55),
+            confidence_threshold=0,
+            normalize_scale=True,
+            target_body_height_px=44,
+        ),
+        overflow_strategy="clamp",
+    )
+    adjustment = result.adjustments[0]
+    assert adjustment.scale_factor > 0
+    assert adjustment.scale_reference_height_px > 0
+    assert abs(adjustment.normalized_body_height_px - 44) <= 1
+    assert result.jitter_report["scale_manual_review_count"] == 0
 
 
 def test_auto_center_respects_a_custom_target_anchor() -> None:
@@ -1402,6 +1573,86 @@ def test_session_round_trip_stage_and_export(tmp_path: Path) -> None:
     assert exported_path.is_file()  # Immutable lineage remains on disk.
     assert background_manifest_path.is_file()
     assert "manual_edit_operations" in background_manifest_text
+
+
+def test_crop_requires_the_current_segmentation_attempt(tmp_path: Path) -> None:
+    store = SheetSessionStore(tmp_path)
+    session = store.create(_png_bytes(_sheet(2)), source_name="walk.png")
+    frames = segment_sheet(
+        store.source_path(session),
+        SegmentationConfig(frame_count=2),
+        background_rgb=(0, 255, 0),
+    ).frames
+
+    assert not _segmentation_saved_for_processing(
+        store,
+        session,
+        processing_signature="cuts-v1",
+        frame_count=2,
+    )
+
+    store.commit_stage(
+        session,
+        "segmentation",
+        frames,
+        config={"frame_count": 2},
+        metadata={"processing_signature": "cuts-v1"},
+    )
+
+    assert _segmentation_saved_for_processing(
+        store,
+        session,
+        processing_signature="cuts-v1",
+        frame_count=2,
+    )
+    assert not _segmentation_saved_for_processing(
+        store,
+        session,
+        processing_signature="cuts-v2",
+        frame_count=2,
+    )
+    assert not _segmentation_saved_for_processing(
+        store,
+        session,
+        processing_signature="cuts-v1",
+        frame_count=3,
+    )
+
+
+def test_new_segmentation_discards_offsets_and_center_history(tmp_path: Path) -> None:
+    store = SheetSessionStore(tmp_path)
+    session = store.create(_png_bytes(_sheet(2)), source_name="walk.png")
+    session.frame_adjustments = [
+        FrameAdjustment(frame_index=0, manual_offset_x=7, manual_offset_y=-4)
+    ]
+    prefix = session.session_id
+    state: dict[str, object] = {
+        f"{prefix}:offsets": [(7, -4)],
+        f"{prefix}:locks": [True],
+        f"{prefix}:notes": ["old cuts"],
+        f"{prefix}:offset_x_widget:0": 7,
+        f"{prefix}:center_result_cache": {"stale": True},
+        f"{prefix}:editor_history": {
+            "undo": [
+                {"scope": "center", "label": "old alignment"},
+                {"scope": "cuts", "label": "new cuts"},
+            ],
+            "redo": [{"scope": "center", "label": "old alignment"}],
+        },
+    }
+
+    _reset_alignment_state_for_segmentation(state, session, 2)
+
+    assert state[f"{prefix}:offsets"] == [(0, 0), (0, 0)]
+    assert state[f"{prefix}:locks"] == [False, False]
+    assert state[f"{prefix}:notes"] == ["", ""]
+    assert f"{prefix}:offset_x_widget:0" not in state
+    assert f"{prefix}:center_result_cache" not in state
+    assert state[f"{prefix}:editor_history"] == {
+        "undo": [{"scope": "cuts", "label": "new cuts"}],
+        "redo": [],
+    }
+    assert session.frame_adjustments == []
 
 
 def test_background_stage_invalidates_segmentation_downstream(tmp_path: Path) -> None:

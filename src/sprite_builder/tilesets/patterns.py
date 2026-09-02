@@ -3098,7 +3098,8 @@ def render_godot_terrain_installer(
             raise ValueError("Godot resource paths must use res:// and never .import")
     needs_script_dir = texture_resource_path is None or tileset_resource_path is None
     script_dir_setup = (
-        "    var script_dir := get_script().resource_path.get_base_dir()\n"
+        "    var current_script := get_script() as Script\n"
+        "    var script_dir: String = current_script.resource_path.get_base_dir()\n"
         if needs_script_dir
         else ""
     )

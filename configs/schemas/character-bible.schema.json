@@ -18,7 +18,36 @@
     },
     "visual_rules": {"type": "object"},
     "equipment": {"type": "object"},
-    "anchors": {"type": "object"}
+    "anchors": {"type": "object"},
+    "scale_profile": {
+      "type": "object",
+      "required": [
+        "reference_animation",
+        "status",
+        "target_body_height_px",
+        "measurement",
+        "exclude_from_measurement",
+        "tolerance_px"
+      ],
+      "properties": {
+        "reference_animation": {"const": "idle"},
+        "status": {"enum": ["pending_idle_approval", "approved"]},
+        "target_body_height_px": {"type": ["integer", "null"], "minimum": 1},
+        "reference_path": {"type": ["string", "null"]},
+        "canonical_anchor": {
+          "type": ["array", "null"],
+          "prefixItems": [{"type": "number"}, {"type": "number"}],
+          "items": false
+        },
+        "measurement": {"const": "robust_body_without_equipment"},
+        "exclude_from_measurement": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "tolerance_px": {"type": "number", "minimum": 0}
+      }
+    }
   }
 }
-

@@ -7,7 +7,9 @@ from sprite_builder.domain.models import (
     ExportSpec,
     GenerationSpec,
     JobSpec,
+    PromptSpec,
     RenderSpec,
+    SheetLayoutSpec,
 )
 
 __all__ = [
@@ -17,5 +19,7 @@ __all__ = [
     "ExportSpec",
     "GenerationSpec",
     "JobSpec",
+    "PromptSpec",
     "RenderSpec",
+    "SheetLayoutSpec",
 ]

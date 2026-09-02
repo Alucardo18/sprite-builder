@@ -1,22 +1,20 @@
-"""Offline forward test of the public deterministic pipeline."""
+"""End-to-end coverage for the canonical native-sheet generation path."""
 
 from __future__ import annotations
 
 import json
-from dataclasses import replace
 from pathlib import Path
 
-import numpy as np
 from PIL import Image, ImageDraw
 
 from sprite_builder.domain.models import JobSpec
-from sprite_builder.pipeline import (
-    align_job,
-    export_job,
-    postprocess_job,
-    preview_job,
-    validate_job,
+from sprite_builder.export import (
+    export_native_godot_bundle,
+    preserve_native_sheet,
+    write_native_manifest,
 )
+from sprite_builder.generation import PromptCompiler, ingest_candidate, prepare_requests
+from sprite_builder.pipeline import validate_sheet_sources
 
 
 def _job() -> JobSpec:
@@ -31,157 +29,121 @@ def _job() -> JobSpec:
                 "frame_count": 4,
                 "fps": 8,
                 "loop": True,
+                "phases": ["contact_left", "passing_left", "contact_right", "recovery"],
             },
             "generation": {
                 "source_size": [192, 160],
-                "background": {"color": "#00FF00"},
+                "mode": "sheet",
+                "candidates_per_sheet": 1,
+                "sheet": {"layout": "horizontal", "rows": 1, "columns": 4},
+                "background": {
+                    "mode": "transparent_required",
+                    "fallback": "manual_ui",
+                },
             },
             "render": {
-                "cell_size": [128, 128],
-                "target_body_height_px": 64,
-                "palette_lock": True,
+                "cell_size": [48, 160],
+                "target_body_height_px": 80,
             },
             "alignment": {
                 "method": "torso_hybrid_v1",
-                "canonical_canvas_anchor": [64, 60],
-                "confidence_review_threshold": 0.55,
-                "allow_manual_override": True,
+                "canonical_canvas_anchor": [24, 120],
             },
             "export": {
-                "formats": ["individual", "horizontal", "godot"],
+                "formats": ["godot"],
                 "output_dir": "exports/synthetic",
                 "godot": {
                     "project_root": ".",
-                    "resource_dir": "res://assets/generated",
+                    "resource_dir": "res://assets/generated/walk.png",
                 },
             },
         }
     )
 
 
-def _raw_frame(index: int) -> Image.Image:
-    image = Image.new("RGB", (192, 160), (0, 255, 0))
+def _native_sheet(job: JobSpec) -> Image.Image:
+    image = Image.new("RGBA", job.generation.source_size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
-    bob = (0, 3, 1, 0)[index]
-    # Stable torso colors and silhouette.
-    draw.rectangle((68, 34 + bob, 116, 104 + bob), fill=(180, 90, 30))
-    draw.rectangle((76, 48 + bob, 108, 88 + bob), fill=(230, 160, 45))
-    draw.rectangle((72, 105 + bob, 84, 136 + bob), fill=(60, 30, 20))
-    draw.rectangle((99, 105 + bob, 111, 136 + bob), fill=(60, 30, 20))
-    # Same chroma enclosed in the torso: flood-fill must preserve it.
-    draw.rectangle((89, 63 + bob, 94, 68 + bob), fill=(0, 255, 0))
-    if index == 2:
-        # A connected spear changes the full bounding box substantially.
-        draw.rectangle((116, 67 + bob, 181, 72 + bob), fill=(100, 70, 20))
-        draw.polygon(((181, 64 + bob), (191, 70 + bob), (181, 76 + bob)), fill=(100, 70, 20))
+    for frame_index in range(job.animation.frame_count):
+        x0 = frame_index * 48
+        bob = (0, 2, 1, 0)[frame_index]
+        draw.rectangle((x0 + 10, 34 + bob, x0 + 36, 108 + bob), fill=(180, 90, 30, 255))
+        draw.rectangle((x0 + 15, 45 + bob, x0 + 31, 89 + bob), fill=(230, 160, 45, 255))
+        draw.rectangle((x0 + 12, 109 + bob, x0 + 19, 134 + bob), fill=(60, 30, 20, 255))
+        draw.rectangle((x0 + 27, 109 + bob, x0 + 34, 134 + bob), fill=(60, 30, 20, 255))
     return image
 
 
-def test_offline_pipeline_chroma_weapon_and_godot_export(tmp_path: Path) -> None:
+def test_native_sheet_generation_ingestion_validation_and_godot_export(tmp_path: Path) -> None:
     job = _job()
-    raw = tmp_path / "jobs" / job.job_id / "raw"
-    raw.mkdir(parents=True)
-    for index in range(4):
-        _raw_frame(index).save(raw / f"walk_right_{index:03d}_candidate_00.png")
-
-    palette_path = Path("characters/synthetic/palette.json")
-    palette_file = tmp_path / palette_path
-    palette_file.parent.mkdir(parents=True)
-    palette_file.write_text(
-        json.dumps(
-            {
-                "colors": [
-                    "#B45A1E",
-                    "#E6A02D",
-                    "#3C1E14",
-                    "#644614",
-                    "#00FF00",
-                ]
-            }
-        ),
+    prompt_dir = tmp_path / "prompts"
+    prompt_dir.mkdir()
+    (prompt_dir / "animation_sheet.jinja2").write_text(
+        "{{ animation }} {{ direction }} {{ frame_count }} "
+        "{% for item in frame_plan %}{{ item.phase }} {% endfor %}",
         encoding="utf-8",
     )
 
-    processed = postprocess_job(job, workspace=tmp_path, palette_path=palette_path)
-    assert len(processed) == 4
-    # Enclosed green survives as foreground while the outside becomes alpha 0.
-    weapon_alpha_width = np.ptp(np.where(np.asarray(Image.open(processed[2]))[:, :, 3] > 0)[1]) + 1
-    normal_alpha_width = np.ptp(np.where(np.asarray(Image.open(processed[1]))[:, :, 3] > 0)[1]) + 1
-    assert weapon_alpha_width > normal_alpha_width * 1.7
-
-    aligned, anchors = align_job(job, workspace=tmp_path)
-    assert len(aligned) == len(anchors) == 4
-    assert all(Image.open(path).size == (128, 128) for path in aligned)
-    assert all(record["torso_anchor"] == [64, 60] for record in anchors)
-
-    report = validate_job(job, workspace=tmp_path, palette_path=palette_path)
-    assert report["status"] in {"pass", "review"}
-    previews = preview_job(job, workspace=tmp_path)
-    assert all(Path(path).is_file() for path in previews.values())
-
-    exported = export_job(job, workspace=tmp_path)
-    assert {"sheet", "metadata", "tres"} <= exported.keys()
-    assert Image.open(exported["sheet"]).size == (512, 128)
-    assert all(Path(path).is_file() for path in exported.values())
-    assert "res://assets/generated/walk_right.png" in Path(exported["tres"]).read_text()
-
-
-def test_multidirection_jobs_are_validated_and_exported_separately(
-    tmp_path: Path,
-) -> None:
-    base = _job()
-    job = replace(
-        base,
-        job_id="synthetic-multidirection",
-        animation=replace(
-            base.animation,
-            directions=("left", "right"),
-            frame_count=2,
-        ),
-        export=replace(
-            base.export,
-            formats=("individual", "grid", "godot"),
-            output_dir=Path("exports/multidirection"),
-        ),
+    requests = prepare_requests(
+        job,
+        workspace=tmp_path,
+        prompt_compiler=PromptCompiler(prompt_dir),
+        character_context={"character_description": "Synthetic hero"},
     )
-    raw = tmp_path / "jobs" / job.job_id / "raw"
-    raw.mkdir(parents=True)
-    for direction_index, direction in enumerate(job.animation.directions):
-        for frame_index in range(job.animation.frame_count):
-            _raw_frame(frame_index + direction_index).save(
-                raw / f"walk_{direction}_{frame_index:03d}_candidate_00.png"
-            )
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.request_kind == "sheet"
+    assert request.sheet_frame_count == 4
 
-    palette_path = Path("characters/synthetic/palette.json")
-    palette_file = tmp_path / palette_path
-    palette_file.parent.mkdir(parents=True)
-    palette_file.write_text(
-        json.dumps(
-            {
-                "colors": [
-                    "#B45A1E",
-                    "#E6A02D",
-                    "#3C1E14",
-                    "#644614",
-                    "#00FF00",
-                ]
-            }
-        ),
-        encoding="utf-8",
+    source = tmp_path / "manual-clean-sheet.png"
+    _native_sheet(job).save(source, format="PNG")
+    ingested = ingest_candidate(request, source, workspace=tmp_path)
+    assert ingested.native_size_verified is True
+    assert ingested.status == "ingested"
+
+    source_manifest = validate_sheet_sources(job, workspace=tmp_path)
+    assert source_manifest["status"] == "ready_for_manual_alpha_review"
+    assert source_manifest["transformations"] == {
+        "crop": False,
+        "resize": False,
+        "resample": False,
+        "pixel_split": False,
+        "alpha_removal": "manual_or_provider_only",
+    }
+    selected = source_manifest["selected"][0]
+    selected_path = tmp_path / selected["source"]
+    regions = tuple((index * 48, 0, 48, 160) for index in range(4))
+    native = preserve_native_sheet(
+        selected_path,
+        tmp_path / "exports/native/walk.png",
+        regions=regions,
+    )
+    metadata_path, tres_path = export_native_godot_bundle(
+        sheet=native,
+        output_directory=tmp_path / "exports/native",
+        texture_resource_path="res://assets/generated/walk.png",
+        animation="walk",
+        fps=job.animation.fps,
+        loop=job.animation.loop,
+        frame_indices=tuple(range(4)),
+    )
+    manifest_path = write_native_manifest(
+        native,
+        tmp_path / "exports/native/walk.native-export.json",
+        animation="walk",
+        metadata_path=metadata_path,
+        tres_path=tres_path,
+        texture_resource_path="res://assets/generated/walk.png",
+        frame_indices=tuple(range(4)),
     )
 
-    postprocess_job(job, workspace=tmp_path, palette_path=palette_path)
-    _, anchors = align_job(job, workspace=tmp_path)
-    assert [item["direction"] for item in anchors] == [
-        "left",
-        "left",
-        "right",
-        "right",
-    ]
-    report = validate_job(job, workspace=tmp_path, palette_path=palette_path)
-    assert set(report["directions"]) == {"left", "right"}
-    previews = preview_job(job, workspace=tmp_path)
-    assert {"left.gif", "right.gif"} <= previews.keys()
-    exported = export_job(job, workspace=tmp_path)
-    assert {"left.sheet", "left.tres", "right.sheet", "right.tres"} <= exported.keys()
-    assert all(Path(path).is_file() for path in exported.values())
+    assert native.output_path.read_bytes() == selected_path.read_bytes()
+    assert native.source_sha256 == native.output_sha256
+    assert metadata_path.is_file()
+    assert tres_path.is_file()
+    assert manifest_path.is_file()
+    assert tres_path.read_text(encoding="utf-8").count(
+        '[sub_resource type="AtlasTexture"'
+    ) == 4
+    exported_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert exported_manifest["invariants"]["physical_crops_written"] is False

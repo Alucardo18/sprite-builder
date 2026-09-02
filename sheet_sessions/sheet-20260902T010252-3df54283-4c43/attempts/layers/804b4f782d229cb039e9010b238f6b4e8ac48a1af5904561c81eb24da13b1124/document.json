@@ -1,0 +1,48 @@
+{
+  "canvas_height": 887,
+  "canvas_width": 1774,
+  "cels": [
+    {
+      "frame_index": 0,
+      "image_path": "sheet_sessions/sheet-20260902T010252-3df54283-4c43/attempts/layers/804b4f782d229cb039e9010b238f6b4e8ac48a1af5904561c81eb24da13b1124/cels/source/frame_000.png",
+      "layer_id": "source",
+      "offset_x": 0,
+      "offset_y": 0,
+      "sha256": "b6c0ed9706cc3f09e8c7f5044126b0a26ad9b5e655744c6954e425b8aabf9664"
+    },
+    {
+      "frame_index": 0,
+      "image_path": "sheet_sessions/sheet-20260902T010252-3df54283-4c43/attempts/layers/804b4f782d229cb039e9010b238f6b4e8ac48a1af5904561c81eb24da13b1124/cels/retouch/frame_000.png",
+      "layer_id": "retouch",
+      "offset_x": 0,
+      "offset_y": 0,
+      "sha256": "06156ca0eb766c884edcba7a8ba33180f80da51fa51c5b15cd5839f1cf934eaa"
+    }
+  ],
+  "document_id": "sprite-6398197fdc89",
+  "frame_count": 1,
+  "layers": [
+    {
+      "alpha_locked": false,
+      "exportable": true,
+      "layer_id": "source",
+      "locked": true,
+      "name": "Fuente IA",
+      "opacity": 1.0,
+      "role": "source",
+      "visible": true
+    },
+    {
+      "alpha_locked": false,
+      "exportable": true,
+      "layer_id": "retouch",
+      "locked": false,
+      "name": "Retoque",
+      "opacity": 1.0,
+      "role": "retouch",
+      "visible": true
+    }
+  ],
+  "revision": 1,
+  "schema_version": "1.0"
+}

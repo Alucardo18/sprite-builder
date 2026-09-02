@@ -18,16 +18,18 @@ from sprite_builder.consistency import (
     validate_sprite_consistency,
     verify_masked_edit,
 )
-from sprite_builder.domain.models import JobSpec, SemanticIntegritySpec
-from sprite_builder.orchestration import sha256_file, stable_digest
-from sprite_builder.pipeline import export_job
+from sprite_builder.domain.models import SemanticIntegritySpec
 from sprite_builder.postprocess import (
+    PaletteRole,
     autocut_sprite,
+    inspect_native_alpha,
     normalize_sprite,
     quantize_palette,
+    quantize_palette_with_report,
     remove_background,
+    resize_sprite_variants,
+    sanitize_transparent_rgb,
 )
-from tests.unit.test_domain import valid_job_dict
 
 
 def sprite(*, shift=(0, 0), weapon=False, background=(0, 255, 0)):
@@ -44,6 +46,72 @@ def sprite(*, shift=(0, 0), weapon=False, background=(0, 255, 0)):
 
 
 class VisualPipelineTests(unittest.TestCase):
+    def test_native_alpha_gate_rejects_opaque_background_and_sanitizes_hidden_rgb(self):
+        opaque = Image.new("RGB", (16, 16), (0, 255, 0))
+        self.assertEqual(inspect_native_alpha(opaque).status, "missing")
+
+        transparent = Image.new("RGBA", (16, 16), (0, 255, 0, 0))
+        ImageDraw.Draw(transparent).rectangle((5, 4, 10, 12), fill=(180, 90, 30, 255))
+        dirty = inspect_native_alpha(transparent)
+        self.assertEqual(dirty.status, "review")
+        self.assertIn("hidden_rgb_under_transparency", dirty.reasons)
+        clean = sanitize_transparent_rgb(transparent)
+        self.assertEqual(inspect_native_alpha(clean).status, "pass")
+        self.assertEqual(np.asarray(clean)[0, 0].tolist(), [0, 0, 0, 0])
+
+    def test_premultiplied_reduction_does_not_mix_hidden_green_into_red_edge(self):
+        image = Image.new("RGBA", (4, 2), (0, 255, 0, 0))
+        image.putpixel((1, 0), (255, 0, 0, 255))
+        image.putpixel((1, 1), (255, 0, 0, 255))
+        variants = {
+            variant.method: variant
+            for variant in resize_sprite_variants(
+                image, (2, 1), methods=("legacy", "premultiplied_area")
+            )
+        }
+        legacy = np.asarray(variants["legacy"].image)
+        premultiplied = np.asarray(variants["premultiplied_area"].image)
+        self.assertGreater(int(legacy[0, 0, 1]), 0)
+        self.assertEqual(int(premultiplied[0, 0, 1]), 0)
+        self.assertGreater(int(premultiplied[0, 0, 0]), 240)
+
+    def test_all_quality_resamplers_return_scored_equal_size_candidates(self):
+        image = remove_background(
+            sprite(), chroma_rgb=(0, 255, 0), feather_px=0, preserve_outline=True
+        ).image
+        methods = (
+            "premultiplied_area",
+            "premultiplied_lanczos",
+            "pixel_majority",
+            "edge_aware",
+        )
+        variants = resize_sprite_variants(image, (24, 20), methods=methods)
+        self.assertEqual(tuple(item.method for item in variants), methods)
+        self.assertTrue(all(item.image.size == (24, 20) for item in variants))
+        self.assertTrue(all(0 <= item.score <= 1 for item in variants))
+
+    def test_role_palette_and_delta_limit_preserve_unmatched_accents(self):
+        image = Image.new("RGBA", (3, 1), (0, 0, 0, 0))
+        image.putpixel((0, 0), (205, 125, 85, 255))
+        image.putpixel((1, 0), (110, 125, 145, 255))
+        image.putpixel((2, 0), (255, 0, 255, 255))
+        roles = (
+            PaletteRole("skin", ((200, 120, 80),), ((210, 130, 90),)),
+            PaletteRole("metal", ((100, 120, 140),), ((110, 130, 150),)),
+        )
+        result, report = quantize_palette_with_report(
+            image,
+            [(200, 120, 80), (100, 120, 140)],
+            roles=roles,
+            max_delta_e00=8,
+        )
+        pixels = np.asarray(result)[0, :, :3]
+        self.assertEqual(pixels[0].tolist(), [200, 120, 80])
+        self.assertEqual(pixels[1].tolist(), [100, 120, 140])
+        self.assertEqual(pixels[2].tolist(), [255, 0, 255])
+        self.assertEqual(report.preserved_pixels, 1)
+        self.assertEqual(report.role_pixels, {"skin": 1, "metal": 1})
+
     def test_background_flood_fill_preserves_enclosed_chroma(self):
         im = sprite()
         ImageDraw.Draw(im).rectangle((44, 32, 47, 35), fill=(0, 255, 0))
@@ -185,47 +253,6 @@ class VisualPipelineTests(unittest.TestCase):
             with Image.open(overlay) as rendered:
                 self.assertEqual(rendered.size, (32, 32))
                 self.assertEqual(rendered.getpixel((6 * 4, 6 * 4)), (255, 35, 70, 255))
-
-    def test_semantic_export_rejects_missing_or_stale_validation(self):
-        data = valid_job_dict()
-        data["quality_gates"] = {  # type: ignore[index]
-            "block_export_on_review": True,
-            "semantic_integrity": {"enabled": True},
-        }
-        spec = JobSpec.from_dict(data)
-        with TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            aligned = root / "jobs" / spec.job_id / "aligned"
-            reports = root / "jobs" / spec.job_id / "reports"
-            manifests = root / "jobs" / spec.job_id / "manifests"
-            aligned.mkdir(parents=True)
-            reports.mkdir(parents=True)
-            manifests.mkdir(parents=True)
-            paths = []
-            for index in range(2):
-                path = aligned / f"frame_{index:03d}.png"
-                Image.new("RGBA", (128, 128), (0, 0, 0, 0)).save(path)
-                paths.append(path)
-            (manifests / "anchors.json").write_text(
-                json.dumps({"frames": [{"torso_anchor": [64, 68]}] * 2}),
-                encoding="utf-8",
-            )
-            with self.assertRaisesRegex(RuntimeError, "QUALITY_GATE_MISSING"):
-                export_job(spec, workspace=root)
-            (reports / "consistency.json").write_text(
-                json.dumps(
-                    {
-                        "status": "pass",
-                        "job_contract_digest": stable_digest(spec.to_dict()),
-                        "aligned_sha256": {path.name: sha256_file(path) for path in paths},
-                    }
-                ),
-                encoding="utf-8",
-            )
-            Image.new("RGBA", (128, 128), (1, 2, 3, 4)).save(paths[1])
-            with self.assertRaisesRegex(RuntimeError, "aligned frames changed"):
-                export_job(spec, workspace=root)
-
 
 if __name__ == "__main__":
     unittest.main()

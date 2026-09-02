@@ -37,6 +37,27 @@ class BodyAnchorEstimate:
     component_area: int
     torso_width: float
     torso_height: float
+    # Robust central-quantile dimensions used for character-scale
+    # normalization. Thin extensions such as a raised staff contribute little
+    # area and therefore do not dominate this measurement.
+    scale_reference_width: float
+    scale_reference_height: float
+
+
+@dataclass(frozen=True)
+class FeetAnchorEstimate:
+    """Ground-contact anchor inferred from the lower body silhouette.
+
+    The support search is restricted to the robust body corridor so a staff,
+    raised hand, cape tip, or other extended geometry cannot pull the anchor.
+    """
+
+    anchor: tuple[float, float]
+    confidence: float
+    body_bbox: tuple[int, int, int, int]
+    support_bbox: tuple[int, int, int, int]
+    ground_y: int
+    support_width: float
 
 
 def _array(image: str | Path | Image.Image | np.ndarray) -> np.ndarray:
@@ -97,7 +118,16 @@ def estimate_body_anchor(
     ys, xs = np.where(component > 0)
     x_lo, x_hi = np.quantile(xs, (0.10, 0.90))
     y_lo, y_hi = np.quantile(ys, (0.10, 0.90))
-    robust_height = max(2.0, float(y_hi - y_lo + 1))
+    # A thin staff can be connected to the body and still stretch across many
+    # rows. Use row occupancy to recover the broad body silhouette first; only
+    # fall back to central quantiles for very sparse/non-character shapes.
+    row_counts = np.bincount(ys, minlength=arr.shape[0])
+    broad_rows = np.where(row_counts >= max(3, int(np.ceil(row_counts.max() * 0.20))))[0]
+    if len(broad_rows) >= 3:
+        body_y0, body_y1 = int(broad_rows[0]), int(broad_rows[-1]) + 1
+        robust_height = max(2.0, float(body_y1 - body_y0))
+    else:
+        robust_height = max(2.0, float(y_hi - y_lo + 1))
     torso_y0 = y_lo + 0.28 * robust_height
     torso_y1 = y_lo + 0.72 * robust_height
 
@@ -149,6 +179,95 @@ def estimate_body_anchor(
         component_area=int(stats[selected, cv2.CC_STAT_AREA]),
         torso_width=torso_width,
         torso_height=torso_height,
+        scale_reference_width=max(2.0, float(x_hi - x_lo + 1)),
+        scale_reference_height=robust_height,
+    )
+
+
+def estimate_feet_anchor(
+    image: str | Path | Image.Image | np.ndarray,
+    *,
+    alpha_threshold: int = 8,
+) -> FeetAnchorEstimate:
+    """Estimate the character ground contact without using full-frame bounds.
+
+    A robust torso estimate defines a horizontal body corridor. Within that
+    corridor, the last sufficiently broad foreground row is treated as the
+    ground line. This rejects narrow vertical props that extend below the feet.
+    The returned anchor is a translation target only; no resize is performed.
+    """
+
+    arr = _array(image)
+    mask = arr[:, :, 3] > alpha_threshold
+    if not mask.any():
+        raise ValueError("Cannot estimate a feet anchor on an empty frame")
+
+    body = estimate_body_anchor(arr, alpha_threshold=alpha_threshold)
+    corridor_half_width = max(4.0, body.scale_reference_width * 0.68)
+    x0 = max(0, int(np.floor(body.anchor[0] - corridor_half_width)))
+    x1 = min(arr.shape[1], int(np.ceil(body.anchor[0] + corridor_half_width)) + 1)
+    corridor = mask[:, x0:x1]
+    row_counts = corridor.sum(axis=1)
+    maximum_row_support = int(row_counts.max())
+    if maximum_row_support <= 0:
+        raise ValueError("No lower-body support was found")
+
+    broad_threshold = max(2, int(np.ceil(maximum_row_support * 0.20)))
+    broad_rows = np.where(row_counts >= broad_threshold)[0]
+    if not len(broad_rows):
+        broad_rows = np.where(row_counts == maximum_row_support)[0]
+    ground_y = int(broad_rows[-1])
+
+    band_height = max(3, int(np.ceil(body.scale_reference_height * 0.18)))
+    band_y0 = max(0, ground_y - band_height + 1)
+    support_band = corridor[band_y0 : ground_y + 1]
+    row_weight = np.linspace(0.35, 1.0, support_band.shape[0], dtype=np.float64)
+    column_weights = (support_band * row_weight[:, None]).sum(axis=0)
+    support_columns = np.where(column_weights > 0)[0]
+    if not len(support_columns):
+        raise ValueError("No foot pixels were found in the support band")
+
+    anchor_x = _weighted_median(
+        support_columns.astype(float) + float(x0),
+        column_weights[support_columns],
+    )
+    support_points_y, support_points_x = np.where(support_band)
+    support_bbox = (
+        int(support_points_x.min()) + x0,
+        int(support_points_y.min()) + band_y0,
+        int(support_points_x.max()) + x0 + 1,
+        int(support_points_y.max()) + band_y0 + 1,
+    )
+    support_width = float(support_bbox[2] - support_bbox[0])
+    broadness = min(
+        1.0,
+        float(row_counts[ground_y]) / max(float(broad_threshold), 1.0),
+    )
+    width_support = min(
+        1.0,
+        support_width / max(body.scale_reference_width * 0.45, 1.0),
+    )
+    center_offset = abs(anchor_x - body.anchor[0]) / max(
+        body.scale_reference_width,
+        1.0,
+    )
+    confidence = float(
+        np.clip(
+            0.55 * body.confidence
+            + 0.25 * broadness
+            + 0.20 * width_support
+            - 0.20 * min(1.0, center_offset),
+            0,
+            1,
+        )
+    )
+    return FeetAnchorEstimate(
+        anchor=(anchor_x, float(ground_y)),
+        confidence=confidence,
+        body_bbox=body.body_bbox,
+        support_bbox=support_bbox,
+        ground_y=ground_y,
+        support_width=support_width,
     )
 
 

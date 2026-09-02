@@ -1,14 +1,13 @@
 # Calidad determinista de personajes
 
-El centrado por torso y la integridad anatómica son contratos distintos. El
-torso decide la traslación del frame; armas, VFX, cabello y poses extendidas no
-deben moverlo. Los landmarks de cabeza, núcleo corporal y apoyo sirven para
-auditar, no para reescalar o deformar cada frame.
+La integridad anatómica y la conservación de la hoja nativa son contratos
+distintos. La hoja completa conserva resolución, escala y pixels; armas, VFX,
+cabello y poses extendidas no deben provocar recortes ni reescalados.
 
 ## Gate semántico optativo
 
-JobSpec 1.0 conserva compatibilidad hacia atrás. Para una producción nueva,
-active el gate explícitamente:
+Para una producción nueva, active el gate semántico en el JobSpec y revise la
+hoja completa en Sheet Studio:
 
 ```yaml
 quality_gates:
@@ -41,16 +40,10 @@ compara también el ancho de la última fila con la banda de apoyo y cuenta sus
 componentes. Como el alpha no entiende anatomía, un resultado ambiguo se manda
 a revisión visual, no se repara automáticamente.
 
-`sprite-builder preview` añade:
-
-- overlay multiancla con guía de suelo dibujada debajo de la planta;
-- contact sheets nearest-neighbour a cada `runtime_preview_scales`;
-- el preview nativo existente, sin modificar los PNG alineados.
-
-Cuando `block_export_on_review` está activo, `export` exige primero un reporte
-`consistency.json` con estado `pass`. El reporte fija el digest del JobSpec y el
-SHA-256 de cada frame alineado; cualquier cambio posterior invalida el gate y
-obliga a validar de nuevo.
+Sheet Studio permite revisar las celdas lógicas y sus overlays sin alterar la
+hoja fuente. `sheet-native-export` exige que la revisión de alpha, el tamaño
+nativo y las regiones estén aprobados; cualquier cambio posterior invalida el
+manifest y obliga a validar de nuevo.
 
 ## Reparaciones quirúrgicas
 
@@ -73,14 +66,13 @@ protegidos en rojo, ampliados con nearest-neighbour para revisión visual.
 No se deben trasplantar o escalar rectángulos de pies desde otra pose. Si falta
 una forma, se reconstruye dentro de la máscara manteniendo byte-identical el
 torso, rostro, equipo y resto del canvas. Después se inspecciona a 1x y a escala
-runtime, se regeneran las variantes derivadas y se vuelven a ejecutar los gates.
+runtime y se vuelve a ejecutar la validación de la hoja nativa.
 
 ## Criterio de producción
 
-1. Alineación estable por torso.
-2. Sin `CELL_OVERFLOW` ni resize específico por frame.
+1. Hoja completa en resolución nativa.
+2. Sin crop, resize, resampling ni split físico de pixels.
 3. Soporte de suelo y silueta terminal aprobados.
 4. Cambios fuera de la máscara iguales a cero.
 5. Alpha preservado salvo autorización explícita.
-6. Revisión a 1x y escala runtime.
-7. Regeneración de derivados y validación final antes de exportar.
+6. Regiones lógicas y hash aprobados antes de exportar.

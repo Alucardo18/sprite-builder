@@ -19,6 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 background = ["rembg>=2.0.61"]
+image-api = ["openai>=2.0"]
 ui = ["streamlit>=1.52,<2"]
 dev = [
   "pytest>=8.3",
@@ -61,4 +62,8 @@ ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = ["streamlit", "streamlit.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["openai", "openai.*"]
 ignore_missing_imports = true

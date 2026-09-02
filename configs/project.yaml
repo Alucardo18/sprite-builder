@@ -6,7 +6,7 @@ paths:
   characters: characters
   prompts: prompts
 orchestration:
-  max_regeneration_attempts_per_frame: 2
+  max_regeneration_attempts_per_sheet: 2
   stop_on_manual_review: true
   verify_artifact_hashes: true
 quality:
@@ -18,5 +18,5 @@ defaults:
   cell_size: [128, 128]
   fps: 8
   palette_delta_e00: 8
-  candidates_per_frame: 1
-
+  mode: sheet
+  candidates_per_sheet: 1

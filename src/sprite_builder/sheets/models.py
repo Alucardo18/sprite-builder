@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 Orientation = Literal["horizontal", "vertical", "grid"]
-CenterMethod = Literal["body", "bounding_box"]
+CenterMethod = Literal["body", "feet", "bounding_box"]
 StageStatus = Literal["pending", "passed", "manual_review", "failed"]
 
 
@@ -158,6 +158,35 @@ class AutoCenterConfig:
     confidence_threshold: float = 0.65
     ignore_outliers: bool = True
     anchor_strategy: str = "distance_core_percentiles"
+    # Optional character-scale contract. When enabled, the complete frame is
+    # resized from a robust torso/body measurement before anchor alignment;
+    # extended props (for example a raised staff) do not set character size.
+    normalize_scale: bool = False
+    target_body_height_px: int | None = None
+    scale_tolerance_px: float = 1.0
+    scale_min_ratio: float = 0.75
+    scale_max_ratio: float = 1.333333
+    scale_reference: str = "robust_body"
+
+    def __post_init__(self) -> None:
+        if self.method not in {"body", "feet", "bounding_box"}:
+            raise ValueError(f"Unsupported Auto Center method: {self.method}")
+        if self.canvas_width <= 0 or self.canvas_height <= 0:
+            raise ValueError("Auto Center canvas dimensions must be positive")
+        if not 0 <= self.confidence_threshold <= 1:
+            raise ValueError("Auto Center confidence threshold must be between 0 and 1")
+        if self.target_body_height_px is not None and self.target_body_height_px <= 0:
+            raise ValueError("target_body_height_px must be positive when provided")
+        if self.normalize_scale and self.target_body_height_px is None:
+            raise ValueError(
+                "target_body_height_px is required when normalize_scale is enabled"
+            )
+        if self.method == "feet" and self.normalize_scale:
+            raise ValueError("Feet alignment never scales frames")
+        if self.scale_tolerance_px < 0:
+            raise ValueError("scale_tolerance_px must be non-negative")
+        if self.scale_min_ratio <= 0 or self.scale_max_ratio < self.scale_min_ratio:
+            raise ValueError("scale ratio limits are invalid")
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> AutoCenterConfig:
@@ -169,6 +198,16 @@ class AutoCenterConfig:
             confidence_threshold=float(value.get("confidence_threshold", 0.65)),
             ignore_outliers=bool(value.get("ignore_outliers", True)),
             anchor_strategy=str(value.get("anchor_strategy", "distance_core_percentiles")),
+            normalize_scale=bool(value.get("normalize_scale", False)),
+            target_body_height_px=(
+                int(value["target_body_height_px"])
+                if value.get("target_body_height_px") is not None
+                else None
+            ),
+            scale_tolerance_px=float(value.get("scale_tolerance_px", 1.0)),
+            scale_min_ratio=float(value.get("scale_min_ratio", 0.75)),
+            scale_max_ratio=float(value.get("scale_max_ratio", 1.333333)),
+            scale_reference=str(value.get("scale_reference", "robust_body")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -187,6 +226,12 @@ class FrameAdjustment:
     final_anchor: tuple[float, float] = (0.0, 0.0)
     applied_translation: tuple[int, int] = (0, 0)
     body_bbox: tuple[int, int, int, int] = (0, 0, 0, 0)
+    scale_factor: float = 1.0
+    scale_reference_width_px: float = 0.0
+    scale_reference_height_px: float = 0.0
+    normalized_body_height_px: float = 0.0
+    scale_manual_review: bool = False
+    cropped_pixel_count: int = 0
     locked: bool = False
     notes: str = ""
     manual_review: bool = False
@@ -208,6 +253,12 @@ class FrameAdjustment:
             final_anchor=tuple(map(float, final)),  # type: ignore[arg-type]
             applied_translation=tuple(map(int, translation)),  # type: ignore[arg-type]
             body_bbox=tuple(map(int, bbox)),  # type: ignore[arg-type]
+            scale_factor=float(value.get("scale_factor", 1.0)),
+            scale_reference_width_px=float(value.get("scale_reference_width_px", 0.0)),
+            scale_reference_height_px=float(value.get("scale_reference_height_px", 0.0)),
+            normalized_body_height_px=float(value.get("normalized_body_height_px", 0.0)),
+            scale_manual_review=bool(value.get("scale_manual_review", False)),
+            cropped_pixel_count=int(value.get("cropped_pixel_count", 0)),
             locked=bool(value.get("locked", False)),
             notes=str(value.get("notes", "")),
             manual_review=bool(value.get("manual_review", False)),

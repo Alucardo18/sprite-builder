@@ -242,6 +242,23 @@ def create_character_skeleton(
             "outline": "",
         },
         "equipment": {"default_weapon": None, "attachment_rules": {}},
+        "scale_profile": {
+            "reference_animation": "idle",
+            "status": "pending_idle_approval",
+            "target_body_height_px": None,
+            "reference_path": None,
+            "canonical_anchor": None,
+            "measurement": "robust_body_without_equipment",
+            "exclude_from_measurement": [
+                "weapons",
+                "staffs",
+                "extended_limbs",
+                "hair_tips",
+                "detached_effects",
+                "vfx",
+            ],
+            "tolerance_px": 1.0,
+        },
         "palette": {"locked": False, "file": "palette.json", "tolerance_delta_e00": 8},
         "reference": (
             {
