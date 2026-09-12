@@ -120,8 +120,8 @@ Después abra el repositorio en Codex y formule una petición como:
 
 > Usa la skill local sprite-builder para ejecutar
 > `configs/examples/tzucan_walk_right.yaml`. Usa la referencia aprobada,
-> genera una hoja horizontal completa por dirección con GPT Image 2, conserva la
-> resolución nativa y detente ante revisión manual.
+> genera una hoja horizontal completa por dirección con `image_gen` integrado,
+> conserva la resolución nativa y detente ante revisión manual.
 
 La skill ejecuta un bucle por hoja:
 
@@ -129,12 +129,15 @@ La skill ejecuta un bucle por hoja:
 2. Compilar un único prompt detallado con canon, estilo 16-bit, cámara, paleta,
    layout y la lista completa de fases.
 3. Elegir exactamente la siguiente request `request_kind: sheet` pendiente.
-4. Ejecutar una sola vez GPT Image 2 por dirección/candidato:
+4. Ejecutar una sola vez la ruta creativa autorizada por dirección/candidato:
 
    ```bash
    sprite-builder --workspace <workspace> generate-openai \
      --request jobs/<job-id>/generation/requests/<request>.json
    ```
+
+   El comando anterior es la ruta API opcional; en Codex puede usarse `image_gen` integrado por
+   defecto y luego ingerir su PNG completo.
 
 5. Si la imagen se produjo fuera del ejecutor, ingerir la hoja completa:
 

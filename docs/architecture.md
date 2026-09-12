@@ -1,9 +1,10 @@
 # Arquitectura
 
 `sprite-builder` separa la generación creativa de las transformaciones
-geométricas. La primera usa un prompt de consistencia versionado y GPT Image 2
-para producir una hoja completa; las segundas son funciones Python
-deterministas y verificables.
+geométricas. La primera usa un prompt de consistencia versionado y una ruta
+autorizada (`image_gen` integrado por defecto o la API opcional GPT Image 2)
+para producir una hoja completa; las segundas son funciones Python deterministas
+y verificables.
 
 ```text
 descripción + referencias
@@ -12,7 +13,7 @@ descripción + referencias
 Character Bible ──► prompt detallado + plan completo de fases
         │                              │
         │                              ▼
-        │                       GPT Image 2 API
+        │               image_gen / GPT Image 2 API opcional
         │                              │
         ▼                              ▼
  canon aprobado ◄────────── hoja fuente nativa por dirección
@@ -29,10 +30,9 @@ metadata JSON → SpriteFrames .tres con AtlasTexture
 
 ## Límites de responsabilidad
 
-- **Generación**: la skill `sprite-builder` prepara y ejecuta el comando
-  `generate-openai`, que usa GPT Image 2 con parámetros estructurados. `mode: sheet`
-  es el flujo canónico: una request por dirección/candidato y un prompt para la animación
-  completa.
+- **Generación**: la skill `sprite-builder` prepara una request `mode: sheet`, una por
+  dirección/candidato, con un prompt para la animación completa. En Codex usa `image_gen` por
+  defecto; `generate-openai` es la ruta API opcional y explícita para GPT Image 2.
 - **Dominio/orquestación**: valida jobs, registra artefactos y reanuda etapas.
 - **Native sheet QA**: verifica tamaño, hash, alpha, layout y lineage sin
   materializar crops ni imágenes por frame.
@@ -64,10 +64,10 @@ Los outputs se escriben antes del manifest. Al reabrir, tamaño y SHA-256 de
 cada artefacto deben coincidir. Un cambio de segmentación o fondo invalida el
 export nativo y obliga a revisar de nuevo las regiones.
 
-El flujo predeterminado prepara artefactos para GPT Image 2. El comando explícito
-`generate-openai` requiere una credencial en el entorno, registra el proveedor y entrega sus
-bytes al mismo gate de ingestión. No se llama a una API para crear imágenes de
-frames independientes.
+El flujo predeterminado prepara artefactos para una hoja completa y puede entregarlos a
+`image_gen`. El comando explícito `generate-openai` requiere una credencial en el entorno,
+registra el proveedor y entrega sus bytes al mismo gate de ingestión. No se llama a una API para
+crear imágenes de frames independientes.
 
 ## Artefactos y quality gates
 

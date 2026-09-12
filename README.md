@@ -5,11 +5,12 @@ sprites pixel art consistentes y listos para Godot 4.6. Está pensado para
 **La Leyenda de Tzucan**, pero sus contratos sirven para personajes, enemigos,
 NPC, objetos, ataques y efectos.
 
-La generación visual canónica usa la skill local `sprite-builder` y GPT Image 2
-para producir una hoja completa por dirección con un prompt de consistencia
-versionado. Python prepara la request, conserva la hoja en su resolución nativa,
-valida el alpha y registra regiones lógicas para Godot; no recorta ni genera
-frames individuales en este modo.
+La generación visual usa la skill local `sprite-builder` para producir una hoja
+completa por dirección con un prompt de consistencia versionado. En Codex, la ruta
+predeterminada es el `image_gen` integrado; `generate-openai` es una ruta API
+opcional y explícita para GPT Image 2. Python conserva la hoja en su resolución
+nativa, valida el alpha y registra regiones lógicas para Godot; no recorta ni
+genera frames individuales.
 
 ## Instalación
 
@@ -94,8 +95,9 @@ sprite-builder queue --job-id tzucan-walk-right-v001
 ```
 
 4. En Codex, pida usar la skill local `sprite-builder` para ejecutar las requests
-   `request_kind: sheet` con GPT Image 2. Cada request produce una hoja completa
-   de la animación y dirección declaradas.
+   `request_kind: sheet`. Use `image_gen` integrado por defecto; elija
+   `generate-openai` solo cuando autorice explícitamente la ruta API. Cada request
+   produce una hoja completa de la animación y dirección declaradas.
 5. Si se generó fuera del ejecutor, la ingestión equivale a:
 
 ```bash

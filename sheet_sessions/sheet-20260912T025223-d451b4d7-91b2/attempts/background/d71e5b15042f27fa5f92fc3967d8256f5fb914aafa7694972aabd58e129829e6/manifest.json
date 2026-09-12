@@ -1,0 +1,47 @@
+{
+  "cache_key": "d71e5b15042f27fa5f92fc3967d8256f5fb914aafa7694972aabd58e129829e6",
+  "config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      0,
+      0,
+      0
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 1,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "tolerance": 24.0
+  },
+  "created_at": "2026-09-12T02:53:11.658841+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260912T025223-d451b4d7-91b2/source/d451b4d7073db972d95b35f687a8164f0dd17a381046be5cb95a0acb2d320148.png",
+      "role": "source",
+      "sha256": "d451b4d7073db972d95b35f687a8164f0dd17a381046be5cb95a0acb2d320148",
+      "size_bytes": 1725654
+    }
+  ],
+  "metadata": {
+    "manual_edit_operations": {}
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260912T025223-d451b4d7-91b2/attempts/background/d71e5b15042f27fa5f92fc3967d8256f5fb914aafa7694972aabd58e129829e6/frame_000.png",
+      "role": "output",
+      "sha256": "cf549f221d389b11ac06cbee1d30f01e3abcb70de61cbf121a27b0178d8cfdcd",
+      "size_bytes": 1686668
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260912T025223-d451b4d7-91b2",
+  "stage": "background",
+  "status": "passed",
+  "warnings": []
+}

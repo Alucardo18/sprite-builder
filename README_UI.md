@@ -29,6 +29,15 @@ Si quieres dejar el servicio levantado sin abrir el navegador, usa:
 
 La UI queda disponible en [http://127.0.0.1:8501/](http://127.0.0.1:8501/).
 
+## Contrato de interacción vigente
+
+- El editor de fondo ofrece `wand`, `eyedropper` y `eraser`. El borrador usa radio, cursor
+  personalizado y replay de trazo para registrar un drag como una sola edición `erase_brush`.
+- El cuentagotas muestra el RGBA muestreado del frame activo. Las máscaras son locales al frame y
+  se normalizan cuando cambia la geometría; no basta validar solo el número de frames.
+- Mantén separadas las keys de widgets Streamlit y el estado lógico. El modo ancho amplía el
+  canvas sin ocultar la barra lateral; usa Liquid Glass en controles y conserva claridad pixel-art.
+
 ## Tileset Builder
 
 Abra **Tileset Builder** desde la navegación superior. La página conserva el
