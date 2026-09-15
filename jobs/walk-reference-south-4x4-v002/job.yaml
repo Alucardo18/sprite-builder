@@ -1,0 +1,85 @@
+schema_version: "1.0"
+
+job:
+  id: walk-reference-south-4x4-v002
+
+character:
+  id: walk_reference_trial_character_16bit_topdown
+  bible: jobs/walk-reference-south-4x4-v002/character-bible.yaml
+  references:
+    - /var/folders/f5/cqm56341731fj474ff6t_rqc0000gn/T/codex-clipboard-2ba4fe32-7058-457f-8877-e629307dfe44.png
+    - /Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/.codex/skills/walk-animation-reference/assets/walk-reference/walk-row-4x4-south.png
+
+animation:
+  name: walk
+  directions: [down]
+  frame_count: 4
+  fps: 8
+  loop: true
+  phases: [contact_left, passing_left, contact_right, recovery]
+
+generation:
+  source_size: [256, 64]
+  quality: high
+  mode: sheet
+  candidates_per_sheet: 1
+  sheet:
+    layout: horizontal
+    rows: 1
+    columns: 4
+    gutter_px: 0
+  prompt:
+    style: "Authentic 16-bit-era top-down RPG pixel art with a compact limited palette, crisp hard-edged pixel clusters, deliberate 1 px and 2 px details at native scale, stepped silhouettes, and no anti-aliasing, painterly rendering, vector smoothness, 3D rendering, or modern high-resolution illustration."
+    pixel_language: "Treat 16-bit as the visual design language, not PNG color depth. Use readable clusters, stable outline weight, restrained shading, and nearest-neighbor pixel logic."
+    camera: "Use one fixed elevated orthographic top-down camera, fully overhead/cenital or only slightly isometric. Keep the top plane of the head and shoulders visible, foreshorten vertical surfaces consistently, and never drift into eye-level front, profile, platformer, or side-scroller framing."
+    palette: "Use and simplify the character palette exclusively from the supplied concept image; do not borrow colors from the movement reference."
+    lighting: "Use one stable light direction and value hierarchy across all four cells."
+    identity: "The concept image contributes exclusively the generated character's visual identity: anatomy, silhouette, palette, clothing, and details."
+    animation: "The movement reference contributes only movement, timing, poses, rhythm, and cell distribution. Generate a natural south/down walk cycle viewed from the elevated camera, with clear opposite arm-and-leg alternation, coherent contact and passing phases, hands changing sides between frames, and no repeated or frozen arm poses."
+    negative: "No black or colored background, opaque backdrop, floor, scenery, shadow blob, grid, checkerboard, text, labels, numbers, border, watermark, guide, unrelated elements, separate images, copied reference character, eye-level camera, frontal portrait camera, pure profile, platformer view, side-scroller view, perspective drift, repeated arm pose, frozen arms, uncoordinated limbs, cropped body parts, clipping, deformation, anti-aliasing, blur, gradients, painterly brushwork, vector art, 3D render, or frame overlap."
+  background:
+    mode: transparent_required
+    fallback: reject
+    max_attempts: 1
+    color: "#00FF00"
+
+render:
+  cell_size: [64, 64]
+  target_body_height_px: 56
+  palette_lock: false
+  dithering: false
+  integrated_shadow: false
+  resampling:
+    methods: [pixel_majority]
+    selection: pixel_majority
+    save_variants: false
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [32, 52]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+quality_gates:
+  block_export_on_review: true
+  alpha_integrity:
+    min_transparent_ratio: 0.05
+    min_border_transparent_ratio: 0.98
+    max_foreground_border_ratio: 0.01
+    alpha_threshold: 8
+
+export:
+  formats: [horizontal]
+  output_dir: jobs/walk-reference-south-4x4-v002/exports
+
+metadata:
+  cultural_review_required: true
+  reference_layout: four_horizontal_poses
+  incremental_row_workflow: true
+  requested_direction: south
+  source_reference_row: south
+  concept_role: identity_only
+  movement_reference_role: movement_timing_poses_rhythm_cell_distribution_only
+  visual_style: 16_bit_era_pixel_art
+  camera_projection: elevated_orthographic_top_down_or_slight_isometric
+  restart_generation: true

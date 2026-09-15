@@ -1,0 +1,56 @@
+schema_version: '1.0'
+identity:
+  id: caminante-01
+  name: caminante-01
+  description: Personaje joven de apariencia femenina, visto de frente, con cabello
+    castaño oscuro recogido hacia un lado, piel cálida, blusa terracota sin mangas,
+    falda café, faja crema con tira colgante y sandalias oscuras; estilo ilustrado
+    cálido y amigable, sin arma visible.
+review:
+  required: true
+  status: draft
+  note: Complete immutable features and forbidden changes before generation.
+visual_rules:
+  immutable_features: []
+  optional_features: []
+  forbidden_changes: []
+  silhouette_notes: ''
+  lighting: ''
+  outline: ''
+equipment:
+  default_weapon: null
+  attachment_rules: {}
+scale_profile:
+  reference_animation: idle
+  status: pending_idle_approval
+  target_body_height_px: null
+  reference_path: null
+  canonical_anchor: null
+  measurement: robust_body_without_equipment
+  exclude_from_measurement:
+  - weapons
+  - staffs
+  - extended_limbs
+  - hair_tips
+  - detached_effects
+  - vfx
+  tolerance_px: 1.0
+palette:
+  locked: false
+  file: palette.json
+  tolerance_delta_e00: 8
+reference:
+  source: /Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/inputs/references/caminante-01-frame0-down-v001.png
+  frame_count_detected: 1
+  frame_bboxes:
+  - - 107
+    - 90
+    - 765
+    - 1671
+  proportions:
+    content_width_ratio: 0.741826
+    content_height_ratio: 0.891206
+    foreground_occupancy: 0.426002
+    mean_frame_width_px: 658.0
+    mean_frame_height_px: 1581.0
+    mean_frame_aspect_ratio: 0.416192

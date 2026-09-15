@@ -1,0 +1,69 @@
+SHEET GENERATION CONTRACT - HIGHEST PRIORITY
+Create one complete native-resolution sprite sheet for a production 2D top-down action RPG.
+This is one animation and one direction, not a single frame and not a contact-sheet preview.
+Animation: walk. Direction: down.
+Requested source canvas: 1024 × 768 pixels.
+Layout: grid; 3 row(s) × 4 column(s); frame cells are
+read in deterministic order row-major, left-to-right. Approximate cell size: 256.0 ×
+256.0 pixels. Gutter between cells: 0 pixels.
+The sheet must contain exactly 12 animation cells and no extra poses.
+
+PIXEL-ART STYLE CONTRACT
+Authentic native-resolution 16-bit pixel art for a classic 2D top-down action RPG; crisp hard-edged pixel clusters, stepped silhouettes, deliberate 1px and 2px details, stable dark outline hierarchy, restrained material shading, and no anti-aliasing, blur, painterly rendering, gradients, vector smoothness, or 3D rendering..
+Use readable native pixel clusters and nearest-neighbor logic. Keep the same visual scale, outline weight, lighting, palette families, torso anchor, and support row in every cell..
+CAMERA: standard 2D RPG top-down gameplay view WITHOUT a cenital angle. Use one fixed orthographic camera with very shallow gameplay elevation, almost parallel to the ground plane, not a downward-looking camera. Keep front and side surfaces readable and show only a minimal sliver of top planes on hair and shoulders. Never use a full overhead, bird's-eye, aerial, steep cenital, high-isometric, or extreme foreshortened view. Do not use eye-level portrait framing or cinematic perspective. Keep this camera identical in all twelve cells..
+Use the attached approved south walk row as the sole palette and design authority: warm skin, dark brown side-gathered hair and ponytail, terracotta blouse, brown skirt, cream sash, dark sandals, friendly expression, and stable dark outline. Do not borrow colors from any other source..
+Keep one stable light direction and identical value hierarchy across all three rows and four frames per row; no cast shadow or changing background..
+
+CHARACTER IDENTITY CONTRACT
+Preserve the exact character identity from the attached south row in every direction: same face and expression when visible, same hair mass and side ponytail, blouse, skirt, sash, sandals, proportions, pixel scale, outline language, and design details. The attached row is the only reference; ignore all other chats, images, and project results..
+
+CHARACTER CANON
+Feminine-presenting 16-bit RPG character with warm skin, dark brown hair gathered toward one side, a terracotta sleeveless blouse, brown skirt, cream sash with a hanging tail, and dark sandals. The user-approved south walk row is the only visual design authority.
+
+IMMUTABLE FEATURES
+- Preserve the warm skin tone, dark brown side-gathered hair and ponytail silhouette.
+- Preserve the terracotta sleeveless blouse with its V-shaped neckline.
+- Preserve the cream waist sash and hanging sash tail.
+- Preserve the brown skirt, dark sandals, proportions, and friendly expression.
+- Keep one fixed shallow 2D RPG top-down gameplay camera without a cenital or bird's-eye angle.
+- Keep identical body scale, torso anchor, support row, outline weight, and palette logic in all cells.
+
+ANIMATION CONTINUITY CONTRACT
+Generate one complete 3-row by 4-column walking sprite sheet in one image and one prompt. Row 1 is SOUTH/DOWN facing, row 2 is EAST/RIGHT facing, and row 3 is NORTH/UP facing; do not generate a west row because west will be made by a deterministic horizontal mirror of the approved east row later. Each row has four cells left-to-right: contact, passing, opposite contact, recovery. Make every cell a distinct full-body walk pose, never an idle or standing pose. Keep the torso stable and keep the same support row and body scale.
+EAST ROW IS THE ACCEPTANCE PRIORITY. Draw it as a clear side-facing RPG walk moving toward image-right, with both legs and both arms readable as separate silhouettes. Use this exact four-frame motion: East cell 1 is a rightward contact with the leading foot fully planted ahead toward image-right and the other foot trailing behind, lifted and bent; the hand on screen-left reaches forward while the hand on screen-right swings back. East cell 2 is a passing pose: the planted foot lifts and passes beneath the hips while the other leg supports; completely reverse the arms, with screen-right hand forward and screen-left hand back. East cell 3 is the opposite rightward contact: the other foot is now fully planted ahead toward image-right while the first foot trails behind, lifted and bent; return to screen-left hand forward and screen-right hand back. East cell 4 is the opposite passing / recovery pose: the trailing foot passes beneath the hips and the legs are visibly different from cell 2; reverse the arms again, with screen-right hand forward and screen-left hand back. The hands must visibly swap sides on every transition and the two feet must visibly swap the leading/contact role. Show separated knees, calves, ankles, heels, soles, toes, and complete sandals; do not let the skirt hide the motion.
+For south and north rows, use the same four-phase timing and the same contralateral rule: contact with one foot clearly advanced, passing with that foot lifted through center, opposite contact with the other foot advanced, then opposite passing/recovery. In every row, the arm opposite the advancing foot is forward and the other arm is back. Both hands must be visible, separated by at least one hand-width, with opposite elbow bends, readable wrists and fingers, and no frozen pose. For north, show a consistent back view; for south, preserve the approved front design..
+Readable walk pose; stable torso and ground plane; move only anatomy and equipment required by the named phase.
+Show the complete character without cropping and do not add a shadow.
+Keep every foot visible in the pose complete, including heels, soles, and readable toe silhouettes inside the frame. Transparent padding below a limb does not prove that the limb is complete. Preserve a stable ground-support row across frames. Never repair anatomy by pasting, stretching, or scaling a rectangular crop from another pose; reconstruct it in the current pose while leaving the accepted torso, head, equipment, and canvas scale fixed.
+Legacy scale contract: keep body scale consistent with the approved character reference and require visual review against idle before integration.
+
+FRAME PLAN
+Cell 1: phase south_contact_left; south contact left.
+Cell 2: phase south_passing_left; south passing left.
+Cell 3: phase south_contact_right; south contact right.
+Cell 4: phase south_recovery; south recovery.
+Cell 5: phase east_contact_leading_left; east contact leading left.
+Cell 6: phase east_passing_left; east passing left.
+Cell 7: phase east_contact_leading_right; east contact leading right.
+Cell 8: phase east_recovery; east recovery.
+Cell 9: phase north_contact_left; north contact left.
+Cell 10: phase north_passing_left; north passing left.
+Cell 11: phase north_contact_right; north contact right.
+Cell 12: phase north_recovery; north recovery.
+
+
+COMPOSITION AND OUTPUT
+Create one isolated character cutout with generous empty canvas around it. Do not include scenery, a floor, a panel, or an ambient backdrop. Do not include a floor or cast shadow. Native output transparency is controlled by the image provider. Transparency is mandatory; an opaque result will be rejected.
+Keep every cell's character fully inside its own cell with generous, even breathing room.
+Use identical body scale, camera, anchor, ground/support row, outline weight, and palette logic
+throughout the sheet. Do not allow one pose to borrow pixels, overlap, or bleed into another cell.
+Do not crop, trim, autocenter, rescale, interpolate, anti-alias, or rearrange the generated sheet.
+The returned PNG itself is the authoritative source artifact; downstream code may only record
+logical cell regions for an atlas.
+
+PROHIBITED CONTENT
+No fourth west row, no separate images, no extra poses, no contact-sheet presentation, no opaque or colored background, no  baked into the PNG, no floor, scenery, cast shadow, panel, grid lines, labels, text, numbers, border, watermark, guide, extra characters, copied unrelated design, redesigned face, repeated arm pose, frozen arms, hidden hands, fused arms, aligned hands, fused legs, hidden legs, feet together, standing portrait, same leading foot in every frame, identical lower body, cropped body parts, clipping, bleed, overlap, deformation, anti-aliasing, blur, gradients, painterly brushwork, vector art, 3D render, full cenital angle, steep overhead view, bird's-eye view, aerial perspective, downward-looking camera, or explanatory text..
+- Do not copy any other character's face, clothing, colors, silhouette, anatomy, or style.
+- Do not add weapons, props, scenery, text, borders, shadows, or extra characters.
+No labels, captions, separators, grid lines, layout guides, debug marks, or explanatory text.

@@ -1,8 +1,8 @@
-# Alineación por torso
+# Alineación multi-anchor
 
 El centro del alpha o bounding box es inestable: una lanza, látigo o efecto
-desplaza su centro sin que el cuerpo se haya movido. El pipeline alinea el
-`torso_anchor` contra un punto constante del canvas.
+desplaza su centro sin que el cuerpo se haya movido. El pipeline fusiona
+observaciones anatómicas y alinea ese anchor contra un punto constante del canvas.
 
 ## Calibración
 
@@ -49,18 +49,19 @@ confianza =
 
 - `>= 0.85`: aceptar.
 - `0.65–0.84`: warning y preview.
-- `< 0.65`: revisión obligatoria.
+- `< 0.65`: advertencia fuerte y estado `manual_review`; no bloquea la exportación.
 
 ## Traslación y overflow
 
-Cada frame se traslada para hacer coincidir su anchor detectado con
-`canonical_canvas_anchor`. La escala corporal no cambia. Después se verifican
-todos los extremos: si uno no cabe, se devuelve `CELL_OVERFLOW`; nunca se
-encoge un frame aislado.
+Cada frame se traslada en X/Y enteros para hacer coincidir su anchor fusionado con
+`canonical_canvas_anchor`. `idle` prioriza torso, `walk` pelvis y soporte, y
+`attack` el núcleo corporal. Hombros y base de cabeza son validadores: si las
+observaciones discrepan, baja la confianza y el frame requiere revisión. La escala
+corporal no cambia salvo que la fase opcional de normalización esté activada.
 
-Los datos por frame pueden incluir `torso_anchor`, `foot_anchor`,
-`weapon_socket`, `effect_origin`, confianza y override. Sólo el torso determina
-la estabilización del cuerpo.
+Los datos por frame incluyen las observaciones `torso`, `pelvis_root`,
+`shoulder_center`, `head_base` y, cuando se detecta, `ground_support`, además de
+confianza, desacuerdo y override manual. Armas y efectos no desplazan el cuerpo.
 
 ## Revisión visual
 

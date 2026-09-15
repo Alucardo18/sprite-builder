@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-09-12T20:59:51.269509+00:00",
+  "decision_id": "3f6b24d0815ef46d6ab8",
+  "job_id": "caminante-01-walk-3rows-4x4-v002",
+  "notes": "alpha gate reject: foreground_or_background_touches_border, foreground_border_spill, hidden_rgb_under_transparency",
+  "raw_path": "jobs/caminante-01-walk-3rows-4x4-v002/raw/walk_down_sheet_candidate_00_45a5263d848563baac75.png",
+  "raw_sha256": "466de40e4620697a72077c8a89357ea705b13bfed17912b40d490bd0491c8761",
+  "request_id": "45a5263d848563baac75",
+  "schema_version": "1.0",
+  "status": "rejected"
+}

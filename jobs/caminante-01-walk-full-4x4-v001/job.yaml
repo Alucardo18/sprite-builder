@@ -1,0 +1,141 @@
+schema_version: "1.0"
+
+job:
+  id: caminante-01-walk-full-4x4-v001
+
+character:
+  id: caminante-01
+  bible: jobs/caminante-01-walk-full-4x4-v001/character-bible.yaml
+  references:
+    - jobs/caminante-01-walk-full-4x4-v001/raw/walk_south_user_approved_design_v001.png
+
+animation:
+  name: walk
+  # The single logical request is a complete 4x4 sheet; `down` is the valid queue key for it.
+  directions: [down]
+  frame_count: 16
+  fps: 8
+  loop: true
+  phases:
+    - south_contact_left
+    - south_passing_left
+    - south_contact_right
+    - south_recovery
+    - east_contact_left
+    - east_passing_left
+    - east_contact_right
+    - east_recovery
+    - north_contact_left
+    - north_passing_left
+    - north_contact_right
+    - north_recovery
+    - west_contact_left
+    - west_passing_left
+    - west_contact_right
+    - west_recovery
+
+generation:
+  source_size: [1024, 1024]
+  quality: high
+  mode: sheet
+  candidates_per_sheet: 1
+  sheet:
+    layout: grid
+    rows: 4
+    columns: 4
+    gutter_px: 0
+  prompt:
+    style: >-
+      Authentic native-resolution 16-bit pixel art for a classic 2D top-down action RPG;
+      crisp hard-edged pixel clusters, stepped silhouettes, deliberate 1px and 2px details,
+      stable dark outline hierarchy, restrained material shading, and no anti-aliasing, blur,
+      painterly rendering, gradients, vector smoothness, or 3D rendering.
+    pixel_language: >-
+      Use readable native pixel clusters and nearest-neighbor logic. Keep the same visual scale,
+      outline weight, lighting, palette families, torso anchor, and support row in every cell.
+    camera: >-
+      CAMERA: standard 2D RPG top-down gameplay view WITHOUT a cenital angle. Use one fixed
+      orthographic camera with a shallow gameplay elevation, almost parallel to the ground plane,
+      not a downward-looking camera. The front and side surfaces of the character must remain
+      readable; show only minimal top planes on hair and shoulders. This is a normal RPG gameplay
+      sprite view, never a full overhead, bird's-eye, aerial, steep cenital, or extreme
+      foreshortened view. Do not use eye-level portrait framing or cinematic perspective.
+    palette: >-
+      Use the attached approved south walk row as the palette and design authority: warm skin,
+      dark brown hair, terracotta blouse, brown skirt, cream sash, and dark sandals. Keep all
+      hue families and material roles coherent across the sixteen cells.
+    lighting: >-
+      Keep a single stable soft light direction and identical value hierarchy across all rows
+      and frames; no cast shadow or changing background.
+    identity: >-
+      The attached four-frame south walking row is the only visual reference. Preserve the same
+      character identity, face, hair and side ponytail, blouse, skirt, sash, sandals, friendly
+      expression, proportions, outline language, pixel scale, and readable details. Reuse the
+      approved south walk design in the first row and carry the same design into the east, north,
+      and west rows. Do not redesign or age the character.
+    animation: >-
+      Generate one complete 4-row by 4-column walking sprite sheet in a single image. Row 1,
+      top to bottom, is SOUTH/DOWN facing; row 2 is EAST/RIGHT facing; row 3 is NORTH/UP facing;
+      row 4 is WEST/LEFT facing. Within every row, the four cells are left-to-right contact,
+      passing, opposite contact, recovery. Every cell is a full-body walk pose, not an idle pose.
+      Alternate the legs clearly: the large advancing foot and sandal must switch sides between
+      the two contact cells, while passing cells visibly lift and cross the supporting leg.
+      Keep both legs, knees, ankles, heels, soles, toes, and complete sandals visible below the
+      skirt. Alternate both arms in contralateral coordination in every row: when the screen-left
+      foot advances, the screen-right arm is forward and the screen-left arm is back; when the
+      screen-right foot advances, invert the arms. Both hands must be separate visible silhouettes
+      with opposite elbow bends, readable wrists and fingers, and clearly different positions.
+      Keep the torso stable and keep the exact same scale and support row in all sixteen cells.
+    negative: >-
+      No opaque or colored background, checkerboard baked into the image, floor, scenery, cast
+      shadow, panel, grid lines, labels, text, numbers, border, watermark, guide, extra poses,
+      separate images, contact-sheet presentation, extra characters, copied reference character,
+      redesign, repeated arm pose, frozen arms, hidden hands, fused arms, aligned hands, fused
+      legs, hidden legs, feet together, standing portrait, same front foot in every frame, cropped
+      body parts, frame overlap, bleed, clipping, deformation, anti-aliasing, blur, gradients,
+      painterly brushwork, vector art, 3D render, extreme cenital angle, steep overhead view,
+      bird's-eye view, aerial perspective, or downward-looking camera.
+  background:
+    mode: transparent_required
+    fallback: reject
+    max_attempts: 1
+    color: "#00FF00"
+
+render:
+  cell_size: [64, 64]
+  target_body_height_px: 56
+  palette_lock: false
+  dithering: false
+  integrated_shadow: false
+  resampling:
+    methods: [pixel_majority]
+    selection: pixel_majority
+    save_variants: false
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [32, 52]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+quality_gates:
+  block_export_on_review: true
+  alpha_integrity:
+    min_transparent_ratio: 0.05
+    min_border_transparent_ratio: 0.98
+    max_foreground_border_ratio: 0.01
+    alpha_threshold: 8
+
+export:
+  formats: [horizontal]
+  output_dir: jobs/caminante-01-walk-full-4x4-v001/exports
+
+metadata:
+  cultural_review_required: true
+  reference_layout: complete_four_direction_grid
+  generation_strategy: one_prompt_full_sheet
+  logical_rows: [south, east, north, west]
+  frames_per_row: 4
+  design_reference: jobs/caminante-01-walk-full-4x4-v001/raw/walk_south_user_approved_design_v001.png
+  design_reference_approval: explicit_user_selection_as_south_view_and_design
+  retry_reason: user_requested_single_prompt_full_sheet_after_direction_attempts

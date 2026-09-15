@@ -1,0 +1,14 @@
+identity:
+  name: walk_reference_trial_character_16bit_topdown
+  description: "The supplied concept image is the sole visual identity source for this generated character."
+  immutable_features:
+    - "Preserve the concept image's anatomy, silhouette, palette, clothing, and visible details."
+    - "Keep one consistent torso/body anchor, elevated camera pitch, projection, and scale across all four cells."
+  forbidden_changes:
+    - "Do not copy the movement reference character's face, clothing, colors, silhouette, anatomy, or visual style."
+
+visual_rules:
+  style: "Authentic 16-bit-era top-down RPG pixel art: compact limited palette, crisp hard-edged clusters, deliberate 1 px and 2 px details, stepped silhouettes, and no smoothing."
+  lighting: "Keep one stable light direction and value hierarchy across all cells."
+  camera: "Fixed elevated orthographic top-down camera, fully overhead or only slightly isometric; show the top plane of the head and shoulders and never drift to eye-level, platformer, or side-scroller framing."
+  palette: "Derive the character palette exclusively from the supplied concept image, simplified into a readable 16-bit-era palette."

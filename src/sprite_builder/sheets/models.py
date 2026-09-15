@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Any, Literal
 
 Orientation = Literal["horizontal", "vertical", "grid"]
-CenterMethod = Literal["body", "feet", "bounding_box"]
+CenterMethod = Literal["multi_anchor", "body", "feet", "bounding_box"]
+AlignmentProfile = Literal["idle", "walk", "attack"]
+AnchorRole = Literal["stabilize", "validate", "socket"]
 StageStatus = Literal["pending", "passed", "manual_review", "failed"]
 
 
@@ -106,6 +108,11 @@ class BackgroundRemovalConfig:
     remove_near_transparent: bool = True
     near_transparent_threshold: int = 8
     preserve_outline: bool = True
+    unmix_enabled: bool = False
+    unmix_reach: int = 2
+    unmix_fringe_tolerance: float = 160.0
+    unmix_tint_threshold: float = 18.0
+    spill_max_fraction: float = 0.005
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> BackgroundRemovalConfig:
@@ -123,6 +130,11 @@ class BackgroundRemovalConfig:
             remove_near_transparent=bool(value.get("remove_near_transparent", True)),
             near_transparent_threshold=int(value.get("near_transparent_threshold", 8)),
             preserve_outline=bool(value.get("preserve_outline", True)),
+            unmix_enabled=bool(value.get("unmix_enabled", False)),
+            unmix_reach=int(value.get("unmix_reach", 2)),
+            unmix_fringe_tolerance=float(value.get("unmix_fringe_tolerance", 160.0)),
+            unmix_tint_threshold=float(value.get("unmix_tint_threshold", 18.0)),
+            spill_max_fraction=float(value.get("spill_max_fraction", 0.005)),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -150,8 +162,41 @@ class ExportCropConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class AnchorPoint:
+    """One anatomical observation used by or exported from alignment."""
+
+    name: str
+    position: tuple[float, float]
+    confidence: float
+    role: AnchorRole
+    source: str
+    weight_x: float = 0.0
+    weight_y: float = 0.0
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> AnchorPoint:
+        raw_position = value.get("position", (0.0, 0.0))
+        if not isinstance(raw_position, (list, tuple)) or len(raw_position) != 2:
+            raw_position = (0.0, 0.0)
+        return cls(
+            name=str(value.get("name", "anchor")),
+            position=(float(raw_position[0]), float(raw_position[1])),
+            confidence=float(value.get("confidence", 0.0)),
+            role=str(value.get("role", "validate")),  # type: ignore[arg-type]
+            source=str(value.get("source", "automatic")),
+            weight_x=float(value.get("weight_x", 0.0)),
+            weight_y=float(value.get("weight_y", 0.0)),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        value = asdict(self)
+        value["position"] = list(self.position)
+        return value
+
+
+@dataclass(frozen=True, slots=True)
 class AutoCenterConfig:
-    method: CenterMethod = "body"
+    method: CenterMethod = "multi_anchor"
     canvas_width: int = 128
     canvas_height: int = 128
     canonical_anchor: tuple[int, int] = (64, 68)
@@ -167,10 +212,13 @@ class AutoCenterConfig:
     scale_min_ratio: float = 0.75
     scale_max_ratio: float = 1.333333
     scale_reference: str = "robust_body"
+    alignment_profile: AlignmentProfile = "walk"
 
     def __post_init__(self) -> None:
-        if self.method not in {"body", "feet", "bounding_box"}:
+        if self.method not in {"multi_anchor", "body", "feet", "bounding_box"}:
             raise ValueError(f"Unsupported Auto Center method: {self.method}")
+        if self.alignment_profile not in {"idle", "walk", "attack"}:
+            raise ValueError(f"Unsupported alignment profile: {self.alignment_profile}")
         if self.canvas_width <= 0 or self.canvas_height <= 0:
             raise ValueError("Auto Center canvas dimensions must be positive")
         if not 0 <= self.confidence_threshold <= 1:
@@ -191,7 +239,7 @@ class AutoCenterConfig:
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> AutoCenterConfig:
         return cls(
-            method=str(value.get("method", "body")),  # type: ignore[arg-type]
+            method=str(value.get("method", "multi_anchor")),  # type: ignore[arg-type]
             canvas_width=int(value.get("canvas_width", 128)),
             canvas_height=int(value.get("canvas_height", 128)),
             canonical_anchor=_pair(value.get("canonical_anchor"), (64, 68)),
@@ -208,6 +256,7 @@ class AutoCenterConfig:
             scale_min_ratio=float(value.get("scale_min_ratio", 0.75)),
             scale_max_ratio=float(value.get("scale_max_ratio", 1.333333)),
             scale_reference=str(value.get("scale_reference", "robust_body")),
+            alignment_profile=str(value.get("alignment_profile", "walk")),  # type: ignore[arg-type]
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -221,6 +270,9 @@ class FrameAdjustment:
     frame_index: int
     auto_anchor: tuple[float, float] = (0.0, 0.0)
     auto_confidence: float = 0.0
+    anchors: tuple[AnchorPoint, ...] = ()
+    alignment_profile: str = "legacy"
+    anchor_disagreement_px: float = 0.0
     manual_offset_x: int = 0
     manual_offset_y: int = 0
     final_anchor: tuple[float, float] = (0.0, 0.0)
@@ -244,10 +296,23 @@ class FrameAdjustment:
         auto = value.get("auto_anchor", (0, 0))
         final = value.get("final_anchor", (0, 0))
         translation = value.get("applied_translation", (0, 0))
+        raw_anchors = value.get("anchors", ())
+        anchors = (
+            tuple(
+                AnchorPoint.from_dict(item)
+                for item in raw_anchors
+                if isinstance(item, Mapping)
+            )
+            if isinstance(raw_anchors, (list, tuple))
+            else ()
+        )
         return cls(
             frame_index=int(value["frame_index"]),
             auto_anchor=tuple(map(float, auto)),  # type: ignore[arg-type]
             auto_confidence=float(value.get("auto_confidence", 0)),
+            anchors=anchors,
+            alignment_profile=str(value.get("alignment_profile", "legacy")),
+            anchor_disagreement_px=float(value.get("anchor_disagreement_px", 0.0)),
             manual_offset_x=int(value.get("manual_offset_x", 0)),
             manual_offset_y=int(value.get("manual_offset_y", 0)),
             final_anchor=tuple(map(float, final)),  # type: ignore[arg-type]
@@ -268,6 +333,7 @@ class FrameAdjustment:
         value = asdict(self)
         for key in ("auto_anchor", "final_anchor", "applied_translation", "body_bbox"):
             value[key] = list(value[key])
+        value["anchors"] = [anchor.to_dict() for anchor in self.anchors]
         return value
 
 

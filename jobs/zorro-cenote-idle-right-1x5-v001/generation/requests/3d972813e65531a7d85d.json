@@ -1,0 +1,35 @@
+{
+  "alpha_retry_index": 0,
+  "animation": "idle",
+  "background_color": "#242238",
+  "background_fallback": "manual_ui",
+  "background_mode": "transparent_preferred",
+  "candidate_index": 0,
+  "character_id": "zorro-cenote-01",
+  "direction": "right",
+  "job_id": "zorro-cenote-idle-right-1x5-v001",
+  "manual_session_id": null,
+  "max_alpha_retries": 2,
+  "output_filename": "idle_right_sheet_candidate_00_3d972813e65531a7d85d.png",
+  "parent_request_id": null,
+  "prompt_path": "jobs/zorro-cenote-idle-right-1x5-v001/generation/prompts/right_sheet_4a6bced73990.txt",
+  "quality": "medium",
+  "reference_paths": [
+    "/Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/sheet_sessions/sheet-20260912T223106-160bd811-7c22/exports/export-e76ca48dd5ee/frames/frame_000.png",
+    "/Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/jobs/zorro-decomp-v001/exports/idle/fox-idle.png"
+  ],
+  "request_id": "3d972813e65531a7d85d",
+  "request_kind": "sheet",
+  "schema_version": "1.0",
+  "sheet_columns": 5,
+  "sheet_frame_count": 5,
+  "sheet_gutter_px": 0,
+  "sheet_layout": "horizontal",
+  "sheet_rows": 1,
+  "source_kind": "generated",
+  "source_size": [
+    1280,
+    256
+  ],
+  "status": "prepared"
+}

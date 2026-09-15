@@ -1,0 +1,1 @@
+sprite-builder: SHEET_NATIVE_SIZE_MISMATCH: GPT Image 2 returned 1983x793, expected the configured native sheet canvas 256x64; no crop or resize is allowed

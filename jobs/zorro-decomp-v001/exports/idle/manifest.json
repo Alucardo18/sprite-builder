@@ -1,0 +1,46 @@
+{
+  "path": "jobs/zorro-decomp-v001/exports/idle/fox-idle.png",
+  "sheet_size": [
+    1960,
+    322
+  ],
+  "cell_size": [
+    392,
+    322
+  ],
+  "columns": 5,
+  "rows": 1,
+  "layout": "horizontal",
+  "regions": [
+    [
+      0,
+      0,
+      392,
+      322
+    ],
+    [
+      392,
+      0,
+      392,
+      322
+    ],
+    [
+      784,
+      0,
+      392,
+      322
+    ],
+    [
+      1176,
+      0,
+      392,
+      322
+    ],
+    [
+      1568,
+      0,
+      392,
+      322
+    ]
+  ]
+}

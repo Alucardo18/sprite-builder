@@ -1,0 +1,84 @@
+schema_version: "1.0"
+
+job:
+  id: walk-reference-east-4x4-v001
+
+character:
+  id: walk_reference_trial_character
+  bible: jobs/walk-reference-east-4x4-v001/character-bible.yaml
+  references:
+    - /var/folders/f5/cqm56341731fj474ff6t_rqc0000gn/T/codex-clipboard-2ba4fe32-7058-457f-8877-e629307dfe44.png
+    - /Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/.codex/skills/walk-animation-reference/assets/walk-reference/walk-row-4x4-east.png
+
+animation:
+  name: walk
+  directions: [right]
+  frame_count: 4
+  fps: 8
+  loop: true
+  phases: [contact_left, passing_left, contact_right, recovery]
+
+generation:
+  source_size: [256, 64]
+  quality: medium
+  mode: sheet
+  candidates_per_sheet: 1
+  sheet:
+    layout: horizontal
+    rows: 1
+    columns: 4
+    gutter_px: 0
+  prompt:
+    style: "Native-resolution pixel art with deliberate 1px/2px clusters, crisp stepped silhouettes, no anti-aliasing, and no painterly or photorealistic rendering."
+    pixel_language: "Use readable hard pixel clusters, stable outline weight, consistent native scale, and nearest-neighbor pixel logic."
+    camera: "Use one fixed orthographic top-down three-quarter camera, identical crop, scale, torso/body anchor, and support row in every cell."
+    palette: "Use the character palette exclusively from the supplied concept image; do not borrow colors from the movement reference."
+    lighting: "Use one stable light direction and value hierarchy across the four cells."
+    identity: "The concept image contributes exclusively the generated character's visual identity: anatomy, silhouette, palette, clothing, and details."
+    animation: "The master movement reference contributes only movement, timing, poses, rhythm, and cell distribution. Generate a natural east/right/side walk cycle with clear opposite arm-and-leg alternation, coherent contact and passing phases, hands changing sides between frames, and no repeated or frozen arm poses."
+    negative: "No black background, background color, opaque backdrop, grid, checkerboard, text, labels, numbers, border, watermark, guide, unrelated elements, separate images, contact sheet, copied reference character, copied face, copied clothing, copied colors, copied silhouette, copied anatomy, copied visual style, repeated arm pose, frozen arms, uncoordinated limbs, cropped body parts, clipping, deformation, anti-aliasing, resampling, or frame overlap."
+  background:
+    mode: transparent_required
+    fallback: reject
+    max_attempts: 1
+    color: "#00FF00"
+
+render:
+  cell_size: [64, 64]
+  target_body_height_px: 56
+  palette_lock: false
+  dithering: false
+  integrated_shadow: false
+  resampling:
+    methods: [pixel_majority]
+    selection: pixel_majority
+    save_variants: false
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [32, 52]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+quality_gates:
+  block_export_on_review: true
+  alpha_integrity:
+    min_transparent_ratio: 0.05
+    min_border_transparent_ratio: 0.98
+    max_foreground_border_ratio: 0.01
+    alpha_threshold: 8
+
+export:
+  formats: [horizontal]
+  output_dir: jobs/walk-reference-east-4x4-v001/exports
+
+metadata:
+  cultural_review_required: true
+  reference_layout: four_horizontal_poses
+  incremental_row_workflow: true
+  requested_direction: east
+  source_reference_row: east
+  concept_role: identity_only
+  movement_reference_role: movement_timing_poses_rhythm_cell_distribution_only
+  prior_attempt: jobs/walk-reference-south-4x4-v001/raw/walk_down_sheet_candidate_00_c536275ac59dc25e19bc.png
+  prior_attempt_status: approved_and_native_normalized

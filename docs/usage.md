@@ -314,15 +314,16 @@ sprite-builder --workspace /ruta/al/workspace sheet-process \
   --session <session-id> --frame-count 14 --orientation grid \
   --rows 2 --columns 7 --cell-width 256 --cell-height 512 \
   --canvas-width 96 --canvas-height 96 \
-  --anchor-x 48 --anchor-y 55 --manual-alpha \
+  --anchor-x 48 --anchor-y 55 --manual-alpha --alignment-profile walk \
   --normalize-scale --target-body-height-px 44 \
   --scale-tolerance-px 1 --scale-min-ratio 0.75 \
   --scale-max-ratio 1.333333
 ```
 
-La medición usa cuantiles centrales del cuerpo y excluye extensiones finas
-como armas, báculos y adornos. El frame se escala una sola vez con alpha
-premultiplicado y luego se alinea por torso. El manifest de alignment conserva
+La medición usa torso, pelvis y soporte del suelo, valida hombros/base de cabeza
+y excluye extensiones finas como armas, báculos y adornos. El frame se escala una
+sola vez con alpha premultiplicado y luego se alinea con el perfil elegido. El
+manifest de alignment conserva
 `scale_factor`, `scale_reference_height_px`, `normalized_body_height_px` y
 `scale_manual_review`. Un factor fuera de los límites queda en revisión, aunque
 la punta del arma sobresalga de forma intencional.
@@ -331,27 +332,12 @@ la punta del arma sobresalga de forma intencional.
 imagen que ya fue limpiada en la UI. No uses nearest para recuperar detalle;
 nearest sólo conserva píxeles en previews o ampliaciones enteras.
 
-### Alineación por pies sin escalado
+### Compatibilidad de alineación por pies
 
-En el tab **Sheet**, active **Auto alinear por pies** cuando la acción extienda
-manos, armas, báculos o adornos. El detector busca la última banda ancha de
-soporte dentro del corredor corporal y la usa como línea de suelo; las
-extensiones finas no definen el anchor. Todos los frames se trasladan dentro
-del canvas común seleccionado. Si hace falta más espacio, aumente `Canvas W/H`;
-la operación agrega transparencia y nunca redimensiona ni remuestrea el sprite.
-
-Guarde primero **la segmentación actual**. El panel **Mover y recortar cada
-frame** sólo se habilita cuando el intento inmutable coincide exactamente con
-los cortes visibles; cambiar cualquier corte vuelve a bloquearlo hasta guardar
-la nueva segmentación. Seleccione un frame y arrastre directamente su figura dentro del marco. Al
-soltar, el core recompone ese frame en el canvas elegido, descarta únicamente
-los pixels que queden fuera y registra `cropped_pixel_count`. **Reaplicar pies**
-restablece los offsets automáticos y **Guardar posiciones y recorte** publica
-únicamente esas celdas como la revisión de alignment usada por Export; nunca
-vuelve a publicar la segmentación de forma implícita.
-
-El mismo modo está disponible en CLI con `--center-method feet`. No lo combine
-con `--normalize-scale`: ambos contratos son deliberadamente excluyentes.
+La UI usa multi-anchor y el perfil `walk` ya da mayor peso vertical al soporte
+del suelo. El modo anterior sigue disponible sólo en CLI con
+`--center-method feet`; traslada frames sin escalarlos y no se puede combinar
+con `--normalize-scale`.
 
 ## 9. Bundle nativo verificado
 

@@ -1,0 +1,161 @@
+schema_version: "1.0"
+
+job:
+  id: caminante-01-walk-3rows-4x4-v002
+
+character:
+  id: caminante-01
+  bible: jobs/caminante-01-walk-3rows-4x4-v002/character-bible.yaml
+  references:
+    - jobs/caminante-01-walk-3rows-4x4-v002/raw/walk_south_user_approved_design_v001.png
+
+animation:
+  name: walk
+  # One request contains all three generated directions; west is a later mirror of east.
+  directions: [down]
+  frame_count: 12
+  fps: 8
+  loop: true
+  phases:
+    - south_contact_left
+    - south_passing_left
+    - south_contact_right
+    - south_recovery
+    - east_contact_leading_left
+    - east_passing_left
+    - east_contact_leading_right
+    - east_recovery
+    - north_contact_left
+    - north_passing_left
+    - north_contact_right
+    - north_recovery
+
+generation:
+  source_size: [1448, 1086]
+  quality: high
+  mode: sheet
+  candidates_per_sheet: 1
+  sheet:
+    layout: grid
+    rows: 3
+    columns: 4
+    gutter_px: 0
+  prompt:
+    style: >-
+      Authentic native-resolution 16-bit pixel art for a classic 2D top-down action RPG;
+      crisp hard-edged pixel clusters, stepped silhouettes, deliberate 1px and 2px details,
+      stable dark outline hierarchy, restrained material shading, and no anti-aliasing, blur,
+      painterly rendering, gradients, vector smoothness, or 3D rendering.
+    pixel_language: >-
+      Use readable native pixel clusters and nearest-neighbor logic. Keep the same visual scale,
+      outline weight, lighting, palette families, torso anchor, and support row in every cell.
+    camera: >-
+      CAMERA: standard 2D RPG top-down gameplay view WITHOUT a cenital angle. Use one fixed
+      orthographic camera with very shallow gameplay elevation, almost parallel to the ground
+      plane, not a downward-looking camera. Keep front and side surfaces readable and show only
+      a minimal sliver of top planes on hair and shoulders. Never use a full overhead, bird's-eye,
+      aerial, steep cenital, high-isometric, or extreme foreshortened view. Do not use eye-level
+      portrait framing or cinematic perspective. Keep this camera identical in all twelve cells.
+    palette: >-
+      Use the attached approved south walk row as the sole palette and design authority: warm
+      skin, dark brown side-gathered hair and ponytail, terracotta blouse, brown skirt, cream sash,
+      dark sandals, friendly expression, and stable dark outline. Do not borrow colors from any
+      other source.
+    lighting: >-
+      Keep one stable light direction and identical value hierarchy across all three rows and
+      four frames per row; no cast shadow or changing background.
+    identity: >-
+      Preserve the exact character identity from the attached south row in every direction:
+      same face and expression when visible, same hair mass and side ponytail, blouse, skirt,
+      sash, sandals, proportions, pixel scale, outline language, and design details. The attached
+      row is the only reference; ignore all other chats, images, and project results.
+    animation: >-
+      Generate one complete 3-row by 4-column walking sprite sheet in one image and one prompt.
+      Row 1 is SOUTH/DOWN facing, row 2 is EAST/RIGHT facing, and row 3 is NORTH/UP facing;
+      do not generate a west row because west will be made by a deterministic horizontal mirror
+      of the approved east row later. Each row has four cells left-to-right: contact, passing,
+      opposite contact, recovery. Make every cell a distinct full-body walk pose, never an idle
+      or standing pose. Keep the torso stable and keep the same support row and body scale.
+
+      EAST ROW IS THE ACCEPTANCE PRIORITY. Draw it as a clear side-facing RPG walk moving toward
+      image-right, with both legs and both arms readable as separate silhouettes. Use this exact
+      four-frame motion: East cell 1 is a rightward contact with the leading foot fully planted
+      ahead toward image-right and the other foot trailing behind, lifted and bent; the hand on
+      screen-left reaches forward while the hand on screen-right swings back. East cell 2 is a
+      passing pose: the planted foot lifts and passes beneath the hips while the other leg
+      supports; completely reverse the arms, with screen-right hand forward and screen-left hand
+      back. East cell 3 is the opposite rightward contact: the other foot is now fully planted
+      ahead toward image-right while the first foot trails behind, lifted and bent; return to
+      screen-left hand forward and screen-right hand back. East cell 4 is the opposite passing /
+      recovery pose: the trailing foot passes beneath the hips and the legs are visibly different
+      from cell 2; reverse the arms again, with screen-right hand forward and screen-left hand
+      back. The hands must visibly swap sides on every transition and the two feet must visibly
+      swap the leading/contact role. Show separated knees, calves, ankles, heels, soles, toes,
+      and complete sandals; do not let the skirt hide the motion.
+
+      For south and north rows, use the same four-phase timing and the same contralateral rule:
+      contact with one foot clearly advanced, passing with that foot lifted through center,
+      opposite contact with the other foot advanced, then opposite passing/recovery. In every
+      row, the arm opposite the advancing foot is forward and the other arm is back. Both hands
+      must be visible, separated by at least one hand-width, with opposite elbow bends, readable
+      wrists and fingers, and no frozen pose. For north, show a consistent back view; for south,
+      preserve the approved front design.
+    negative: >-
+      No fourth west row, no separate images, no extra poses, no contact-sheet presentation,
+      no opaque or colored background, no checkerboard baked into the PNG, no floor, scenery,
+      cast shadow, panel, grid lines, labels, text, numbers, border, watermark, guide, extra
+      characters, copied unrelated design, redesigned face, repeated arm pose, frozen arms,
+      hidden hands, fused arms, aligned hands, fused legs, hidden legs, feet together, standing
+      portrait, same leading foot in every frame, identical lower body, cropped body parts,
+      clipping, bleed, overlap, deformation, anti-aliasing, blur, gradients, painterly brushwork,
+      vector art, 3D render, full cenital angle, steep overhead view, bird's-eye view, aerial
+      perspective, downward-looking camera, or explanatory text.
+  background:
+    mode: transparent_required
+    fallback: reject
+    max_attempts: 1
+    color: "#00FF00"
+
+render:
+  cell_size: [64, 64]
+  target_body_height_px: 56
+  palette_lock: false
+  dithering: false
+  integrated_shadow: false
+  resampling:
+    methods: [pixel_majority]
+    selection: pixel_majority
+    save_variants: false
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [32, 52]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+quality_gates:
+  block_export_on_review: true
+  alpha_integrity:
+    min_transparent_ratio: 0.05
+    min_border_transparent_ratio: 0.98
+    max_foreground_border_ratio: 0.01
+    alpha_threshold: 8
+
+export:
+  formats: [horizontal]
+  output_dir: jobs/caminante-01-walk-3rows-4x4-v002/exports
+
+metadata:
+  cultural_review_required: true
+  reference_layout: three_direction_grid
+  generation_strategy: one_prompt_three_rows
+  logical_rows: [south, east, north]
+  omitted_direction: west
+  omitted_direction_strategy: deterministic_horizontal_mirror_of_east
+  frames_per_row: 4
+  design_reference: jobs/caminante-01-walk-3rows-4x4-v002/raw/walk_south_user_approved_design_v001.png
+  design_reference_approval: explicit_user_selection_as_south_view_and_design
+  retry_reason: user_requested_three_rows_with_east_motion_priority
+  approved_candidate_reused: true
+  approved_candidate_parent_job: caminante-01-walk-3rows-4x4-v001
+  approved_candidate_source: ChatGPT Web screenshot-approved image, persisted after explicit user approval

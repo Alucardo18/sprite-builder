@@ -28,6 +28,7 @@ from sprite_builder.sheets import (
     erase_with_brush,
     normalize_frames_by_character_scale,
     pad_frames_to_common_canvas,
+    plan_frame_layout,
     render_contact_sheet,
     render_frame_overlay,
     render_segmentation_region_guides,
@@ -417,6 +418,57 @@ def test_weapon_does_not_drag_body_anchor() -> None:
     assert all(frame.size == (80, 64) for frame in result.frames)
 
 
+def test_multi_anchor_alignment_feeds_final_fixed_cell_layout() -> None:
+    frames: list[Image.Image] = []
+    for shift_x, step_y in ((0, 0), (2, 2), (-1, 1)):
+        frame = Image.new("RGBA", (40, 44), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(frame)
+        draw.rectangle(
+            (12 + shift_x, 8 + step_y, 27 + shift_x, 31 + step_y),
+            fill=(180, 90, 30, 255),
+        )
+        draw.rectangle(
+            (10 + shift_x, 29 + step_y, 18 + shift_x, 37 + step_y),
+            fill=(220, 130, 45, 255),
+        )
+        draw.rectangle(
+            (22 + shift_x, 29 + step_y, 30 + shift_x, 37 + step_y),
+            fill=(220, 130, 45, 255),
+        )
+        frames.append(frame)
+
+    result = auto_center_frames(
+        frames,
+        AutoCenterConfig(
+            method="multi_anchor",
+            alignment_profile="walk",
+            canvas_width=48,
+            canvas_height=48,
+            canonical_anchor=(24, 38),
+            confidence_threshold=0,
+        ),
+        overflow_strategy="clamp",
+    )
+    plan = plan_frame_layout(result.frames, layout="grid", columns=2)
+
+    expected_names = {
+        "torso",
+        "pelvis_root",
+        "shoulder_center",
+        "head_base",
+        "ground_support",
+    }
+    assert all(
+        expected_names.issubset({anchor.name for anchor in item.anchors})
+        for item in result.adjustments
+    )
+    assert all(item.alignment_profile == "walk" for item in result.adjustments)
+    assert all(item.scale_factor == 1.0 for item in result.adjustments)
+    assert plan.columns == 2
+    assert plan.rows == 2
+    assert plan.regions[2] == (0, plan.cell_size[1], *plan.cell_size)
+
+
 def test_feet_anchor_ignores_hands_and_staff_below_ground() -> None:
     frame = Image.new("RGBA", (96, 96), (0, 0, 0, 0))
     draw = ImageDraw.Draw(frame)
@@ -743,6 +795,46 @@ def test_center_drag_event_clears_widget_state_and_persists_offset() -> None:
     assert ss[f"{prefix}:offset_y_widget:0"] == -4
     assert ss[f"{prefix}:center_widget_sync"] is True
     assert ss[f"{prefix}:center_zoom:0"] == 9
+
+
+def test_center_canvas_selects_and_locks_the_hovered_frame() -> None:
+    from streamlit import session_state as ss
+
+    ss.clear()
+    prefix = "sheet-hover-select"
+    session = type("Session", (), {"session_id": prefix})()
+    ss[f"{prefix}:offsets"] = [(0, 0), (0, 0), (0, 0)]
+    ss[f"{prefix}:locks"] = [False, False, False]
+
+    selected = _handle_center_editor_event(
+        session,
+        3,
+        0,
+        {
+            "eventId": "select-2",
+            "type": "frame-selection",
+            "action": "select-frame",
+            "frameIndex": 2,
+        },
+    )
+    locked = _handle_center_editor_event(
+        session,
+        3,
+        0,
+        {
+            "eventId": "lock-2",
+            "type": "toolbar",
+            "action": "toggle-frame-lock",
+            "frameIndex": 2,
+            "locked": True,
+        },
+    )
+
+    assert selected is True
+    assert locked is True
+    assert ss[f"{prefix}:center_pending_selected_frame"] == 2
+    assert ss[f"{prefix}:locks"] == [False, False, True]
+    assert ss[f"{prefix}:locked:2"] is True
 
 
 def test_background_rect_crop_tool_creates_a_pixel_selection() -> None:
@@ -1150,7 +1242,7 @@ def test_history_selection_masks_are_compact_and_lossless() -> None:
     assert np.array_equal(restored[1], mask)
 
 
-def test_alignment_export_readiness_rejects_stale_or_review_manifests() -> None:
+def test_alignment_export_readiness_warns_for_stale_or_review_manifests() -> None:
     segmentation = SegmentationConfig(frame_count=1)
     background = BackgroundRemovalConfig()
     center = AutoCenterConfig(
@@ -1191,8 +1283,39 @@ def test_alignment_export_readiness_rejects_stale_or_review_manifests() -> None:
         locks=[False],
         frame_count=1,
     )
-    assert ready is False
+    assert ready is True
     assert "revisión" in reason
+
+    stale_center = AutoCenterConfig(
+        canvas_width=16,
+        canvas_height=16,
+        canonical_anchor=(7, 8),
+    )
+    ready, reason = _alignment_export_readiness(
+        manifest,
+        segmentation_config=segmentation,
+        background_config=background,
+        center_config=stale_center,
+        manual_offsets=[(0, 0)],
+        locks=[False],
+        frame_count=1,
+    )
+    assert ready is True
+    assert "configuración cambió" in reason
+
+    failed_manifest = dict(manifest)
+    failed_manifest["status"] = "failed"
+    ready, reason = _alignment_export_readiness(
+        failed_manifest,
+        segmentation_config=segmentation,
+        background_config=background,
+        center_config=center,
+        manual_offsets=[(0, 0)],
+        locks=[False],
+        frame_count=1,
+    )
+    assert ready is False
+    assert "falló" in reason
 
 
 def test_center_zoom_event_persists_per_frame_and_clamps() -> None:
@@ -1573,6 +1696,65 @@ def test_session_round_trip_stage_and_export(tmp_path: Path) -> None:
     assert exported_path.is_file()  # Immutable lineage remains on disk.
     assert background_manifest_path.is_file()
     assert "manual_edit_operations" in background_manifest_text
+
+
+def test_export_uses_materialized_layout_without_cropping_twice(tmp_path: Path) -> None:
+    store = SheetSessionStore(tmp_path)
+    session = store.create(_png_bytes(Image.new("RGBA", (12, 8), (0, 0, 0, 0))))
+    aligned = []
+    for color, x in (((255, 0, 0, 255), 2), ((0, 0, 255, 255), 4)):
+        frame = Image.new("RGBA", (12, 8), (0, 0, 0, 0))
+        ImageDraw.Draw(frame).rectangle((x, 2, x + 2, 4), fill=color)
+        aligned.append(frame)
+    session.frame_adjustments = [
+        FrameAdjustment(frame_index=index, auto_anchor=(6, 4), body_bbox=(2, 2, 7, 5))
+        for index in range(2)
+    ]
+    store.commit_stage(session, "alignment", aligned, config={"revision": 1})
+    crop_config = ExportCropConfig(enabled=True, padding=1, alpha_threshold=8)
+    materialized = trim_transparent_frames(aligned, crop_config)
+    plan = plan_frame_layout(materialized.frames, layout="grid", columns=2)
+    store.commit_stage(
+        session,
+        "layout",
+        materialized.frames,
+        config={
+            "layout": plan.layout,
+            "columns": plan.columns,
+            "rows": plan.rows,
+            "cell_size": list(plan.cell_size),
+            "alignment_cache_key": session.stages["alignment"]["cache_key"],
+            "crop": crop_config.to_dict(),
+        },
+        metadata={
+            "regions": [list(region) for region in plan.regions],
+            "sheet_size": list(plan.sheet_size),
+            "crop_bbox": list(materialized.bbox),
+            "crop_source_size": list(materialized.source_size),
+        },
+    )
+    session.export_crop_config = crop_config
+
+    manifest = store.export(
+        session,
+        materialized.frames,
+        layout="grid",
+        columns=2,
+        export_frames=False,
+        export_contact_sheet=False,
+    )
+
+    exported = Image.open(tmp_path / manifest["output_png"]).convert("RGBA")
+    assert exported.size == plan.sheet_size
+    assert manifest["cell_size"] == list(plan.cell_size)
+    assert manifest["crop"]["bbox"] == list(materialized.bbox)
+    assert exported.crop((0, 0, *plan.cell_size)).tobytes() == materialized.frames[0].tobytes()
+
+    store.commit_stage(session, "alignment", aligned, config={"revision": 2})
+    reopened = store.load(session.session_id)
+    assert "layout" not in reopened.stages
+    assert "export" not in reopened.stages
+    assert reopened.export_manifest is None
 
 
 def test_crop_requires_the_current_segmentation_attempt(tmp_path: Path) -> None:

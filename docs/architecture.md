@@ -52,7 +52,9 @@ metadata JSON → SpriteFrames .tres con AtlasTexture
 versionan cada intento por digest de configuración. El orden es:
 
 ```text
-source → segmentation → background/manual alpha → native full-sheet export
+source → background/manual alpha ┬→ provisional pose map → optional artwork
+                                 │  → multi-anchor alignment → final cuts → derived export
+                                 └→ native full-sheet export
 ```
 
 `sheet-native-export` exige que `background/manual alpha` contenga exactamente
@@ -61,8 +63,10 @@ un PNG del tamaño fuente y no continúa por `optional scale`, `alignment` o
 (por ejemplo, `AnimatedSprite2D` con filtro nearest).
 
 Los outputs se escriben antes del manifest. Al reabrir, tamaño y SHA-256 de
-cada artefacto deben coincidir. Un cambio de segmentación o fondo invalida el
-export nativo y obliga a revisar de nuevo las regiones.
+cada artefacto deben coincidir. Cambiar fondo o mapa provisional invalida Studio,
+alineación y cortes derivados. Publicar una revisión de Studio también invalida
+alineación y cortes; el export derivado sólo consume el layout final que referencia
+la alineación vigente.
 
 El flujo predeterminado prepara artefactos para una hoja completa y puede entregarlos a
 `image_gen`. El comando explícito `generate-openai` requiere una credencial en el entorno,

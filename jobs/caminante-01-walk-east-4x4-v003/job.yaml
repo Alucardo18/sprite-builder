@@ -1,0 +1,149 @@
+schema_version: "1.0"
+
+job:
+  id: caminante-01-walk-east-4x4-v003
+
+character:
+  id: caminante-01
+  bible: jobs/caminante-01-walk-east-4x4-v003/character-bible.yaml
+  references:
+    - jobs/caminante-01-walk-east-4x4-v003/raw/walk_south_user_approved_design_v001.png
+    - jobs/caminante-01-walk-east-4x4-v003/raw/reference-east/walk-row-4x4-east.png
+
+animation:
+  name: walk
+  directions: [right]
+  frame_count: 4
+  fps: 8
+  loop: true
+  phases: [contact_left, passing_left, contact_right, recovery]
+
+generation:
+  source_size: [256, 64]
+  quality: high
+  mode: sheet
+  candidates_per_sheet: 1
+  sheet:
+    layout: horizontal
+    rows: 1
+    columns: 4
+    gutter_px: 0
+  prompt:
+    style: >-
+      Authentic native-resolution 16-bit pixel art with crisp hard-edged clusters, deliberate
+      1px and 2px details, stepped silhouettes, and no anti-aliasing, blur, painterly rendering,
+      vector smoothness, or 3D rendering.
+    pixel_language: >-
+      Use readable pixel clusters, stable dark outline weight, restrained material shading,
+      consistent native scale, and clean nearest-neighbor pixel logic.
+    camera: >-
+      CAMERA: slight top-down/cenital gameplay view, orthographic or near-orthographic,
+      with a mild overhead tilt rather than a steep bird's-eye angle; preserve readable front
+      and side surfaces while showing only subtle top planes of the head/hair, shoulders,
+      clothing, and foreshortened feet; preserve the requested east/right-facing direction,
+      identical crop, scale, torso/body anchor, and support row in every cell. Never use an
+      eye-level portrait, cinematic perspective, flat front-facing camera, or extreme
+      overhead/bird's-eye view.
+    palette: >-
+      Use and simplify the character palette exclusively from the user-approved south design
+      reference; do not borrow colors from the movement reference.
+    lighting: Keep one stable light direction and value hierarchy across all four cells.
+    identity: >-
+      The user-approved south row is the visual design authority. Preserve its exact pixel-art
+      rendering, warm skin, dark brown side-gathered hair, terracotta sleeveless blouse, brown
+      skirt, cream sash and hanging tail, dark sandals, proportions, facial expression, palette,
+      outline language, and visible details in every east/right-facing cell. Do not redesign it.
+    animation: >-
+      The movement reference contributes only movement, timing, poses, rhythm, and cell
+      distribution. Generate exactly four distinct full-body east/right-facing walk poses, not four
+      near-identical portraits. The lower body is the acceptance priority: use a true alternating
+      walk with clearly separated ankles, sandals, knees, and visible leg bends below the skirt.
+      Use screen-left and screen-right only; do not reinterpret those sides as character left/right.
+      The upper-body arm cycle is equally mandatory and must be unmistakable: both forearms and
+      both hands must be readable as separate silhouettes in every cell, with one hand visibly
+      forward and the other visibly behind along the walking direction. Keep natural contralateral
+      coordination: the arm on screen-right advances when the foot on screen-left advances, and
+      the arm on screen-left advances when the foot on screen-right advances. Never keep both arms
+      in the same pose, both hands at the same horizontal position, or either arm frozen across
+      the row.
+    frame_choreography: >-
+      Follow this exact screen-side recipe before rendering. Cell 1: contact with the screen-left
+      foot and sandal clearly extended toward the bottom edge as the large near/front foot; the
+      screen-right leg is behind, bent, and its smaller sandal is visible. At the same time, the
+      screen-right arm must swing clearly forward toward image-right with its hand visibly ahead of
+      the torso, while the screen-left arm swings clearly backward toward image-left with its hand
+      visibly behind the torso. Cell 2: passing; the screen-left foot lifts and passes visibly
+      through the center while the screen-right leg supports directly under the torso; there must
+      be no screen-left front foot planted. Reverse the arms completely: screen-left hand forward
+      and screen-right hand back, with both hands separated from the torso and from each other.
+      Cell 3: contact with the screen-right foot and sandal clearly extended toward the bottom edge
+      as the large near/front foot; the screen-left leg is behind, bent, and its smaller sandal is
+      visible. Reverse the arm pair back to screen-right hand forward and screen-left hand back.
+      Cell 4: passing/recovery; the screen-right foot lifts and passes visibly through the center
+      while the screen-left leg supports under the torso; there must be no screen-right front foot
+      planted. Reverse the arms again to screen-left hand forward and screen-right hand back.
+      Make the four arm states visually distinct: forward hand at least one hand-width ahead of
+      the torso, rear hand at least one hand-width behind it, elbows bent in opposite directions,
+      wrists and fingers visible, and no hand hidden behind the torso, skirt, sash, or another arm.
+      Thus cells 1 and 3 share the same arm opposition while cells 2 and 4 share the inverse;
+      cells 1/3 and 2/4 must be visibly different. Keep the skirt hem high enough to expose both
+      knees, calves, ankles, and complete sandals in every cell while preserving the character's
+      skirt design. Do not use a standing pose or four variations of one leg stance. Redraw the
+      arms and hands if this opposition is not unmistakable.
+    negative: >-
+      No black or colored background, opaque backdrop, floor, scenery, shadow blob, grid,
+      checkerboard, text, labels, numbers, border, watermark, guide, unrelated elements, separate
+      images, contact sheet, copied reference character, copied face, copied clothing, copied
+      colors, copied silhouette, copied anatomy, copied visual style, eye-level portrait framing,
+      repeated arm pose, frozen arms, uncoordinated limbs, both hands aligned, both arms forward,
+      both arms back, hidden hands, fused arms, same front foot in every frame, identical lower
+      body, fused legs, hidden legs, feet together, standing portrait pose,
+      cropped body parts, clipping,
+      deformation, anti-aliasing, blur, gradients, painterly brushwork, vector art, 3D render,
+      or frame overlap.
+  background:
+    mode: transparent_required
+    fallback: reject
+    max_attempts: 1
+    color: "#00FF00"
+
+render:
+  cell_size: [64, 64]
+  target_body_height_px: 56
+  palette_lock: false
+  dithering: false
+  integrated_shadow: false
+  resampling:
+    methods: [pixel_majority]
+    selection: pixel_majority
+    save_variants: false
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [32, 52]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+quality_gates:
+  block_export_on_review: true
+  alpha_integrity:
+    min_transparent_ratio: 0.05
+    min_border_transparent_ratio: 0.98
+    max_foreground_border_ratio: 0.01
+    alpha_threshold: 8
+
+export:
+  formats: [horizontal]
+  output_dir: jobs/caminante-01-walk-east-4x4-v003/exports
+
+metadata:
+  cultural_review_required: true
+  reference_layout: four_horizontal_poses
+  incremental_row_workflow: true
+  requested_direction: east
+  source_reference_row: east
+  concept_role: user_approved_south_design_authority
+  movement_reference_role: movement_timing_poses_rhythm_cell_distribution_only
+  design_reference: jobs/caminante-01-walk-east-4x4-v003/raw/walk_south_user_approved_design_v001.png
+  design_reference_approval: explicit_user_selection_as_south_view_and_design
+  retry_reason: user_feedback_camera_too_steep_need_slight_top_down

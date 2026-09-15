@@ -1,0 +1,32 @@
+{
+  "alpha_inspection": {
+    "border_transparent_ratio": 0.9587937384898712,
+    "foreground_border_ratio": 0.04120626151012891,
+    "foreground_components": 182,
+    "has_alpha_channel": true,
+    "hidden_rgb_ratio": 0.01403641276293497,
+    "largest_component_ratio": 0.970720604210853,
+    "partial_alpha_ratio": 0.027401101919965812,
+    "reasons": [
+      "foreground_or_background_touches_border",
+      "foreground_border_spill",
+      "hidden_rgb_under_transparency"
+    ],
+    "status": "reject",
+    "transparent_ratio": 0.6991627494073237
+  },
+  "height": 1086,
+  "manual_request_path": null,
+  "manual_session_id": null,
+  "mode": "RGBA",
+  "native_size_verified": true,
+  "request_id": "45a5263d848563baac75",
+  "request_kind": "sheet",
+  "retry_request_path": null,
+  "schema_version": "1.0",
+  "sha256": "466de40e4620697a72077c8a89357ea705b13bfed17912b40d490bd0491c8761",
+  "source_path": "/Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/jobs/caminante-01-walk-3rows-4x4-v002/raw/walk_down_sheet_candidate_00_45a5263d848563baac75.png",
+  "status": "alpha_rejected",
+  "width": 1448,
+  "workspace_path": "jobs/caminante-01-walk-3rows-4x4-v002/raw/walk_down_sheet_candidate_00_45a5263d848563baac75.png"
+}

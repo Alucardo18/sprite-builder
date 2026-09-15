@@ -1,0 +1,64 @@
+schema_version: "1.0"
+job:
+  id: zorro-cenote-idle-right-1x5-v001
+
+character:
+  id: zorro-cenote-01
+  bible: characters/zorro-cenote-01/bible.yaml
+  references:
+    - /Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/sheet_sessions/sheet-20260912T223106-160bd811-7c22/exports/export-e76ca48dd5ee/frames/frame_000.png
+    - /Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/jobs/zorro-decomp-v001/exports/idle/fox-idle.png
+
+animation:
+  name: idle
+  directions: [right]
+  frame_count: 5
+  fps: 8
+  loop: true
+  phases: [settle, inhale, peak, exhale, settle]
+
+generation:
+  source_size: [1280, 256]
+  quality: medium
+  mode: sheet
+  candidates_per_sheet: 1
+  sheet:
+    layout: horizontal
+    rows: 1
+    columns: 5
+    gutter_px: 0
+  background:
+    mode: transparent_preferred
+    fallback: manual_ui
+    max_alpha_retries: 2
+    color: "#242238"
+
+render:
+  cell_size: [64, 64]
+  target_body_height_px: 38
+  palette_lock: false
+  dithering: false
+  integrated_shadow: false
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [32, 54]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+quality_gates:
+  block_export_on_review: true
+  alpha_integrity:
+    min_transparent_ratio: 0.05
+    min_border_transparent_ratio: 0.98
+    max_foreground_border_ratio: 0.01
+    alpha_threshold: 8
+
+export:
+  formats: [horizontal, individual]
+  output_dir: exports/zorro-cenote-01/idle_right_1x5
+
+metadata:
+  movement_reference: fox-idle-5f
+  source_gif: /Users/emmanuel/Downloads/fox.gif
+  creative_constraint: original_identity_only

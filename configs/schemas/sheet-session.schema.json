@@ -28,7 +28,15 @@
     "created_at": {"type": "string"},
     "updated_at": {"type": "string"},
     "current_stage": {
-      "enum": ["source", "segmentation", "background", "alignment", "export"]
+      "enum": [
+        "source",
+        "background",
+        "segmentation",
+        "artwork",
+        "alignment",
+        "layout",
+        "export"
+      ]
     },
     "output_dir": {"type": "string", "minLength": 1},
     "inspection": {
@@ -126,7 +134,7 @@
         "anchor_strategy"
       ],
       "properties": {
-        "method": {"enum": ["body", "feet", "bounding_box"]},
+        "method": {"enum": ["multi_anchor", "body", "feet", "bounding_box"]},
         "canvas_width": {"type": "integer", "minimum": 1},
         "canvas_height": {"type": "integer", "minimum": 1},
         "canonical_anchor": {"$ref": "#/$defs/numberPair"},
@@ -138,7 +146,8 @@
         "scale_tolerance_px": {"type": "number", "minimum": 0},
         "scale_min_ratio": {"type": "number", "exclusiveMinimum": 0},
         "scale_max_ratio": {"type": "number", "exclusiveMinimum": 0},
-        "scale_reference": {"type": "string"}
+        "scale_reference": {"type": "string"},
+        "alignment_profile": {"enum": ["idle", "walk", "attack"]}
       }
     },
     "frame_adjustments": {
@@ -163,6 +172,19 @@
       "prefixItems": [{"type": "number"}, {"type": "number"}],
       "items": false
     },
+    "anchorPoint": {
+      "type": "object",
+      "required": ["name", "position", "confidence", "role", "source"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "position": {"$ref": "#/$defs/numberPair"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "role": {"enum": ["stabilize", "validate", "socket"]},
+        "source": {"type": "string", "minLength": 1},
+        "weight_x": {"type": "number", "minimum": 0},
+        "weight_y": {"type": "number", "minimum": 0}
+      }
+    },
     "frameAdjustment": {
       "type": "object",
       "required": [
@@ -182,6 +204,12 @@
         "frame_index": {"type": "integer", "minimum": 0},
         "auto_anchor": {"$ref": "#/$defs/numberPair"},
         "auto_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "anchors": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/anchorPoint"}
+        },
+        "alignment_profile": {"type": "string"},
+        "anchor_disagreement_px": {"type": "number", "minimum": 0},
         "manual_offset_x": {"type": "integer"},
         "manual_offset_y": {"type": "integer"},
         "final_anchor": {"$ref": "#/$defs/numberPair"},

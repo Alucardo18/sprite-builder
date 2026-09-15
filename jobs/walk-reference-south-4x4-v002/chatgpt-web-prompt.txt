@@ -1,0 +1,20 @@
+Genera una nueva imagen con GPT Image 2.5 usando las dos imágenes adjuntas.
+
+OBJETIVO
+Crea un único PNG RGBA con fondo completamente transparente que contenga exactamente una fila horizontal de 4 poses de caminata hacia el sur/abajo del mismo personaje. Esta es una candidata visual; el lienzo puede ser mayor que 256×64 y se normalizará a celdas 64×64 solamente después de aprobación humana.
+
+ROLES DE LAS REFERENCIAS
+- La primera imagen define exclusivamente la identidad del personaje: anatomía, silueta, ropa, accesorios y colores.
+- La segunda imagen define exclusivamente movimiento, ritmo, poses y distribución de las 4 celdas. No copies su personaje, rostro, ropa, colores ni estilo.
+
+DIRECCIÓN ARTÍSTICA OBLIGATORIA
+Pixel art auténtico de RPG de era 16-bit: paleta compacta y limitada, clusters de píxel duros y deliberados, detalles legibles de 1–2 píxeles a escala nativa, contornos escalonados, sombreado contenido y sin antialiasing. “16-bit” describe el lenguaje visual, no la profundidad de color del PNG. Evita ilustración moderna de alta resolución, pintura digital, vector, render 3D, gradientes, blur y suavizado.
+
+CÁMARA OBLIGATORIA
+Una sola cámara ortográfica elevada de videojuego top-down: cenital o apenas isométrica. Debe verse claramente la parte superior de la cabeza y los hombros; acorta verticales de forma coherente. Mantén idénticos ángulo, proyección, escala, torso-ancla e iluminación en las 4 poses. No uses cámara frontal a nivel de los ojos, perfil puro, vista de plataformas ni side-scroller.
+
+ANIMACIÓN
+Ciclo natural y coordinado de 4 fases: contacto izquierdo, paso izquierdo, contacto derecho y recuperación. El brazo opuesto debe acompañar la pierna adelantada; las manos cambian de lado entre poses. No repitas ni congeles brazos. Cuerpo completo, pies visibles, sin recortes ni solapamiento entre celdas.
+
+SALIDA
+Exactamente 4 poses completas en una sola fila horizontal, espaciado uniforme, sin separadores. Fondo alfa transparente real. No piso, sombra proyectada, escenario, color de fondo, negro, cuadrícula, checkerboard, texto, números, borde, marca de agua, guías ni elementos extra. No apruebes, redimensiones, normalices ni armes la hoja final.

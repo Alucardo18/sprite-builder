@@ -1,0 +1,35 @@
+{
+  "alpha_retry_index": 0,
+  "animation": "walk",
+  "background_color": "#00FF00",
+  "background_fallback": "reject",
+  "background_mode": "transparent_required",
+  "candidate_index": 0,
+  "character_id": "walk_reference_trial_character",
+  "direction": "up",
+  "job_id": "walk-reference-north-4x4-v001",
+  "manual_session_id": null,
+  "max_alpha_retries": 0,
+  "output_filename": "walk_up_sheet_candidate_00_14375a341c89eef26b3c.png",
+  "parent_request_id": null,
+  "prompt_path": "jobs/walk-reference-north-4x4-v001/generation/prompts/up_sheet_801712716a56.txt",
+  "quality": "medium",
+  "reference_paths": [
+    "/var/folders/f5/cqm56341731fj474ff6t_rqc0000gn/T/codex-clipboard-2ba4fe32-7058-457f-8877-e629307dfe44.png",
+    "/Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/.codex/skills/walk-animation-reference/assets/walk-reference/walk-row-4x4-north.png"
+  ],
+  "request_id": "14375a341c89eef26b3c",
+  "request_kind": "sheet",
+  "schema_version": "1.0",
+  "sheet_columns": 4,
+  "sheet_frame_count": 4,
+  "sheet_gutter_px": 0,
+  "sheet_layout": "horizontal",
+  "sheet_rows": 1,
+  "source_kind": "generated",
+  "source_size": [
+    256,
+    64
+  ],
+  "status": "prepared"
+}

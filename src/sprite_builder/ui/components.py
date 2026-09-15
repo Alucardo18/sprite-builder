@@ -47,8 +47,16 @@ def _image_data_uri_cached(
 
 
 def image_data_uri(image: Image.Image) -> str:
+    cached = getattr(image, "_cached_data_uri", None)
+    if isinstance(cached, str):
+        return cached
     stable = image if image.mode in {"1", "L", "LA", "RGB", "RGBA"} else image.convert("RGBA")
-    return _image_data_uri_cached(stable.mode, stable.size, stable.tobytes())
+    uri = _image_data_uri_cached(stable.mode, stable.size, stable.tobytes())
+    try:
+        image._cached_data_uri = uri
+    except Exception:
+        pass
+    return uri
 
 
 def pixel_image_html(
@@ -173,8 +181,14 @@ def pixel_editor(
     home_offset_y: int | None = None,
     show_guides: bool = False,
     guide_opacity: float = 0.7,
+    show_pixel_grid: bool = False,
+    pixel_grid_size: int = 16,
     show_cell_center: bool = True,
     show_frame_guide: bool = True,
+    show_column_guides: bool = True,
+    show_row_guides: bool = True,
+    grid_columns: int = 1,
+    grid_rows: int = 1,
     show_ground_line: bool = False,
     ground_line_y: float | None = None,
     current_anchor_x: float | None = None,
@@ -184,6 +198,7 @@ def pixel_editor(
     show_anchor_delta: bool = True,
     allow_drag: bool = False,
     show_autocenter: bool = True,
+    show_autocenter_all: bool = False,
     show_autocrop: bool = True,
     fit_on_load: bool = False,
     fit_token: str = "",
@@ -196,6 +211,7 @@ def pixel_editor(
     active_layer_id: str | None = None,
     active_frame: int = 0,
     frame_count: int = 0,
+    frame_locks: Sequence[bool] | None = None,
     selected_frames: Sequence[int] | None = None,
     floating_selection: Image.Image | None = None,
     floating_highlight: Image.Image | None = None,
@@ -236,8 +252,14 @@ def pixel_editor(
         homeOffsetY=int(offset_y if home_offset_y is None else home_offset_y),
         showGuides=bool(show_guides),
         guideOpacity=max(0.0, min(1.0, float(guide_opacity))),
+        showPixelGrid=bool(show_pixel_grid),
+        pixelGridSize=max(1, int(pixel_grid_size)),
         showCellCenter=bool(show_cell_center),
         showFrameGuide=bool(show_frame_guide),
+        showColumnGuides=bool(show_column_guides),
+        showRowGuides=bool(show_row_guides),
+        gridColumns=max(1, int(grid_columns)),
+        gridRows=max(1, int(grid_rows)),
         showGroundLine=bool(show_ground_line),
         groundLineY=None if ground_line_y is None else float(ground_line_y),
         currentAnchorX=None if current_anchor_x is None else float(current_anchor_x),
@@ -247,6 +269,7 @@ def pixel_editor(
         showAnchorDelta=bool(show_anchor_delta),
         allowDrag=bool(allow_drag),
         showAutocenter=bool(show_autocenter),
+        showAutocenterAll=bool(show_autocenter_all),
         showAutocrop=bool(show_autocrop),
         fitOnLoad=bool(fit_on_load),
         fitToken=str(fit_token),
@@ -259,6 +282,7 @@ def pixel_editor(
         activeLayerId=None if active_layer_id is None else str(active_layer_id),
         activeFrame=max(0, int(active_frame)),
         frameCount=max(0, int(frame_count)),
+        frameLocks=[] if frame_locks is None else [bool(value) for value in frame_locks],
         selectedFrames=(
             [] if selected_frames is None else [max(0, int(value)) for value in selected_frames]
         ),

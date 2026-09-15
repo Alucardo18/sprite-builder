@@ -1,0 +1,54 @@
+SHEET GENERATION CONTRACT - HIGHEST PRIORITY
+Create one complete native-resolution sprite sheet for a production 2D top-down action RPG.
+This is one animation and one direction, not a single frame and not a contact-sheet preview.
+Animation: walk. Direction: right.
+Requested source canvas: 256 × 64 pixels.
+Layout: horizontal; 1 row(s) × 4 column(s); frame cells are
+read in deterministic order left-to-right. Approximate cell size: 64.0 ×
+64.0 pixels. Gutter between cells: 0 pixels.
+The sheet must contain exactly 4 animation cells and no extra poses.
+
+PIXEL-ART STYLE CONTRACT
+Native-resolution pixel art with deliberate 1px/2px clusters, crisp stepped silhouettes, no anti-aliasing, and no painterly or photorealistic rendering..
+Use readable hard pixel clusters, stable outline weight, consistent native scale, and nearest-neighbor pixel logic..
+Use one fixed orthographic top-down three-quarter camera, identical crop, scale, torso/body anchor, and support row in every cell..
+Use the character palette exclusively from the supplied concept image; do not borrow colors from the movement reference..
+Use one stable light direction and value hierarchy across the four cells..
+
+CHARACTER IDENTITY CONTRACT
+The concept image contributes exclusively the generated character's visual identity: anatomy, silhouette, palette, clothing, and details..
+
+CHARACTER CANON
+The supplied concept image is the sole visual identity source for this generated character.
+
+IMMUTABLE FEATURES
+- Preserve the concept image's anatomy, silhouette, palette, clothing, and visible details.
+- Keep one consistent torso/body anchor and native scale across all four cells.
+
+ANIMATION CONTINUITY CONTRACT
+The master movement reference contributes only movement, timing, poses, rhythm, and cell distribution. Generate a natural east/right/side walk cycle with clear opposite arm-and-leg alternation, coherent contact and passing phases, hands changing sides between frames, and no repeated or frozen arm poses..
+Readable walk pose; stable torso and ground plane; move only anatomy and equipment required by the named phase.
+Show the complete character without cropping and do not add a shadow.
+Keep every foot visible in the pose complete, including heels, soles, and readable toe silhouettes inside the frame. Transparent padding below a limb does not prove that the limb is complete. Preserve a stable ground-support row across frames. Never repair anatomy by pasting, stretching, or scaling a rectangular crop from another pose; reconstruct it in the current pose while leaving the accepted torso, head, equipment, and canvas scale fixed.
+Legacy scale contract: keep body scale consistent with the approved character reference and require visual review against idle before integration.
+
+FRAME PLAN
+Cell 1: phase contact_left; contact left.
+Cell 2: phase passing_left; passing left.
+Cell 3: phase contact_right; contact right.
+Cell 4: phase recovery; recovery.
+
+
+COMPOSITION AND OUTPUT
+Create one isolated character cutout with generous empty canvas around it. Do not include scenery, a floor, a panel, or an ambient backdrop. Do not include a floor or cast shadow. Native output transparency is controlled by the image provider. Transparency is mandatory; an opaque result will be rejected.
+Keep every cell's character fully inside its own cell with generous, even breathing room.
+Use identical body scale, camera, anchor, ground/support row, outline weight, and palette logic
+throughout the sheet. Do not allow one pose to borrow pixels, overlap, or bleed into another cell.
+Do not crop, trim, autocenter, rescale, interpolate, anti-alias, or rearrange the generated sheet.
+The returned PNG itself is the authoritative source artifact; downstream code may only record
+logical cell regions for an atlas.
+
+PROHIBITED CONTENT
+No black background, background color, opaque backdrop, grid, text, labels, numbers, border, watermark, guide, unrelated elements, separate images, contact sheet, copied reference character, copied face, copied clothing, copied colors, copied silhouette, copied anatomy, copied visual style, repeated arm pose, frozen arms, uncoordinated limbs, cropped body parts, clipping, deformation, anti-aliasing, resampling, or frame overlap..
+- Do not copy the movement reference character's face, clothing, colors, silhouette, anatomy, or visual style.
+No labels, captions, separators, grid lines, layout guides, debug marks, or explanatory text.

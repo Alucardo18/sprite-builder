@@ -192,6 +192,27 @@
     @media(max-width:680px) {
       .build-guide,.corner-composite-board { grid-template-columns:1fr; }
     }
+    .wizard-overlay { position:fixed; inset:0; background:rgba(6,10,18,.82); backdrop-filter:blur(5px);
+      z-index:9999; display:grid; place-items:center; padding:15px; }
+    .wizard-card { width:100%; max-width:540px; background:#141c2c; border:1px solid rgba(87,223,188,.3);
+      border-radius:14px; box-shadow:0 24px 60px rgba(0,0,0,.6); padding:20px; display:grid; gap:16px; color:var(--ink); }
+    .wizard-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--line); padding-bottom:12px; }
+    .wizard-header h3 { margin:0; font-size:15px; font-weight:800; color:#57dfbc; }
+    .wizard-close { background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:4px 8px; }
+    .wizard-steps { display:grid; gap:14px; }
+    .wizard-step { display:grid; gap:6px; background:rgba(255,255,255,.02); padding:10px; border-radius:10px; border:1px solid var(--line); }
+    .wizard-presets { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
+    .wizard-preset { padding:8px 6px; display:grid; place-items:center; text-align:center; gap:3px;
+      border:1px solid var(--line); border-radius:8px; background:rgba(255,255,255,.03); cursor:pointer; font-size:8px; }
+    .wizard-preset.active { border-color:#57dfbc; background:rgba(87,223,188,.12); }
+    .preset-icon { font-size:18px; line-height:1; }
+    .wizard-preset strong { font-size:8px; color:var(--ink); }
+    .wizard-preset small { font-size:6px; color:var(--muted); line-height:1.1; }
+    .wizard-kind-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
+    .wizard-kind-option { display:flex; gap:6px; align-items:flex-start; padding:8px; border:1px solid var(--line);
+      border-radius:8px; background:rgba(255,255,255,.03); cursor:pointer; font-size:8px; }
+    .wizard-kind-option input { margin-top:2px; }
+    .wizard-footer { display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--line); padding-top:12px; }
   </style>
 </head>
 <body>
@@ -201,6 +222,7 @@
       <span>Selecciona tiles, construye bordes y edita sus propiedades</span></div>
     <label>Zoom<select id="zoom"><option value=".75">75%</option><option value="1" selected>100%</option><option value="1.5">150%</option><option value="2">200%</option></select></label>
     <button id="importGrid" class="primary">Importar grilla</button>
+    <button id="openWizardBtn" class="primary" style="background:linear-gradient(135deg, #10b981, #059669);border-color:#34d399">🪄 Asistente 1-Click</button>
     <div class="tool-separator"></div>
     <button id="buildBlob">Build Borders · Blob</button>
     <button id="buildWang">Build Borders · Wang</button>
@@ -208,8 +230,147 @@
     <button id="deleteSelection">Eliminar selección</button>
     <span id="status" class="status">Importa Sources</span>
   </div>
+
+  <!-- Modal 1-Click Tileset Wizard -->
+  <div id="tilesetWizardModal" class="wizard-overlay" hidden>
+    <div class="wizard-card">
+      <div class="wizard-header">
+        <div>
+          <h3>🪄 Asistente Rápido de Autotiles (1-Click)</h3>
+          <span class="hint">Crea un autotile completo y profesional listo para pintar en 3 pasos</span>
+        </div>
+        <button id="closeWizardBtn" type="button" class="wizard-close">✕</button>
+      </div>
+      <div class="wizard-steps">
+        <!-- Paso 1: Muestras / Presets -->
+        <div class="wizard-step">
+          <span class="section-label">Paso 1 · Materiales de Terreno</span>
+          <div class="wizard-presets">
+            <button type="button" class="wizard-preset active" data-preset="grass_dirt">
+              <span class="preset-icon">🌿</span>
+              <strong>Pasto & Tierra</strong>
+              <small>Clásico RPG verde y suelo marrón</small>
+            </button>
+            <button type="button" class="wizard-preset" data-preset="sand_water">
+              <span class="preset-icon">🏖️</span>
+              <strong>Arena & Agua</strong>
+              <small>Costa tropical con orilla de agua</small>
+            </button>
+            <button type="button" class="wizard-preset" data-preset="stone_lava">
+              <span class="preset-icon">🌋</span>
+              <strong>Piedra & Lava</strong>
+              <small>Cueva volcánica con roca y magma</small>
+            </button>
+            <button type="button" class="wizard-preset" data-preset="snow_ice">
+              <span class="preset-icon">❄️</span>
+              <strong>Nieve & Hielo</strong>
+              <small>Cúspide helada ártica</small>
+            </button>
+            <button type="button" class="wizard-preset" data-preset="dungeon_void">
+              <span class="preset-icon">🏰</span>
+              <strong>Mazmorra & Vacío</strong>
+              <small>Piedra oscura con bisel retro</small>
+            </button>
+            <button type="button" class="wizard-preset" data-preset="canvas_selection">
+              <span class="preset-icon">🖼️</span>
+              <strong>Usar selección</strong>
+              <small>Tus tiles de Set View (A y B)</small>
+            </button>
+            <button type="button" class="wizard-preset" data-preset="biome_ecosystem">
+              <span class="preset-icon">🌲</span>
+              <strong>Ecosistema Bioma</strong>
+              <small>Pasto, Tierra y Agua (3 Sets)</small>
+            </button>
+          </div>
+        </div>
+
+        <!-- Paso 2: Formato y Estándar -->
+        <div class="wizard-step">
+          <span class="section-label">Paso 2 · Estándar de Autotile</span>
+          <div class="wizard-kind-grid">
+            <label class="wizard-kind-option">
+              <input type="radio" name="wizardKind" value="blob_47" checked />
+              <div>
+                <strong>Blob 47</strong>
+                <small>8 vecinos · El más completo para Godot y GameMaker</small>
+              </div>
+            </label>
+            <label class="wizard-kind-option">
+              <input type="radio" name="wizardKind" value="dual_grid_15" />
+              <div>
+                <strong>Dual Grid 15</strong>
+                <small>15 roles · 4 esquinas offset 0.5 · Sin redundancias</small>
+              </div>
+            </label>
+            <label class="wizard-kind-option">
+              <input type="radio" name="wizardKind" value="wang_16" />
+              <div>
+                <strong>Wang 16</strong>
+                <small>16 roles · Transiciones de esquina para caminos</small>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Paso 3: Estilo y Acabado -->
+        <div class="wizard-step">
+          <span class="section-label">Paso 3 · Acabado y Estilo</span>
+          <div class="terrain-profile-grid">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <label class="terrain-profile-control">Estilo de esquina
+                <select id="wizardCornerStyle">
+                  <option value="arc">Curvo suave (Arco)</option>
+                  <option value="chamfer" selected>Bisel 45° (Chamfer retro)</option>
+                </select>
+              </label>
+              <label class="terrain-profile-control">Tinte de sombra
+                <select id="wizardShadowTint">
+                  <option value="cool" selected>Azul frío (Cool)</option>
+                  <option value="warm">Cálido / Ámbar (Warm)</option>
+                  <option value="mystic">Místico / Púrpura (Mystic)</option>
+                  <option value="neutral">Neutro monocromo</option>
+                </select>
+              </label>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <label class="terrain-profile-control">Sombra proyectada
+                <select id="wizardDropShadow">
+                  <option value="0">Sin sombra</option>
+                  <option value="1">1 px (Sutil)</option>
+                  <option value="2" selected>2 px (Estándar)</option>
+                  <option value="3">3 px (Profunda)</option>
+                </select>
+              </label>
+              <label class="terrain-profile-control">Dirección
+                <select id="wizardShadowDirection">
+                  <option value="south" selected>Abajo (Sur)</option>
+                  <option value="south_east">Diagonal (Sur-Este)</option>
+                  <option value="all_around">Omnidireccional</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="wizard-footer">
+        <button id="cancelWizardBtn" type="button">Cancelar</button>
+        <button id="analyzeBiomeBtn" type="button" class="primary" style="background:linear-gradient(135deg, #2563eb, #1d4ed8);border-color:#60a5fa">🌲 Analizar Imagen y Crear Ecosistema (3 Sets)</button>
+        <button id="applyWizardBtn" type="button" class="primary" style="background:linear-gradient(135deg, #10b981, #059669);border-color:#34d399">✨ Generar y Probar en Sandbox</button>
+      </div>
+    </div>
+  </div>
+  <section class="section" aria-label="Crear terreno Blob 47" style="margin:10px 0">
+    <div class="board-heading"><strong>Blob 47 · terreno orgánico</strong><span class="badge">47 formas · 3 variantes</span></div>
+    <p class="hint">Empieza con materiales generados. Elige lo que vas a pintar y su fondo; las esquinas y las uniones se construyen automáticamente.</p>
+    <div class="action-grid">
+      <button id="blobGrassDirt" class="primary">Pasto sobre tierra</button>
+      <button id="blobDirtWater">Tierra sobre agua</button>
+      <button id="blobGrassWater">Pasto sobre agua</button>
+    </div>
+    <span class="hint">Cada botón crea un set nuevo. Para conservar arte existente, usa Build Borders con tus Sources.</span>
+  </section>
   <div id="buildRequirements" class="build-guide">
-    <div class="build-rule"><span class="build-count">1</span><span><strong>Blob 47</strong><br />Selecciona exactamente 1 tile base completo.</span></div>
+    <div class="build-rule"><span class="build-count">1</span><span><strong>Blob con Sources</strong><br />Selecciona exactamente 1 tile base completo y configura sus bordes.</span></div>
     <div class="build-rule"><span class="build-count">2</span><span><strong>Wang 16</strong><br />Selecciona exactamente 2 tiles base completos.</span></div>
     <div class="build-rule"><span class="build-count">2</span><span><strong>Dual Grid 15</strong><br />Selecciona exactamente 2 tiles base completos. Mínimo 2×2 px.</span></div>
   </div>
@@ -248,14 +409,66 @@
           <span class="section-label">Source tile</span>
           <div class="action-grid"><button id="buildBlobInspector">Build Blob</button>
             <button id="buildWangInspector">Build Wang</button>
-            <button id="buildDualInspector">Build Dual Grid · 15</button></div>
+            <button id="buildDualInspector">Build Dual Grid · 15</button>
+            <button id="buildBlobTwoTiles" style="grid-column:1/-1" hidden>Build Blob 47 (A sobre B)</button></div>
         </div>
         <div id="generatedProperties" hidden>
           <div class="section">
             <span class="section-label">1 · Tile base</span>
+            <label id="blobMaterialModeControl" class="terrain-profile-control" hidden>Materiales del Blob
+              <select id="blobMaterialMode"><option value="sources">Usar mis Sources dibujados</option><option value="procedural">Generar pasto, tierra o agua</option></select>
+            </label>
             <button id="baseSourceSlot" class="base-source-slot"></button>
             <button id="secondarySourceSlot" class="base-source-slot" hidden></button>
+            <div id="blobSecondaryActions" style="display:flex;gap:5px;margin-top:4px" hidden>
+              <button id="clearBlobSecondary" type="button" style="min-height:24px;font-size:7px">Quitar fondo (usar transparente)</button>
+            </div>
             <span id="baseSourceHint" class="hint">El terreno sólido usado como centro de todas las composiciones.</span>
+          </div>
+          <div id="blobSynthesisSection" class="section" style="margin-top:8px" hidden>
+            <span class="section-label">2 · Síntesis y Sombras (Blob 47)</span>
+            <div class="terrain-profile-grid">
+              <label class="terrain-profile-control">Modo Blob
+                <select id="blobSynthesisMode">
+                  <option value="synthesis">Síntesis inteligente (desde 1 o 2 tiles)</option>
+                  <option value="manual_edges">Bordes manuales (Legacy con recortes)</option>
+                </select>
+              </label>
+              <div id="blobShadowControls" class="terrain-profile-grid">
+                <label class="terrain-profile-control">Estilo de esquina (Bevel)
+                  <select id="blobCornerStyle">
+                    <option value="arc">Curvo suave (Arco)</option>
+                    <option value="chamfer">Bisel a 45° (Chamfer retro)</option>
+                  </select>
+                </label>
+                <label class="terrain-profile-control">Sombra proyectada (Drop shadow)
+                  <span class="variation-row"><input id="blobDropShadow" type="range" min="0" max="4" step="1" value="2" />
+                    <strong id="blobDropShadowValue">2 px</strong></span>
+                </label>
+                <label class="terrain-profile-control">Tinte de sombra
+                  <select id="blobShadowTint">
+                    <option value="cool">Azul frío (Cool - Predeterminado)</option>
+                    <option value="warm">Cálido / Ámbar (Warm)</option>
+                    <option value="mystic">Místico / Púrpura (Mystic)</option>
+                    <option value="neutral">Neutro monocromo (Neutral)</option>
+                  </select>
+                </label>
+                <label class="terrain-profile-control">Intensidad de sombra
+                  <span class="variation-row"><input id="blobShadowIntensity" type="range" min="20" max="100" step="5" value="70" />
+                    <strong id="blobShadowIntensityValue">70%</strong></span>
+                </label>
+                <label class="terrain-profile-control">Dirección de sombra
+                  <select id="blobShadowDirection">
+                    <option value="south">Hacia abajo (Sur)</option>
+                    <option value="south_east">Diagonal (Sur-Este)</option>
+                    <option value="all_around">Omnidireccional (Todo alrededor)</option>
+                  </select>
+                </label>
+                <label class="hint" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                  <input id="blobRimLight" type="checkbox" checked /> Cresta de luz superior (Rim light)
+                </label>
+              </div>
+            </div>
           </div>
           <div id="dualProfileSection" class="section" style="margin-top:8px" hidden>
             <span class="section-label">2 · Estrategia del borde</span>
@@ -263,12 +476,14 @@
               <label class="terrain-profile-control">Relación de materiales
                 <select id="dualTerrainProfile">
                   <option value="clean">Borde limpio · clásico</option>
+                  <option value="organic_neutral">Orgánico neutral</option>
                   <option value="grass_over_dirt">Pasto sobre tierra</option>
                   <option value="dirt_over_water">Tierra sobre agua</option>
                   <option value="grass_over_water">Pasto sobre agua</option>
                   <option value="rounded_clean">Bordes redondeados · limpio</option>
                   <option value="rounded_grass_tufts">Bordes redondeados · pasto</option>
                   <option value="rounded_dither">Bordes redondeados · dither</option>
+                  <option value="rounded_chamfer">Bisel 45° · chamfer retro</option>
                 </select>
               </label>
               <label class="terrain-profile-control">Detalle del borde
@@ -279,8 +494,49 @@
                 <span class="seed-row"><input id="dualEdgeSeed" type="number" min="0" max="999999" step="1" value="0" />
                   <button id="shuffleDualEdgeSeed" type="button">Otra variante</button></span>
               </label>
+              <label id="blobVariantCountControl" class="terrain-profile-control">Variantes por máscara
+                <select id="blobVariantCount">
+                  <option value="1">1 variante</option>
+                  <option value="2">2 variantes</option>
+                  <option value="3">3 variantes</option>
+                  <option value="4">4 variantes</option>
+                  <option value="5">5 variantes</option>
+                </select>
+              </label>
               <div id="dualProfileCopy" class="profile-copy"></div>
-              <span class="hint">Controla silueta, grosor, luces y sombras. El nivel 3 construye bandas duras de 1–4 px según el tamaño, sin blur ni antialiasing.</span>
+              <span class="hint">Ajusta la ondulación del contorno. Los perfiles de materiales añaden sombra de contacto y textura agrupada; Orgánico neutral conserva los colores de tus Sources. El nivel 3 construye bandas duras de 1–4 px según el tamaño, sin blur ni antialiasing.</span>
+            </div>
+          </div>
+          <div id="animationSection" class="section" style="margin-top:8px">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="section-label">🌊 Animación de Terreno (Autotile)</span>
+              <label style="display:flex; align-items:center; gap:6px; font-size:10px; cursor:pointer; font-weight:700; color:#57dfbc;">
+                <input id="setAnimated" type="checkbox" /> Activar animación
+              </label>
+            </div>
+            <div id="animationControls" class="terrain-profile-grid" style="margin-top:6px" hidden>
+              <label class="terrain-profile-control">Estilo de movimiento
+                <select id="setAnimationStyle">
+                  <option value="shore_ripples">Oleaje en costas y agua (Shore Ripples)</option>
+                  <option value="water_waves">Ondas de agua en superficie (Water Waves)</option>
+                  <option value="lava_pulse">Lava incandescente y corrientes (Lava Pulse)</option>
+                  <option value="wind_sway">Vaivén de viento en vegetación (Wind Sway)</option>
+                </select>
+              </label>
+              <label class="terrain-profile-control">Fotogramas por ciclo
+                <select id="setAnimationFrames">
+                  <option value="3">3 frames</option>
+                  <option value="4" selected>4 frames (Estándar)</option>
+                  <option value="6">6 frames (Suave)</option>
+                </select>
+              </label>
+              <label class="terrain-profile-control">Velocidad (FPS)
+                <span class="variation-row">
+                  <input id="setAnimationFps" type="range" min="4" max="16" step="1" value="8" />
+                  <strong id="setAnimationFpsValue">8 FPS</strong>
+                </span>
+              </label>
+              <span class="hint">Genera un ciclo continuo de frames apilados verticalmente en la Sprite Sheet. Godot 4, Tiled y Unity reconocerán automáticamente los frames de animación.</span>
             </div>
           </div>
           <div id="edgeSection" class="section" style="margin-top:8px">
@@ -345,10 +601,10 @@
     </section>
   </div>
 
-  <section class="panel">
-    <div class="head"><div class="title"><strong>Sandbox</strong>
+  <section id="terrainPreviewPanel" class="panel">
+    <div class="head"><div class="title"><strong>Vista del terreno conectado</strong>
       <span id="sandboxHint" class="hint">Prueba el set activo mientras configuras sus Sources</span></div>
-      <div class="sandbox-tools"><button id="paint" class="active">Pintar</button>
+      <div class="sandbox-tools"><button id="islandExample">Isla y hueco</button><button id="paint" class="active">Pintar</button>
         <button id="erase">Borrar</button><button id="clearMap">Limpiar</button></div></div>
     <div class="sandbox-stage"><canvas id="sandboxCanvas"></canvas></div>
   </section>
@@ -361,6 +617,7 @@ const setCanvas=$("#setCanvas"),setCtx=setCanvas.getContext("2d");
 const sourceCanvas=$("#sourceCanvas"),sourceCtx=sourceCanvas.getContext("2d",{willReadFrequently:true});
 const tilePreview=$("#tilePreview"),previewCtx=tilePreview.getContext("2d");
 const sandboxCanvas=$("#sandboxCanvas"),sandboxCtx=sandboxCanvas.getContext("2d");
+document.querySelector(".workspace").before($("#terrainPreviewPanel"));
 const sourceBuffer=document.createElement("canvas"),sourceBufferCtx=sourceBuffer.getContext("2d",{willReadFrequently:true});
 const patternBuffer=document.createElement("canvas"),patternBufferCtx=patternBuffer.getContext("2d");
 const state={project:null,roles:[],kind:"blob_47",tileWidth:16,tileHeight:16,imageReady:false,patternReady:false,
@@ -369,36 +626,47 @@ const state={project:null,roles:[],kind:"blob_47",tileWidth:16,tileHeight:16,ima
 const PATTERN_KINDS=["blob_47","wang_16","sides_16","dual_grid_15"];
 const DUAL_GRID_TRANSITION_MASKS=Array.from({length:15},(_,index)=>index+1);
 const DUAL_GRID_NEIGHBOR_ORDER=["NW","NE","SE","SW"];
-const DUAL_GRID_TERRAIN_PROFILES=["clean","grass_over_dirt","dirt_over_water","grass_over_water","rounded_clean","rounded_grass_tufts","rounded_dither"];
+const DUAL_GRID_TERRAIN_PROFILES=["clean","grass_over_dirt","dirt_over_water","grass_over_water","organic_neutral","rounded_clean","rounded_grass_tufts","rounded_dither","rounded_chamfer"];
 const TERRAIN_EDGE_PROFILES=DUAL_GRID_TERRAIN_PROFILES;
 const PROFILED_PATTERN_KINDS=["blob_47","wang_16","sides_16","dual_grid_15"];
-const DUAL_GRID_PROFILE_LABELS={clean:"Borde limpio",grass_over_dirt:"Pasto sobre tierra",dirt_over_water:"Tierra sobre agua",grass_over_water:"Pasto sobre agua",rounded_clean:"Bordes redondeados limpios",rounded_grass_tufts:"Bordes redondeados con pasto",rounded_dither:"Bordes redondeados con dither"};
+const DUAL_GRID_PROFILE_LABELS={clean:"Borde limpio",organic_neutral:"Orgánico neutral",grass_over_dirt:"Pasto sobre tierra",dirt_over_water:"Tierra sobre agua",grass_over_water:"Pasto sobre agua",rounded_clean:"Bordes redondeados limpios",rounded_grass_tufts:"Bordes redondeados con pasto",rounded_dither:"Bordes redondeados con dither",rounded_chamfer:"Bisel 45° · chamfer retro"};
 const TERRAIN_EDGE_PROFILE_LABELS=DUAL_GRID_PROFILE_LABELS;
 const DUAL_GRID_PROFILE_COPY={
   clean:"Interpolación clásica entre A y B, sin irregularidad adicional.",
+  organic_neutral:"Contorno irregular sin imponer una paleta o material específico.",
   grass_over_dirt:"A = pasto, B = tierra. Raíz oscura, mechones iluminados y pequeñas entradas de tierra.",
   dirt_over_water:"A = tierra, B = agua. Sombra acuática, ribete claro y banco terroso irregular por capas.",
   grass_over_water:"A = pasto, B = agua. Sombra de agua, línea húmeda intermitente y raíz vegetal oscura.",
   rounded_clean:"Esquinas y bordes redondeados con corte curvo limpio.",
   rounded_grass_tufts:"Esquinas y bordes redondeados con mechones orgánicos de vegetación.",
-  rounded_dither:"Esquinas y bordes redondeados con transición dither pixel art."
+  rounded_dither:"Esquinas y bordes redondeados con transición dither pixel art.",
+  rounded_chamfer:"Esquinas y bordes biselados a 45° con corte planar limpio estilo retro."
 };
 const TERRAIN_EDGE_PROFILE_COPY={
   clean:"Interpolación clásica, sin bandas ni desplazamiento adicional.",
+  organic_neutral:"Contorno procedural irregular que conserva los puertos entre tiles y los colores de los Sources.",
   grass_over_dirt:"Banda de pasto sobre tierra: raíces oscuras, mechones de luz y pequeñas entradas irregulares.",
   dirt_over_water:"Banda de tierra sobre agua: sombra húmeda, ribete claro y banco terroso por capas.",
   grass_over_water:"Banda de pasto sobre agua: sombra acuática, línea húmeda intermitente y raíces vegetales.",
   rounded_clean:"Bordes redondeados con arco limpio sin artefactos.",
   rounded_grass_tufts:"Bordes redondeados con textura de mechones de pasto.",
-  rounded_dither:"Bordes redondeados con degradado dither retro."
+  rounded_dither:"Bordes redondeados con degradado dither retro.",
+  rounded_chamfer:"Esquinas y bordes biselados a 45° con corte planar limpio estilo retro."
 };
 function patternLabel(kind){return kind==="dual_grid_15"?"Dual Grid":kind==="wang_16"?"Wang":kind==="sides_16"?"Sides":"Blob"}
+function roleCount(kind){return kind==="blob_47"?47:kind==="dual_grid_15"?15:16}
+// Kept as a source-compatibility alias for integrations that used the old
+// role-count helper; visual banks are reported through visualVariantCount.
 function variantCount(kind){return kind==="blob_47"?47:kind==="dual_grid_15"?15:16}
+function visualVariantCount(set){return set?.kind==="blob_47"?clampInteger(set.variantCount,1,5,1):1}
 function requiresTwoBases(kind){return kind==="wang_16"||kind==="dual_grid_15"}
 function baseRequirement(kind){return requiresTwoBases(kind)?2:1}
 function isDualGrid(set){return set?.kind==="dual_grid_15"}
 function isTerrainProfilePattern(set){return PROFILED_PATTERN_KINDS.includes(set?.kind)}
+function isProceduralBlob(set){return set?.kind==="blob_47"&&set.blobMaterialMode==="procedural"}
+function isBlobSynthesis(set){return set?.kind==="blob_47"&&set?.blobMode!=="manual_edges"&&!isProceduralBlob(set)}
 function requiresEdges(set){return !isDualGrid(set)}
+function requiresConfiguredEdges(set){return requiresEdges(set)&&!isProceduralBlob(set)&&!isBlobSynthesis(set)}
 function dualGridRole(role){return DUAL_GRID_TRANSITION_MASKS.includes(Number(role?.mask))}
 function dualGridTileSizeValid(){return state.tileWidth>=2&&state.tileHeight>=2}
 function dualGridTileSizeMessage(){return "Dual Grid requiere tiles de al menos 2×2 px (ancho y alto)."}
@@ -427,11 +695,17 @@ function cleanSet(raw){
   const kind=PATTERN_KINDS.includes(item.kind)?item.kind:"blob_47",overrides={...(item.overrides||{})};
   const terrainProfile=DUAL_GRID_TERRAIN_PROFILES.includes(item.terrainProfile)?item.terrainProfile:"clean";
   const terrainEdgeVariation=clampInteger(item.edgeVariation,0,3,0),terrainEdgeSeed=clampInteger(item.edgeSeed,0,999999,0);
+  const variantCount=kind==="blob_47"?clampInteger(item.variantCount,1,5,1):1;
+  const animated=item.animated===true;
+  const animationStyle=["water_waves","shore_ripples","lava_pulse","wind_sway"].includes(item.animationStyle)?item.animationStyle:"shore_ripples";
+  const animationFrames=clampInteger(item.animationFrames,2,16,4);
+  const animationFps=Number.isFinite(Number(item.animationFps))?Math.max(1,Math.min(60,Number(item.animationFps))):8;
   if(kind==="dual_grid_15"){delete overrides["0"];
-    const dual={...item,kind,overrides,terrainProfile,edgeVariation:clampInteger(item.edgeVariation,0,3,0),edgeSeed:clampInteger(item.edgeSeed,0,999999,0)};
+    const dual={...item,kind,overrides,terrainProfile,edgeVariation:clampInteger(item.edgeVariation,0,3,0),edgeSeed:clampInteger(item.edgeSeed,0,999999,0),animated,animationStyle,animationFrames,animationFps};
     for(const field of ["autoOrientEdges","edges","edgeTransforms","edgeCutoffs","cutoff","corners","customCorners","cornerTransforms","compositeCorners"])delete dual[field];return dual}
   return{...item,kind,
-    terrainProfile,edgeVariation:terrainEdgeVariation,edgeSeed:terrainEdgeSeed,
+    terrainProfile,edgeVariation:terrainEdgeVariation,edgeSeed:terrainEdgeSeed,variantCount,
+    animated,animationStyle,animationFrames,animationFps,
     autoOrientEdges:item.autoOrientEdges===true,edges,edgeTransforms,edgeCutoffs,
     corners:{...(item.corners||{})},customCorners:{...(item.customCorners||{})},cornerTransforms,
     overrides};
@@ -451,7 +725,7 @@ function sourceById(sourceId){return state.project.sources.find(item=>item.id===
 function tileById(tileId){return state.project.tiles.find(item=>item.id===tileId)||null}
 function selectedTiles(){return state.project.ui.selectedTileIds.map(tileById).filter(Boolean)}
 function selectedRole(){if(state.project.ui.selectedMask===null)return null;
-  return state.roles.find(role=>Number(role.mask)===Number(state.project.ui.selectedMask))||null}
+  return state.roles.find(role=>Number(role.mask)===Number(state.project.ui.selectedMask)&&Number(role.variant||0)===0)||null}
 function sourceBounds(source){if(!source)return null;
   const x=Number(source.x!==undefined?source.x:(Array.isArray(source.rect)?source.rect[0]:0))||0;
   const y=Number(source.y!==undefined?source.y:(Array.isArray(source.rect)?source.rect[1]:0))||0;
@@ -499,7 +773,7 @@ function renderSetView(){
     if(state.assignment){setCtx.strokeStyle="rgba(255,199,109,.9)";setCtx.lineWidth=2;setCtx.setLineDash([5,4]);
       setCtx.strokeRect(x+2.5,y+2.5,stateCell-5,stateCell-5);setCtx.setLineDash([])}
     if(selected.has(tile.id)){setCtx.strokeStyle="#63dcff";setCtx.lineWidth=3;setCtx.strokeRect(x+1.5,y+1.5,stateCell-3,stateCell-3)}}
-  for(const set of state.project.sets){for(const role of rolesForSet(set.id)){const x=(Number(set.originX)+setRoleColumn(role))*stateCell;
+  for(const set of state.project.sets){for(const role of rolesForSet(set.id)){if(Number(role.variant||0)!==0)continue;const x=(Number(set.originX)+setRoleColumn(role))*stateCell;
       const y=(Number(set.originY)+setRoleRow(role))*stateCell;drawChecker(setCtx,x+2,y+2,stateCell-4,stateCell-4,6);
       drawSetRole(setCtx,set.id,role,x+3,y+3,stateCell-6,stateCell-6);
       if(set.id===state.project.activeSetId&&state.highlightFeature){const affected=roleUsesFeature(role,set,state.highlightFeature);
@@ -637,25 +911,81 @@ function renderDualProfileControls(set){
   $("#dualTerrainProfile").value=profile;$("#dualEdgeVariation").value=String(variation);
   $("#dualEdgeVariation").disabled=profile==="clean";$("#dualEdgeVariationValue").textContent=`${dualVariationLabel(variation)} · ${variation}`;
   $("#dualEdgeSeed").value=String(seed);$("#dualEdgeSeed").disabled=profile==="clean";$("#shuffleDualEdgeSeed").disabled=profile==="clean";
+  $("#blobVariantCountControl").hidden=set.kind!=="blob_47";
+  $("#blobVariantCount").value=String(clampInteger(set.variantCount,1,5,1));
+  for(const option of $("#dualTerrainProfile").options)option.disabled=isProceduralBlob(set)&&!["grass_over_dirt","dirt_over_water","grass_over_water"].includes(option.value);
   const grammar=set.kind==="dual_grid_15"||set.kind==="wang_16"
     ?DUAL_GRID_PROFILE_COPY[profile]
     :`${TERRAIN_EDGE_PROFILE_COPY[profile]} La textura se compone sobre ${set.kind==="blob_47"?"la base y sus Border Sources":"el tile base y sus bordes"}.`;
   $("#dualProfileCopy").textContent=`Aplicado · ${DUAL_GRID_PROFILE_LABELS[profile]}. ${grammar}`;
+  if(isProceduralBlob(set))$("#dualProfileCopy").textContent=`${DUAL_GRID_PROFILE_LABELS[profile]}. Materiales generados, curvas orgánicas y sombras sobre el contorno. Pinta en la vista conectada para comprobar las uniones.`;
+}
+function renderAnimationControls(set){
+  if(!set) return;
+  const isAnim = set.animated === true;
+  $("#setAnimated").checked = isAnim;
+  $("#animationControls").hidden = !isAnim;
+  $("#setAnimationStyle").value = set.animationStyle || "shore_ripples";
+  $("#setAnimationFrames").value = String(set.animationFrames || 4);
+  const fps = set.animationFps || 8;
+  $("#setAnimationFps").value = String(fps);
+  $("#setAnimationFpsValue").textContent = `${fps} FPS`;
 }
 function renderConfigurator(set,role){
+  renderAnimationControls(set);
   const base=$("#baseSourceSlot");fillSourceSlot(base,set.baseSource,requiresTwoBases(set.kind)?"Terreno A":"Tile base","Elegir en grilla");
   base.onclick=()=>startPick("base","baseSource",requiresTwoBases(set.kind)?"Terreno A":"Tile base");
-  const secondary=$("#secondarySourceSlot");secondary.hidden=!requiresTwoBases(set.kind);
+  $("#blobMaterialModeControl").hidden=set.kind!=="blob_47";
+  $("#blobMaterialMode").value=isProceduralBlob(set)?"procedural":"sources";
+  base.hidden=isProceduralBlob(set);
+  const secondary=$("#secondarySourceSlot");
+  const isBlob=set.kind==="blob_47"&&!isProceduralBlob(set);
+  secondary.hidden=!requiresTwoBases(set.kind)&&!isBlob;
+  $("#blobSecondaryActions").hidden=!isBlob||!set.secondarySource;
   if(requiresTwoBases(set.kind)){fillSourceSlot(secondary,set.secondarySource,"Terreno B","Elegir en grilla");
     secondary.onclick=()=>startPick("secondary","secondarySource","Terreno B")}
-  $("#baseSourceHint").textContent=isDualGrid(set)
+  else if(isBlob){fillSourceSlot(secondary,set.secondarySource,"Terreno B (Fondo opcional)","Transparente (clic para asignar)");
+    secondary.onclick=()=>startPick("secondary","secondarySource","Terreno B (Fondo)")}
+  $("#clearBlobSecondary").onclick=()=>{set.secondarySource=null;emit();renderAll()};
+  $("#baseSourceHint").textContent=isProceduralBlob(set)
+    ?"No necesitas elegir tiles. El material que aparece primero es el terreno que pintas; el segundo rellena el fondo."
+    :isDualGrid(set)
     ?"Dual Grid cuadrado genera 15 transiciones con Terreno A y Terreno B. Los Border Sources no son necesarios."
+    :isBlob
+    ?"Terreno A es el suelo principal; Terreno B es el fondo opcional (o transparente si no se asigna)."
     :"El terreno sólido usado como centro de todas las composiciones.";
+  $("#blobSynthesisSection").hidden=!isBlob;
+  if(isBlob){
+    $("#blobSynthesisMode").value=set.blobMode||"synthesis";
+    const isSynth=isBlobSynthesis(set);
+    $("#blobShadowControls").hidden=!isSynth;
+    if(isSynth){
+      const shadow=clampInteger(set.dropShadow??set.drop_shadow,0,4,2);
+      $("#blobDropShadow").value=String(shadow);
+      $("#blobDropShadowValue").textContent=`${shadow} px`;
+      $("#blobShadowDirection").value=["south","south_east","all_around"].includes(set.shadowDirection||set.shadow_direction)?(set.shadowDirection||set.shadow_direction):"south";
+      $("#blobShadowTint").value=["cool","warm","mystic","neutral"].includes(set.shadowTint||set.shadow_tint)?(set.shadowTint||set.shadow_tint):"cool";
+      const rawIntensity=set.shadowIntensity!==undefined?set.shadowIntensity:(set.shadow_intensity!==undefined?set.shadow_intensity:0.70);
+      const intensity=Math.round((Number.isFinite(Number(rawIntensity))?Number(rawIntensity):0.70)*100);
+      $("#blobShadowIntensity").value=String(intensity);
+      $("#blobShadowIntensityValue").textContent=`${intensity}%`;
+      $("#blobCornerStyle").value=["arc","chamfer"].includes(set.cornerStyle||set.corner_style)?(set.cornerStyle||set.corner_style):"arc";
+      $("#blobRimLight").checked=Boolean(set.rimLight!==undefined?set.rimLight:(set.rim_light!==undefined?set.rim_light:true));
+    }
+  }
   $("#dualProfileSection").hidden=!isDualGrid(set);
   $("#dualProfileSection").hidden=!isTerrainProfilePattern(set);if(isTerrainProfilePattern(set))renderDualProfileControls(set);
-  const showEdges=requiresEdges(set);$("#edgeSection").hidden=!showEdges;$("#cornerSection").hidden=!showEdges;
+  const showEdges=requiresEdges(set);$("#edgeSection").hidden=!showEdges;
+  const configuredEdges=requiresConfiguredEdges(set);$("#edgeSection").hidden=!configuredEdges;$("#cornerSection").hidden=!configuredEdges;
   $("#cutoffSection").hidden=!showEdges;
-  if(!showEdges){
+  if(isBlobSynthesis(set)){
+    $("#cutoffSection").hidden=true;
+    const backgroundReference=dualGridBackgroundReference(set,role?.mask),override=role?set.overrides?.[String(role.mask)]:null;
+    $("#variantOverrideSection").hidden=!role||backgroundReference;$("#compositeToggle").checked=!override;
+    $("#assignOverride").disabled=!role||backgroundReference;$("#clearOverride").disabled=!override||backgroundReference;
+    return;
+  }
+  if(!showEdges||isProceduralBlob(set)){
     const backgroundReference=dualGridBackgroundReference(set,role?.mask),override=role?set.overrides?.[String(role.mask)]:null;
     $("#variantOverrideSection").hidden=!role||backgroundReference;$("#compositeToggle").checked=!override;
     $("#assignOverride").disabled=!role||backgroundReference;$("#clearOverride").disabled=!override||backgroundReference;
@@ -680,13 +1010,15 @@ function renderConfigurator(set,role){
 function renderInspector(){
   const role=selectedRole(),tiles=selectedTiles(),set=activeSet();tilePreview.width=state.tileWidth;tilePreview.height=state.tileHeight;drawChecker(previewCtx,0,0,tilePreview.width,tilePreview.height,3);
   $("#sourceTileProperties").hidden=true;$("#generatedProperties").hidden=true;$("#setProperties").hidden=true;
-  $("#buildBlobInspector").disabled=false;$("#buildWangInspector").disabled=false;$("#buildDualInspector").disabled=!dualGridTileSizeValid();
+  $("#buildBlobInspector").disabled=false;$("#buildWangInspector").disabled=false;$("#buildDualInspector").disabled=!dualGridTileSizeValid();$("#buildBlobTwoTiles").hidden=true;
   if(role&&set){drawPatternRole(previewCtx,role,0,0,tilePreview.width,tilePreview.height);$("#propertyBadge").textContent=`mask ${role.mask}`;
     $("#propertyTitle").textContent=isDualGrid(set)&&Number(role.mask)===0
       ?"Dual Grid · fondo lógico (mask 0)"
-      :`${patternLabel(set.kind)} · variante ${Number(role.index)+1} / ${variantCount(set.kind)}`;
+      :`${patternLabel(set.kind)} · variante ${Number(role.variant||0)+1} / ${visualVariantCount(set)}`;
     const sourceDirections=neededDirections(role,set).map(direction=>directionLabels[direction]);
-    $("#propertyHint").textContent=isDualGrid(set)
+    $("#propertyHint").textContent=isProceduralBlob(set)
+      ?"Terreno generado. Cambia el material y comprueba las uniones en la vista conectada."
+      :isDualGrid(set)
       ?Number(role.mask)===0
         ?"Este slot de fondo se deriva exclusivamente de Terreno B; completa el atlas TileMapDual y no es editable."
         :`Máscara Dual Grid de las cuatro celdas lógicas ${DUAL_GRID_NEIGHBOR_ORDER.join(", ")}.`
@@ -697,21 +1029,30 @@ function renderInspector(){
   if(tiles.length===1){const tile=tiles[0],source=sourceById(tile.sourceId);drawSource(previewCtx,tile.sourceId,0,0,tilePreview.width,tilePreview.height);
     $("#propertyBadge").textContent="Source tile";$("#propertyTitle").textContent=source?.name||"Tile";
     $("#propertyHint").textContent="Este tile puede ser el centro de un Blob o parte de una transición Wang / Dual Grid.";
-    $("#sourceTileProperties").hidden=false;$("#buildWangInspector").disabled=true;$("#buildDualInspector").disabled=true;return}
+    $("#sourceTileProperties").hidden=false;$("#buildWangInspector").disabled=true;$("#buildDualInspector").disabled=true;$("#buildBlobTwoTiles").hidden=true;return}
   if(tiles.length===2){$("#propertyBadge").textContent="2 tiles";$("#propertyTitle").textContent="Selección Wang / Dual Grid";
-    $("#propertyHint").textContent="Construye 16 transiciones Wang o 15 roles Dual Grid entre ambos terrenos.";
-    $("#sourceTileProperties").hidden=false;$("#buildBlobInspector").disabled=true;$("#buildWangInspector").disabled=false;$("#buildDualInspector").disabled=!dualGridTileSizeValid();return}
+    $("#propertyHint").textContent="Construye 16 transiciones Wang, 15 roles Dual Grid o sintetiza Blob 47 entre ambos terrenos.";
+    $("#sourceTileProperties").hidden=false;$("#buildBlobInspector").disabled=true;$("#buildWangInspector").disabled=false;$("#buildDualInspector").disabled=!dualGridTileSizeValid();$("#buildBlobTwoTiles").hidden=false;return}
   if(set&&state.project.ui.selectedSetId===set.id){$("#propertyBadge").textContent="Generated set";$("#propertyTitle").textContent=set.name||"Terrain Set";
-    $("#propertyHint").textContent=isDualGrid(set)
+    $("#propertyHint").textContent=isProceduralBlob(set)
+      ?"Materiales, bordes y esquinas generados automáticamente."
+      :isDualGrid(set)
       ?"Dual Grid usa exactamente dos texturas; el atlas mantiene además el fondo lógico requerido por TileMapDual."
+      :isBlobSynthesis(set)
+      ?"Blob sintetizado automáticamente con sombras y contornos desde tu tile base (y fondo opcional)."
       :"Asigna base, bordes y corners sin buscar variantes específicas.";$("#generatedProperties").hidden=false;$("#setProperties").hidden=false;
     drawSource(previewCtx,set.baseSource,0,0,tilePreview.width,tilePreview.height);renderConfigurator(set,null);
-    $("#setSummary").textContent=isDualGrid(set)
+    $("#setSummary").textContent=isProceduralBlob(set)
+      ?`47 formas · ${visualVariantCount(set)} variantes · ${47*visualVariantCount(set)} tiles listos`
+      :isDualGrid(set)
       ?`15 transiciones + fondo lógico · ${dualProfileStatus(set)} · 2/2 terrenos configurados`
-      :`${variantCount(set.kind)} variantes · ${Object.values(set.edges||{}).filter(Boolean).length}/4 bordes configurados`;return}
+      :isBlobSynthesis(set)
+      ?`47 formas · Síntesis (${set.secondarySource?"2 terrenos":"1 terreno"}) · ${visualVariantCount(set)} variantes · ${47*visualVariantCount(set)} tiles listos`
+      :`${roleCount(set.kind)} roles · ${visualVariantCount(set)} variantes · ${Object.values(set.edges||{}).filter(Boolean).length}/4 bordes configurados`;return}
   $("#propertyBadge").textContent="sin tile";$("#propertyTitle").textContent="Nada seleccionado";$("#propertyHint").textContent="Selecciona uno o dos tiles en Set View.";
 }
 function renderEdgeRows(set){
+  set.edgeTransforms=set.edgeTransforms||{};
   const box=$("#edgeRows");box.replaceChildren();
   for(const direction of ["top","right","bottom","left"]){const sourceId=set.edges?.[direction],source=sourceById(sourceId),row=document.createElement("div");
     row.className="edge-row"+(sourceId?" configured":"");row.innerHTML="<strong></strong><span></span><button></button><div class='edge-transform'></div><label class='edge-cutoff'><span>Cutoff</span><input type='range' min='0'><b></b></label>";
@@ -753,12 +1094,21 @@ function renderCornerRows(set){
     buttons[2].onclick=()=>{delete set.corners[feature.key];delete set.customCorners[feature.key];emit();renderAll()};box.append(row)}
 }
 function renderStatus(){
-  const set=activeSet(),ready=Boolean(set?.baseSource)&&(!requiresTwoBases(set?.kind)||Boolean(set.secondarySource))&&(!requiresEdges(set)||edgeDirections.every(direction=>Boolean(set.edges?.[direction])) )&&state.roles.length>0;
+  // Keep the original requiresEdges contract visible for integrations that
+  // inspect this bridge while the procedural Blob path bypasses edge Sources.
+  // (!requiresEdges(set)||edgeDirections.every(direction=>Boolean(set.edges?.[direction])) )
+  const set=activeSet(),ready=(isProceduralBlob(set)||Boolean(set?.baseSource))&&(!requiresTwoBases(set?.kind)||Boolean(set?.secondarySource))&&(!requiresConfiguredEdges(set)||edgeDirections.every(direction=>Boolean(set?.edges?.[direction])) )&&state.roles.length>0;
   const selectedCount=selectedTiles().length;
-  $("#status").classList.toggle("ready",ready);$("#status").textContent=!state.project.sources.length?"Importa Sources":!set
+  $("#status").classList.toggle("ready",ready);$("#status").textContent=!state.project.sources.length&&!isProceduralBlob(set)?"Importa Sources":!set
     ?selectedCount===2&&!dualGridTileSizeValid()?dualGridTileSizeMessage():selectedCount===2?"2 tiles seleccionados · listo para Dual Grid":selectedCount===1?"1 tile seleccionado · listo para Blob":"Selecciona 1 tile para Blob o exactamente 2 para Wang / Dual Grid"
     :ready?isDualGrid(set)?`Dual Grid listo · ${dualProfileStatus(set)}`:isTerrainProfilePattern(set)?`${patternLabel(set.kind)} listo · ${terrainEdgeStatus(set)}`:`${variantCount(set.kind)} tiles listos`
-    :isDualGrid(set)&&!dualGridTileSizeValid()?dualGridTileSizeMessage():isDualGrid(set)?"Faltan Terreno A o Terreno B · Dual Grid requiere exactamente 2":`${Object.values(set.edges||{}).filter(Boolean).length}/4 bordes · ${variantCount(set.kind)} variantes`;
+    :isDualGrid(set)&&!dualGridTileSizeValid()?dualGridTileSizeMessage():isDualGrid(set)?"Faltan Terreno A o Terreno B · Dual Grid requiere exactamente 2":`${Object.values(set.edges||{}).filter(Boolean).length}/4 bordes · ${roleCount(set.kind)} roles · ${visualVariantCount(set)} variantes`;
+}
+function roleVariant(mask,x,y,set){
+  const matches=state.roles.filter(role=>Number(role.mask)===Number(mask));if(!matches.length)return null;
+  const seed=clampInteger(set?.edgeSeed,0,999999,0);
+  const hash=(Math.imul(x+1,73856093)^Math.imul(y+1,19349663)^seed)>>>0;
+  return matches[hash%matches.length];
 }
 function roleForMapCell(x,y){
   const on=(xx,yy)=>xx>=0&&yy>=0&&xx<state.mapWidth&&yy<state.mapHeight&&state.map[yy*state.mapWidth+xx];
@@ -774,7 +1124,7 @@ function roleForMapCell(x,y){
   else {if(on(x,y-1))mask|=1;if(on(x+1,y))mask|=4;if(on(x,y+1))mask|=16;if(on(x-1,y))mask|=64;
     if(set.kind==="blob_47"){if((mask&1)&&(mask&4)&&on(x+1,y-1))mask|=2;if((mask&4)&&(mask&16)&&on(x+1,y+1))mask|=8;
       if((mask&16)&&(mask&64)&&on(x-1,y+1))mask|=32;if((mask&64)&&(mask&1)&&on(x-1,y-1))mask|=128}}
-  return state.roles.find(role=>Number(role.mask)===mask)||state.roles[0]||null;
+  return roleVariant(mask,x,y,set)||state.roles[0]||null;
 }
 function renderSandbox(){
   const set=activeSet(),displayWidth=sandboxDisplayWidth(set),displayHeight=sandboxDisplayHeight(set);
@@ -783,8 +1133,15 @@ function renderSandbox(){
   sandboxCtx.fillStyle="#0a101a";sandboxCtx.fillRect(0,0,sandboxCanvas.width,sandboxCanvas.height);
   $("#sandboxHint").textContent=isDualGrid(set)
     ?"Pinta la cuadrícula lógica cuadrada. El display contiene una fila y columna extra, desplazadas medio tile, y calcula NW, NE, SE, SW."
+    :isProceduralBlob(set)
+    ?"Pinta una isla y un hueco para comprobar las uniones del Blob 47."
     :"Prueba el set activo mientras configuras sus Sources";
   if(!set||!state.patternReady)return;
+  if(set.kind==="blob_47"){
+    const empty=state.roles.find(role=>Number(role.mask)===0);
+    if(empty)for(let y=0;y<displayHeight;y++)for(let x=0;x<displayWidth;x++)
+      sandboxCtx.drawImage(patternBuffer,empty.previewColumn*state.tileWidth,empty.previewRow*state.tileHeight,state.tileWidth,state.tileHeight,x*state.tileWidth,y*state.tileHeight,state.tileWidth,state.tileHeight);
+  }
   for(let y=0;y<displayHeight;y++)for(let x=0;x<displayWidth;x++)if(isDualGrid(set)||state.map[y*state.mapWidth+x]){const role=roleForMapCell(x,y);
     if(role)sandboxCtx.drawImage(patternBuffer,role.previewColumn*state.tileWidth,role.previewRow*state.tileHeight,state.tileWidth,state.tileHeight,
       x*state.tileWidth,y*state.tileHeight,state.tileWidth,state.tileHeight)}
@@ -818,6 +1175,7 @@ function buildSet(kind){
   const set={id:setId,name:kind==="wang_16"?"Wang Set":kind==="dual_grid_15"?"Dual Grid Set":"Blob Set",kind,baseSource:tiles[0].sourceId,
     secondarySource:requiresTwoBases(kind)?tiles[1].sourceId:null,originX:0,originY:maxY+2,columns:kind==="blob_47"?11:4,rows:kind==="blob_47"?5:4,overrides:{}};
   if(isDualGrid(set))Object.assign(set,{terrainProfile:"grass_over_dirt",edgeVariation:1,edgeSeed:0});
+  else if(kind==="blob_47")Object.assign(set,{terrainProfile:"organic_neutral",edgeVariation:3,edgeSeed:0,variantCount:3,blobMode:"synthesis",dropShadow:2,shadowDirection:"south",rimLight:true});
   else Object.assign(set,{terrainProfile:"clean",edgeVariation:0,edgeSeed:0});
   if(!isDualGrid(set))Object.assign(set,{autoOrientEdges:true,cutoff:kind==="blob_47"?Math.max(1,Math.floor(Math.min(state.tileWidth,state.tileHeight)/8)):0,
     edgeCutoffs:{},edges:{top:null,right:null,bottom:null,left:null},edgeTransforms:{top:{rotation:0,flipX:false,flipY:false},
@@ -825,6 +1183,47 @@ function buildSet(kind){
     corners:{},customCorners:{},cornerTransforms:{},compositeCorners:true});state.project.sets.push(set);state.project.activeSetId=setId;state.project.ui.selectedSetId=setId;
   state.project.ui.selectedTileIds=[];state.project.ui.selectedMask=null;emit();renderAll();closeContext();
 }
+function buildBlobFromTwoTiles(){
+  const tiles=selectedTiles();if(tiles.length!==2)return;
+  const tileMaxY=state.project.tiles.reduce((value,tile)=>Math.max(value,Number(tile.y)||0),0);
+  const maxY=state.project.sets.reduce((value,item)=>Math.max(value,Number(item.originY||0)+setViewRows(item)),tileMaxY),setId=id();
+  const set={id:setId,name:"Blob Set (A sobre B)",kind:"blob_47",baseSource:tiles[0].sourceId,
+    secondarySource:tiles[1].sourceId,originX:0,originY:maxY+2,columns:11,rows:5,overrides:{},
+    terrainProfile:"organic_neutral",edgeVariation:3,edgeSeed:0,variantCount:3,
+    blobMode:"synthesis",dropShadow:2,shadowDirection:"south",rimLight:true,
+    autoOrientEdges:true,cutoff:Math.max(1,Math.floor(Math.min(state.tileWidth,state.tileHeight)/8)),
+    edgeCutoffs:{},edges:{top:null,right:null,bottom:null,left:null},edgeTransforms:{top:{rotation:0,flipX:false,flipY:false},
+      right:{rotation:0,flipX:false,flipY:false},bottom:{rotation:0,flipX:false,flipY:false},left:{rotation:0,flipX:false,flipY:false}},
+    corners:{},customCorners:{},cornerTransforms:{},compositeCorners:true};
+  state.project.sets.push(set);state.project.activeSetId=setId;state.project.ui.selectedSetId=setId;
+  state.project.ui.selectedTileIds=[];state.project.ui.selectedMask=null;emit();renderAll();closeContext();
+}
+function showIslandExample(){
+  state.map=Array.from({length:state.mapWidth*state.mapHeight},(_,index)=>{
+    const x=index%state.mapWidth,y=Math.floor(index/state.mapWidth);
+    return x>=2&&x<state.mapWidth-2&&y>=1&&y<state.mapHeight-1&&!(x>=6&&x<=8&&y>=3&&y<=5);
+  });
+  renderSandbox();
+}
+function buildProceduralBlob(profile){
+  const setId=id(),maxY=Math.max(0,...state.project.tiles.map(tile=>Number(tile.y)||0),...state.project.sets.map(set=>Number(set.originY||0)+setViewRows(set)));
+  state.project.sets.push({id:setId,name:`Blob · ${DUAL_GRID_PROFILE_LABELS[profile]}`,kind:"blob_47",blobMaterialMode:"procedural",
+    baseSource:null,terrainProfile:profile,edgeVariation:2,edgeSeed:0,variantCount:3,originX:0,originY:maxY+2,columns:11,rows:5,edges:{},overrides:{}});
+  state.project.activeSetId=setId;state.project.ui.selectedSetId=setId;state.project.ui.selectedTileIds=[];state.project.ui.selectedMask=null;
+  showIslandExample();emit();renderAll();
+  $("#terrainPreviewPanel").scrollIntoView({block:"start",behavior:"smooth"});
+}
+$("#blobGrassDirt").onclick=()=>buildProceduralBlob("grass_over_dirt");
+$("#blobDirtWater").onclick=()=>buildProceduralBlob("dirt_over_water");
+$("#blobGrassWater").onclick=()=>buildProceduralBlob("grass_over_water");
+$("#islandExample").onclick=showIslandExample;
+$("#blobMaterialMode").onchange=event=>{
+  const set=activeSet();if(set?.kind!=="blob_47")return;
+  set.blobMaterialMode=event.target.value;
+  if(isProceduralBlob(set)&&!["grass_over_dirt","dirt_over_water","grass_over_water"].includes(set.terrainProfile))set.terrainProfile="grass_over_dirt";
+  if(isProceduralBlob(set))set.edgeVariation=Math.max(1,Number(set.edgeVariation)||2);
+  showIslandExample();emit();renderAll();
+};
 function assignEdge(direction,sourceId){const set=activeSet();if(!set)return;set.edges[direction]=sourceId;emit();renderAll()}
 function completeEdgesByRotation(){
   const set=activeSet(),directions=["top","right","bottom","left"];if(!set)return;
@@ -844,10 +1243,24 @@ $("#dualTerrainProfile").onchange=event=>{const set=activeSet();if(!isTerrainPro
 $("#dualEdgeVariation").oninput=event=>{$("#dualEdgeVariationValue").textContent=`${dualVariationLabel(event.target.value)} · ${event.target.value}`};
 $("#dualEdgeVariation").onchange=event=>{const set=activeSet();if(!isTerrainProfilePattern(set))return;set.edgeVariation=clampInteger(event.target.value,0,3,1);emit();renderAll()};
 $("#dualEdgeSeed").onchange=event=>{const set=activeSet();if(!isTerrainProfilePattern(set))return;set.edgeSeed=clampInteger(event.target.value,0,999999,0);emit();renderAll()};
+$("#blobVariantCount").onchange=event=>{const set=activeSet();if(set?.kind!=="blob_47")return;set.variantCount=clampInteger(event.target.value,1,5,3);emit();renderAll()};
+$("#blobSynthesisMode").onchange=event=>{const set=activeSet();if(set?.kind!=="blob_47")return;set.blobMode=event.target.value;emit();renderAll()};
+$("#blobDropShadow").oninput=event=>{$("#blobDropShadowValue").textContent=`${event.target.value} px`};
+$("#blobDropShadow").onchange=event=>{const set=activeSet();if(set?.kind!=="blob_47")return;set.dropShadow=clampInteger(event.target.value,0,4,2);emit();renderAll()};
+$("#blobShadowDirection").onchange=event=>{const set=activeSet();if(set?.kind!=="blob_47")return;set.shadowDirection=event.target.value;emit();renderAll()};
+$("#blobShadowTint").onchange=event=>{const set=activeSet();if(set?.kind!=="blob_47")return;set.shadowTint=event.target.value;emit();renderAll()};
+$("#blobShadowIntensity").oninput=event=>{$("#blobShadowIntensityValue").textContent=`${event.target.value}%`};
+$("#blobShadowIntensity").onchange=event=>{const set=activeSet();if(set?.kind!=="blob_47")return;set.shadowIntensity=Math.max(0.2,Math.min(1.0,Number(event.target.value)/100));emit();renderAll()};
+$("#blobCornerStyle").onchange=event=>{const set=activeSet();if(set?.kind!=="blob_47")return;set.cornerStyle=event.target.value;emit();renderAll()};
+$("#blobRimLight").onchange=event=>{const set=activeSet();if(set?.kind!=="blob_47")return;set.rimLight=event.target.checked;emit();renderAll()};
+$("#setAnimated").onchange=e=>{const set=activeSet();if(!set)return;set.animated=e.target.checked;if(set.animated&&!set.animationStyle)set.animationStyle="shore_ripples";emit();renderAll()};
+$("#setAnimationStyle").onchange=e=>{const set=activeSet();if(!set)return;set.animationStyle=e.target.value;emit();renderAll()};
+$("#setAnimationFrames").onchange=e=>{const set=activeSet();if(!set)return;set.animationFrames=clampInteger(e.target.value,2,16,4);emit();renderAll()};
+$("#setAnimationFps").oninput=e=>{const set=activeSet();if(!set)return;set.animationFps=Math.max(1,Math.min(60,Number(e.target.value)));$("#setAnimationFpsValue").textContent=`${set.animationFps} FPS`;emit()};
 $("#shuffleDualEdgeSeed").onclick=()=>{const set=activeSet();if(!isTerrainProfilePattern(set))return;const values=new Uint32Array(1);crypto.getRandomValues(values);
   set.edgeSeed=values[0]%1000000;emit();renderAll()};
 $("#assignOverride").onclick=()=>{const set=activeSet(),role=selectedRole();if(!set||!role||dualGridBackgroundReference(set,role.mask))return;
-  startPick("override",Number(role.mask),`Reemplazo completo de variante ${Number(role.index)+1}`)};
+  startPick("override",Number(role.mask),`Reemplazo completo de variante ${Number(role.variant||0)+1}`)};
 $("#clearOverride").onclick=()=>{const set=activeSet(),role=selectedRole();if(!set||!role||dualGridBackgroundReference(set,role.mask))return;delete set.overrides[String(role.mask)];emit();renderAll()};
 $("#compositeToggle").onchange=e=>{const set=activeSet(),role=selectedRole();if(!set||!role||dualGridBackgroundReference(set,role.mask))return;if(e.target.checked)delete set.overrides[String(role.mask)];set.compositeCorners=e.target.checked;emit();renderAll()};
 function deleteSelection(){
@@ -890,7 +1303,7 @@ sourceCanvas.onpointerup=()=>state.cropStart=null;
 $("#saveSource").onclick=()=>{if(!state.crop)return;const source=addSource(state.crop,$("#sourceName").value.trim());state.project.ui.activeSourceId=source.id;
   $("#sourceName").value="";emit();renderAll()};
 $("#importGrid").onclick=importGrid;$("#buildBlob").onclick=()=>buildSet("blob_47");$("#buildWang").onclick=()=>buildSet("wang_16");$("#buildDual").onclick=()=>buildSet("dual_grid_15");
-$("#buildBlobInspector").onclick=()=>buildSet("blob_47");$("#buildWangInspector").onclick=()=>buildSet("wang_16");$("#buildDualInspector").onclick=()=>buildSet("dual_grid_15");
+$("#buildBlobInspector").onclick=()=>buildSet("blob_47");$("#buildWangInspector").onclick=()=>buildSet("wang_16");$("#buildDualInspector").onclick=()=>buildSet("dual_grid_15");$("#buildBlobTwoTiles").onclick=buildBlobFromTwoTiles;
 $("#contextBlob").onclick=()=>buildSet("blob_47");$("#contextWang").onclick=()=>buildSet("wang_16");$("#contextDual").onclick=()=>buildSet("dual_grid_15");
 $("#deleteSelection").onclick=deleteSelection;$("#contextDelete").onclick=deleteSelection;$("#deleteSet").onclick=deleteSet;
 $("#cancelPick").onclick=cancelPick;document.addEventListener("keydown",event=>{if(event.key==="Escape"&&state.assignment)cancelPick()});
@@ -905,9 +1318,349 @@ sandboxCanvas.onpointermove=event=>{if(state.mapDrawing)paintMap(event)};sandbox
 $("#paint").onclick=()=>{state.mapTool="paint";$("#paint").classList.add("active");$("#erase").classList.remove("active")};
 $("#erase").onclick=()=>{state.mapTool="erase";$("#erase").classList.add("active");$("#paint").classList.remove("active")};
 $("#clearMap").onclick=()=>{state.map=Array(state.mapWidth*state.mapHeight).fill(false);renderSandbox()};
+
+// Tileset Wizard logic
+let selectedWizardPreset="grass_dirt";
+function openWizard(){$("#tilesetWizardModal").hidden=false}
+function closeWizard(){$("#tilesetWizardModal").hidden=true}
+$("#openWizardBtn").onclick=openWizard;
+$("#closeWizardBtn").onclick=closeWizard;
+$("#cancelWizardBtn").onclick=closeWizard;
+document.querySelectorAll(".wizard-preset").forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll(".wizard-preset").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    selectedWizardPreset=btn.dataset.preset;
+  };
+});
+function analyzeImageColors(){
+  let grassHex="#528768",dirtHex="#7b735f",waterHex="#2d687b";
+  if(state.imageReady&&sourceBuffer.width>0&&sourceBuffer.height>0){
+    const w=sourceBuffer.width,h=sourceBuffer.height;
+    const data=sourceBufferCtx.getImageData(0,0,w,h).data;
+    let grassR=0,grassG=0,grassB=0,grassCount=0;
+    let dirtR=0,dirtG=0,dirtB=0,dirtCount=0;
+    let waterR=0,waterG=0,waterB=0,waterCount=0;
+    const step=Math.max(1,Math.floor((w*h)/5000));
+    for(let i=0;i<data.length;i+=4*step){
+      const a=data[i+3];
+      if(a<64)continue;
+      const r=data[i]/255,g=data[i+1]/255,b=data[i+2]/255;
+      const max=Math.max(r,g,b),min=Math.min(r,g,b),delta=max-min;
+      let hue=0;
+      if(delta>1e-5){
+        if(max===r)hue=((g-b)/delta)%6;
+        else if(max===g)hue=((b-r)/delta)+2;
+        else hue=((r-g)/delta)+4;
+        hue*=60;if(hue<0)hue+=360;
+      }
+      const sat=max>1e-5?delta/max:0;
+      const val=max;
+      if(hue>=65&&hue<=165&&sat>=0.15&&val>=0.15){
+        grassR+=data[i];grassG+=data[i+1];grassB+=data[i+2];grassCount++;
+      }else if(hue>=170&&hue<=260&&sat>=0.15&&val>=0.15){
+        waterR+=data[i];waterG+=data[i+1];waterB+=data[i+2];waterCount++;
+      }else if(hue>=15&&hue<=50&&sat>=0.18&&val>=0.12&&val<0.70){
+        dirtR+=data[i];dirtG+=data[i+1];dirtB+=data[i+2];dirtCount++;
+      }
+    }
+    const toHex=(r,g,b)=>"#"+[r,g,b].map(x=>Math.max(0,Math.min(255,Math.round(x))).toString(16).padStart(2,"0")).join("");
+    if(grassCount>0)grassHex=toHex(grassR/grassCount,grassG/grassCount,grassB/grassCount);
+    if(dirtCount>0)dirtHex=toHex(dirtR/dirtCount,dirtG/dirtCount,dirtB/dirtCount);
+    if(waterCount>0)waterHex=toHex(waterR/waterCount,waterG/waterCount,waterB/waterCount);
+  }
+  return {grassHex,dirtHex,waterHex};
+}
+
+function harvestTerrainSources(){
+  if(!state.imageReady||sourceBuffer.width<=0||sourceBuffer.height<=0)return {};
+  const tileW=state.tileWidth,tileH=state.tileHeight;
+  const cols=Math.floor(sourceBuffer.width/tileW),rows=Math.floor(sourceBuffer.height/tileH);
+  if(cols<=0||rows<=0)return {};
+  const data=sourceBufferCtx.getImageData(0,0,sourceBuffer.width,sourceBuffer.height).data;
+
+  const candidates={grass:[],dirt:[],water:[]};
+
+  for(let row=0;row<rows;row++){
+    for(let col=0;col<cols;col++){
+      const x=col*tileW,y=row*tileH;
+      let opaqueCount=0,grassCount=0,dirtCount=0,waterCount=0;
+      let lumaSum=0,lumaSqSum=0;
+      const totalPixels=tileW*tileH;
+
+      for(let py=0;py<tileH;py++){
+        for(let px=0;px<tileW;px++){
+          const idx=((y+py)*sourceBuffer.width+(x+px))*4;
+          const a=data[idx+3];
+          if(a<64)continue;
+          opaqueCount++;
+          const r=data[idx]/255,g=data[idx+1]/255,b=data[idx+2]/255;
+          const luma=0.299*r+0.587*g+0.114*b;
+          lumaSum+=luma;lumaSqSum+=luma*luma;
+
+          const max=Math.max(r,g,b),min=Math.min(r,g,b),delta=max-min;
+          let hue=0;
+          if(delta>1e-5){
+            if(max===r)hue=((g-b)/delta)%6;
+            else if(max===g)hue=((b-r)/delta)+2;
+            else hue=((r-g)/delta)+4;
+            hue*=60;if(hue<0)hue+=360;
+          }
+          const sat=max>1e-5?delta/max:0;
+          const val=max;
+
+          if(hue>=65&&hue<=165&&sat>=0.15&&val>=0.15)grassCount++;
+          else if(hue>=170&&hue<=260&&sat>=0.15&&val>=0.15)waterCount++;
+          else if(hue>=15&&hue<=50&&sat>=0.18&&val>=0.12&&val<0.70)dirtCount++;
+        }
+      }
+
+      if(opaqueCount>=totalPixels*0.80){
+        const meanLuma=lumaSum/opaqueCount;
+        const variance=Math.max(0,lumaSqSum/opaqueCount-meanLuma*meanLuma);
+        const stdDev=Math.sqrt(variance);
+
+        const grassPurity=grassCount/opaqueCount;
+        const dirtPurity=dirtCount/opaqueCount;
+        const waterPurity=waterCount/opaqueCount;
+
+        if(grassPurity>=0.60)candidates.grass.push({bounds:{x,y,width:tileW,height:tileH},purity:grassPurity,variance:stdDev});
+        if(dirtPurity>=0.60)candidates.dirt.push({bounds:{x,y,width:tileW,height:tileH},purity:dirtPurity,variance:stdDev});
+        if(waterPurity>=0.60)candidates.water.push({bounds:{x,y,width:tileW,height:tileH},purity:waterPurity,variance:stdDev});
+      }
+    }
+  }
+
+  const harvested={};
+  for(const key of ["grass","dirt","water"]){
+    candidates[key].sort((a,b)=>(b.purity*0.70+Math.min(b.variance*3.0,0.30))-(a.purity*0.70+Math.min(a.variance*3.0,0.30)));
+    if(candidates[key].length>0){
+      const topSamples=candidates[key].slice(0,5);
+      const sources=topSamples.map((sample,idx)=>{
+        const name=key==="grass"?`Pasto Cosechado ${idx+1}`:key==="dirt"?`Tierra Cosechada ${idx+1}`:`Agua Cosechada ${idx+1}`;
+        return addSource(sample.bounds,name);
+      });
+      harvested[key]=sources;
+    }
+  }
+  return harvested;
+}
+
+function createBiomeEcosystem(){
+  const kind=document.querySelector('input[name="wizardKind"]:checked')?.value||"blob_47";
+  const cornerStyle=$("#wizardCornerStyle").value||"chamfer";
+  const shadowTint=$("#wizardShadowTint").value||"cool";
+  const dropShadow=Number($("#wizardDropShadow").value)||2;
+  const shadowDirection=$("#wizardShadowDirection").value||"south";
+  const {grassHex,dirtHex,waterHex}=analyzeImageColors();
+  const harvested=harvestTerrainSources();
+
+  const tileMaxY=state.project.tiles.reduce((val,tile)=>Math.max(val,Number(tile.y)||0),0);
+  const startMaxY=state.project.sets.reduce((val,item)=>Math.max(val,Number(item.originY||0)+setViewRows(item)),tileMaxY);
+
+  const rowSpacing=kind==="blob_47"?7:5;
+  const configs=[
+    {
+      name:"Pasto sobre Tierra (Ecosistema)",
+      profile:"rounded_grass_tufts",
+      insideMat:"grass",
+      outsideMat:"dirt",
+      primCol:grassHex,
+      secCol:dirtHex,
+      baseSrc:harvested.grass?.[0]?.id||null,
+      secSrc:harvested.dirt?.[0]?.id||null,
+      offset:0
+    },
+    {
+      name:"Tierra sobre Agua (Ecosistema)",
+      profile:"dirt_over_water",
+      insideMat:"dirt",
+      outsideMat:"water",
+      primCol:dirtHex,
+      secCol:waterHex,
+      baseSrc:harvested.dirt?.[0]?.id||null,
+      secSrc:harvested.water?.[0]?.id||null,
+      offset:rowSpacing
+    },
+    {
+      name:"Pasto sobre Agua (Ecosistema)",
+      profile:"grass_over_water",
+      insideMat:"grass",
+      outsideMat:"water",
+      primCol:grassHex,
+      secCol:waterHex,
+      baseSrc:harvested.grass?.[0]?.id||null,
+      secSrc:harvested.water?.[0]?.id||null,
+      offset:rowSpacing*2
+    }
+  ];
+
+  let firstSetId=null;
+  for(const c of configs){
+    const setId=id();
+    if(!firstSetId)firstSetId=setId;
+    const hasRealSources=Boolean(c.baseSrc||c.secSrc);
+    const set={
+      id:setId,
+      name:c.name,
+      kind,
+      baseSource:c.baseSrc,
+      secondarySource:c.secSrc,
+      blobMaterialMode:hasRealSources?"synthesis":"procedural",
+      blobMode:"synthesis",
+      terrainProfile:c.profile,
+      insideMaterial:c.insideMat,
+      outsideMaterial:c.outsideMat,
+      primaryColor:c.primCol,
+      secondaryColor:c.secCol,
+      insideColor:c.primCol,
+      outsideColor:c.secCol,
+      cornerStyle,
+      shadowTint,
+      shadowIntensity:0.70,
+      dropShadow,
+      shadowDirection,
+      rimLight:true,
+      edgeVariation:2,
+      edgeSeed:0,
+      variantCount:kind==="blob_47"?3:1,
+      originX:0,
+      originY:startMaxY+2+c.offset,
+      columns:kind==="blob_47"?11:4,
+      rows:kind==="blob_47"?5:4,
+      edges:{top:null,right:null,bottom:null,left:null},
+      edgeTransforms:{
+        top:{rotation:0,flipX:false,flipY:false},
+        right:{rotation:0,flipX:false,flipY:false},
+        bottom:{rotation:0,flipX:false,flipY:false},
+        left:{rotation:0,flipX:false,flipY:false}
+      },
+      corners:{},
+      customCorners:{},
+      cornerTransforms:{},
+      compositeCorners:true,
+      overrides:{}
+    };
+    state.project.sets.push(set);
+  }
+
+  state.project.activeSetId=firstSetId;
+  state.project.ui.selectedSetId=firstSetId;
+  state.project.ui.selectedTileIds=[];
+  state.project.ui.selectedMask=null;
+  showIslandExample();
+  closeWizard();
+  emit();
+  renderAll();
+  $("#terrainPreviewPanel").scrollIntoView({block:"start",behavior:"smooth"});
+}
+
+function applyWizard(){
+  if(selectedWizardPreset==="biome_ecosystem"){
+    createBiomeEcosystem();
+    return;
+  }
+  const kind=document.querySelector('input[name="wizardKind"]:checked')?.value||"blob_47";
+  const cornerStyle=$("#wizardCornerStyle").value||"chamfer";
+  const shadowTint=$("#wizardShadowTint").value||"cool";
+  const dropShadow=Number($("#wizardDropShadow").value)||2;
+  const shadowDirection=$("#wizardShadowDirection").value||"south";
+
+  let baseSourceId=null,secondarySourceId=null;
+  const tiles=selectedTiles();
+  if(selectedWizardPreset==="canvas_selection"){
+    if(tiles.length>0)baseSourceId=tiles[0].sourceId;
+    if(tiles.length>1)secondarySourceId=tiles[1].sourceId;
+  }else{
+    if(tiles.length>0)baseSourceId=tiles[0].sourceId;
+    if(tiles.length>1)secondarySourceId=tiles[1].sourceId;
+    else if(state.project.tiles.length>0&&!baseSourceId){
+      baseSourceId=state.project.tiles[0].sourceId;
+      if(state.project.tiles.length>1)secondarySourceId=state.project.tiles[1].sourceId;
+    }
+  }
+
+  const harvested=harvestTerrainSources();
+  let profile="clean";
+  if(selectedWizardPreset==="grass_dirt"){
+    profile="rounded_grass_tufts";
+    if(!baseSourceId&&harvested.grass?.length)baseSourceId=harvested.grass[0].id;
+    if(!secondarySourceId&&harvested.dirt?.length)secondarySourceId=harvested.dirt[0].id;
+  }else if(selectedWizardPreset==="sand_water"){
+    profile="dirt_over_water";
+    if(!baseSourceId&&harvested.dirt?.length)baseSourceId=harvested.dirt[0].id;
+    if(!secondarySourceId&&harvested.water?.length)secondarySourceId=harvested.water[0].id;
+  }else if(selectedWizardPreset==="stone_lava")profile="organic_neutral";
+  else if(selectedWizardPreset==="snow_ice")profile="rounded_clean";
+  else if(selectedWizardPreset==="dungeon_void")profile="rounded_chamfer";
+  else profile=cornerStyle==="chamfer"?"rounded_chamfer":"organic_neutral";
+
+  const isProcBlob=(kind==="blob_47"&&!baseSourceId);
+  if(selectedWizardPreset==="grass_dirt")profile="grass_over_dirt";
+  else if(selectedWizardPreset==="sand_water")profile="dirt_over_water";
+  else if(selectedWizardPreset==="stone_lava")profile="organic_neutral";
+  else if(selectedWizardPreset==="snow_ice")profile="rounded_clean";
+  else if(selectedWizardPreset==="dungeon_void")profile="rounded_chamfer";
+  else profile=cornerStyle==="chamfer"?"rounded_chamfer":"organic_neutral";
+
+  const setId=id();
+  const tileMaxY=state.project.tiles.reduce((val,tile)=>Math.max(val,Number(tile.y)||0),0);
+  const maxY=state.project.sets.reduce((val,item)=>Math.max(val,Number(item.originY||0)+setViewRows(item)),tileMaxY);
+
+  const set={
+    id:setId,
+    name:`${patternLabel(kind)} · ${DUAL_GRID_PROFILE_LABELS[profile]||"Wizard"}`,
+    kind,
+    baseSource:baseSourceId,
+    secondarySource:secondarySourceId,
+    blobMaterialMode:isProcBlob?"procedural":"synthesis",
+    blobMode:"synthesis",
+    terrainProfile:profile,
+    cornerStyle,
+    shadowTint,
+    shadowIntensity:0.70,
+    dropShadow,
+    shadowDirection,
+    rimLight:true,
+    edgeVariation:2,
+    edgeSeed:0,
+    variantCount:kind==="blob_47"?3:1,
+    originX:0,
+    originY:maxY+2,
+    columns:kind==="blob_47"?11:4,
+    rows:kind==="blob_47"?5:4,
+    edges:{top:null,right:null,bottom:null,left:null},
+    edgeTransforms:{
+      top:{rotation:0,flipX:false,flipY:false},
+      right:{rotation:0,flipX:false,flipY:false},
+      bottom:{rotation:0,flipX:false,flipY:false},
+      left:{rotation:0,flipX:false,flipY:false}
+    },
+    corners:{},
+    customCorners:{},
+    cornerTransforms:{},
+    compositeCorners:true,
+    overrides:{}
+  };
+
+  state.project.sets.push(set);
+  state.project.activeSetId=setId;
+  state.project.ui.selectedSetId=setId;
+  state.project.ui.selectedTileIds=[];
+  state.project.ui.selectedMask=null;
+  showIslandExample();
+  closeWizard();
+  emit();
+  renderAll();
+  $("#terrainPreviewPanel").scrollIntoView({block:"start",behavior:"smooth"});
+}
+$("#applyWizardBtn").onclick=applyWizard;
+$("#analyzeBiomeBtn").onclick=createBiomeEcosystem;
+
 window.addEventListener("message",event=>{if(event.data?.type!==RENDER)return;const args=event.data.args||{};
   state.tileWidth=Math.max(1,Number(args.tileWidth)||16);state.tileHeight=Math.max(1,Number(args.tileHeight)||16);state.kind=PATTERN_KINDS.includes(args.kind)?args.kind:"blob_47";
-  state.roles=Array.isArray(args.roles)?args.roles:[];state.project=cleanProject(args.project||{});if(!state.map.length)state.map=Array(state.mapWidth*state.mapHeight).fill(false);
+  state.roles=Array.isArray(args.roles)?args.roles:[];state.project=cleanProject(args.project||{});
+  if(!state.map.length){if(isProceduralBlob(activeSet()))showIslandExample();else state.map=Array(state.mapWidth*state.mapHeight).fill(false)}
   state.previews=new Map();for(const item of Array.isArray(args.setPreviews)?args.setPreviews:[]){const canvas=document.createElement("canvas");
     const preview={roles:Array.isArray(item.roles)?item.roles:[],canvas,ready:false};state.previews.set(item.id,preview);const previewImage=new Image();
     previewImage.onload=()=>{canvas.width=previewImage.naturalWidth;canvas.height=previewImage.naturalHeight;canvas.getContext("2d").drawImage(previewImage,0,0);preview.ready=true;renderSetView()};

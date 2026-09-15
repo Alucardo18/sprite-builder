@@ -1,0 +1,35 @@
+{
+  "alpha_retry_index": 0,
+  "animation": "walk",
+  "background_color": "#00FF00",
+  "background_fallback": "reject",
+  "background_mode": "transparent_required",
+  "candidate_index": 0,
+  "character_id": "caminante-01",
+  "direction": "down",
+  "job_id": "caminante-01-walk-south-4x4-v001",
+  "manual_session_id": null,
+  "max_alpha_retries": 0,
+  "output_filename": "walk_down_sheet_candidate_00_eaa20d74e4fbb946c11d.png",
+  "parent_request_id": null,
+  "prompt_path": "jobs/caminante-01-walk-south-4x4-v001/generation/prompts/down_sheet_f74b99701738.txt",
+  "quality": "high",
+  "reference_paths": [
+    "characters/caminante-01/references/frame0_down_v001.png",
+    ".codex/skills/walk-animation-reference/assets/walk-reference/walk-row-4x4-south.png"
+  ],
+  "request_id": "eaa20d74e4fbb946c11d",
+  "request_kind": "sheet",
+  "schema_version": "1.0",
+  "sheet_columns": 4,
+  "sheet_frame_count": 4,
+  "sheet_gutter_px": 0,
+  "sheet_layout": "horizontal",
+  "sheet_rows": 1,
+  "source_kind": "generated",
+  "source_size": [
+    256,
+    64
+  ],
+  "status": "prepared"
+}

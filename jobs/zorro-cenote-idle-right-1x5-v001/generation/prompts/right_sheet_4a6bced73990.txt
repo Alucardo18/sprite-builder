@@ -1,0 +1,54 @@
+SHEET GENERATION CONTRACT - HIGHEST PRIORITY
+Create one complete native-resolution sprite sheet for a production 2D top-down action RPG.
+This is one animation and one direction, not a single frame and not a contact-sheet preview.
+Animation: idle. Direction: right.
+Requested source canvas: 1280 × 256 pixels.
+Layout: horizontal; 1 row(s) × 5 column(s); frame cells are
+read in deterministic order left-to-right. Approximate cell size: 256.0 ×
+256.0 pixels. Gutter between cells: 0 pixels.
+The sheet must contain exactly 5 animation cells and no extra poses.
+
+PIXEL-ART STYLE CONTRACT
+16-bit pixel art for a top-down action RPG, authored at the requested source resolution; hard pixel clusters, crisp stepped silhouettes, no anti-aliasing, no vector smoothness, no painterly texture, no photorealism.
+Use deliberate 1-pixel and 2-pixel clusters, readable dark outline hierarchy, controlled selective dithering only when it improves a material, and nearest-neighbor pixel logic.
+Keep one consistent orthographic top-down three-quarter camera, identical scale, crop, ground line, and facing convention in every cell.
+Use the locked Character Bible palette and material roles; preserve hue families for skin, cloth, hair, wood, metal, magic, and shadow instead of inventing new colors.
+Keep one stable light direction and value hierarchy across the sheet; animate only the light changes explicitly required by the named phase.
+
+CHARACTER IDENTITY CONTRACT
+Treat the first approved reference as the identity anchor: same head shape, torso width, hair mass, clothing construction, equipment proportions, outline weight, and body scale.
+
+CHARACTER CANON
+Zorro original para un juego 2D de aventura: criatura pequeña y ágil de perfil legible, pelaje terracota quemado con pecho y punta de cola jade pálido, máscara facial marfil, orejas grandes con interior turquesa apagado y una pequeña marca de obsidiana sobre el ojo; pixel art limpio y expresivo, sin copiar el personaje de referencia.
+
+IMMUTABLE FEATURES
+
+
+ANIMATION CONTINUITY CONTRACT
+Change pose only between adjacent cells as required by the phase list; preserve anatomy, equipment ownership, contact points, and a stable support/ground row.
+Readable idle pose; stable torso and ground plane; move only anatomy and equipment required by the named phase.
+Show the complete character without cropping and do not add a shadow.
+Keep every foot visible in the pose complete, including heels, soles, and readable toe silhouettes inside the frame. Transparent padding below a limb does not prove that the limb is complete. Preserve a stable ground-support row across frames. Never repair anatomy by pasting, stretching, or scaling a rectangular crop from another pose; reconstruct it in the current pose while leaving the accepted torso, head, equipment, and canvas scale fixed.
+This idle animation is the authoritative character-scale reference. Measure and approve stable head/torso/body anatomy and the support anchor; exclude weapons, staffs, extended_limbs, hair_tips, detached_effects, vfx. Record the approved Scale Profile before another animation.
+
+FRAME PLAN
+Cell 1: phase settle; settle.
+Cell 2: phase inhale; inhale.
+Cell 3: phase peak; peak.
+Cell 4: phase exhale; exhale.
+Cell 5: phase settle; settle.
+
+
+COMPOSITION AND OUTPUT
+Create one isolated character cutout with generous empty canvas around it. Do not include scenery, a floor, a panel, or an ambient backdrop. Do not include a floor or cast shadow. Native output transparency is controlled by the image provider. Transparency is preferred and will be verified before post-processing.
+Keep every cell's character fully inside its own cell with generous, even breathing room.
+Use identical body scale, camera, anchor, ground/support row, outline weight, and palette logic
+throughout the sheet. Do not allow one pose to borrow pixels, overlap, or bleed into another cell.
+Do not crop, trim, autocenter, rescale, interpolate, anti-alias, or rearrange the generated sheet.
+The returned PNG itself is the authoritative source artifact; downstream code may only record
+logical cell regions for an atlas.
+
+PROHIBITED CONTENT
+No text, labels, numbers, watermark, UI, borders, panels, scenery, extra characters, duplicate limbs, missing feet, floating body, collage, contact sheet preview, perspective drift, frame captions, or cropped body parts.
+
+No labels, captions, separators, grid lines, layout guides, debug marks, or explanatory text.

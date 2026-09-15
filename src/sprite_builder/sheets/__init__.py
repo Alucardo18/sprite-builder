@@ -4,6 +4,7 @@ from .engine import (
     CenteringAnalysis,
     CenteringResult,
     ExportCropResult,
+    FrameLayoutPlan,
     ScaleMeasurement,
     analyze_center_frames,
     apply_background_removal,
@@ -12,6 +13,7 @@ from .engine import (
     export_sheet,
     normalize_frames_by_character_scale,
     pad_frames_to_common_canvas,
+    plan_frame_layout,
     render_contact_sheet,
     render_frame_overlay,
     trim_transparent_frames,
@@ -48,6 +50,7 @@ from .manual import (
     transform_masked_pixels,
 )
 from .models import (
+    AnchorPoint,
     AutoCenterConfig,
     BackgroundRemovalConfig,
     ExportCropConfig,
@@ -69,6 +72,7 @@ from .session import SheetSessionStore
 
 __all__ = [
     "AutoCenterConfig",
+    "AnchorPoint",
     "BackgroundRemovalConfig",
     "CenteringAnalysis",
     "CenteringResult",
@@ -76,6 +80,7 @@ __all__ = [
     "ExportCropResult",
     "ScaleMeasurement",
     "FrameAdjustment",
+    "FrameLayoutPlan",
     "LayeredSpriteDocument",
     "SegmentationConfig",
     "SegmentationResult",
@@ -104,6 +109,7 @@ __all__ = [
     "fill_cel_selection",
     "inspect_sheet",
     "pad_frames_to_common_canvas",
+    "plan_frame_layout",
     "paint_cel_stroke",
     "outline_cel_pixels",
     "move_document_frame",

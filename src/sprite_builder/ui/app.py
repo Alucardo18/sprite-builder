@@ -49,6 +49,7 @@ from sprite_builder.sheets import (
     normalize_frames_by_character_scale,
     outline_cel_pixels,
     paint_cel_stroke,
+    plan_frame_layout,
     remove_isolated_pixels,
     render_contact_sheet,
     render_frame_overlay,
@@ -70,8 +71,10 @@ from sprite_builder.tilesets import (
     TerrainPatternKind,
     TilesetGrid,
     build_terrain_pattern_bundle,
+    build_tiled_bundle,
     build_tileset_bundle,
     build_tilesetter_terrain_pattern,
+    build_unity_ruletile_bundle,
     format_tile_prompt,
     generate_procedural_reference_tile,
     get_material_template,
@@ -83,8 +86,14 @@ from sprite_builder.tilesets import (
     terrain_edge_profiles,
     terrain_pattern_set_layout,
 )
+from sprite_builder.tilesets.palette_analyzer import (
+    analyze_image_biome_palette,
+    generate_biome_ecosystem_sets,
+    harvest_image_terrain_tiles,
+)
 from sprite_builder.ui.components import (
     header_navigation,
+    image_data_uri,
     pixel_editor,
     pixel_image_html,
     status_badge,
@@ -195,6 +204,9 @@ def _terrain_pattern_studio_roles(
             "setRow": set_positions[role.mask][1],
             "generated": role.generated,
             "sourceIndex": role.source_index,
+            "variant": getattr(role, "variant", 0),
+            "variantSeed": getattr(role, "variant_seed", 0),
+            "probability": getattr(role, "probability", 1.0),
         }
         for role in result.tiles
     ]
@@ -213,6 +225,9 @@ def _terrain_pattern_studio_roles(
                 "generated": True,
                 "sourceIndex": None,
                 "runtimeRole": "background",
+                "variant": 0,
+                "variantSeed": 0,
+                "probability": 1.0,
             },
         )
     return roles
@@ -284,6 +299,9 @@ def _dual_grid_tile_size_error(tile_size: tuple[int, int]) -> str | None:
     return None
 
 
+_TERRAIN_PATTERN_SAFE_CACHE: dict[tuple[Any, ...], tuple[Any | None, str | None]] = {}
+
+
 def _build_terrain_pattern_safely(
     image: Image.Image,
     *,
@@ -298,21 +316,44 @@ def _build_terrain_pattern_safely(
         error = _dual_grid_tile_size_error(tile_size)
         if error is not None:
             return None, error
+
+    # Construct efficient cache key
+    img_token = getattr(image, "_cache_token", None)
+    if img_token is None:
+        img_token = (id(image), image.size, image.mode)
     try:
-        return (
-            build_tilesetter_terrain_pattern(
-                image,
-                tile_size=tile_size,
-                sources=sources,
-                set_config=set_config,
-                kind=cast(TerrainPatternKind, kind),
-            ),
-            None,
+        sources_token = json.dumps(sources, sort_keys=True, default=str)
+        config_token = json.dumps(set_config, sort_keys=True, default=str)
+        cache_key = (img_token, tile_size, kind, sources_token, config_token)
+    except Exception:
+        cache_key = None
+
+    if cache_key is not None and cache_key in _TERRAIN_PATTERN_SAFE_CACHE:
+        return _TERRAIN_PATTERN_SAFE_CACHE[cache_key]
+
+    try:
+        pattern = build_tilesetter_terrain_pattern(
+            image,
+            tile_size=tile_size,
+            sources=sources,
+            set_config=set_config,
+            kind=cast(TerrainPatternKind, kind),
         )
+        if getattr(pattern, "image", None) is not None:
+            image_data_uri(pattern.image)
+        res = (pattern, None)
     except ValueError as exc:
         if kind == "dual_grid_15":
-            return None, f"Dual Grid inválido: {exc}"
-        raise
+            res = (None, f"Dual Grid inválido: {exc}")
+        else:
+            res = (None, f"Set inválido ({kind}): {exc}")
+
+    if cache_key is not None:
+        if len(_TERRAIN_PATTERN_SAFE_CACHE) >= 64:
+            _TERRAIN_PATTERN_SAFE_CACHE.clear()
+        _TERRAIN_PATTERN_SAFE_CACHE[cache_key] = res
+
+    return res
 
 
 def _workspace() -> Path:
@@ -338,9 +379,17 @@ def _render_header_navigation() -> str:
 
 
 def _png_bytes(image: Image.Image) -> bytes:
+    cached = getattr(image, "_cached_png_bytes", None)
+    if cached is not None:
+        return cached
     buffer = io.BytesIO()
     image.convert("RGBA").save(buffer, format="PNG", optimize=False)
-    return buffer.getvalue()
+    data = buffer.getvalue()
+    try:
+        image._cached_png_bytes = data
+    except Exception:
+        pass
+    return data
 
 
 _PALETTE_CACHE: dict[tuple[int, int, bytes], list[str]] = {}
@@ -351,7 +400,8 @@ def _extract_palette_colors(image: Image.Image | None, max_colors: int = 24) -> 
     if image is None:
         return []
     w, h = image.size
-    raw_sample = image.tobytes()[:512] + image.tobytes()[-512:] if w * h > 256 else image.tobytes()
+    raw = image.tobytes()
+    raw_sample = raw[:512] + raw[-512:] if w * h > 256 else raw
     cache_key = (w, h, raw_sample)
     cached = _PALETTE_CACHE.get(cache_key)
     if cached is not None:
@@ -439,11 +489,12 @@ def _build_batch_export_zip(
                     session_json_path.read_text(encoding="utf-8"),
                 )
 
+            layout_paths = store.stage_paths(session, "layout")
             aligned_paths = store.stage_paths(session, "alignment")
             bg_paths = store.stage_paths(session, "background")
             seg_paths = store.stage_paths(session, "segmentation")
 
-            frames_to_export = aligned_paths or bg_paths or seg_paths
+            frames_to_export = layout_paths or aligned_paths or bg_paths or seg_paths
             if frames_to_export:
                 for idx, f_path in enumerate(frames_to_export):
                     if f_path.is_file():
@@ -472,16 +523,26 @@ def _tileset_state_image() -> Image.Image | None:
     value = st.session_state.get(f"{_TILESET_STATE_PREFIX}:image")
     if not isinstance(value, bytes):
         return None
+    cached = st.session_state.get(f"{_TILESET_STATE_PREFIX}:cached_image_tuple")
+    if cached is not None and cached[0] is value:
+        return cached[1]
     try:
         with Image.open(io.BytesIO(value)) as image:
-            return image.convert("RGBA")
+            rgba = image.convert("RGBA")
+            rgba._cache_token = hashlib.sha256(value[:1024] + str(len(value)).encode()).hexdigest()
+            st.session_state[f"{_TILESET_STATE_PREFIX}:cached_image_tuple"] = (value, rgba)
+            return rgba
     except (OSError, ValueError):
         return None
 
 
 def _set_tileset_image(image: Image.Image, *, source_name: str, reset_canvas: bool) -> None:
-    st.session_state[f"{_TILESET_STATE_PREFIX}:image"] = _png_bytes(image)
+    png_data = _png_bytes(image)
+    st.session_state[f"{_TILESET_STATE_PREFIX}:image"] = png_data
     st.session_state[f"{_TILESET_STATE_PREFIX}:source_name"] = source_name
+    rgba = image.convert("RGBA")
+    rgba._cache_token = hashlib.sha256(png_data[:1024] + str(len(png_data)).encode()).hexdigest()
+    st.session_state[f"{_TILESET_STATE_PREFIX}:cached_image_tuple"] = (png_data, rgba)
     if reset_canvas:
         st.session_state[f"{_TILESET_STATE_PREFIX}:canvas_token"] = uuid.uuid4().hex
         st.session_state[f"{_TILESET_STATE_PREFIX}:last_event"] = None
@@ -854,19 +915,16 @@ def _render_terrain_patterns() -> None:
 
     prefix = f"{_TILESET_STATE_PREFIX}:patterns"
     st.caption(
-        "Importa Sources al Set View: usa Build Borders para Blob/Wang o "
-        "selecciona exactamente dos tiles y usa Build Dual Grid · 15. "
-        "Configura el set desde Tile Properties mientras el Sandbox se actualiza."
+        "Blob 47: elige un material generado y prueba el terreno conectado. "
+        "Para trabajar con arte dibujado, importa Sources y usa Build Borders."
     )
     image = _tileset_state_image()
-    if image is None:
-        st.warning(
-            "Carga o dibuja una imagen en Atlas. Pattern Studio puede dividirla "
-            "por la grilla o crear Sources desde recortes libres."
-        )
-        return
-
     grid = _tileset_grid_from_state()
+    if image is None:
+        # A procedural Blob does not require an imported atlas. This blank
+        # transport image is ephemeral; it never replaces the user's Atlas.
+        image = Image.new("RGBA", (grid.tile_width, grid.tile_height))
+
     project_key = f"{prefix}:set_view_project"
     raw_project = st.session_state.get(project_key)
     project: dict[str, Any] = (
@@ -1034,7 +1092,74 @@ def _render_terrain_patterns() -> None:
         else:
             st.warning(f"Set generado inválido ({set_id or 'sin id'}): {error}")
 
-    if active_set is not None:
+    with st.expander("🌲 Analizador de Biomas & Ecosistemas Multi-Blob", expanded=False):
+        bio_col1, bio_col2 = st.columns((2.5, 1.5), gap="medium")
+        palette = analyze_image_biome_palette(image)
+        with bio_col1:
+            st.markdown(
+                "**Paleta de Bioma extraída:** "
+                f"<span style='display:inline-block;padding:2px 8px;border-radius:4px;background:{palette.grass.hex_color};color:#fff'>🌿 Pasto {palette.grass.hex_color}</span> "
+                f"<span style='display:inline-block;padding:2px 8px;border-radius:4px;background:{palette.dirt.hex_color};color:#fff'>🟤 Tierra {palette.dirt.hex_color}</span> "
+                f"<span style='display:inline-block;padding:2px 8px;border-radius:4px;background:{palette.water.hex_color};color:#fff'>🌊 Agua {palette.water.hex_color}</span> ",
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                f"Terreno dominante: **{palette.dominant_terrain}** · "
+                f"Detectados: {', '.join(palette.detected_terrains) if palette.detected_terrains else 'Valores armonizados'}"
+            )
+        with bio_col2:
+            if st.button("⚡ Crear Ecosistema Completo (3 Sets)", key=f"{prefix}:create_biome_sets", type="primary"):
+                current_sets = list(project.get("sets", []))
+                tile_max_y = max([int(t.get("y", 0)) for t in project.get("tiles", [])], default=0)
+                start_max_y = max([int(s.get("originY", 0)) + int(s.get("rows", 5)) for s in current_sets], default=tile_max_y)
+
+                harvested = harvest_image_terrain_tiles(image, tile_size=(grid.tile_width, grid.tile_height))
+                source_id_map: dict[str, str] = {}
+                sources_list = project.setdefault("sources", [])
+                tiles_list = project.setdefault("tiles", [])
+                for terrain_key, samples in harvested.items():
+                    if samples:
+                        best = samples[0]
+                        existing = next(
+                            (s for s in sources_list if s.get("x") == best.bounds[0] and s.get("y") == best.bounds[1]),
+                            None,
+                        )
+                        if existing:
+                            source_id_map[terrain_key] = str(existing.get("id"))
+                        else:
+                            new_source_id = uuid.uuid4().hex[:8]
+                            sources_list.append({
+                                "id": new_source_id,
+                                "name": f"{terrain_key.capitalize()} Cosechado",
+                                "x": best.bounds[0],
+                                "y": best.bounds[1],
+                                "width": best.bounds[2],
+                                "height": best.bounds[3],
+                            })
+                            tiles_list.append({
+                                "id": uuid.uuid4().hex[:8],
+                                "sourceId": new_source_id,
+                                "x": len(tiles_list) % 10,
+                                "y": tile_max_y + 1,
+                            })
+                            source_id_map[terrain_key] = new_source_id
+
+                new_ecosystem = generate_biome_ecosystem_sets(
+                    palette,
+                    kind=kind,
+                    start_y=start_max_y + 2,
+                    variant_count=max(1, min(5, int(active_set.get("variantCount", 3)))) if active_set else 3,
+                    harvested_tiles=harvested,
+                    source_id_map=source_id_map,
+                )
+                current_sets.extend(new_ecosystem)
+                project["sets"] = current_sets
+                project["activeSetId"] = new_ecosystem[0]["id"]
+                st.session_state[project_key] = project
+                st.toast("✅ Ecosistema de 3 sets creado con texturas del artista")
+                st.rerun()
+
+    if active_set is not None and active_set.get("blobMaterialMode") != "procedural":
         with st.expander("🎨 Bordes Redondeados, Contorno Retro y Texturas", expanded=True):
             r_col1, r_col2, r_col3, r_col4 = st.columns((1.5, 1.2, 2, 1.3), gap="small")
             max_r = max(1, min(grid.tile_width, grid.tile_height) // 2)
@@ -1063,12 +1188,14 @@ def _render_terrain_patterns() -> None:
             profile_idx = available_profiles.index(cast(TerrainEdgeProfile, cur_profile))
             profile_labels = {
                 "clean": "Borde limpio",
+                "organic_neutral": "Orgánico neutral",
                 "grass_over_dirt": "Pasto sobre tierra",
                 "dirt_over_water": "Tierra sobre agua",
                 "grass_over_water": "Pasto sobre agua",
                 "rounded_clean": "Bordes redondeados · limpio",
                 "rounded_grass_tufts": "Bordes redondeados · pasto",
                 "rounded_dither": "Bordes redondeados · dither",
+                "rounded_chamfer": "Bisel 45° · chamfer retro",
             }
             new_profile = r_col3.selectbox(
                 "Perfil de transición",
@@ -1087,17 +1214,161 @@ def _render_terrain_patterns() -> None:
                     key=f"{prefix}:set_edge_var:{active_set_id}",
                 )
             )
+            cur_variant_count = max(1, min(5, int(active_set.get("variantCount", 1))))
+            new_variant_count = cur_variant_count
+            cur_blob_mode = str(active_set.get("blobMode") or active_set.get("blob_mode") or "synthesis")
+            cur_drop_shadow = max(0, min(4, int(active_set.get("dropShadow") if active_set.get("dropShadow") is not None else (active_set.get("drop_shadow") or 0))))
+            cur_shadow_dir = str(active_set.get("shadowDirection") or active_set.get("shadow_direction") or "south")
+            cur_shadow_tint = str(active_set.get("shadowTint") or active_set.get("shadow_tint") or "cool")
+            raw_shadow_intensity = active_set.get("shadowIntensity") if active_set.get("shadowIntensity") is not None else active_set.get("shadow_intensity")
+            try:
+                cur_shadow_intensity = max(0.2, min(1.0, float(raw_shadow_intensity))) if raw_shadow_intensity is not None else 0.70
+            except (TypeError, ValueError):
+                cur_shadow_intensity = 0.70
+            cur_corner_style = str(active_set.get("cornerStyle") or active_set.get("corner_style") or "arc")
+            cur_rim_light = bool(active_set.get("rimLight") if "rimLight" in active_set else active_set.get("rim_light", False))
+            new_blob_mode = cur_blob_mode
+            new_drop_shadow = cur_drop_shadow
+            new_shadow_dir = cur_shadow_dir
+            new_shadow_tint = cur_shadow_tint
+            new_shadow_intensity = cur_shadow_intensity
+            new_corner_style = cur_corner_style
+            new_rim_light = cur_rim_light
+
+            if kind == "blob_47":
+                new_variant_count = int(
+                    st.select_slider(
+                        "Variantes orgánicas por máscara",
+                        options=(1, 2, 3, 4, 5),
+                        value=cur_variant_count,
+                        key=f"{prefix}:set_variant_count:{active_set_id}",
+                        help=(
+                            "Cada banco conserva los mismos peering bits. Cinco variantes "
+                            "producen hasta 235 tiles Blob compatibles entre sí."
+                        ),
+                    )
+                )
+                b_col1, b_col2, b_col3, b_col4 = st.columns((1.8, 1.4, 1.8, 1.4), gap="small")
+                blob_mode_options = ("synthesis", "manual_edges")
+                blob_mode_labels = {
+                    "synthesis": "Síntesis inteligente (1 o 2 tiles)",
+                    "manual_edges": "Bordes manuales (Legacy)",
+                }
+                new_blob_mode = b_col1.selectbox(
+                    "Modo Blob 47",
+                    blob_mode_options,
+                    index=0 if cur_blob_mode != "manual_edges" else 1,
+                    format_func=lambda m: blob_mode_labels.get(m, m),
+                    key=f"{prefix}:set_blob_mode:{active_set_id}",
+                    help="Síntesis inteligente genera las 47 formas desde tu tile base sin requerir recortar 4 bordes.",
+                )
+                if new_blob_mode == "synthesis":
+                    new_drop_shadow = int(
+                        b_col2.slider(
+                            "Sombra (px)",
+                            min_value=0,
+                            max_value=4,
+                            value=cur_drop_shadow,
+                            key=f"{prefix}:set_drop_shadow:{active_set_id}",
+                        )
+                    )
+                    shadow_dir_options = ("south", "south_east", "all_around")
+                    shadow_dir_labels = {
+                        "south": "Abajo (Sur)",
+                        "south_east": "Diagonal (Sur-Este)",
+                        "all_around": "Omnidireccional",
+                    }
+                    shadow_dir_idx = (
+                        shadow_dir_options.index(cur_shadow_dir)
+                        if cur_shadow_dir in shadow_dir_options
+                        else 0
+                    )
+                    new_shadow_dir = b_col3.selectbox(
+                        "Dirección de sombra",
+                        shadow_dir_options,
+                        index=shadow_dir_idx,
+                        format_func=lambda d: shadow_dir_labels.get(d, d),
+                        key=f"{prefix}:set_shadow_dir:{active_set_id}",
+                    )
+                    new_rim_light = bool(
+                        b_col4.checkbox(
+                            "Cresta de luz (Rim)",
+                            value=cur_rim_light,
+                            key=f"{prefix}:set_rim_light:{active_set_id}",
+                            help="Añade un resalte iluminado en la cresta superior expuesta.",
+                        )
+                    )
+                    c_col1, c_col2, c_col3 = st.columns((1.4, 1.4, 1.4), gap="small")
+                    corner_style_options = ("arc", "chamfer")
+                    corner_style_labels = {
+                        "arc": "Curvo suave (Arco)",
+                        "chamfer": "Bisel a 45° (Chamfer)",
+                    }
+                    new_corner_style = c_col1.selectbox(
+                        "Estilo de esquina",
+                        corner_style_options,
+                        index=0 if cur_corner_style != "chamfer" else 1,
+                        format_func=lambda s: corner_style_labels.get(s, s),
+                        key=f"{prefix}:set_corner_style:{active_set_id}",
+                    )
+                    shadow_tint_options = ("cool", "warm", "mystic", "neutral")
+                    shadow_tint_labels = {
+                        "cool": "Azul frío (Cool)",
+                        "warm": "Cálido / Ámbar (Warm)",
+                        "mystic": "Místico / Púrpura (Mystic)",
+                        "neutral": "Neutro monocromo",
+                    }
+                    shadow_tint_idx = (
+                        shadow_tint_options.index(cur_shadow_tint)
+                        if cur_shadow_tint in shadow_tint_options
+                        else 0
+                    )
+                    new_shadow_tint = c_col2.selectbox(
+                        "Tinte de sombra",
+                        shadow_tint_options,
+                        index=shadow_tint_idx,
+                        format_func=lambda t: shadow_tint_labels.get(t, t),
+                        key=f"{prefix}:set_shadow_tint:{active_set_id}",
+                    )
+                    new_shadow_intensity = float(
+                        c_col3.slider(
+                            "Intensidad de sombra",
+                            min_value=20,
+                            max_value=100,
+                            value=int(round(cur_shadow_intensity * 100)),
+                            step=5,
+                            format="%d%%",
+                            key=f"{prefix}:set_shadow_intensity:{active_set_id}",
+                        )
+                    ) / 100.0
             if (
                 new_r != cur_r
                 or new_outline != cur_outline
                 or new_profile != cur_profile
                 or new_var != cur_var
+                or new_variant_count != cur_variant_count
+                or new_blob_mode != cur_blob_mode
+                or new_drop_shadow != cur_drop_shadow
+                or new_shadow_dir != cur_shadow_dir
+                or new_shadow_tint != cur_shadow_tint
+                or abs(new_shadow_intensity - cur_shadow_intensity) > 0.01
+                or new_corner_style != cur_corner_style
+                or new_rim_light != cur_rim_light
             ):
                 active_set_dict = dict(active_set)
                 active_set_dict["cornerRadius"] = new_r
                 active_set_dict["retroOutline"] = new_outline
                 active_set_dict["terrainProfile"] = new_profile
                 active_set_dict["edgeVariation"] = new_var
+                if kind == "blob_47":
+                    active_set_dict["variantCount"] = new_variant_count
+                    active_set_dict["blobMode"] = new_blob_mode
+                    active_set_dict["dropShadow"] = new_drop_shadow
+                    active_set_dict["shadowDirection"] = new_shadow_dir
+                    active_set_dict["shadowTint"] = new_shadow_tint
+                    active_set_dict["shadowIntensity"] = new_shadow_intensity
+                    active_set_dict["cornerStyle"] = new_corner_style
+                    active_set_dict["rimLight"] = new_rim_light
                 for idx, s in enumerate(sets):
                     if isinstance(s, Mapping) and str(s.get("id", "")) == str(active_set_id):
                         sets[idx] = active_set_dict
@@ -1226,15 +1497,38 @@ def _render_terrain_patterns() -> None:
                     "Patrón completo. Puedes exportarlo, corregir variantes en el "
                     "compositor o seguir probándolo en el mapa."
                 )
-            bundle_col, png_col, guide_col, atlas_col = st.columns(4, gap="small")
-            bundle_col.download_button(
-                "Bundle Godot 4",
+            st.markdown("##### 📦 Exportadores para Motores de Videojuegos")
+            eng_col1, eng_col2, eng_col3 = st.columns(3, gap="small")
+            eng_col1.download_button(
+                "🎮 Bundle Godot 4 (.zip)",
                 data=build_terrain_pattern_bundle(result, terrain_name=terrain_name),
                 file_name=f"{safe_name}-godot.zip",
                 mime="application/zip",
                 width="stretch",
                 key=f"{prefix}:download_bundle",
+                help="Incluye terrain_tiles.png, install_terrain_tileset.gd y manifest con peering bits para Godot 4.",
             )
+            eng_col2.download_button(
+                "⚡ Unity RuleTile (.zip)",
+                data=build_unity_ruletile_bundle(result, terrain_name=terrain_name),
+                file_name=f"{safe_name}-unity-ruletile.zip",
+                mime="application/zip",
+                width="stretch",
+                key=f"{prefix}:download_unity_bundle",
+                help="Incluye atlas PNG, script editor CreateRuleTile.cs y RuleTileConfig.json para Unity 2D Tilemaps.",
+            )
+            eng_col3.download_button(
+                "🗺️ Tiled Map (.tsx .zip)",
+                data=build_tiled_bundle(result, terrain_name=terrain_name),
+                file_name=f"{safe_name}-tiled.zip",
+                mime="application/zip",
+                width="stretch",
+                key=f"{prefix}:download_tiled_bundle",
+                help="Incluye atlas PNG y archivo .tsx con WangSet preconfigurado para pintar con la brocha de terreno de Tiled.",
+            )
+
+            st.markdown("##### 🖼️ Recursos y Canvas")
+            png_col, guide_col, atlas_col = st.columns(3, gap="small")
             png_col.download_button(
                 "Tileset PNG",
                 data=_png_bytes(result.image),
@@ -1273,8 +1567,10 @@ def _render_terrain_patterns() -> None:
                 st.rerun()
         else:
             st.info(
-                "Importa Sources: Blob requiere un tile y sus cuatro Border "
-                "Sources; Wang requiere dos tiles y sus Border Sources. Dual "
+                "Blob procedural puede generarse desde Pattern Studio sin "
+                "Sources. Para una composición basada en arte importado, Blob "
+                "requiere un tile y sus cuatro Border Sources; Wang requiere "
+                "dos tiles y sus Border Sources. Dual "
                 "Grid requiere exactamente dos terrenos y no necesita Border "
                 "Sources para quedar listo."
             )
@@ -1326,6 +1622,7 @@ def _render_tileset_map_tester() -> None:
     kind = _ui_pattern_kind(active_set.get("kind", "dual_grid_15") if active_set else "dual_grid_15")
 
     pattern_image = None
+    pattern_result = None
     if image is not None:
         source_mappings = [s for s in project.get("sources", []) if isinstance(s, Mapping)] if isinstance(project, Mapping) else []
         pattern_result, _ = _build_terrain_pattern_safely(
@@ -1482,19 +1779,97 @@ def _render_tileset_map_tester() -> None:
         st.rerun()
 
     matrix = st.session_state[map_key]
-    if kind == "blob_47":
-        rendered = autotile_blob47(matrix, pattern_image, tile_size)
+    is_anim = bool(
+        getattr(pattern_result, "is_animated", False)
+        and getattr(pattern_result, "animation_frames_images", None)
+    )
+    if is_anim and pattern_result.animation_frames_images:
+        anim_rendered_frames = []
+        for frame_sheet in pattern_result.animation_frames_images:
+            if kind == "blob_47":
+                anim_rendered_frames.append(autotile_blob47(matrix, frame_sheet, tile_size))
+            else:
+                anim_rendered_frames.append(autotile_dual_grid(matrix, frame_sheet, tile_size))
+        rendered = anim_rendered_frames[0]
     else:
-        rendered = autotile_dual_grid(matrix, pattern_image, tile_size)
+        anim_rendered_frames = None
+        if kind == "blob_47":
+            rendered = autotile_blob47(matrix, pattern_image, tile_size)
+        else:
+            rendered = autotile_dual_grid(matrix, pattern_image, tile_size)
 
     stage_box = st.container(border=True)
     with stage_box:
         disp_width = rendered.width * zoom
-        st.image(
-            rendered,
-            caption=f"Vista previa de autotiling ({kind}) · {rendered.width}×{rendered.height} px · Zoom {zoom}×",
-            width=disp_width,
-        )
+        if anim_rendered_frames:
+            import streamlit.components.v1 as components_v1
+
+            frame_uris = [image_data_uri(f) for f in anim_rendered_frames]
+            frames_json = json.dumps(frame_uris)
+            fps = float(getattr(pattern_result, "animation_fps", 8.0))
+            anim_style_label = {
+                "shore_ripples": "Oleaje en costas y agua",
+                "water_waves": "Ondas de agua en superficie",
+                "lava_pulse": "Lava incandescente",
+                "wind_sway": "Vaivén de viento",
+            }.get(getattr(pattern_result, "animation_style", ""), "Agua y Oleaje")
+            html_code = f"""
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+              <canvas id="animMapCanvas" width="{rendered.width}" height="{rendered.height}"
+                      style="image-rendering:pixelated; width:{disp_width}px; height:{rendered.height * zoom}px; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.5);"></canvas>
+              <div style="display:flex; gap:12px; align-items:center; color:#94a3b8; font-size:12px; background:rgba(15,23,42,0.7); padding:4px 14px; border-radius:20px; border:1px solid rgba(255,255,255,0.08);">
+                <button id="togglePlayBtn" style="background:#2563eb; color:white; border:none; border-radius:6px; padding:3px 10px; cursor:pointer; font-weight:600; font-size:11px;">⏸ Pausa</button>
+                <span id="frameLabel" style="font-weight:600; color:#38bdf8;">Frame 1 / {len(anim_rendered_frames)}</span>
+                <span>•</span>
+                <span style="color:#e2e8f0;">{anim_style_label} · {fps:.1f} FPS</span>
+              </div>
+            </div>
+            <script>
+              const frameUris = {frames_json};
+              const images = frameUris.map(uri => {{
+                const img = new Image();
+                img.src = uri;
+                return img;
+              }});
+              let currentIdx = 0;
+              let isPlaying = true;
+              const canvas = document.getElementById('animMapCanvas');
+              const ctx = canvas.getContext('2d');
+              const frameLabel = document.getElementById('frameLabel');
+              const toggleBtn = document.getElementById('togglePlayBtn');
+
+              function draw() {{
+                const img = images[currentIdx];
+                if (img && img.complete) {{
+                  ctx.clearRect(0, 0, canvas.width, canvas.height);
+                  ctx.drawImage(img, 0, 0);
+                  frameLabel.textContent = `Frame ${{currentIdx + 1}} / ${{images.length}}`;
+                }}
+              }}
+              images[0].onload = draw;
+              draw();
+
+              setInterval(() => {{
+                if (isPlaying) {{
+                  currentIdx = (currentIdx + 1) % images.length;
+                  draw();
+                }}
+              }}, 1000.0 / {fps});
+
+              toggleBtn.onclick = () => {{
+                isPlaying = !isPlaying;
+                toggleBtn.textContent = isPlaying ? "⏸ Pausa" : "▶ Reanudar";
+                toggleBtn.style.background = isPlaying ? "#2563eb" : "#059669";
+              }};
+            </script>
+            """
+            components_v1.html(html_code, height=int(rendered.height * zoom + 55))
+        else:
+            st.image(
+                rendered,
+                caption=f"Vista previa de autotiling ({kind}) · {rendered.width}×{rendered.height} px · Zoom {zoom}×",
+                width=disp_width,
+            )
 
     active_cells = sum(sum(1 for c in row if c) for row in matrix)
     total_cells = map_w * map_h
@@ -1535,10 +1910,127 @@ def _render_tileset_map_tester() -> None:
     )
 
 
+def _render_tile_builder_guide() -> None:
+    """Render an interactive, collapsible guide for Tileset Builder workflows."""
+    with st.expander("📖 Guía de Uso del Tile Builder (Paso a Paso)", expanded=False):
+        selected_mod = st.radio(
+            "Módulos de Guía",
+            options=(
+                "🪄 1-Click Wizard",
+                "🎨 Procedural con Colores",
+                "📐 Selección Manual (Blob/Dual/Wang)",
+                "🌊 Tiles Animados",
+                "🗺️ Map Tester y Exportación",
+            ),
+            horizontal=True,
+            key="tile_builder_guide:active_module",
+            label_visibility="collapsed",
+        )
+
+        if selected_mod == "🪄 1-Click Wizard":
+            st.markdown(
+                """
+                ### 🪄 Módulo 1 · Asistente Rápido (1-Click Wizard)
+                **Crea un ecosistema completo de 3 sets funcionales a partir de una imagen de referencia.**
+
+                1. **Cargar Imagen**: En la pestaña **Atlas**, sube un mockup o referencia visual con biomas variados (pasto, agua, arena, caminos).
+                2. **Auto-cosecha Inteligente**: El algoritmo analiza la imagen con cuantización de color K-Means y detección de homogeneidad para cosechar automáticamente tiles limpios de cada bioma.
+                3. **Generar en 1 Clic**:
+                   - Ve a la pestaña **Pattern Studio** y despliega el **🪄 Asistente 1-Click**.
+                   - Pulsa **"Generar Ecosistema Completo (3 Sets)"**.
+                   - El asistente sintetizará simultáneamente:
+                     - 🌿 **Pasto sobre Tierra** (Blob 47 con variantes orgánicas).
+                     - 🏖️ **Tierra sobre Agua** (Blob 47 con sombra y ribete acuático).
+                     - 🌊 **Pasto sobre Agua** (Blob 47 con línea húmeda).
+                4. **Probar Mapa**: Cambia a **Map Tester** para pintar inmediatamente con tus nuevos terrenos.
+
+                > 💡 **Consejo**: Usa imágenes PNG nítidas a resolución nativa (ej. 16×16 o 32×32 px) y evita imágenes con compresión JPEG borrosa.
+                """
+            )
+        elif selected_mod == "🎨 Procedural con Colores":
+            st.markdown(
+                """
+                ### 🎨 Módulo 2 · Generador Procedural (Desde Colores Base)
+                **Genera autotiles orgánicos sin necesidad de dibujar ni importar texturas a mano.**
+
+                1. **Seleccionar Colores**:
+                   - En **Tile Properties**, activa la síntesis procedural.
+                   - Elige el **Terreno A** (capa superior, ej. pasto verde `#48A832`) y el **Terreno B** (capa de fondo, ej. tierra café `#8B5A2B` o agua azul `#2B65EC`).
+                2. **Elegir la Estrategia del Borde**:
+                   - **Orgánico neutral**: Ruido equilibrado para transiciones genéricas.
+                   - **Pasto sobre tierra**: Mechones salientes con sombra de raíz.
+                   - **Tierra sobre agua**: Silueta continua con ribete de espuma y banco de arena.
+                   - **Pasto sobre agua**: Borde de ribera con línea húmeda.
+                3. **Control de Volumen Pixel-Art**:
+                   - **Sombra Proyectada (0 a 4 px)**: Oclusión vertical u omnidireccional con *Shadow Cool Shift* (viraje sutil hacia tonos fríos).
+                   - **Cresta de Luz (Rim Light)**: Resalta el borde superior con brillo solar incidente para dar volumen tridimensional.
+                   - **Rugosidad y Semilla**: Ajusta la intensidad (0 a 3) y la semilla pseudo-aleatoria determinista.
+                """
+            )
+        elif selected_mod == "📐 Selección Manual (Blob/Dual/Wang)":
+            st.markdown(
+                """
+                ### 📐 Módulo 3 · Flujo Manual por Selección (Estilo Tilesetter)
+                **Asigna celdas dibujadas por ti en Aseprite, Photoshop o Pyxel Edit.**
+
+                * **Blob 47 (16/47 Máscaras)**: El estándar para terrenos 2D top-down y plataformas. Genera automáticamente 3 variantes por máscara (141 tiles en total) para evitar patrones repetitivos.
+                * **Dual Grid 15**: Cuadrícula de 4 esquinas desplazada medio tile (compatible con **TileMapDual** para Godot 4). Resuelve todas las transiciones con solo 15 tiles de esquina + 1 fondo lógico.
+                * **Wang 16**: Cuadrícula estructurada para caminos, dunas o puentes con empalmes de esquina/borde predecibles.
+
+                **Pasos**:
+                1. En **Atlas**, verifica el **Tile Size** (16×16, 32×32, etc.) y pulsa **Importar grilla** para registrar los tiles como *Sources*.
+                2. En **Pattern Studio**, selecciona el set deseado y asigna el Tile Base y los bordes.
+                3. *Atajo*: Si solo tienes el borde superior dibujado, pulsa **"Completar 4 por rotación"** para auto-generar Norte, Sur, Este y Oeste.
+                4. Pulsa **Build Borders** para compilar el atlas.
+                """
+            )
+        elif selected_mod == "🌊 Tiles Animados":
+            st.markdown(
+                """
+                ### 🌊 Módulo 4 · Autotiles Animados
+                **Añade dinamismo a ríos, costas, lava o follaje directamente en la textura sin shaders.**
+
+                1. **Elegir Perfil de Animación**:
+                   - `shore_ripples`: Oleaje que avanza y retrocede periódicamente contra la ribera.
+                   - `water_waves`: Ondulaciones continuas sinusoidales para aguas abiertas y lagos.
+                   - `lava`: Fluctuación pulsante con centros incandescentes y brillo térmico.
+                   - `wind`: Brisa oscilante en las briznas superiores de hierba.
+                2. **Configuración de Ciclo**:
+                   - **Frames por ciclo**: 4 frames predeterminados en bucle cerrado continuo (sin saltos).
+                   - **Velocidad (FPS)**: Configura entre 4 y 12 FPS según la fluidez o estética retro deseada.
+                3. **Visualización y Exportación**:
+                   - En **Map Tester**, activa el switch **"Animar mapa"** para ver los tiles en movimiento en tiempo real.
+                   - Al exportar, se generan bancos de frames sincronizados y metadata de tiempos en el manifiesto JSON y el script de Godot.
+                """
+            )
+        elif selected_mod == "🗺️ Map Tester y Exportación":
+            st.markdown(
+                """
+                ### 🗺️ Módulo 5 · Map Tester y Exportación Agnóstica
+                **Prueba tus mapas interactivamente y exporta bundles listos para cualquier motor.**
+
+                * **Herramientas de Map Tester**:
+                  - **Pinceles**: Dibujo libre, Cubo de pintura (flood fill) y Borrador.
+                  - **Generadores Procedurales**: Isla Orgánica (Simplex Noise), Mazmorra / Cavernas (Autómatas Celulares) y Plataformas.
+                  - **Exportar Mapa**: Descarga tu diseño como imagen PNG o matriz lógica JSON.
+
+                * **Contenido del Bundle ZIP Exportado**:
+                  - `terrain_tiles.png`: Spritesheet canónica con todos los tiles y bancos de variantes.
+                  - `terrain_bitmask_reference.png`: Hoja de referencia visual con los peering bits impresos sobre cada celda.
+                  - `terrain_pattern.json`: Manifiesto agnóstico con la estructura de bits, coordenadas UV, variantes y secuencias de animación.
+                  - `install_terrain_tileset.gd`: Script `@tool` para Godot 4 que crea automáticamente el recurso `TileSet` (`.tres`) con Terrains y animaciones configuradas.
+                  - `terrain_tileset.tsx`: Definición XML de tileset para Tiled Map Editor con Wang Sets.
+
+                > 📖 **Guía completa en Markdown**: Consulta también [`docs/tile-builder-guide.md`](docs/tile-builder-guide.md) para más detalles técnicos.
+                """
+            )
+
+
 def _render_tileset_builder() -> None:
     """Render the standalone Tilebuilder page and its authoring tabs."""
 
     st.subheader("Tileset Builder")
+    _render_tile_builder_guide()
     atlas_tab, patterns_tab, test_map_tab = st.tabs(("Atlas", "Pattern Studio", "Map Tester"))
     with atlas_tab:
         _render_tileset_atlas_editor()
@@ -1900,6 +2392,10 @@ def _history_label(scope: str, event: Mapping[str, Any]) -> str:
         if event_type == "guide":
             return "Mover línea de suelo"
         action = str(event.get("action", ""))
+        if action == "autocenter-all":
+            return "Autoalinear toda la hoja"
+        if action == "toggle-frame-lock":
+            return "Cambiar bloqueo de anchor"
         return "Auto Center" if action == "autocenter" else "Mover frame"
     if scope == "background":
         if event_type == "key" and str(event.get("key", "")).lower() in {"delete", "backspace"}:
@@ -3074,9 +3570,17 @@ def _alignment_export_readiness(
     frame_count: int,
 ) -> tuple[bool, str]:
     if not manifest:
-        return False, "Guarda primero la alineación actual en Auto Center."
-    if manifest.get("status") != "passed":
-        return False, "La alineación guardada todavía requiere revisión manual."
+        return False, "Guarda primero la alineación actual."
+    status = manifest.get("status")
+    if status == "failed":
+        return False, "La alineación guardada falló y no contiene una revisión utilizable."
+    warnings: list[str] = []
+    if status == "manual_review":
+        warnings.append(
+            "La alineación guardada todavía requiere revisión manual; se usará esa revisión."
+        )
+    elif status != "passed":
+        return False, "El estado de la alineación guardada no es válido."
     config = manifest.get("config")
     if not isinstance(config, dict):
         return False, "El manifest de alineación no contiene una configuración válida."
@@ -3088,15 +3592,49 @@ def _alignment_export_readiness(
     }
     for key, value in expected.items():
         if config.get(key) != value:
-            return False, "Auto Center cambió desde la última alineación guardada."
+            warnings.append(
+                "La configuración cambió desde la última alineación guardada; "
+                "se usarán los frames de esa revisión."
+            )
+            break
     frames = manifest.get("metadata", {}).get("frames", ())
     if not isinstance(frames, list) or len(frames) != frame_count:
         return False, "El manifest de alineación no coincide con los frames actuales."
     saved_locks = [bool(item.get("locked", False)) for item in frames if isinstance(item, dict)]
     if saved_locks != [bool(value) for value in locks]:
-        return False, "La aprobación de anchors cambió; vuelve a guardar Auto Center."
+        warnings.append(
+            "La aprobación de anchors cambió; se usará la aprobación guardada."
+        )
     if any(bool(item.get("manual_review", True)) for item in frames if isinstance(item, dict)):
-        return False, "La alineación guardada todavía contiene anchors en revisión."
+        warnings.append(
+            "La alineación guardada contiene anchors en revisión; la advertencia quedará "
+            "registrada al exportar."
+        )
+    return True, " ".join(dict.fromkeys(warnings))
+
+
+def _layout_export_readiness(
+    manifest: dict[str, Any] | None,
+    *,
+    alignment_record: Mapping[str, Any] | None,
+    frame_count: int,
+) -> tuple[bool, str]:
+    if not manifest or manifest.get("status") != "passed":
+        return False, "Guarda primero los cortes finales sobre la alineación aprobada."
+    config = manifest.get("config")
+    metadata = manifest.get("metadata")
+    outputs = manifest.get("outputs")
+    if not isinstance(config, dict) or not isinstance(metadata, dict):
+        return False, "El manifest de cortes finales no es válido."
+    if not alignment_record or config.get("alignment_cache_key") != alignment_record.get(
+        "cache_key"
+    ):
+        return False, "La alineación cambió desde que se guardaron los cortes finales."
+    regions = metadata.get("regions")
+    if not isinstance(outputs, list) or len(outputs) != frame_count:
+        return False, "Los cortes finales no coinciden con los frames alineados."
+    if not isinstance(regions, list) or len(regions) != frame_count:
+        return False, "Faltan regiones finales para uno o más frames."
     return True, ""
 
 
@@ -3751,6 +4289,26 @@ def _handle_center_editor_event(
             0.05,
             min(40.0, zoom),
         )
+    if event.get("type") == "frame-selection":
+        frame_index = int(event.get("frameIndex", -1))
+        if not 0 <= frame_index < count:
+            return False
+        st.session_state[f"{prefix}:center_pending_selected_frame"] = frame_index
+        return True
+    if event.get("type") == "crop":
+        shape = str(event.get("shape", "lasso"))
+        if shape not in {"lasso", "rect", "ellipse"}:
+            return False
+        selections = dict(st.session_state.get(f"{prefix}:pose_selections", {}))
+        selections[selected_frame] = {
+            "shape": shape,
+            "start": event.get("start"),
+            "end": event.get("end"),
+            "path": event.get("path", ()),
+        }
+        st.session_state[f"{prefix}:pose_selections"] = selections
+        st.session_state[f"{prefix}:pose_selection_notice"] = selected_frame
+        return True
     offsets = list(st.session_state.get(f"{prefix}:offsets", [(0, 0)] * count))
     if len(offsets) != count:
         offsets = [(0, 0)] * count
@@ -3778,18 +4336,44 @@ def _handle_center_editor_event(
     if event.get("type") != "toolbar":
         return False
     action = str(event.get("action", ""))
+    if action == "tool":
+        tool = str(event.get("tool", "move"))
+        if tool not in {"move", "crop_lasso", "crop_rect", "crop_ellipse"}:
+            return False
+        st.session_state[f"{prefix}:pose_layout_tool"] = tool
+        return True
     if action == "autocenter":
-        offsets[selected_frame] = (0, 0)
+        frame_index = max(
+            0,
+            min(count - 1, int(event.get("frameIndex", selected_frame))),
+        )
+        offsets[frame_index] = (0, 0)
         st.session_state[f"{prefix}:offsets"] = offsets
-        st.session_state[f"{prefix}:offset_x_widget:{selected_frame}"] = 0
-        st.session_state[f"{prefix}:offset_y_widget:{selected_frame}"] = 0
+        st.session_state[f"{prefix}:offset_x_widget:{frame_index}"] = 0
+        st.session_state[f"{prefix}:offset_y_widget:{frame_index}"] = 0
+        if frame_index != selected_frame:
+            st.session_state[f"{prefix}:center_pending_selected_frame"] = frame_index
         st.session_state[f"{prefix}:center_widget_sync"] = True
         return True
+    if action == "autocenter-all":
+        st.session_state[f"{prefix}:offsets"] = [(0, 0) for _ in range(count)]
+        for index in range(count):
+            st.session_state[f"{prefix}:offset_x_widget:{index}"] = 0
+            st.session_state[f"{prefix}:offset_y_widget:{index}"] = 0
+        st.session_state[f"{prefix}:center_widget_sync"] = True
+        st.session_state[f"{prefix}:center_autocenter_all_notice"] = count
+        return True
     if action == "reset-transform":
-        offsets[selected_frame] = (0, 0)
+        frame_index = max(
+            0,
+            min(count - 1, int(event.get("frameIndex", selected_frame))),
+        )
+        offsets[frame_index] = (0, 0)
         st.session_state[f"{prefix}:offsets"] = offsets
-        st.session_state[f"{prefix}:offset_x_widget:{selected_frame}"] = 0
-        st.session_state[f"{prefix}:offset_y_widget:{selected_frame}"] = 0
+        st.session_state[f"{prefix}:offset_x_widget:{frame_index}"] = 0
+        st.session_state[f"{prefix}:offset_y_widget:{frame_index}"] = 0
+        if frame_index != selected_frame:
+            st.session_state[f"{prefix}:center_pending_selected_frame"] = frame_index
         st.session_state[f"{prefix}:center_widget_sync"] = True
         return True
     if action == "zoom":
@@ -3820,6 +4404,27 @@ def _handle_center_editor_event(
         value = bool(event.get("showFrameGuide", True))
         st.session_state[f"{prefix}:center_show_frame_guide"] = value
         st.session_state[f"{prefix}:center_show_frame_guide_widget"] = value
+        return True
+    if action == "toggle-column-guides":
+        value = bool(event.get("showColumnGuides", True))
+        st.session_state[f"{prefix}:center_show_column_guides"] = value
+        st.session_state[f"{prefix}:center_show_column_guides_widget"] = value
+        return True
+    if action == "toggle-row-guides":
+        value = bool(event.get("showRowGuides", True))
+        st.session_state[f"{prefix}:center_show_row_guides"] = value
+        st.session_state[f"{prefix}:center_show_row_guides_widget"] = value
+        return True
+    if action == "toggle-frame-lock":
+        frame_index = int(event.get("frameIndex", selected_frame))
+        locks = list(st.session_state.get(f"{prefix}:locks", [False] * count))
+        if not 0 <= frame_index < count or len(locks) != count:
+            return False
+        value = bool(event.get("locked", not locks[frame_index]))
+        locks[frame_index] = value
+        st.session_state[f"{prefix}:locks"] = locks
+        st.session_state[f"{prefix}:locked:{frame_index}"] = value
+        st.session_state[f"{prefix}:center_pending_selected_frame"] = frame_index
         return True
     if action == "toggle-ground-line":
         value = bool(event.get("showGroundLine", False))
@@ -4114,6 +4719,8 @@ def _ensure_center_guide_state(
         "center_guide_opacity": 0.7,
         "center_show_cell_center": True,
         "center_show_frame_guide": True,
+        "center_show_column_guides": True,
+        "center_show_row_guides": True,
         "center_show_ground_line": False,
         "center_ground_line_y": default_ground_line_y,
         "center_show_body_anchor": True,
@@ -4281,6 +4888,36 @@ def _stable_ui_signature(value: Any) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _background_processing_signature(
+    session: Any,
+    config: BackgroundRemovalConfig,
+    manual_operations: Mapping[int, Sequence[Mapping[str, Any]]],
+) -> str:
+    return _stable_ui_signature(
+        {
+            "source_sha256": session.source_sha256,
+            "background": config.to_dict(),
+            "manual_operations": manual_operations,
+        }
+    )
+
+
+def _background_saved_for_processing(
+    store: SheetSessionStore,
+    session: Any,
+    *,
+    processing_signature: str,
+) -> bool:
+    manifest = _load_stage_manifest(store, session, "background")
+    return bool(
+        manifest
+        and manifest.get("status") == "passed"
+        and manifest.get("metadata", {}).get("processing_signature")
+        == processing_signature
+        and len(manifest.get("outputs", ())) == 1
+    )
+
+
 def _ensure_sheet_processing(
     session: Any,
     source: Image.Image,
@@ -4311,7 +4948,10 @@ def _ensure_sheet_processing(
         if isinstance(cached_background, Image.Image) and cached_segmentation is not None:
             return cached_background, cached_segmentation, signature
 
-    background_source = apply_background_removal((source,), background_config)[0]
+    background_reports: list[dict[str, Any]] = []
+    background_source = apply_background_removal(
+        (source,), background_config, reports=background_reports
+    )[0]
     background_source = apply_manual_background_edits(
         (background_source,),
         manual_operations,
@@ -4325,6 +4965,7 @@ def _ensure_sheet_processing(
         "signature": signature,
         "background_source": background_source,
         "segmentation": segmentation,
+        "background_reports": background_reports,
     }
     return background_source, segmentation, signature
 
@@ -4718,6 +5359,11 @@ def main() -> None:
         fringe_cleanup_strength=fringe,
         remove_near_transparent=remove_near,
         preserve_outline=preserve_outline,
+        unmix_enabled=session.background_removal_config.unmix_enabled,
+        unmix_reach=session.background_removal_config.unmix_reach,
+        unmix_fringe_tolerance=session.background_removal_config.unmix_fringe_tolerance,
+        unmix_tint_threshold=session.background_removal_config.unmix_tint_threshold,
+        spill_max_fraction=session.background_removal_config.spill_max_fraction,
     )
 
     with st.sidebar.expander("📐 Configuración de Grid", expanded=False):
@@ -4993,14 +5639,27 @@ def main() -> None:
     except ValueError:
         resolved_cell = source.size
 
-    feet_auto_align_key = f"{session.session_id}:feet_auto_align"
-    st.session_state.setdefault(
-        feet_auto_align_key,
-        session.auto_center_config.method == "feet",
-    )
-    feet_auto_align = bool(st.session_state[feet_auto_align_key])
+    feet_auto_align = False
 
-    st.sidebar.markdown("### Auto Center")
+    st.sidebar.markdown("### Alineación multi-anchor")
+    profile_options = ("idle", "walk", "attack")
+    saved_profile = str(getattr(session.auto_center_config, "alignment_profile", "walk"))
+    alignment_profile = str(
+        st.sidebar.segmented_control(
+            "Perfil de animación",
+            profile_options,
+            default=saved_profile if saved_profile in profile_options else "walk",
+            required=True,
+            format_func=lambda value: str(value).capitalize(),
+            key=f"{session.session_id}:alignment_profile",
+            width="stretch",
+            help=(
+                "Idle prioriza torso; Walk combina pelvis y soporte; "
+                "Attack estabiliza el núcleo sin dejar que arma o VFX lo arrastren."
+            ),
+        )
+        or "walk"
+    )
     auto_canvas = st.sidebar.toggle(
         "Canvas igual a celda",
         value=True,
@@ -5034,28 +5693,19 @@ def main() -> None:
     if auto_canvas:
         canvas_col1.metric("Canvas W", canvas_width)
         canvas_col2.metric("Canvas H", canvas_height)
-    if feet_auto_align:
-        method_label = "Feet / ground support"
-        st.sidebar.info(
-            "Método activo: soporte de pies. Sólo traslada pixels y amplía el canvas."
-        )
-    else:
-        method_label = st.sidebar.radio(
-            "Método",
-            ("Body / torso anchor", "Bounding box simple"),
-            index=0 if session.auto_center_config.method == "body" else 1,
-            key=f"{session.session_id}:center_method",
-        )
+    st.sidebar.caption(
+        "Pelvis, torso, soporte, hombros y cabeza se evalúan juntos. "
+        "La corrección geométrica sigue siendo traslación X/Y entera."
+    )
     auto_target = st.sidebar.toggle(
         "Anchor recomendado",
         value=True,
         key=f"{session.session_id}:auto_target",
     )
     anchor_col1, anchor_col2 = st.sidebar.columns(2)
-    recommended_anchor_y = (
-        round(canvas_height * 0.8125)
-        if feet_auto_align
-        else round(canvas_height * 0.55)
+    recommended_anchor_y = round(
+        canvas_height
+        * {"idle": 0.60, "walk": 0.8125, "attack": 0.62}[alignment_profile]
     )
     canonical_anchor = (
         (canvas_width // 2, recommended_anchor_y)
@@ -5101,21 +5751,15 @@ def main() -> None:
         )
     )
     st.sidebar.markdown("#### Escala del personaje")
-    if feet_auto_align:
-        normalize_scale = False
-        st.sidebar.caption(
-            "Escala bloqueada en 1:1 mientras la alineación por pies está activa."
-        )
-    else:
-        normalize_scale = st.sidebar.toggle(
-            "Normalizar por torso/cuerpo",
-            value=bool(session.auto_center_config.normalize_scale),
-            help=(
-                "Ajusta cada frame al tamaño canónico del personaje antes de anclarlo. "
-                "Las extensiones finas, como un báculo elevado, no cambian la escala."
-            ),
-            key=f"{session.session_id}:normalize_scale",
-        )
+    normalize_scale = st.sidebar.toggle(
+        "Normalizar por torso/cuerpo",
+        value=bool(session.auto_center_config.normalize_scale),
+        help=(
+            "Etapa opcional y separada de la alineación. Ajusta cada frame al tamaño "
+            "canónico antes de aplicar la traslación multi-anchor."
+        ),
+        key=f"{session.session_id}:normalize_scale",
+    )
     target_body_height_px: int | None = None
     scale_tolerance_px = float(session.auto_center_config.scale_tolerance_px)
     scale_min_ratio = float(session.auto_center_config.scale_min_ratio)
@@ -5162,13 +5806,7 @@ def main() -> None:
                 )
             )
     center_config = AutoCenterConfig(
-        method=(
-            "feet"
-            if feet_auto_align
-            else "body"
-            if method_label.startswith("Body")
-            else "bounding_box"
-        ),
+        method="multi_anchor",
         canvas_width=canvas_width,
         canvas_height=canvas_height,
         canonical_anchor=canonical_anchor,
@@ -5179,12 +5817,15 @@ def main() -> None:
         scale_min_ratio=scale_min_ratio,
         scale_max_ratio=scale_max_ratio,
         scale_reference=scale_reference,
+        alignment_profile=alignment_profile,
     )
 
     background_source = source
     segmentation = None
     background_frames: tuple[Image.Image, ...] = ()
     working_frames: tuple[Image.Image, ...] = ()
+    background_processing_signature = ""
+    background_saved = False
     centered = None
     center_analysis: CenteringAnalysis | None = None
     center_error: str | None = None
@@ -5203,6 +5844,16 @@ def main() -> None:
             background_config,
             segmentation_config,
             st.session_state[f"{prefix}:background_manual_ops"],
+        )
+        background_processing_signature = _background_processing_signature(
+            session,
+            background_config,
+            st.session_state[f"{prefix}:background_manual_ops"],
+        )
+        background_saved = _background_saved_for_processing(
+            store,
+            session,
+            processing_signature=background_processing_signature,
         )
         background_frames = segmentation.frames
         working_frames = background_frames
@@ -5316,39 +5967,62 @@ def main() -> None:
         else:
             st.caption("Historial listo · cada pincelada o drag cuenta como una acción")
 
-    background_tab, sheet_tab, align_tab, studio_tab, export_tab = st.tabs(
+    segmentation_saved = False
+    stage_labels = (
+        ("Fondo", "background"),
+        ("Preparar", "segmentation"),
+        ("Capas de alineación", "artwork"),
+        ("Alineación", "alignment"),
+        ("Cortes", "layout"),
+        ("Export", "export"),
+    )
+    stage_parts: list[str] = []
+    for label, stage_name in stage_labels:
+        record = session.stages.get(stage_name)
+        if not record:
+            state = "Pendiente"
+        elif record.get("status") == "passed":
+            state = "Lista" if label in {"Preparar", "Alineación"} else "Listo"
+        elif record.get("status") == "manual_review":
+            state = "Revisión"
+        else:
+            state = "Desactualizado"
+        stage_parts.append(f"**{label}** · {state}")
+    with st.container(border=True):
+        st.caption("  →  ".join(stage_parts))
+        available_artifacts = ["original"]
+        if session.stages.get("background", {}).get("status") == "passed":
+            available_artifacts.append("transparente completo")
+        if session.stages.get("alignment", {}).get("status") == "passed":
+            available_artifacts.append("derivado alineado")
+        if session.stages.get("layout", {}).get("status") == "passed":
+            available_artifacts.append("corte final")
+        st.caption("Linaje disponible: " + " → ".join(available_artifacts))
+    background_tab, prepare_tab, align_tab, cuts_tab, export_tab = st.tabs(
         (
             "1. Fondo",
-            "2. Segmentación",
-            "3. Alineación & Anchors",
-            "4. Studio",
+            "2. Preparar poses",
+            "3. Alineación & anchors",
+            "4. Cortes finales",
             "5. Export",
         )
     )
+    # Provisional regions and optional anatomy edits are one preparation stage.
+    sheet_tab = prepare_tab
+    studio_tab = align_tab
     history_notice_key = f"{session.session_id}:editor_history_notice"
     if history_notice_key in st.session_state:
         st.toast(str(st.session_state.pop(history_notice_key)))
 
     with sheet_tab:
-        st.subheader("Carga y segmentación")
+        st.subheader("Mapa provisional de poses")
         with st.container(border=True):
-            feet_toggle_col, feet_copy_col = st.columns((1, 2.4), gap="large")
-            with feet_toggle_col:
-                st.toggle(
-                    "Auto alinear por pies",
-                    key=feet_auto_align_key,
-                    help=(
-                        "Detecta el soporte inferior de la figura, alinea todos los frames "
-                        "a la misma línea de suelo y amplía el canvas cuando haga falta."
-                    ),
-                )
-            with feet_copy_col:
-                st.markdown("**Alineación 1:1 sin reescalado**")
-                st.caption(
-                    "Usa el borde inferior del cuerpo como anchor. Manos, penacho y báculo "
-                    "pueden extenderse libremente. Aumenta Canvas W/H si necesitas conservar "
-                    "lo que sobresale."
-                )
+            st.markdown("**Detección previa, no corte final**")
+            st.caption(
+                "Usa el grid aproximado y el número conocido de frames para asignar cada pose. "
+                "La hoja se alineará después y sus regiones definitivas se guardarán en "
+                "Cortes finales."
+            )
         if segmentation:
             prefix = session.session_id
             _ensure_segmentation_cut_controls_state(session)
@@ -5436,10 +6110,13 @@ def main() -> None:
                 session,
                 processing_signature=processing_signature,
                 frame_count=len(segmentation.frames),
-            )
+            ) and background_saved
+            if not background_saved:
+                st.info("Guarda primero la remoción de fondo actual en el paso 1.")
             if st.button(
-                "Guardar segmentación",
+                "Guardar mapa provisional",
                 type="primary",
+                disabled=not background_saved,
                 key=f"{session.session_id}:save_segmentation",
             ):
                 if not segmentation_saved:
@@ -5456,14 +6133,17 @@ def main() -> None:
                     config=segmentation_config.to_dict(),
                     warnings=segmentation.warnings,
                     metadata={
+                        "kind": "provisional_pose_map",
                         "regions": [list(region) for region in segmentation.regions],
                         "resolved_config": segmentation.resolved_config.to_dict(),
                         "empty_frames": list(segmentation.empty_frames),
                         "processing_signature": processing_signature,
                     },
                 )
-                segmentation_saved = True
-                st.success("Segmentación guardada como intento inmutable.")
+                st.session_state[history_notice_key] = (
+                    "Mapa provisional guardado; alineación recalculada."
+                )
+                st.rerun()
 
             if feet_auto_align and not segmentation_saved:
                 st.info(
@@ -5478,11 +6158,11 @@ def main() -> None:
                 and center_analysis is not None
             ):
                 with st.container(border=True):
-                    st.markdown("#### Mover y recortar cada frame")
+                    st.markdown("#### Seleccionar y mover cada pose")
                     st.caption(
-                        "Selecciona un frame y arrastra el personaje. La celda permanece "
-                        "fija; al soltar, lo que quede fuera del marco se recorta. "
-                        "La imagen nunca se escala."
+                        "Usa lazo, rectángulo o elipse para delimitar una pose cuando haga falta. "
+                        "Después usa Mover y arrástrala libremente. Los offsets y la selección son "
+                        "no destructivos; el corte real ocurre en Cortes finales."
                     )
                     crop_result = auto_center_frames(
                         working_frames,
@@ -5519,12 +6199,15 @@ def main() -> None:
                         cell_size=(center_config.canvas_width, center_config.canvas_height),
                     )
                     crop_offset = st.session_state[f"{prefix}:offsets"][crop_selected]
+                    pose_tool_key = f"{prefix}:pose_layout_tool"
+                    if pose_tool_key not in st.session_state:
+                        st.session_state[pose_tool_key] = "move"
                     crop_event = pixel_editor(
                         crop_canvas,
                         overlay=crop_overlay,
                         sample=None,
-                        tool="drag",
-                        mode="segmentation-center",
+                        tool=str(st.session_state[pose_tool_key]),
+                        mode="pose-layout",
                         zoom=float(
                             st.session_state.get(
                                 f"{prefix}:center_zoom:{crop_selected}",
@@ -5548,6 +6231,8 @@ def main() -> None:
                             f"{prefix}:sheet-crop:{crop_selected}:"
                             f"offset:{crop_offset[0]}:{crop_offset[1]}"
                         ),
+                        active_frame=crop_selected,
+                        frame_count=len(crop_result.frames),
                         **_history_controls(session),
                         key=f"{prefix}:sheet_crop_editor",
                     )
@@ -5572,6 +6257,18 @@ def main() -> None:
                         )
                     if crop_changed and crop_event and crop_event.get("type") == "transform":
                         st.rerun()
+                    if crop_changed and crop_event and (
+                        crop_event.get("type") == "crop"
+                        or (
+                            crop_event.get("type") == "toolbar"
+                            and crop_event.get("action") == "tool"
+                        )
+                    ):
+                        st.rerun()
+                    if st.session_state.pop(f"{prefix}:pose_selection_notice", None) == crop_selected:
+                        st.success(
+                            "Selección guardada como guía no destructiva. Usa M para mover."
+                        )
 
                     crop_adjustment = crop_result.adjustments[crop_selected]
                     crop_metric_col, reset_col, save_col = st.columns((1.2, 1, 1.35))
@@ -5700,8 +6397,33 @@ def main() -> None:
                 help="Amplía el área de trabajo sin ocultar la navegación ni los ajustes globales.",
             )
             _set_editor_width_mode(wide_mode)
+            grid_col, grid_size_col = st.columns((1, 1))
+            with grid_col:
+                show_pixel_grid = st.toggle(
+                    "Capa grid",
+                    value=bool(
+                        st.session_state.get(f"{prefix}:background_show_pixel_grid", False)
+                    ),
+                    key=f"{prefix}:background_show_pixel_grid",
+                    help="Muestra una cuadrícula visual; no modifica ni se exporta con la imagen.",
+                )
+            with grid_size_col:
+                pixel_grid_size = st.selectbox(
+                    "Tamaño del grid",
+                    (16, 32, 64, 128),
+                    index=(16, 32, 64, 128).index(
+                        int(st.session_state.get(f"{prefix}:background_pixel_grid_size", 16))
+                    ),
+                    format_func=lambda value: f"{value} px",
+                    key=f"{prefix}:background_pixel_grid_size",
+                    disabled=not show_pixel_grid,
+                )
             tool_key = f"{prefix}:background_tool"
             brush_key = f"{prefix}:background_brush_radius"
+            if st.session_state.get(tool_key) in {
+                "move", "crop_lasso", "crop_rect", "crop_ellipse"
+            }:
+                st.session_state[tool_key] = "wand"
             selected_bg = 0
             sampled_rgba = st.session_state[f"{prefix}:background_sampled_color"]
             manual_tolerance = float(
@@ -5780,6 +6502,8 @@ def main() -> None:
                     brush_radius=int(st.session_state[brush_key]),
                     wand_tolerance=int(manual_tolerance),
                     wand_contiguous=contiguous,
+                    show_pixel_grid=show_pixel_grid,
+                    pixel_grid_size=int(pixel_grid_size),
                     palette_colors=bg_palette,
                     floating_selection=floating_piece,
                     floating_highlight=floating_highlight,
@@ -5995,32 +6719,49 @@ def main() -> None:
             if st.button(
                 "Guardar remoción de fondo",
                 type="primary",
-                disabled=floating_piece is not None,
+                disabled=floating_piece is not None or bool(processing_error),
                 key=f"{session.session_id}:save_background",
             ):
                 session.background_removal_config = background_config
+                processing_cache = st.session_state.get(
+                    f"{prefix}:sheet_processing_cache", {}
+                )
+                background_metadata: dict[str, Any] = {
+                    "processing_signature": background_processing_signature,
+                    "manual_edit_operations": {
+                        str(index): list(items)
+                        for index, items in st.session_state[
+                            f"{prefix}:background_manual_ops"
+                        ].items()
+                        if items
+                    }
+                }
+                if isinstance(processing_cache, dict) and processing_cache.get(
+                    "background_reports"
+                ):
+                    background_metadata["background_removal"] = {
+                        "frames": list(processing_cache["background_reports"])
+                    }
                 store.commit_stage(
                     session,
                     "background",
                     [background_source],
                     config=background_config.to_dict(),
-                    metadata={
-                        "manual_edit_operations": {
-                            str(index): list(items)
-                            for index, items in st.session_state[
-                                f"{prefix}:background_manual_ops"
-                            ].items()
-                            if items
-                        }
-                    },
+                    metadata=background_metadata,
                 )
-                st.success("Frames transparentes guardados.")
+                st.session_state[history_notice_key] = (
+                    "Hoja transparente guardada; ya puedes preparar las poses."
+                )
+                st.rerun()
         else:
             st.info("No hay un resultado de fondo válido todavía.")
 
     with studio_tab:
-        st.subheader("Sprite Studio · capas y cels")
-        if not background_frames:
+        st.divider()
+        st.subheader("Estudio de capas · alineación")
+        if not segmentation_saved:
+            st.info("Guarda primero el mapa provisional de poses.")
+        elif not background_frames:
             st.info("Configura la segmentación para crear el documento de capas.")
         else:
             document: LayeredSpriteDocument | None = None
@@ -6115,16 +6856,16 @@ def main() -> None:
                     current_cache_key and current_cache_key == published_cache_key
                 )
                 pipeline_state = (
-                    "publicada para Auto Center"
+                    "publicada para alineación"
                     if artwork_is_current
-                    else "pendiente de publicar a Auto Center"
+                    else "pendiente de publicar a alineación"
                 )
                 st.markdown(
                     f"""
                     <div class="studio-toolbar">
                       <div>
                         <div class="studio-toolbar-title">Área de trabajo de sprites</div>
-                        <div class="studio-toolbar-copy">La revisión de capas se guarda al editar. Publica cuando quieras que Auto Center use esta revisión.</div>
+                        <div class="studio-toolbar-copy">La revisión de capas se guarda al editar. Publica cuando quieras que la alineación use esta revisión.</div>
                       </div>
                       <div class="studio-summary">
                         <span>{document.canvas_width} × {document.canvas_height}px</span>
@@ -6273,7 +7014,7 @@ def main() -> None:
                                 "reference",
                             )
                             role = st.selectbox(
-                                "Rol para Auto Center",
+                                "Rol en alineación",
                                 role_options,
                                 index=role_options.index(active_layer.role),
                                 key=f"{prefix}:layer_role:{active_layer_id}",
@@ -6848,7 +7589,7 @@ def main() -> None:
                         shift_y = moved.offset_y - previous.offset_y if moved and previous else 0
                         old_center = session.auto_center_config
                         session.auto_center_config = AutoCenterConfig(
-                            method=old_center.method,
+                            method="multi_anchor",
                             canvas_width=expanded.canvas_width,
                             canvas_height=expanded.canvas_height,
                             canonical_anchor=(
@@ -6864,6 +7605,7 @@ def main() -> None:
                             scale_min_ratio=old_center.scale_min_ratio,
                             scale_max_ratio=old_center.scale_max_ratio,
                             scale_reference=old_center.scale_reference,
+                            alignment_profile=alignment_profile,
                         )
                         _save_layer_document_with_history(
                             store,
@@ -6875,16 +7617,16 @@ def main() -> None:
                         )
                         st.rerun()
                 with publish_tools, st.container(border=True):
-                    st.markdown("**Publicación para Auto Center**")
+                    st.markdown("**Publicación para alineación**")
                     if artwork_is_current:
-                        st.success("Auto Center ya usa esta revisión de capas.")
+                        st.success("La alineación ya usa esta revisión de capas.")
                     else:
                         st.warning(
-                            "Auto Center sigue usando la última versión publicada. "
+                            "La alineación sigue usando la última versión publicada. "
                             "Publica esta revisión cuando el retoque esté listo."
                         )
                     if st.button(
-                        "Publicar capas para Auto Center",
+                        "Publicar capas para alineación",
                         type="primary",
                         width="stretch",
                         key=f"{prefix}:publish_layer_document",
@@ -6896,13 +7638,19 @@ def main() -> None:
                             reason="publish-to-pipeline",
                         )
                         st.success(
-                            "Capas publicadas: Auto Center usará esta revisión "
+                            "Capas publicadas: la alineación usará esta revisión "
                             "en el siguiente cálculo."
                         )
                         st.rerun()
 
     with align_tab:
-        st.subheader("Segmentación y centrado manual")
+        st.subheader("Alineación multi-anchor")
+        st.caption(
+            f"Perfil activo: **{alignment_profile}** · sólo traslación X/Y entera. "
+            "Cian estabiliza, ámbar valida y magenta muestra el anchor fusionado."
+        )
+        if not segmentation_saved:
+            st.info("Guarda primero el mapa provisional en Preparar poses.")
         if centered:
             prefix = session.session_id
             if f"{prefix}:center_guides" not in st.session_state:
@@ -6930,7 +7678,16 @@ def main() -> None:
             if review_count:
                 st.warning(
                     f"Hay {review_count} anchor(s) de baja confianza. "
-                    "Revísalos y apruébalos antes de exportar."
+                    "Puedes continuar; la exportación conservará la advertencia."
+                )
+            pending_selected = st.session_state.pop(
+                f"{prefix}:center_pending_selected_frame",
+                None,
+            )
+            if pending_selected is not None:
+                st.session_state[f"{prefix}:selected_frame"] = max(
+                    0,
+                    min(len(preview_crop.frames) - 1, int(pending_selected)),
                 )
             selected = st.selectbox(
                 "Frame",
@@ -6942,6 +7699,9 @@ def main() -> None:
                 len(preview_crop.frames),
                 segmentation_config.columns,
             )
+            sheet_rows = (
+                len(preview_crop.frames) + sheet_columns - 1
+            ) // sheet_columns
             selected_frame = preview_crop.frames[selected]
             selected_home = _alignment_frame_position(preview_crop.frames, selected, sheet_columns)
             selected_offset = st.session_state[f"{prefix}:offsets"][selected]
@@ -6990,6 +7750,15 @@ def main() -> None:
                 "La previsualización y la edición viven en el mismo canvas. "
                 "Arrastra el frame activo dentro de la grilla para reajustarlo."
             )
+            autocenter_all_notice = st.session_state.pop(
+                f"{prefix}:center_autocenter_all_notice",
+                None,
+            )
+            if autocenter_all_notice:
+                st.success(
+                    f"Autoalineación multi-anchor aplicada a "
+                    f"{int(autocenter_all_notice)} frames."
+                )
             center_zoom_key = f"{prefix}:center_zoom:{selected}"
             has_persisted_zoom = center_zoom_key in st.session_state
             center_zoom = max(
@@ -7018,6 +7787,17 @@ def main() -> None:
                 show_frame_guide=bool(
                     st.session_state[f"{prefix}:center_show_frame_guide"]
                 ),
+                show_column_guides=bool(
+                    st.session_state[f"{prefix}:center_show_column_guides"]
+                ),
+                show_row_guides=bool(
+                    st.session_state[f"{prefix}:center_show_row_guides"]
+                ),
+                grid_columns=sheet_columns,
+                grid_rows=sheet_rows,
+                active_frame=selected,
+                frame_count=len(preview_crop.frames),
+                frame_locks=st.session_state[f"{prefix}:locks"],
                 show_ground_line=bool(
                     st.session_state[f"{prefix}:center_show_ground_line"]
                 ),
@@ -7047,6 +7827,7 @@ def main() -> None:
                 ),
                 allow_drag=True,
                 show_autocenter=True,
+                show_autocenter_all=True,
                 show_autocrop=True,
                 fit_on_load=not has_persisted_zoom,
                 fit_token=(
@@ -7072,7 +7853,7 @@ def main() -> None:
                 home_offset=selected_home,
                 base_manual_offset=selected_offset,
             )
-            if changed and event:
+            if changed and event and event.get("type") != "frame-selection":
                 _record_editor_history(
                     session,
                     scope="center",
@@ -7081,10 +7862,16 @@ def main() -> None:
                     after=_center_history_snapshot(prefix),
                 )
             if changed and event and (
-                event.get("type") == "transform"
+                event.get("type") in {"transform", "frame-selection"}
                 or (
                     event.get("type") == "toolbar"
-                    and event.get("action") in {"autocenter", "reset-transform"}
+                    and event.get("action")
+                    in {
+                        "autocenter",
+                        "autocenter-all",
+                        "reset-transform",
+                        "toggle-frame-lock",
+                    }
                 )
             ):
                 # Auto Center was computed before the component event. Confirm the
@@ -7092,8 +7879,9 @@ def main() -> None:
                 # control receives the same offset without requiring a second drag.
                 st.rerun()
             if st.button(
-                "Fijar frame",
+                "Guardar alineación",
                 type="primary",
+                disabled=not segmentation_saved,
                 key=f"{session.session_id}:save_center",
             ):
                 _ensure_adjustment_state(session, len(working_frames))
@@ -7157,6 +7945,24 @@ def main() -> None:
                 width="stretch",
                 hide_index=True,
             )
+            if adjustment_anchors := centered.adjustments[selected].anchors:
+                st.markdown("#### Anchors del frame activo")
+                st.dataframe(
+                    [
+                        {
+                            "anchor": anchor.name,
+                            "rol": anchor.role,
+                            "x": round(anchor.position[0], 2),
+                            "y": round(anchor.position[1], 2),
+                            "confianza": round(anchor.confidence, 3),
+                            "peso_x": anchor.weight_x,
+                            "peso_y": anchor.weight_y,
+                        }
+                        for anchor in adjustment_anchors
+                    ],
+                    width="stretch",
+                    hide_index=True,
+                )
             with st.expander("Reporte de jitter"):
                 st.json(centered.jitter_report)
             adjustment = centered.adjustments[selected]
@@ -7227,6 +8033,17 @@ def main() -> None:
                     guide_col2.checkbox(
                         "Frame móvil",
                         key=f"{prefix}:center_show_frame_guide_widget",
+                        disabled=not guides_enabled,
+                    )
+                    axis_col1, axis_col2 = st.columns(2)
+                    axis_col1.checkbox(
+                        "Centros de columnas (X)",
+                        key=f"{prefix}:center_show_column_guides_widget",
+                        disabled=not guides_enabled,
+                    )
+                    axis_col2.checkbox(
+                        "Centros de filas (Y)",
+                        key=f"{prefix}:center_show_row_guides_widget",
                         disabled=not guides_enabled,
                     )
                     st.checkbox(
@@ -7348,8 +8165,9 @@ def main() -> None:
                     )
                     st.rerun()
             if st.button(
-                "Guardar overrides",
+                "Guardar correcciones manuales",
                 type="primary",
+                disabled=not segmentation_saved,
                 key=f"{prefix}:save_overrides",
             ):
                 _ensure_adjustment_state(session, len(working_frames))
@@ -7387,6 +8205,146 @@ def main() -> None:
                 st.success("Overrides guardados como una nueva revisión.")
         else:
             st.info("Completa el procesamiento automático antes del ajuste fino.")
+
+    with cuts_tab:
+        st.subheader("Cortes finales sobre la hoja alineada")
+        st.caption(
+            "Las regiones se calculan después de reubicar las poses. Todas usan la misma "
+            "celda y no se aplica escala, rotación ni resampling."
+        )
+        if not centered:
+            st.info("Completa primero la preparación y la alineación.")
+        else:
+            prefix = session.session_id
+            _ensure_export_crop_state(session)
+            alignment_manifest = _load_stage_manifest(store, session, "alignment")
+            alignment_ready, alignment_reason = _alignment_export_readiness(
+                alignment_manifest,
+                segmentation_config=segmentation_config,
+                background_config=background_config,
+                center_config=center_config,
+                manual_offsets=st.session_state[f"{prefix}:offsets"],
+                locks=st.session_state[f"{prefix}:locks"],
+                frame_count=len(centered.frames),
+            )
+            aligned_frames: tuple[Image.Image, ...] = ()
+            if alignment_ready:
+                try:
+                    aligned_frames = _load_stage_frames(store, session, "alignment")
+                except ArtifactIntegrityError as exc:
+                    alignment_ready = False
+                    alignment_reason = f"La alineación guardada perdió integridad: {exc}"
+            layout_key = f"{prefix}:final_layout"
+            columns_key = f"{prefix}:final_layout_columns"
+            st.session_state.setdefault(layout_key, segmentation_config.orientation)
+            st.session_state.setdefault(
+                columns_key,
+                min(max(1, segmentation_config.columns), len(centered.frames)),
+            )
+            layout = st.radio(
+                "Orientación / layout final",
+                ("horizontal", "vertical", "grid"),
+                horizontal=True,
+                key=layout_key,
+            )
+            layout_columns = None
+            if layout == "grid":
+                layout_columns = int(
+                    st.number_input(
+                        "Columnas",
+                        min_value=1,
+                        max_value=len(centered.frames),
+                        key=columns_key,
+                    )
+                )
+            crop_enabled = st.checkbox(
+                "Recorte inteligente",
+                key=f"{prefix}:export_crop_enabled",
+                help="Materializa una sola vez la unión transparente compartida.",
+            )
+            crop_padding = int(
+                st.slider(
+                    "Padding crop",
+                    min_value=0,
+                    max_value=max(0, min(canvas_width, canvas_height) // 2),
+                    disabled=not crop_enabled,
+                    key=f"{prefix}:export_crop_padding",
+                )
+            )
+            crop_threshold = int(
+                st.slider(
+                    "Umbral alpha",
+                    min_value=0,
+                    max_value=255,
+                    disabled=not crop_enabled,
+                    key=f"{prefix}:export_crop_threshold",
+                )
+            )
+            crop_config = ExportCropConfig(
+                enabled=crop_enabled,
+                padding=crop_padding,
+                alpha_threshold=crop_threshold,
+            )
+            preview_frames = aligned_frames or centered.frames
+            cropped = _safe_trim_transparent_frames(preview_frames, crop_config)[0]
+            layout_plan = plan_frame_layout(
+                cropped.frames,
+                layout=layout,
+                columns=layout_columns,
+            )
+            _show_pixel(
+                render_contact_sheet(
+                    cropped.frames,
+                    columns=layout_plan.columns,
+                    scale=1,
+                    show_cell_guides=False,
+                    show_center_axes=False,
+                    show_anchor_guides=False,
+                    show_bbox=False,
+                    guide_display_width=820,
+                ),
+                "Preview WYSIWYG · píxeles exactos de exportación",
+                max_height=640,
+            )
+            metric_columns = st.columns(3)
+            metric_columns[0].metric(
+                "Celda final", f"{layout_plan.cell_size[0]} × {layout_plan.cell_size[1]}"
+            )
+            metric_columns[1].metric(
+                "Hoja derivada", f"{layout_plan.sheet_size[0]} × {layout_plan.sheet_size[1]}"
+            )
+            metric_columns[2].metric("Regiones", len(layout_plan.regions))
+            if alignment_reason:
+                st.warning(alignment_reason)
+            if st.button(
+                "Guardar cortes finales",
+                type="primary",
+                disabled=not alignment_ready,
+                key=f"{prefix}:save_final_layout",
+            ):
+                assert alignment_manifest is not None
+                session.export_crop_config = crop_config
+                store.commit_stage(
+                    session,
+                    "layout",
+                    cropped.frames,
+                    config={
+                        "layout": layout_plan.layout,
+                        "columns": layout_plan.columns,
+                        "rows": layout_plan.rows,
+                        "cell_size": list(layout_plan.cell_size),
+                        "alignment_cache_key": session.stages["alignment"]["cache_key"],
+                        "crop": crop_config.to_dict(),
+                    },
+                    metadata={
+                        "regions": [list(region) for region in layout_plan.regions],
+                        "sheet_size": list(layout_plan.sheet_size),
+                        "crop_bbox": list(cropped.bbox),
+                        "crop_source_size": list(cropped.source_size),
+                        "alignment_profile": alignment_profile,
+                    },
+                )
+                st.success("Cortes finales guardados sobre la revisión alineada.")
 
     with export_tab:
         st.subheader("Export")
@@ -7500,6 +8458,9 @@ def main() -> None:
                 locks=st.session_state[f"{prefix}:locks"],
                 frame_count=len(centered.frames),
             )
+            export_warnings = [export_block_reason] if export_ready and export_block_reason else []
+            if export_ready:
+                export_block_reason = ""
             try:
                 persisted_alignment_frames = _load_stage_frames(
                     store,
@@ -7516,12 +8477,34 @@ def main() -> None:
             elif export_ready:
                 export_ready = False
                 export_block_reason = "La alineación guardada no coincide con los frames actuales."
-            if f"{prefix}:export_crop_enabled" not in st.session_state:
-                st.session_state[f"{prefix}:export_crop_enabled"] = session.export_crop_config.enabled
-            if f"{prefix}:export_crop_padding" not in st.session_state:
-                st.session_state[f"{prefix}:export_crop_padding"] = session.export_crop_config.padding
-            if f"{prefix}:export_crop_threshold" not in st.session_state:
-                st.session_state[f"{prefix}:export_crop_threshold"] = session.export_crop_config.alpha_threshold
+            layout_manifest = _load_stage_manifest(store, session, "layout")
+            if export_ready:
+                layout_ready, layout_reason = _layout_export_readiness(
+                    layout_manifest,
+                    alignment_record=session.stages.get("alignment"),
+                    frame_count=len(centered.frames),
+                )
+                export_ready = layout_ready
+                if not layout_ready:
+                    export_block_reason = layout_reason
+            if export_ready:
+                try:
+                    persisted_layout_frames = _load_stage_frames(
+                        store,
+                        session,
+                        "layout",
+                    )
+                except ArtifactIntegrityError as exc:
+                    persisted_layout_frames = ()
+                    export_ready = False
+                    export_block_reason = f"Los cortes finales perdieron integridad: {exc}"
+                if export_ready and len(persisted_layout_frames) == len(centered.frames):
+                    export_frames_source = persisted_layout_frames
+                elif export_ready:
+                    export_ready = False
+                    export_block_reason = (
+                        "Los cortes finales no coinciden con los frames actuales."
+                    )
             if f"{session.session_id}:export_frames" not in st.session_state:
                 st.session_state[f"{session.session_id}:export_frames"] = True
             if f"{session.session_id}:export_contact" not in st.session_state:
@@ -7530,90 +8513,34 @@ def main() -> None:
                 st.session_state[f"{session.session_id}:export_gif"] = False
             if f"{session.session_id}:fps" not in st.session_state:
                 st.session_state[f"{session.session_id}:fps"] = 8.0
-            if f"{session.session_id}:export_columns" not in st.session_state:
-                st.session_state[f"{session.session_id}:export_columns"] = min(
-                    max(1, segmentation_config.columns),
-                    len(centered.frames),
-                )
-            inherit_layout_key = f"{prefix}:export_inherit_segmentation_layout"
-            if inherit_layout_key not in st.session_state:
-                st.session_state[inherit_layout_key] = True
             export_col, preview_col = st.columns((1, 1.45), gap="large")
             with export_col, st.container(border=True):
-                inherit_segmentation_layout = st.checkbox(
-                    "Mantener layout de segmentación",
-                    key=inherit_layout_key,
-                    help=(
-                        "Export y preview conservan la orientación, filas y columnas "
-                        "elegidas al cortar la sprite sheet."
-                    ),
+                saved_layout_config = (
+                    layout_manifest.get("config", {})
+                    if isinstance(layout_manifest, dict)
+                    else {}
                 )
-                if inherit_segmentation_layout:
-                    layout = segmentation_config.orientation
-                    export_columns = (
-                        min(
-                            max(1, segmentation_config.columns),
-                            len(centered.frames),
-                        )
-                        if layout == "grid"
-                        else None
-                    )
-                    if layout == "grid":
-                        st.caption(
-                            "Layout heredado: "
-                            f"grid {segmentation_config.columns} × {segmentation_config.rows} "
-                            "(columnas × filas)"
-                        )
-                    else:
-                        st.caption(f"Layout heredado: {layout}")
-                else:
-                    layout = st.selectbox(
-                        "Layout de salida",
-                        ("horizontal", "vertical", "grid"),
-                        key=f"{session.session_id}:export_layout",
-                    )
-                    export_columns = (
-                        int(
-                            st.number_input(
-                                "Columnas de grid",
-                                min_value=1,
-                                max_value=len(centered.frames),
-                                key=f"{session.session_id}:export_columns",
-                            )
-                        )
-                        if layout == "grid"
-                        else None
-                    )
-                export_crop_enabled_key = f"{prefix}:export_crop_enabled"
-                export_crop_padding_key = f"{prefix}:export_crop_padding"
-                export_crop_threshold_key = f"{prefix}:export_crop_threshold"
-                export_crop_enabled = st.checkbox(
-                    "Recorte inteligente",
-                    key=export_crop_enabled_key,
-                    help="Recorta la unión transparente compartida por todos los frames.",
+                layout = str(
+                    saved_layout_config.get("layout", segmentation_config.orientation)
                 )
-                export_crop_padding = int(
-                    st.slider(
-                        "Padding crop",
-                        min_value=0,
-                        max_value=max(0, min(canvas_width, canvas_height) // 2),
-                        disabled=not export_crop_enabled,
-                        key=export_crop_padding_key,
-                    )
+                export_columns = (
+                    int(saved_layout_config.get("columns", segmentation_config.columns))
+                    if layout == "grid"
+                    else None
                 )
-                export_crop_threshold = int(
-                    st.slider(
-                        "Umbral alpha",
-                        min_value=0,
-                        max_value=255,
-                        disabled=not export_crop_enabled,
-                        key=export_crop_threshold_key,
-                    )
+                saved_layout_metadata = (
+                    layout_manifest.get("metadata", {})
+                    if isinstance(layout_manifest, dict)
+                    else {}
                 )
-                session.export_crop_config = ExportCropConfig(
-                    enabled=export_crop_enabled,
-                    padding=export_crop_padding,
-                    alpha_threshold=export_crop_threshold,
+                st.markdown("**Layout alineado guardado**")
+                st.caption(
+                    f"{layout}"
+                    + (f" · {export_columns} columnas" if export_columns is not None else "")
+                    + f" · celda {saved_layout_config.get('cell_size', '—')}"
+                    + f" · hoja {saved_layout_metadata.get('sheet_size', '—')}"
+                    + f" · crop {saved_layout_config.get('crop', {}).get('enabled', False)}"
+                    + " · materializado en Cortes finales"
                 )
                 include_frames = st.checkbox(
                     "Exportar frames individuales",
@@ -7642,32 +8569,38 @@ def main() -> None:
                 if review_count:
                     st.warning(
                         f"{review_count} frame(s) siguen marcados como revisión. "
-                        "Puedes exportar bajo tu criterio; el manifest conservará esta alerta."
+                        "Puedes exportar; el manifest conservará la advertencia."
                     )
+                for warning in export_warnings:
+                    st.warning(warning)
                 if not export_ready:
                     st.warning(
-                        f"Validación de emergencia: {export_block_reason} "
-                        "La exportación está permitida y quedará marcada como manual_review."
+                        f"Exportación aún no disponible: {export_block_reason}"
                     )
-                preview_crop, preview_crop_warning = _safe_trim_transparent_frames(
-                    export_frames_source,
-                    session.export_crop_config,
+                default_crop_bbox = (
+                    0,
+                    0,
+                    export_frames_source[0].width,
+                    export_frames_source[0].height,
                 )
-                if preview_crop_warning:
-                    st.warning(
-                        "El preview de crop usa un fallback porque los frames tienen "
-                        "tamaños distintos. La exportación seguirá usando el canvas de cada frame."
-                    )
+                preview_crop = ExportCropResult(
+                    tuple(export_frames_source),
+                    tuple(saved_layout_metadata.get("crop_bbox", default_crop_bbox)),
+                    tuple(
+                        saved_layout_metadata.get(
+                            "crop_source_size", export_frames_source[0].size
+                        )
+                    ),
+                )
                 if st.button(
                     (
                         "Exportar PNG por frame"
-                        if include_frames and export_ready
+                        if include_frames
                         else "Exportar sprite-sheet PNG"
-                        if export_ready
-                        else "Exportar con advertencias"
                     ),
                     type="primary",
                     width="stretch",
+                    disabled=not export_ready,
                     key=f"{session.session_id}:export",
                 ):
                     session.segmentation_config = segmentation_config

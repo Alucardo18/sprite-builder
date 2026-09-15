@@ -341,8 +341,14 @@ def test_pixel_editor_forwards_manual_guide_contract(monkeypatch) -> None:
         paint_color=(12, 34, 56, 255),
         show_guides=True,
         guide_opacity=0.45,
+        show_pixel_grid=True,
+        pixel_grid_size=32,
         show_cell_center=False,
         show_frame_guide=False,
+        show_column_guides=False,
+        show_row_guides=True,
+        grid_columns=4,
+        grid_rows=3,
         show_ground_line=True,
         ground_line_y=9,
         current_anchor_x=7.5,
@@ -350,14 +356,24 @@ def test_pixel_editor_forwards_manual_guide_contract(monkeypatch) -> None:
         target_anchor_x=8,
         target_anchor_y=7,
         show_anchor_delta=True,
+        show_autocenter_all=True,
+        active_frame=2,
+        frame_count=4,
+        frame_locks=(False, True, False, True),
         key="guide-contract",
     )
 
     assert result == {"type": "noop"}
     assert captured["showGuides"] is True
     assert captured["guideOpacity"] == 0.45
+    assert captured["showPixelGrid"] is True
+    assert captured["pixelGridSize"] == 32
     assert captured["showCellCenter"] is False
     assert captured["showFrameGuide"] is False
+    assert captured["showColumnGuides"] is False
+    assert captured["showRowGuides"] is True
+    assert captured["gridColumns"] == 4
+    assert captured["gridRows"] == 3
     assert captured["showGroundLine"] is True
     assert captured["groundLineY"] == 9
     assert captured["currentAnchorX"] == 7.5
@@ -365,7 +381,24 @@ def test_pixel_editor_forwards_manual_guide_contract(monkeypatch) -> None:
     assert captured["targetAnchorX"] == 8
     assert captured["targetAnchorY"] == 7
     assert captured["showAnchorDelta"] is True
+    assert captured["showAutocenterAll"] is True
+    assert captured["activeFrame"] == 2
+    assert captured["frameCount"] == 4
+    assert captured["frameLocks"] == [False, True, False, True]
     assert captured["paintColor"] == (12, 34, 56, 255)
+
+    source = _component_source()
+    assert 'data-action="autocenter-all"' in source
+    assert 'action: "toggle-column-guides"' in source
+    assert 'action: "toggle-row-guides"' in source
+    assert "updateGridCenterLines(guideColumns, state.gridColumns, \"x\")" in source
+    assert "updateGridCenterLines(guideRows, state.gridRows, \"y\")" in source
+    assert 'type: "frame-selection"' in source
+    assert "frameIndexAtPoint(point)" in source
+    assert 'id="frame-context-menu"' in source
+    assert 'key === "[" || key === "]"' in source
+    assert 'id="visual-grid"' in source
+    assert "state.pixelGridSize * state.zoom" in source
 
 
 def test_pixel_editor_forwards_the_layer_frame_matrix(monkeypatch) -> None:
@@ -455,7 +488,7 @@ def test_component_receives_every_manual_guide_prop() -> None:
 def test_center_canvas_uses_a_stable_component_key() -> None:
     source = _ui_app_source()
 
-    assert 'if st.button(\n                "Fijar frame",' in source
+    assert 'if st.button(\n                "Guardar alineación",' in source
     assert 'key=f"{prefix}:center_pixel_editor"' in source
     assert 'key=f"{prefix}:center_pixel_editor:{selected}"' not in source
     assert "frame_token=(" in source
@@ -619,7 +652,7 @@ def test_component_events_do_not_force_a_second_streamlit_rerun() -> None:
     assert '"floating-selection",' in source
 
 
-def test_background_editor_keeps_zoom_and_tools_in_the_canvas_toolbar() -> None:
+def test_pose_editor_owns_non_destructive_selection_and_move_tools() -> None:
     source = _ui_app_source()
     component_source = _component_source()
 
@@ -645,9 +678,12 @@ def test_background_editor_keeps_zoom_and_tools_in_the_canvas_toolbar() -> None:
     assert "Ctrl/Cmd+V" in component_source
     assert 'aria-label="Copiar selección"' not in component_source
     assert 'aria-label="Pegar selección"' not in component_source
-    assert "toolCropLasso.hidden = centerMode || cutMode" in component_source
-    assert "toolCropRect.disabled = centerMode || cutMode" in component_source
-    assert '(state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool)' in component_source
+    assert "toolCropLasso.hidden = !(layerMode || poseMode)" in component_source
+    assert "toolCropRect.disabled = !(layerMode || poseMode)" in component_source
+    assert 'state.mode === "pose-layout"' in component_source
+    assert 'mode="pose-layout"' in source
+    assert ':pose_layout_tool' in source
+    assert ':pose_selections' in source
     assert 'event_type == "crop"' in source
     assert "incoming = _layer_crop_mask_from_event(" in source
     assert ":background_floating_selection" in source
@@ -661,7 +697,7 @@ def test_background_editor_keeps_zoom_and_tools_in_the_canvas_toolbar() -> None:
     assert "floating_selection=floating_piece" in source
     assert 'state.mode === "background" && state.floatingSelection' in component_source
     assert 'type: "floating-transform"' in component_source
-    assert "toolMove.hidden = centerMode || cutMode" in component_source
+    assert "toolMove.hidden = !(layerMode || poseMode)" in component_source
     assert '"Mover selección (haz un recorte primero)"' in component_source
 
 
@@ -987,4 +1023,3 @@ def test_pixel_editor_component_wrapper_accepts_float_zoom() -> None:
 
     sig = inspect.signature(pixel_editor)
     assert sig.parameters["zoom"].default == 12.0
-

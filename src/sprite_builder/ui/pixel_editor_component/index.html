@@ -123,6 +123,12 @@
         padding: 7px;
       }
 
+      button.icon-button.wide-action {
+        min-width: auto;
+        padding-inline: 10px;
+        font-weight: 650;
+      }
+
       button.tool-button {
         min-width: 42px;
       }
@@ -657,6 +663,19 @@
         margin: 18px;
       }
 
+      .visual-grid {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 1;
+        pointer-events: none;
+        box-sizing: border-box;
+        background-image:
+          linear-gradient(to right, rgba(91, 223, 255, 0.52) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(91, 223, 255, 0.52) 1px, transparent 1px);
+        box-shadow: inset 0 0 0 1px rgba(91, 223, 255, 0.62);
+      }
+
       .guides {
         position: absolute;
         left: 0;
@@ -675,6 +694,112 @@
 
       .guides [hidden] {
         display: none !important;
+      }
+
+      .guide-grid {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      .guide-grid-line {
+        position: absolute;
+        pointer-events: none;
+        box-sizing: border-box;
+      }
+
+      .guide-grid-line.axis-x {
+        top: 0;
+        width: 1px;
+        height: 100%;
+        transform: translateX(-50%);
+        border-left: 1px dashed rgba(91, 223, 255, 0.92);
+        box-shadow: 1px 0 0 rgba(0, 0, 0, 0.72);
+      }
+
+      .guide-grid-line.axis-y {
+        left: 0;
+        width: 100%;
+        height: 1px;
+        transform: translateY(-50%);
+        border-top: 1px dashed rgba(255, 196, 91, 0.92);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.72);
+      }
+
+      .guide-grid-line > span {
+        position: absolute;
+        padding: 1px 4px;
+        border-radius: 4px;
+        background: rgba(7, 10, 18, 0.9);
+        font: 650 9px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: nowrap;
+      }
+
+      .guide-grid-line.axis-x > span {
+        top: 4px;
+        left: 4px;
+        color: rgba(91, 223, 255, 1);
+      }
+
+      .guide-grid-line.axis-y > span {
+        top: 4px;
+        left: 5px;
+        color: rgba(255, 196, 91, 1);
+      }
+
+      .frame-hover {
+        position: absolute;
+        z-index: 4;
+        pointer-events: none;
+        box-sizing: border-box;
+        border: 2px solid rgba(255, 232, 168, 0.98);
+        background: rgba(255, 196, 91, 0.08);
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.9),
+          inset 0 0 0 1px rgba(0, 0, 0, 0.8);
+      }
+
+      .frame-hover.active {
+        border-color: rgba(255, 92, 214, 1);
+        background: rgba(255, 92, 214, 0.08);
+      }
+
+      .frame-hover-label {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        padding: 3px 6px;
+        border-radius: 6px;
+        color: rgba(255, 244, 196, 1);
+        background: rgba(7, 10, 18, 0.94);
+        font: 700 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: nowrap;
+      }
+
+      .frame-context-menu {
+        position: fixed;
+        z-index: 20;
+        display: grid;
+        min-width: 190px;
+        gap: 4px;
+        padding: 7px;
+        border: 1px solid rgba(132, 225, 255, 0.28);
+        border-radius: 12px;
+        background: rgba(10, 15, 27, 0.98);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.48);
+      }
+
+      .frame-context-menu strong {
+        padding: 4px 7px 6px;
+        color: rgba(255, 232, 168, 1);
+        font-size: 12px;
+      }
+
+      .frame-context-menu button {
+        justify-content: flex-start;
+        min-height: 32px;
+        padding: 6px 8px;
+        background: rgba(91, 223, 255, 0.08);
       }
 
       .guide-box {
@@ -1394,13 +1519,16 @@
           <button class="icon-button" data-action="commit-edits" id="commit-edits" title="Guardar trazos pendientes (⌘/Ctrl + Enter)" aria-label="Guardar trazos pendientes"><svg class="icon"><use href="#icon-save"></use></svg><span id="pending-edits">Guardar</span></button>
         </div>
         <div class="toolgroup" data-group="center">
-          <button class="icon-button" data-action="autocenter" id="autocenter" title="Centrar automáticamente (A)" aria-label="Centrar automáticamente"><svg class="icon"><use href="#icon-center"></use></svg></button>
+          <button class="icon-button" data-action="autocenter" id="autocenter" title="Centrar el frame activo (A)" aria-label="Centrar automáticamente"><svg class="icon"><use href="#icon-center"></use></svg></button>
+          <button class="icon-button wide-action" data-action="autocenter-all" id="autocenter-all" title="Recalcular la alineación multi-anchor de todos los frames (Shift+A)" aria-label="Autoalinear toda la hoja"><svg class="icon"><use href="#icon-center"></use></svg><span>Autoalinear todo</span></button>
           <button class="icon-button" data-action="autocrop" id="autocrop" title="Activar recorte inteligente (C)" aria-label="Activar recorte inteligente"><svg class="icon"><use href="#icon-crop"></use></svg></button>
           <button class="icon-button" data-action="reset-transform" id="reset-transform" title="Restablecer posición (R)" aria-label="Restablecer posición"><svg class="icon"><use href="#icon-reset"></use></svg></button>
           <button class="icon-button" data-action="toggle-guides" id="toggle-guides" title="Mostrar u ocultar guías (G)" aria-label="Mostrar u ocultar guías" aria-pressed="false"><svg class="icon"><use href="#icon-layers"></use></svg></button>
           <details class="guide-settings" id="guide-settings">
             <summary aria-label="Capas de guía" title="Capas de guía"><svg class="icon"><use href="#icon-layers"></use></svg></summary>
             <div class="guide-menu">
+              <label><input type="checkbox" id="guide-column-layer" checked /> Centros de columnas (X)</label>
+              <label><input type="checkbox" id="guide-row-layer" checked /> Centros de filas (Y)</label>
               <label><input type="checkbox" id="guide-target-layer" checked /> Celda destino</label>
               <label><input type="checkbox" id="guide-frame-layer" checked /> Frame móvil</label>
               <label><input type="checkbox" id="guide-current-anchor-layer" checked /> Anchor corporal actual</label>
@@ -1446,7 +1574,10 @@
 
       <div class="stage" id="stage">
         <div class="canvas-wrap">
+          <div class="visual-grid" id="visual-grid" hidden aria-hidden="true"></div>
           <div class="guides" id="guides" aria-hidden="true">
+            <div class="guide-grid" id="guide-columns"></div>
+            <div class="guide-grid" id="guide-rows"></div>
             <div class="guide-box target" id="guide-target">
               <span class="guide-axis vertical"></span>
               <span class="guide-axis horizontal"></span>
@@ -1466,10 +1597,21 @@
             </div>
             <div class="cut-guides" id="cut-guides" aria-hidden="true"></div>
           </div>
+          <div class="frame-hover" id="frame-hover" hidden>
+            <span class="frame-hover-label" id="frame-hover-label"></span>
+          </div>
           <div class="cursor-ring" id="cursor-ring"></div>
           <div class="cursor-dot" id="cursor-dot"></div>
           <canvas id="editor" tabindex="0" aria-label="Pixel editor"></canvas>
         </div>
+      </div>
+
+      <div class="frame-context-menu" id="frame-context-menu" role="menu" hidden>
+        <strong id="frame-context-title">Frame</strong>
+        <button type="button" data-frame-action="select" role="menuitem">Seleccionar frame</button>
+        <button type="button" data-frame-action="autocenter" role="menuitem">Autoalinear frame</button>
+        <button type="button" data-frame-action="reset" role="menuitem">Restablecer posición</button>
+        <button type="button" data-frame-action="lock" id="frame-context-lock" role="menuitem">Bloquear anchor</button>
       </div>
 
       <div class="studio-timeline" id="studio-timeline" hidden aria-label="Timeline de capas">
@@ -1546,6 +1688,7 @@
       const toolReplaceColor = document.getElementById("tool-replace-color");
       const pixelActionsGroup = document.querySelector('[data-group="pixel-actions"]');
       const autocenterButton = document.getElementById("autocenter");
+      const autocenterAllButton = document.getElementById("autocenter-all");
       const autocropButton = document.getElementById("autocrop");
       const resetTransformButton = document.getElementById("reset-transform");
       const toggleGuidesButton = document.getElementById("toggle-guides");
@@ -1597,12 +1740,17 @@
         applyStageHeight(720, false);
       }
       const guides = document.getElementById("guides");
+      const visualGrid = document.getElementById("visual-grid");
+      const guideColumns = document.getElementById("guide-columns");
+      const guideRows = document.getElementById("guide-rows");
       const guideTarget = document.getElementById("guide-target");
       const guideFrame = document.getElementById("guide-frame");
       const guideTargetAnchor = document.getElementById("guide-target-anchor");
       const guideCurrentAnchor = document.getElementById("guide-current-anchor");
       const guideGround = document.getElementById("guide-ground");
       const guideSettings = document.getElementById("guide-settings");
+      const guideColumnLayer = document.getElementById("guide-column-layer");
+      const guideRowLayer = document.getElementById("guide-row-layer");
       const guideTargetLayer = document.getElementById("guide-target-layer");
       const guideFrameLayer = document.getElementById("guide-frame-layer");
       const guideCurrentAnchorLayer = document.getElementById("guide-current-anchor-layer");
@@ -1612,6 +1760,11 @@
       const cutGuides = document.getElementById("cut-guides");
       const guideOpacity = document.getElementById("guide-opacity");
       const guideOpacityValue = document.getElementById("guide-opacity-value");
+      const frameHover = document.getElementById("frame-hover");
+      const frameHoverLabel = document.getElementById("frame-hover-label");
+      const frameContextMenu = document.getElementById("frame-context-menu");
+      const frameContextTitle = document.getElementById("frame-context-title");
+      const frameContextLock = document.getElementById("frame-context-lock");
       const modePill = document.getElementById("mode-pill");
       const cutModePill = document.getElementById("cut-mode-pill");
       const zoomPillCut = document.getElementById("zoom-pill-cut");
@@ -1662,8 +1815,14 @@
         offsetY: 0,
         showGuides: false,
         guideOpacity: 0.85,
+        showPixelGrid: false,
+        pixelGridSize: 16,
         showCellCenter: true,
         showFrameGuide: true,
+        showColumnGuides: true,
+        showRowGuides: true,
+        gridColumns: 1,
+        gridRows: 1,
         showBodyAnchor: true,
         showTargetAnchor: true,
         showGroundLine: false,
@@ -1677,6 +1836,7 @@
         showAnchorDelta: false,
         allowDrag: false,
         showAutocenter: true,
+        showAutocenterAll: false,
         showAutocrop: true,
         fitOnLoad: false,
         fitToken: "",
@@ -1717,6 +1877,9 @@
         activeLayerId: "",
         activeFrame: 0,
         frameCount: 0,
+        frameLocks: [],
+        hoverFrame: -1,
+        contextFrame: -1,
         selectedFrames: [],
         floatingSelection: null,
         floatingSelectionUrl: null,
@@ -1992,6 +2155,9 @@
       }
 
       function normalizeMode(mode) {
+        if (mode === "pose-layout") {
+          return "pose-layout";
+        }
         if (mode === "segmentation-center") {
           return "segmentation-center";
         }
@@ -2074,15 +2240,19 @@
 
       function updateModeUI() {
         const centerMode = state.mode === "segmentation-center";
+        const poseMode = state.mode === "pose-layout";
         const cutMode = state.mode === "segmentation-cut";
         const layerMode = state.mode === "layer-edit";
         const backgroundFloating = state.mode === "background" && !!state.floatingSelection;
+        if (!centerMode) {
+          hideFrameContextMenu();
+        }
         document.body.dataset.mode = state.mode;
         if (state.mode !== "background") {
           setWandCardOpen(false);
           setRotateCardOpen(false);
         }
-        modePill.textContent = centerMode ? "Centrado" : cutMode ? "Cortes" : layerMode ? "Capas" : "Fondo";
+        modePill.textContent = poseMode ? "Preparar pose" : centerMode ? "Movimiento libre" : cutMode ? "Cortes" : layerMode ? "Capas" : "Fondo";
         if (cutModePill) {
           setPillValue(cutModePill, cutMode ? "Cortes" : "Bloqueado");
         }
@@ -2098,12 +2268,14 @@
         toggleGuidesButton.title = state.showGuides
           ? "Ocultar guías (G)"
           : "Mostrar guías (G)";
-        toolWand.hidden = layerMode;
+        toolWand.hidden = layerMode || poseMode;
         toolPencil.hidden = !layerMode;
-        toolMove.hidden = centerMode || cutMode;
-        toolCropLasso.hidden = centerMode || cutMode;
-        toolCropRect.hidden = centerMode || cutMode;
-        toolCropEllipse.hidden = centerMode || cutMode;
+        toolEyedropper.hidden = poseMode;
+        toolEraser.hidden = poseMode;
+        toolMove.hidden = !(layerMode || poseMode);
+        toolCropLasso.hidden = !(layerMode || poseMode);
+        toolCropRect.hidden = !(layerMode || poseMode);
+        toolCropEllipse.hidden = !(layerMode || poseMode);
         rotateControl.hidden = centerMode || cutMode || layerMode;
         toolSelectLasso.hidden = !layerMode;
         toolSelectRect.hidden = !layerMode;
@@ -2115,7 +2287,7 @@
         toolPencil.disabled = !layerMode;
         toolEyedropper.disabled = centerMode || cutMode || backgroundFloating;
         toolEraser.disabled = centerMode || cutMode || backgroundFloating;
-        toolMove.disabled = !layerMode && !backgroundFloating;
+        toolMove.disabled = !(layerMode || poseMode);
         toolMove.title = layerMode
           ? "Mover cel (M)"
           : backgroundFloating
@@ -2125,15 +2297,15 @@
           "aria-label",
           layerMode ? "Mover cel, atajo M" : "Mover selección, atajo M",
         );
-        toolCropLasso.disabled = centerMode || cutMode || backgroundFloating;
-        toolCropRect.disabled = centerMode || cutMode || backgroundFloating;
-        toolCropEllipse.disabled = centerMode || cutMode || backgroundFloating;
+        toolCropLasso.disabled = !(layerMode || poseMode);
+        toolCropRect.disabled = !(layerMode || poseMode);
+        toolCropEllipse.disabled = !(layerMode || poseMode);
         toolSelectLasso.disabled = !layerMode;
         toolSelectRect.disabled = !layerMode;
         toolSelectEllipse.disabled = !layerMode;
         toolFill.disabled = !layerMode;
         toolReplaceColor.disabled = !layerMode;
-        commitGroup.hidden = centerMode || cutMode;
+        commitGroup.hidden = centerMode || cutMode || poseMode;
         zoomOutButton.hidden = centerMode;
         zoomInButton.hidden = centerMode;
         fitButton.hidden = centerMode;
@@ -2162,6 +2334,7 @@
           setPillValue(zoomPillCut, formatZoomLabel(state.zoom));
         }
         autocenterButton.hidden = !centerMode || !state.showAutocenter;
+        autocenterAllButton.hidden = !centerMode || !state.showAutocenterAll;
         autocropButton.hidden = !centerMode || !state.showAutocrop;
         resetTransformButton.hidden = !centerMode;
         toggleGuidesButton.hidden = !centerMode;
@@ -2172,6 +2345,7 @@
           deltaPill.hidden = true;
         }
         autocenterButton.disabled = !centerMode;
+        autocenterAllButton.disabled = !centerMode;
         autocropButton.disabled = !centerMode;
         resetTransformButton.disabled = !centerMode;
         toggleGuidesButton.disabled = false;
@@ -2186,8 +2360,10 @@
           if (stageHeightSelectCenter) stageHeightSelectCenter.hidden = true;
         }
         if (overlayNote) {
-          overlayNote.innerHTML = centerMode
-            ? "Arrastra el frame o usa <code>← ↑ ↓ →</code> para mover 1 px; mantén <code>Shift</code> para 5 px. <code>A</code> centra, <code>C</code> activa recorte, <code>G</code> muestra guías y <code>R</code> restablece."
+          overlayNote.innerHTML = poseMode
+            ? "<code>M</code> mueve libremente la pose · <code>L/R/O</code> delimita la pose sin cortar píxeles. El corte se materializa sólo en Cortes finales."
+            : centerMode
+            ? "Pasa sobre una celda y haz clic para seleccionar; después arrastra el frame activo. Clic derecho abre acciones rápidas. <code>[</code>/<code>]</code> cambia de frame, <code>A</code> centra y <code>Shift+A</code> autoalinea toda la hoja."
             : cutMode
               ? "Activa el ajuste libre en el panel lateral y arrastra las líneas de corte."
               : layerMode
@@ -2472,7 +2648,7 @@
       }
 
       function updateCursor() {
-        const centerMode = state.mode === "segmentation-center";
+        const centerMode = state.mode === "segmentation-center" || state.mode === "pose-layout";
         const cutMode = state.mode === "segmentation-cut";
         const layerMove = (
           state.tool === "move"
@@ -2515,17 +2691,56 @@
             : "none";
       }
 
+      function updateGridCenterLines(container, count, axis) {
+        const lineCount = Math.max(1, Math.round(finiteNumber(count, 1)));
+        const span = axis === "x" ? state.width : state.height;
+        const signature = `${axis}:${lineCount}:${span}:${state.zoom}`;
+        if (container.dataset.signature === signature) {
+          return;
+        }
+        const fragment = document.createDocumentFragment();
+        for (let index = 0; index < lineCount; index += 1) {
+          const line = document.createElement("div");
+          line.className = `guide-grid-line axis-${axis}`;
+          const position = ((index + 0.5) * span) / lineCount;
+          if (axis === "x") {
+            line.style.left = `${Math.round(position * state.zoom)}px`;
+          } else {
+            line.style.top = `${Math.round(position * state.zoom)}px`;
+          }
+          const label = document.createElement("span");
+          label.textContent = `${axis.toUpperCase()}${index + 1}`;
+          line.appendChild(label);
+          fragment.appendChild(line);
+        }
+        container.replaceChildren(fragment);
+        container.dataset.signature = signature;
+      }
+
       function updateGuidesGeometry() {
         const centerMode = state.mode === "segmentation-center";
         const overlayWidth = state.overlay?.width || state.width;
         const overlayHeight = state.overlay?.height || state.height;
+        const displayWidth = Math.max(1, Math.round(state.width * state.zoom));
+        const displayHeight = Math.max(1, Math.round(state.height * state.zoom));
+        const gridStep = Math.max(1, state.pixelGridSize * state.zoom);
+        visualGrid.hidden = !state.showPixelGrid;
+        visualGrid.style.width = `${displayWidth}px`;
+        visualGrid.style.height = `${displayHeight}px`;
+        visualGrid.style.backgroundSize = `${gridStep}px ${gridStep}px`;
         guides.style.left = "0px";
         guides.style.top = "0px";
-        guides.style.width = `${Math.max(1, Math.round(state.width * state.zoom))}px`;
-        guides.style.height = `${Math.max(1, Math.round(state.height * state.zoom))}px`;
+        guides.style.width = `${displayWidth}px`;
+        guides.style.height = `${displayHeight}px`;
         if (!centerMode) {
+          updateFrameHover(-1);
           return;
         }
+
+        guideColumns.hidden = !state.showColumnGuides;
+        guideRows.hidden = !state.showRowGuides;
+        updateGridCenterLines(guideColumns, state.gridColumns, "x");
+        updateGridCenterLines(guideRows, state.gridRows, "y");
 
         setBoxGeometry(
           guideTarget,
@@ -2585,10 +2800,13 @@
 
         guideTargetLayer.checked = state.showCellCenter;
         guideFrameLayer.checked = state.showFrameGuide;
+        guideColumnLayer.checked = state.showColumnGuides;
+        guideRowLayer.checked = state.showRowGuides;
         guideCurrentAnchorLayer.checked = state.showBodyAnchor;
         guideTargetAnchorLayer.checked = state.showTargetAnchor;
         guideGroundLayer.checked = state.showGroundLine;
         guideAnchorDeltaLayer.checked = state.showAnchorDelta;
+        updateFrameHover();
       }
 
       function cutSpan() {
@@ -3489,6 +3707,83 @@
         return { x, y };
       }
 
+      function centerFrameCell(frameIndex) {
+        const columns = Math.max(1, state.gridColumns);
+        const rows = Math.max(1, state.gridRows);
+        const cellWidth = state.width / columns;
+        const cellHeight = state.height / rows;
+        return {
+          x: (frameIndex % columns) * cellWidth,
+          y: Math.floor(frameIndex / columns) * cellHeight,
+          width: cellWidth,
+          height: cellHeight,
+        };
+      }
+
+      function frameIndexAtPoint(point) {
+        if (state.mode !== "segmentation-center" || state.frameCount < 1) {
+          return -1;
+        }
+        const columns = Math.max(1, state.gridColumns);
+        const rows = Math.max(1, state.gridRows);
+        const column = Math.min(columns - 1, Math.floor(point.x / (state.width / columns)));
+        const row = Math.min(rows - 1, Math.floor(point.y / (state.height / rows)));
+        const frameIndex = row * columns + column;
+        return frameIndex < state.frameCount ? frameIndex : -1;
+      }
+
+      function updateFrameHover(frameIndex = state.hoverFrame) {
+        state.hoverFrame = frameIndex;
+        const visible = state.mode === "segmentation-center" && frameIndex >= 0;
+        frameHover.hidden = !visible;
+        if (!visible) {
+          return;
+        }
+        const cell = centerFrameCell(frameIndex);
+        setBoxGeometry(frameHover, cell.x, cell.y, cell.width, cell.height);
+        const active = frameIndex === state.activeFrame;
+        frameHover.classList.toggle("active", active);
+        frameHoverLabel.textContent = active
+          ? `Frame ${frameIndex} · activo`
+          : `Frame ${frameIndex} · clic para seleccionar`;
+      }
+
+      function emitCenterFrameSelection(frameIndex) {
+        if (frameIndex < 0 || frameIndex >= state.frameCount) {
+          return;
+        }
+        state.activeFrame = frameIndex;
+        updateFrameHover(frameIndex);
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "frame-selection",
+          action: "select-frame",
+          mode: state.mode,
+          frameIndex,
+        });
+      }
+
+      function hideFrameContextMenu() {
+        frameContextMenu.hidden = true;
+        state.contextFrame = -1;
+      }
+
+      function showFrameContextMenu(event, frameIndex) {
+        state.contextFrame = frameIndex;
+        frameContextTitle.textContent = `Frame ${frameIndex}`;
+        frameContextLock.textContent = state.frameLocks[frameIndex]
+          ? "Desbloquear anchor"
+          : "Bloquear anchor";
+        frameContextMenu.style.left = `${event.clientX}px`;
+        frameContextMenu.style.top = `${event.clientY}px`;
+        frameContextMenu.hidden = false;
+        requestAnimationFrame(() => {
+          const bounds = frameContextMenu.getBoundingClientRect();
+          frameContextMenu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - bounds.width - 8))}px`;
+          frameContextMenu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - bounds.height - 8))}px`;
+        });
+      }
+
       function modifiers(event) {
         return {
           shiftKey: !!event.shiftKey,
@@ -3715,6 +4010,16 @@
       }
 
       canvas.addEventListener("contextmenu", (event) => {
+        if (state.mode === "segmentation-center" || (state.mode === "pose-layout" && state.tool === "move")) {
+          const point = pointerToPixel(event);
+          const frameIndex = pointHitsOverlay(point)
+            ? state.activeFrame
+            : frameIndexAtPoint(point);
+          if (frameIndex >= 0) {
+            updateFrameHover(frameIndex);
+            showFrameContextMenu(event, frameIndex);
+          }
+        }
         event.preventDefault();
       });
 
@@ -3723,6 +4028,11 @@
         const point = pointerToPixel(event);
         state.pointerPixelX = point.x;
         state.pointerPixelY = point.y;
+        if (state.mode === "segmentation-center") {
+          updateFrameHover(
+            pointHitsOverlay(point) ? state.activeFrame : frameIndexAtPoint(point),
+          );
+        }
         updateCursor();
       });
 
@@ -3744,6 +4054,22 @@
         state.pointerPixelX = point.x;
         state.pointerPixelY = point.y;
         state.pointerVisible = true;
+        if (state.mode === "segmentation-center") {
+          const frameIndex = frameIndexAtPoint(point);
+          const hitsActiveFrame = pointHitsOverlay(point);
+          updateFrameHover(hitsActiveFrame ? state.activeFrame : frameIndex);
+          if (
+            frameIndex >= 0
+            && frameIndex !== state.activeFrame
+            && !hitsActiveFrame
+            && event.button === 0
+          ) {
+            state.dragging = false;
+            emitCenterFrameSelection(frameIndex);
+            event.preventDefault();
+            return;
+          }
+        }
         updateCursor();
         if (event.button === 0 && pointHitsRotationHandle(point)) {
           state.rotationDragging = true;
@@ -3754,7 +4080,13 @@
           event.preventDefault();
           return;
         }
-        if (state.mode === "segmentation-center" && state.allowDrag && pointHitsOverlay(point)) {
+        if (
+          (state.mode === "segmentation-center" || state.mode === "pose-layout")
+          && state.allowDrag
+          && (state.mode !== "pose-layout" || state.tool === "move")
+          && event.button === 0
+          && pointHitsOverlay(point)
+        ) {
           state.dragStartX = point.x;
           state.dragStartY = point.y;
           state.dragOriginX = state.offsetX;
@@ -3773,7 +4105,7 @@
           event.preventDefault();
           return;
         }
-        if ((state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool)) {
+        if ((state.mode === "layer-edit" || state.mode === "background" || state.mode === "pose-layout") && isShapeTool(state.tool)) {
           state.cropStart = point;
           state.cropPath = [point];
           draw();
@@ -3781,7 +4113,7 @@
           event.preventDefault();
           return;
         }
-        if (state.mode === "segmentation-center") {
+        if (state.mode === "segmentation-center" || state.mode === "pose-layout") {
           event.preventDefault();
           return;
         }
@@ -3809,6 +4141,11 @@
       canvas.addEventListener("pointermove", (event) => {
         state.pointerVisible = true;
         const point = pointerToPixel(event);
+        if ((state.mode === "segmentation-center" || state.mode === "pose-layout") && !state.dragging && state.tool === "move") {
+          updateFrameHover(
+            pointHitsOverlay(point) ? state.activeFrame : frameIndexAtPoint(point),
+          );
+        }
         if (state.rotationDragging && state.dragging && (event.buttons & 1)) {
           const pointerAngle = pointerAngleAroundSelection(point);
           let nextAngle = normalizeRotationAngle(
@@ -3832,7 +4169,7 @@
           event.preventDefault();
           return;
         }
-        if (state.mode === "segmentation-center" && state.allowDrag && state.dragging && (event.buttons & 1)) {
+        if ((state.mode === "segmentation-center" || state.mode === "pose-layout") && state.allowDrag && state.tool === "move" && state.dragging && (event.buttons & 1)) {
           const nextX = state.dragOriginX + (point.x - state.dragStartX);
           const nextY = state.dragOriginY + (point.y - state.dragStartY);
           state.pointerPixelX = point.x;
@@ -3857,7 +4194,7 @@
             setObjectOffset(nextX, nextY);
           }
           scheduleCursorUpdate();
-        } else if ((state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool) && state.dragging && (event.buttons & 1)) {
+        } else if ((state.mode === "layer-edit" || state.mode === "background" || state.mode === "pose-layout") && isShapeTool(state.tool) && state.dragging && (event.buttons & 1)) {
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
           const last = state.cropPath[state.cropPath.length - 1];
@@ -3866,7 +4203,7 @@
             scheduleDraw();
           }
           scheduleCursorUpdate();
-        } else if (state.mode === "segmentation-center") {
+        } else if (state.mode === "segmentation-center" || state.mode === "pose-layout") {
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
           scheduleCursorUpdate();
@@ -3921,7 +4258,7 @@
           emitStroke(event);
           state.lastStrokePoint = point;
           state.strokePath = [];
-        } else if (state.mode === "segmentation-center" && state.allowDrag) {
+        } else if ((state.mode === "segmentation-center" || state.mode === "pose-layout") && state.allowDrag && state.tool === "move" && state.dragging) {
           emitDrag(event, "end", point);
         } else if (
           state.tool === "move"
@@ -3932,7 +4269,7 @@
           } else {
             emitDrag(event, "end", point);
           }
-        } else if ((state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool)) {
+        } else if ((state.mode === "layer-edit" || state.mode === "background" || state.mode === "pose-layout") && isShapeTool(state.tool)) {
           const last = state.cropPath[state.cropPath.length - 1];
           if (!last || last.x !== point.x || last.y !== point.y) {
             state.cropPath.push(point);
@@ -4016,12 +4353,13 @@
       canvas.addEventListener("pointerleave", () => {
         if (!state.dragging) {
           state.strokePath = [];
-          if ((state.mode === "layer-edit" || state.mode === "background") && isShapeTool(state.tool)) {
+          if ((state.mode === "layer-edit" || state.mode === "background" || state.mode === "pose-layout") && isShapeTool(state.tool)) {
             state.cropStart = null;
             state.cropPath = [];
             draw();
           }
           state.pointerVisible = false;
+          updateFrameHover(-1);
           updateCursor();
         }
       });
@@ -4106,44 +4444,57 @@
           event.preventDefault();
           return;
         }
-        if (key === "m" && (state.mode === "layer-edit" || (state.mode === "background" && state.floatingSelection))) {
+        if (key === "m" && (state.mode === "layer-edit" || state.mode === "pose-layout")) {
           setActiveTool("move");
           event.preventDefault();
           return;
         }
-        if (key === "l" && (state.mode === "layer-edit" || (state.mode === "background" && !state.floatingSelection))) {
+        if (key === "l" && (state.mode === "layer-edit" || state.mode === "pose-layout")) {
           setActiveTool("crop_lasso");
           event.preventDefault();
           return;
         }
-        if (key === "r" && (state.mode === "layer-edit" || (state.mode === "background" && !state.floatingSelection))) {
+        if (key === "r" && (state.mode === "layer-edit" || state.mode === "pose-layout")) {
           setActiveTool("crop_rect");
           event.preventDefault();
           return;
         }
-        if (key === "o" && (state.mode === "layer-edit" || (state.mode === "background" && !state.floatingSelection))) {
+        if (key === "o" && (state.mode === "layer-edit" || state.mode === "pose-layout")) {
           setActiveTool("crop_ellipse");
           event.preventDefault();
           return;
         }
-        if (key === "i" && state.mode !== "segmentation-center" && !(state.mode === "background" && state.floatingSelection)) {
+        if (key === "i" && (state.mode === "background" || state.mode === "layer-edit")) {
           setActiveTool("eyedropper");
           event.preventDefault();
           return;
         }
-        if (key === "w" && state.mode !== "segmentation-center" && !(state.mode === "background" && state.floatingSelection)) {
+        if (key === "w" && state.mode === "background" && !state.floatingSelection) {
           setActiveTool("wand");
           setWandCardOpen(true);
           event.preventDefault();
           return;
         }
-        if (key === "e" && state.mode !== "segmentation-center" && !(state.mode === "background" && state.floatingSelection)) {
+        if (key === "e" && (state.mode === "background" || state.mode === "layer-edit") && !(state.mode === "background" && state.floatingSelection)) {
           setActiveTool("eraser");
           event.preventDefault();
           return;
         }
         if (key === "g") {
           setGuidesVisible(!state.showGuides, true);
+          event.preventDefault();
+          return;
+        }
+        if (state.mode === "segmentation-center" && (key === "[" || key === "]")) {
+          const direction = key === "[" ? -1 : 1;
+          const frameCount = Math.max(1, state.frameCount);
+          const nextFrame = (state.activeFrame + direction + frameCount) % frameCount;
+          emitCenterFrameSelection(nextFrame);
+          event.preventDefault();
+          return;
+        }
+        if (key === "escape" && !frameContextMenu.hidden) {
+          hideFrameContextMenu();
           event.preventDefault();
           return;
         }
@@ -4170,10 +4521,11 @@
         }
         if (key === "a" && state.mode === "segmentation-center") {
           setObjectOffset(state.homeOffsetX, state.homeOffsetY);
+          const action = event.shiftKey ? "autocenter-all" : "autocenter";
           emitValue({
             eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
             type: "toolbar",
-            action: "autocenter",
+            action,
             mode: state.mode,
             offsetX: state.homeOffsetX,
             offsetY: state.homeOffsetY,
@@ -4407,6 +4759,17 @@
           focusCanvas();
           return;
         }
+        if (action === "autocenter-all") {
+          setObjectOffset(state.homeOffsetX, state.homeOffsetY);
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "autocenter-all",
+            mode: state.mode,
+          });
+          focusCanvas();
+          return;
+        }
         if (action === "autocrop") {
           emitValue({
             eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -4498,6 +4861,43 @@
         if (!rotateCard.hidden && !rotateControl.contains(event.target)) {
           setRotateCardOpen(false);
         }
+        if (!frameContextMenu.hidden && !frameContextMenu.contains(event.target)) {
+          hideFrameContextMenu();
+        }
+      });
+
+      frameContextMenu.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-frame-action]");
+        const frameIndex = state.contextFrame;
+        if (!button || frameIndex < 0) {
+          return;
+        }
+        const action = button.dataset.frameAction;
+        hideFrameContextMenu();
+        if (action === "select") {
+          emitCenterFrameSelection(frameIndex);
+          return;
+        }
+        if (action === "autocenter" || action === "reset") {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: action === "autocenter" ? "autocenter" : "reset-transform",
+            mode: state.mode,
+            frameIndex,
+          });
+          return;
+        }
+        if (action === "lock") {
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "toolbar",
+            action: "toggle-frame-lock",
+            mode: state.mode,
+            frameIndex,
+            locked: !state.frameLocks[frameIndex],
+          });
+        }
       });
 
       timelinePlayButton.addEventListener("click", () => {
@@ -4547,6 +4947,32 @@
           focusCanvas();
         });
       }
+
+      guideColumnLayer.addEventListener("change", () => {
+        state.showColumnGuides = guideColumnLayer.checked;
+        updateGuidesGeometry();
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "toolbar",
+          action: "toggle-column-guides",
+          mode: state.mode,
+          showColumnGuides: state.showColumnGuides,
+        });
+        focusCanvas();
+      });
+
+      guideRowLayer.addEventListener("change", () => {
+        state.showRowGuides = guideRowLayer.checked;
+        updateGuidesGeometry();
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "toolbar",
+          action: "toggle-row-guides",
+          mode: state.mode,
+          showRowGuides: state.showRowGuides,
+        });
+        focusCanvas();
+      });
 
       guideTargetLayer.addEventListener("change", () => {
         state.showCellCenter = guideTargetLayer.checked;
@@ -4687,6 +5113,9 @@
         if (hasOwn(args, "frameCount")) {
           state.frameCount = Math.max(0, Math.round(finiteNumber(args.frameCount, 0)));
         }
+        if (Array.isArray(args.frameLocks)) {
+          state.frameLocks = args.frameLocks.map((value) => !!value);
+        }
         if (Array.isArray(args.selectedFrames)) {
           state.selectedFrames = args.selectedFrames
             .map((value) => Math.max(0, Math.round(finiteNumber(value, 0))))
@@ -4782,6 +5211,12 @@
           const rawOpacity = finiteNumber(args.guideOpacity, state.guideOpacity);
           state.guideOpacity = Math.max(0.1, Math.min(1, rawOpacity > 1 ? rawOpacity / 100 : rawOpacity));
         }
+        if (hasOwn(args, "showPixelGrid")) {
+          state.showPixelGrid = !!args.showPixelGrid;
+        }
+        if (hasOwn(args, "pixelGridSize")) {
+          state.pixelGridSize = Math.max(1, Math.round(finiteNumber(args.pixelGridSize, 16)));
+        }
         if (hasOwn(args, "showCellCenter")) {
           state.showCellCenter = !!args.showCellCenter;
         } else if (hasOwn(args, "showTargetGuide")) {
@@ -4789,6 +5224,18 @@
         }
         if (hasOwn(args, "showFrameGuide")) {
           state.showFrameGuide = !!args.showFrameGuide;
+        }
+        if (hasOwn(args, "showColumnGuides")) {
+          state.showColumnGuides = !!args.showColumnGuides;
+        }
+        if (hasOwn(args, "showRowGuides")) {
+          state.showRowGuides = !!args.showRowGuides;
+        }
+        if (hasOwn(args, "gridColumns")) {
+          state.gridColumns = Math.max(1, Math.round(finiteNumber(args.gridColumns, 1)));
+        }
+        if (hasOwn(args, "gridRows")) {
+          state.gridRows = Math.max(1, Math.round(finiteNumber(args.gridRows, 1)));
         }
         if (hasOwn(args, "showBodyAnchor")) {
           state.showBodyAnchor = !!args.showBodyAnchor;
@@ -4839,6 +5286,9 @@
         }
         if (Object.prototype.hasOwnProperty.call(args, "showAutocenter")) {
           state.showAutocenter = !!args.showAutocenter;
+        }
+        if (Object.prototype.hasOwnProperty.call(args, "showAutocenterAll")) {
+          state.showAutocenterAll = !!args.showAutocenterAll;
         }
         if (Object.prototype.hasOwnProperty.call(args, "showAutocrop")) {
           state.showAutocrop = !!args.showAutocrop;

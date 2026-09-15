@@ -1,0 +1,1 @@
+sprite-builder: OPENAI_API_KEY is required for generate-openai; no credential was found

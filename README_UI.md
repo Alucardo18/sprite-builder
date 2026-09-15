@@ -40,6 +40,8 @@ La UI queda disponible en [http://127.0.0.1:8501/](http://127.0.0.1:8501/).
 
 ## Tileset Builder
 
+> 📖 **Guía completa paso a paso**: Consulta [`docs/tile-builder-guide.md`](docs/tile-builder-guide.md) para aprender los 5 módulos (Asistente 1-Click, Procedural con Colores, Selección Manual Blob/Dual/Wang, Autotiles Animados y Map Tester con Exportación).
+
 Abra **Tileset Builder** desde la navegación superior. La página conserva el
 editor pixel-perfect de atlas y añade **Pattern Studio**, un flujo de
 generación inspirado en el Set View de Tilesetter:
@@ -47,8 +49,11 @@ generación inspirado en el Set View de Tilesetter:
 1. Defina el Tile Size y cargue una imagen en **Atlas**.
 2. Use **Importar grilla** para convertir las celdas opacas en Sources, o
    arrastre sobre la imagen para guardar un Source de tamaño libre.
-3. Seleccione un tile en **Set View** y ejecute **Build Borders · Blob** para
-   crear 47 variantes con placeholders.
+3. Para **Blob 47**, puede sintetizar todo el autotile desde **1 o 2 tiles**:
+   - **1 tile (fondo transparente)**: Seleccione 1 tile en **Set View** y ejecute **Build Borders · Blob**. Genera las 47 máscaras completas con contornos orgánicos, sombra proyectada y cresta de luz (rim light) sin necesidad de recortar bordes manuales.
+   - **2 tiles (Terreno A sobre Terreno B)**: Seleccione 2 tiles (por ejemplo, pasto y tierra) y ejecute **Build Blob 47 (A sobre B)** en Tile Properties. Sintetiza la transición completa entre ambos materiales.
+   - Los sets Blob nuevos usan tres variantes orgánicas por máscara (141 tiles exportables).
+   - Si prefiere el flujo clásico con recortes manuales de bordes, cambie el modo a **Bordes manuales (Legacy)** en Tile Properties.
 4. Para Wang, seleccione dos tiles y ejecute **Build Borders · Wang**; esos
    tiles representan los dos terrenos de la transición.
 5. Para **Dual Grid · 15**, seleccione exactamente dos terrenos y ejecute
@@ -58,7 +63,8 @@ generación inspirado en el Set View de Tilesetter:
    cuadrícula **Square** de cuatro esquinas; no use este atlas para TileMapDual
    isométrico, hexagonal ni triangular. Cada tile debe medir al menos **2×2 px**.
 6. En cualquier set generado, abra **Estrategia del borde** y elija
-   **Pasto sobre tierra**, **Tierra sobre agua** o **Pasto sobre agua**.
+   **Orgánico neutral**, **Pasto sobre tierra**, **Tierra sobre agua** o
+   **Pasto sobre agua**.
    En Wang y Dual, Terreno A debe ser el material indicado antes de “sobre” y
    Terreno B el material de fondo. En Blob/Sides la misma gramática se aplica
    sobre el Tile base y sus Border Sources; el primer borde configurado sirve
@@ -68,6 +74,13 @@ generación inspirado en el Set View de Tilesetter:
    Los perfiles materiales generan bandas duras de paleta —sombra, ribete,
    banco o raíz— derivadas de los Sources. No usan blur, antialiasing ni alpha blend;
    las máscaras puras permanecen intactas.
+   En Blob, **Variantes por máscara** controla uno, dos o tres bancos. Cada
+   banco conserva los mismos puertos y peering bits; sólo cambia el recorrido
+   interior del contorno. El Sandbox reparte las variantes de forma
+   determinista para que la repetición sea visible antes de exportar. En modo
+   síntesis inteligente, configure **Sombra proyectada** (0–4 px), **Dirección de
+   sombra** (Sur, Sur-Este u Omnidireccional con enfriamiento tonal pixel-art) y
+   **Cresta de luz superior (Rim light)** para lograr volumen e iluminación profesional.
 7. Para **Blob/Wang**, configure **Tile Properties**: el tile base y los cuatro
    Border Sources. Blob compone sus corners con esos empalmes diagonales; Wang
    parte además de sus terrenos A/B. Sides usa el mismo tile base y sus cuatro
@@ -88,7 +101,8 @@ generación inspirado en el Set View de Tilesetter:
 
 El proyecto JSON conserva Sources, posiciones del Set View, sets generados,
 transformaciones y correcciones, y sólo vuelve a abrirse sobre la misma imagen
-verificada por SHA-256. Restaura el **Tile Size** cuadrado de 1 a 64 px; los
+verificada por SHA-256. El tamaño predeterminado es **16×16 px** y los presets
+incluyen **32×32, 64×64 y 128×128 px**; los
 Sources usan bounds absolutos en píxeles, por lo que los offsets y spacings del
 editor de Atlas no forman parte de ese proyecto. La exportación conserva los
 layouts canónicos, el manifiesto y el instalador para Godot 4.
@@ -105,6 +119,9 @@ el bundle prepara el atlas y metadata; el runtime sigue siendo
 [TileMapDual](https://github.com/pablogila/TileMapDual) o un adaptador propio
 que mantenga las cuadrículas lógica y de display. No instala ni reemplaza ese
 plugin/nodo.
+En Blob orgánico, el atlas coloca tres layouts canónicos en bancos
+horizontales. El instalador registra las 141 celdas con probabilidad uniforme,
+y el manifiesto conserva `variant`, `variant_seed` y la semilla principal.
 
 Para elegir otro workspace:
 
@@ -131,14 +148,21 @@ sprite-builder sheet-export --session <id> --layout horizontal
 
 1. Suba una sprite sheet PNG desde la barra lateral.
 2. Pulse **Crear sesión con este PNG**.
-3. Primero limpie el fondo en **Background** con varita, borrador o cuentagotas.
-4. Indique el número de frames y elija horizontal, vertical o grid.
-5. Ajuste tamaño de celda, offsets, spacing, filas y columnas.
-6. Revise la segmentación en **Sheet** sobre el sheet ya transparente.
-7. En **Segmentación + Auto Center**, arrastre cada frame, use las guías y ajuste offsets.
-8. Bloquee manualmente cualquier frame revisado de baja confianza.
-9. En **Export**, active el recorte inteligente si hay demasiado espacio transparente.
-10. Pulse **Exportar sprite .png**.
+3. Limpie y guarde la hoja completa en **Fondo**.
+   Puede activar una capa de grid visual de 16, 32, 64 o 128 px; la guía no altera
+   los píxeles ni aparece en el archivo exportado.
+4. En **Preparar poses**, indique el número conocido de frames y un grid aproximado.
+   Lazo/Rectángulo/Elipse delimitan una pose y Mover guarda offsets reversibles;
+   nada se corta físicamente todavía.
+5. Guarde ese mapa provisional.
+6. En **Alineación & anchors**, corrija opcionalmente anatomía o capas desde
+   **Estudio**; después elija `idle`, `walk` o `attack` y revise la traslación entera.
+7. Corrija offsets por drag o inputs; bloquear un caso revisado es opcional.
+8. Defina orientación, columnas y crop en **Cortes finales**; el preview materializa
+   exactamente los píxeles, celda y dimensiones que se exportarán.
+9. En **Export**, elija sólo el empaquetado del layout bloqueado (hoja, frames,
+   contact sheet o GIF), o use **Hoja nativa completa** para conservar la
+   fuente transparente sin crop ni resampling.
 
 La sesión queda bajo `sheet_sessions/<session_id>/` y puede reabrirse desde la
 barra lateral. El PNG fuente, los intentos, overrides y exports conservan
@@ -167,20 +191,37 @@ contaminado en el fringe sin blur ni alpha suavizado.
 
 ## Centrado y ajuste fino
 
-El método recomendado busca la masa corporal mediante componentes conectados,
-percentiles y distance transform. Armas y VFX finos no determinan el anchor.
-Bounding box simple existe sólo como fallback explícito.
+El método recomendado fusiona torso, raíz de pelvis y soporte del suelo. Hombros
+y base de cabeza validan la anatomía sin arrastrar el cuerpo. Los perfiles cambian
+el peso por eje: `idle` prioriza torso, `walk` pelvis/suelo y `attack` el núcleo
+corporal. Armas y VFX finos no determinan el anchor; bounding box simple existe
+sólo como fallback explícito.
 
 En **Ajuste fino**:
 
 - X positivo mueve el frame a la derecha.
 - Y positivo lo mueve hacia abajo.
+- El frame activo se puede arrastrar libremente sobre el canvas completo.
+- Al pasar el cursor, la celda muestra `Frame N`; el primer clic selecciona un
+  frame y el siguiente gesto permite arrastrarlo.
+- El clic derecho abre acciones rápidas para seleccionar, autoalinear,
+  restablecer o bloquear el anchor del frame bajo el cursor.
+- `[` y `]` cambian al frame anterior o siguiente sin usar el selector.
+- **Autoalinear todo** recalcula la alineación multi-anchor de todos los frames y
+  conserva el resultado como offsets manuales en cero.
+- Las capas **Centros de columnas (X)** y **Centros de filas (Y)** dibujan guías
+  continuas sobre todo el canvas y pueden activarse por separado.
 - **Reset frame** vuelve a `(0, 0)`.
 - **Copiar a todos** aplica el offset actual a toda la secuencia.
 - **Revisado y bloqueado** confirma un anchor de baja confianza.
 
 Nunca reduzca un único frame para hacer caber un arma: amplíe el canvas para
 todos los frames o separe esa capa.
+
+Cambiar la configuración después de guardar una alineación no bloquea Cortes ni
+Export: ambos usan la última revisión guardada y muestran la diferencia como
+advertencia. Los anchors de baja confianza también quedan registrados como
+`manual_review`, pero el usuario puede exportar bajo su criterio.
 
 ## Exportación
 
@@ -213,11 +254,12 @@ No copie archivos `.import`; Godot los administra.
 - **Mal corte**: verifique cell size, offsets y spacing.
 - **Frame vacío**: revise las líneas de corte y el color chroma.
 - **Canvas insuficiente**: aumente ancho/alto para toda la secuencia.
-- **Export bloqueado**: revise y bloquee los anchors marcados `manual_review`.
+- **Export bloqueado**: guarde fondo, mapa provisional, alineación y cortes finales;
+  revise además los anchors marcados `manual_review`.
 
 ## Limitaciones actuales
 
-- El movimiento fino se hace con inputs numéricos X/Y.
+- La corrección manual mueve el frame completo en X/Y enteros; no rota ni escala.
 - El muestreo de chroma usa selector o esquina superior izquierda.
 - Siluetas muy inusuales pueden requerir revisión manual.
 - Se recomienda una sesión activa por pestaña del navegador.

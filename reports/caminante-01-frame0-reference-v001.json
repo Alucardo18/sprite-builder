@@ -1,0 +1,184 @@
+{
+  "source": "/Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/inputs/references/caminante-01-frame0-down-v001.png",
+  "image_size": [
+    887,
+    1774
+  ],
+  "content_bbox": [
+    107,
+    90,
+    765,
+    1671
+  ],
+  "component_bboxes": [
+    [
+      107,
+      90,
+      765,
+      1671
+    ]
+  ],
+  "frame_bboxes": [
+    [
+      107,
+      90,
+      765,
+      1671
+    ]
+  ],
+  "palette": [
+    {
+      "hex": "#DD8746",
+      "rgb": [
+        221,
+        135,
+        70
+      ],
+      "weight": 0.199039
+    },
+    {
+      "hex": "#080302",
+      "rgb": [
+        8,
+        3,
+        2
+      ],
+      "weight": 0.178287
+    },
+    {
+      "hex": "#35221A",
+      "rgb": [
+        53,
+        34,
+        26
+      ],
+      "weight": 0.085371
+    },
+    {
+      "hex": "#573628",
+      "rgb": [
+        87,
+        54,
+        40
+      ],
+      "weight": 0.07759
+    },
+    {
+      "hex": "#482C20",
+      "rgb": [
+        72,
+        44,
+        32
+      ],
+      "weight": 0.072525
+    },
+    {
+      "hex": "#211610",
+      "rgb": [
+        33,
+        22,
+        16
+      ],
+      "weight": 0.06312
+    },
+    {
+      "hex": "#A54B31",
+      "rgb": [
+        165,
+        75,
+        49
+      ],
+      "weight": 0.06123
+    },
+    {
+      "hex": "#C7743A",
+      "rgb": [
+        199,
+        116,
+        58
+      ],
+      "weight": 0.055869
+    },
+    {
+      "hex": "#B0612E",
+      "rgb": [
+        176,
+        97,
+        46
+      ],
+      "weight": 0.055033
+    },
+    {
+      "hex": "#6A4230",
+      "rgb": [
+        106,
+        66,
+        48
+      ],
+      "weight": 0.047332
+    },
+    {
+      "hex": "#8F4428",
+      "rgb": [
+        143,
+        68,
+        40
+      ],
+      "weight": 0.034849
+    },
+    {
+      "hex": "#773623",
+      "rgb": [
+        119,
+        54,
+        35
+      ],
+      "weight": 0.032162
+    },
+    {
+      "hex": "#D8BE93",
+      "rgb": [
+        216,
+        190,
+        147
+      ],
+      "weight": 0.017503
+    },
+    {
+      "hex": "#B89B73",
+      "rgb": [
+        184,
+        155,
+        115
+      ],
+      "weight": 0.010765
+    },
+    {
+      "hex": "#8D7455",
+      "rgb": [
+        141,
+        116,
+        85
+      ],
+      "weight": 0.006627
+    },
+    {
+      "hex": "#F4F4F4",
+      "rgb": [
+        244,
+        244,
+        244
+      ],
+      "weight": 0.002699
+    }
+  ],
+  "proportions": {
+    "content_width_ratio": 0.741826,
+    "content_height_ratio": 0.891206,
+    "foreground_occupancy": 0.426002,
+    "mean_frame_width_px": 658.0,
+    "mean_frame_height_px": 1581.0,
+    "mean_frame_aspect_ratio": 0.416192
+  },
+  "background_removed": false
+}

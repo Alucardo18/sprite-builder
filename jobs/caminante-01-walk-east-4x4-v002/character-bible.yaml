@@ -1,0 +1,25 @@
+schema_version: "1.0"
+
+identity:
+  name: caminante-01
+  description: >-
+    Feminine-presenting character with warm skin, dark brown hair gathered toward one side,
+    a terracotta sleeveless blouse, a brown skirt, a cream sash with a hanging tail, and dark
+    sandals. The user-approved south walk row is the visual design authority for this direction set.
+  immutable_features:
+    - Preserve the warm skin tone, dark brown hair mass and side-gathered ponytail silhouette.
+    - Preserve the terracotta sleeveless blouse with its V-shaped neckline.
+    - Preserve the cream waist sash and hanging sash tail.
+    - Preserve the brown skirt, dark sandals, proportions, and friendly facial expression.
+    - Keep the top-down/cenital gameplay camera, requested facing direction, torso anchor, and body scale consistent across all cells.
+  forbidden_changes:
+    - Do not copy the movement reference character's face, clothing, colors, silhouette, anatomy, or visual style.
+    - Do not add weapons, props, scenery, text, borders, or extra characters.
+
+visual_rules:
+  style: >-
+    Native-resolution 16-bit-era pixel art with crisp hard-edged clusters, deliberate 1px and
+    2px details, stepped silhouettes, and no anti-aliasing or painterly rendering.
+  lighting: Keep one stable soft light direction and value hierarchy across all four cells.
+  camera: Keep one fixed top-down/cenital overhead gameplay camera, orthographic or near-orthographic, with identical scale and crop.
+  palette: Simplify the concept image palette into readable warm skin, terracotta, cream, brown, and dark outline families.

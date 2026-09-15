@@ -1,0 +1,58 @@
+SHEET GENERATION CONTRACT - HIGHEST PRIORITY
+Create one complete native-resolution sprite sheet for a production 2D top-down action RPG.
+This is one animation and one direction, not a single frame and not a contact-sheet preview.
+Animation: walk. Direction: down.
+Requested source canvas: 256 × 64 pixels.
+Layout: horizontal; 1 row(s) × 4 column(s); frame cells are
+read in deterministic order left-to-right. Approximate cell size: 64.0 ×
+64.0 pixels. Gutter between cells: 0 pixels.
+The sheet must contain exactly 4 animation cells and no extra poses.
+
+PIXEL-ART STYLE CONTRACT
+Authentic native-resolution 16-bit pixel art with crisp hard-edged clusters, deliberate 1px and 2px details, stepped silhouettes, and no anti-aliasing, blur, painterly rendering, vector smoothness, or 3D rendering..
+Use readable pixel clusters, stable dark outline weight, restrained material shading, consistent native scale, and clean nearest-neighbor pixel logic..
+Use one fixed front-facing south/down game-sprite view matching the concept image's orientation, identical crop, scale, torso/body anchor, and support row in every cell..
+Use and simplify the character palette exclusively from the supplied concept image; do not borrow colors from the movement reference..
+Keep one stable light direction and value hierarchy across all four cells..
+
+CHARACTER IDENTITY CONTRACT
+The concept image contributes exclusively the generated character's identity: warm skin, dark brown side-gathered hair, terracotta sleeveless blouse, brown skirt, cream sash and hanging tail, dark sandals, proportions, facial expression, and all visible details..
+
+CHARACTER CANON
+Feminine-presenting character with warm skin, dark brown hair gathered toward one side, a terracotta sleeveless blouse, a brown skirt, a cream sash with a hanging tail, and dark sandals. The supplied concept image is the sole visual identity source.
+
+IMMUTABLE FEATURES
+- Preserve the warm skin tone, dark brown hair mass and side-gathered ponytail silhouette.
+- Preserve the terracotta sleeveless blouse with its V-shaped neckline.
+- Preserve the cream waist sash and hanging sash tail.
+- Preserve the brown skirt, dark sandals, proportions, and friendly facial expression.
+- Keep a consistent south/down/front camera, torso anchor, and body scale across all cells.
+
+ANIMATION CONTINUITY CONTRACT
+The movement reference contributes only movement, timing, poses, rhythm, and cell distribution. Generate a natural south/down/front walk cycle with clear opposite arm-and-leg alternation, readable contact and passing phases, hands changing sides between frames, and no repeated or frozen arm poses..
+Readable walk pose; stable torso and ground plane; move only anatomy and equipment required by the named phase.
+Show the complete character without cropping and do not add a shadow.
+Keep every foot visible in the pose complete, including heels, soles, and readable toe silhouettes inside the frame. Transparent padding below a limb does not prove that the limb is complete. Preserve a stable ground-support row across frames. Never repair anatomy by pasting, stretching, or scaling a rectangular crop from another pose; reconstruct it in the current pose while leaving the accepted torso, head, equipment, and canvas scale fixed.
+Legacy scale contract: keep body scale consistent with the approved character reference and require visual review against idle before integration.
+
+FRAME PLAN
+Cell 1: phase contact_left; contact left.
+Cell 2: phase passing_left; passing left.
+Cell 3: phase contact_right; contact right.
+Cell 4: phase recovery; recovery.
+
+
+COMPOSITION AND OUTPUT
+Create one isolated character cutout with generous empty canvas around it. Do not include scenery, a floor, a panel, or an ambient backdrop. Do not include a floor or cast shadow. Native output transparency is controlled by the image provider. Transparency is mandatory; an opaque result will be rejected.
+Keep every cell's character fully inside its own cell with generous, even breathing room.
+Use identical body scale, camera, anchor, ground/support row, outline weight, and palette logic
+throughout the sheet. Do not allow one pose to borrow pixels, overlap, or bleed into another cell.
+Do not crop, trim, autocenter, rescale, interpolate, anti-alias, or rearrange the generated sheet.
+The returned PNG itself is the authoritative source artifact; downstream code may only record
+logical cell regions for an atlas.
+
+PROHIBITED CONTENT
+No black or colored background, opaque backdrop, floor, scenery, shadow blob, grid, text, labels, numbers, border, watermark, guide, unrelated elements, separate images, contact sheet, copied reference character, copied face, copied clothing, copied colors, copied silhouette, copied anatomy, copied visual style, eye-level portrait framing, repeated arm pose, frozen arms, uncoordinated limbs, cropped body parts, clipping, deformation, anti-aliasing, blur, gradients, painterly brushwork, vector art, 3D render, or frame overlap..
+- Do not copy the movement reference character's face, clothing, colors, silhouette, anatomy, or visual style.
+- Do not add weapons, props, scenery, text, borders, or extra characters.
+No labels, captions, separators, grid lines, layout guides, debug marks, or explanatory text.

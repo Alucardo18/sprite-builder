@@ -24,6 +24,7 @@ from sprite_builder.orchestration import (
     stable_digest,
 )
 from sprite_builder.sheets.engine import (
+    ExportCropResult,
     export_sheet,
     render_contact_sheet,
     trim_transparent_frames,
@@ -697,11 +698,20 @@ class SheetSessionStore:
         stage: str,
     ) -> None:
         downstream = {
-            "source": ("background", "segmentation", "artwork", "alignment", "export"),
-            "background": ("segmentation", "artwork", "alignment", "export"),
-            "segmentation": ("artwork", "alignment", "export"),
-            "artwork": ("alignment", "export"),
-            "alignment": ("export",),
+            "source": (
+                "background",
+                "segmentation",
+                "artwork",
+                "alignment",
+                "layout",
+                "export",
+            ),
+            "background": ("segmentation", "artwork", "alignment", "layout", "export"),
+            # Segmentation is the provisional pose map over the cleaned source.
+            "segmentation": ("artwork", "alignment", "layout", "export"),
+            "artwork": ("alignment", "layout", "export"),
+            "alignment": ("layout", "export"),
+            "layout": ("export",),
             "export": (),
         }
         invalidated = downstream.get(stage, ())
@@ -921,9 +931,79 @@ class SheetSessionStore:
             raise ValueError("EXPORT_BLOCKED: frame adjustments do not match frames")
         if any(item.manual_review for item in session.frame_adjustments):
             validation_warnings.append("alignment contains manual_review frames")
+        layout_stage = session.stages.get("layout")
+        materialized_layout: tuple[dict[str, Any], dict[str, Any]] | None = None
+        if layout_stage:
+            if layout_stage.get("status") != "passed":
+                validation_warnings.append("layout stage is not passed")
+            else:
+                try:
+                    layout_paths = self.stage_paths(session, "layout")
+                except ArtifactIntegrityError as exc:
+                    raise ValueError(
+                        f"EXPORT_BLOCKED: invalid layout artifacts: {exc}"
+                    ) from exc
+                manifest_value = layout_stage.get("manifest")
+                if not manifest_value:
+                    validation_warnings.append("layout manifest is missing")
+                else:
+                    layout_manifest = json.loads(
+                        (self.workspace / str(manifest_value)).read_text(encoding="utf-8")
+                    )
+                    layout_config = layout_manifest.get("config", {})
+                    if layout_config.get("layout") != layout:
+                        validation_warnings.append(
+                            "export layout differs from final cuts"
+                        )
+                    if layout == "grid" and int(
+                        layout_config.get("columns", 0)
+                    ) != int(columns or 0):
+                        validation_warnings.append(
+                            "export columns differ from final cuts"
+                        )
+                    if layout_config.get("alignment_cache_key") != (
+                        alignment or {}
+                    ).get("cache_key"):
+                        validation_warnings.append(
+                            "final cuts do not reference the current alignment"
+                        )
+                    if len(layout_paths) != len(frames) or any(
+                        _image_digest(frame) != sha256_file(path)
+                        for frame, path in zip(frames, layout_paths, strict=False)
+                    ):
+                        validation_warnings.append(
+                            "export frames differ from final cuts"
+                        )
+                    else:
+                        materialized_layout = (layout_config, layout_manifest.get("metadata", {}))
         if validation_warnings and not allow_manual_review:
             raise ValueError("EXPORT_BLOCKED: " + "; ".join(validation_warnings))
-        cropped = trim_transparent_frames(frames, session.export_crop_config)
+        if materialized_layout is not None:
+            layout_config, layout_metadata = materialized_layout
+            crop_config = layout_config.get("crop", {})
+            bbox = tuple(
+                layout_metadata.get(
+                    "crop_bbox", (0, 0, frames[0].width, frames[0].height)
+                )
+            )
+            source_size = tuple(
+                layout_metadata.get("crop_source_size", frames[0].size)
+            )
+            cropped = ExportCropResult(
+                tuple(frame.convert("RGBA") for frame in frames), bbox, source_size
+            )
+            effective_crop = ExportCropConfig(
+                enabled=bool(crop_config.get("enabled", False)),
+                padding=int(crop_config.get("padding", 0)),
+                alpha_threshold=int(crop_config.get("alpha_threshold", 0)),
+            )
+            layout_regions = layout_metadata.get("regions", [])
+            layout_sheet_size = layout_metadata.get("sheet_size", [])
+        else:
+            cropped = trim_transparent_frames(frames, session.export_crop_config)
+            effective_crop = session.export_crop_config
+            layout_regions = []
+            layout_sheet_size = []
         identity = stable_digest(
             {
                 "session": session.session_id,
@@ -934,9 +1014,11 @@ class SheetSessionStore:
                 "export_frames": export_frames,
                 "frame_count": len(cropped.frames),
                 "crop_bbox": cropped.bbox,
-                "crop_enabled": session.export_crop_config.enabled,
-                "crop_padding": session.export_crop_config.padding,
-                "crop_alpha_threshold": session.export_crop_config.alpha_threshold,
+                "crop_enabled": effective_crop.enabled,
+                "crop_padding": effective_crop.padding,
+                "crop_alpha_threshold": effective_crop.alpha_threshold,
+                "layout_regions": layout_regions,
+                "layout_sheet_size": layout_sheet_size,
                 "validation_warnings": validation_warnings,
             }
         )[:12]
@@ -1037,6 +1119,8 @@ class SheetSessionStore:
             "preview_gif": str(gif_path.relative_to(self.workspace)) if gif_path else None,
             "exported_at": utc_now(),
             "layout": layout,
+            "regions": layout_regions,
+            "sheet_size": list(layout_sheet_size) if layout_sheet_size else None,
             "cell_size": list(result.cell_size if result is not None else cell_size),
             "frame_count": len(cropped.frames),
             "alpha": True,
@@ -1044,9 +1128,9 @@ class SheetSessionStore:
             "validation_warnings": validation_warnings,
             "sha256": sha256_file(primary_output),
             "crop": {
-                "enabled": session.export_crop_config.enabled,
-                "padding": session.export_crop_config.padding,
-                "alpha_threshold": session.export_crop_config.alpha_threshold,
+                "enabled": effective_crop.enabled,
+                "padding": effective_crop.padding,
+                "alpha_threshold": effective_crop.alpha_threshold,
                 "bbox": list(cropped.bbox),
                 "source_size": list(cropped.source_size),
             },

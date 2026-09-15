@@ -1,0 +1,35 @@
+{
+  "alpha_retry_index": 0,
+  "animation": "walk",
+  "background_color": "#00FF00",
+  "background_fallback": "reject",
+  "background_mode": "transparent_required",
+  "candidate_index": 0,
+  "character_id": "caminante-01",
+  "direction": "right",
+  "job_id": "caminante-01-walk-east-4x4-v004",
+  "manual_session_id": null,
+  "max_alpha_retries": 0,
+  "output_filename": "walk_right_sheet_candidate_00_ee51b4302fc8138eb53c.png",
+  "parent_request_id": null,
+  "prompt_path": "jobs/caminante-01-walk-east-4x4-v004/generation/prompts/right_sheet_0159d3cdc625.txt",
+  "quality": "high",
+  "reference_paths": [
+    "jobs/caminante-01-walk-east-4x4-v004/raw/walk_south_user_approved_design_v001.png",
+    "jobs/caminante-01-walk-east-4x4-v004/raw/reference-east/walk-row-4x4-east.png"
+  ],
+  "request_id": "ee51b4302fc8138eb53c",
+  "request_kind": "sheet",
+  "schema_version": "1.0",
+  "sheet_columns": 4,
+  "sheet_frame_count": 4,
+  "sheet_gutter_px": 0,
+  "sheet_layout": "horizontal",
+  "sheet_rows": 1,
+  "source_kind": "generated",
+  "source_size": [
+    256,
+    64
+  ],
+  "status": "prepared"
+}

@@ -1,0 +1,128 @@
+schema_version: "1.0"
+
+job:
+  id: caminante-01-walk-south-4x4-v003
+
+character:
+  id: caminante-01
+  bible: jobs/caminante-01-walk-south-4x4-v003/character-bible.yaml
+  references:
+    - characters/caminante-01/references/frame0_down_v001.png
+    - .codex/skills/walk-animation-reference/assets/walk-reference/walk-row-4x4-south.png
+
+animation:
+  name: walk
+  directions: [down]
+  frame_count: 4
+  fps: 8
+  loop: true
+  phases: [contact_left, passing_left, contact_right, recovery]
+
+generation:
+  source_size: [256, 64]
+  quality: high
+  mode: sheet
+  candidates_per_sheet: 1
+  sheet:
+    layout: horizontal
+    rows: 1
+    columns: 4
+    gutter_px: 0
+  prompt:
+    style: >-
+      Authentic native-resolution 16-bit pixel art with crisp hard-edged clusters, deliberate
+      1px and 2px details, stepped silhouettes, and no anti-aliasing, blur, painterly rendering,
+      vector smoothness, or 3D rendering.
+    pixel_language: >-
+      Use readable pixel clusters, stable dark outline weight, restrained material shading,
+      consistent native scale, and clean nearest-neighbor pixel logic.
+    camera: >-
+      Use one fixed front-facing south/down game-sprite view matching the concept image's
+      orientation, identical crop, scale, torso/body anchor, and support row in every cell.
+    palette: >-
+      Use and simplify the character palette exclusively from the supplied concept image; do
+      not borrow colors from the movement reference.
+    lighting: Keep one stable light direction and value hierarchy across all four cells.
+    identity: >-
+      The concept image contributes exclusively the generated character's identity: warm skin,
+      dark brown side-gathered hair, terracotta sleeveless blouse, brown skirt, cream sash and
+      hanging tail, dark sandals, proportions, facial expression, and all visible details.
+    animation: >-
+      The movement reference contributes only movement, timing, poses, rhythm, and cell
+      distribution. Generate exactly four distinct full-body south/down/front walk poses, not four
+      near-identical portraits. The lower body is the acceptance priority: use a true alternating
+      walk with clearly separated ankles, sandals, knees, and visible leg bends below the skirt.
+      Use screen-left and screen-right only; do not reinterpret those sides as character left/right.
+      Keep natural contralateral coordination: the arm on screen-right advances when the foot on
+      screen-left advances, and the arm on screen-left advances when the foot on screen-right
+      advances.
+    frame_choreography: >-
+      Follow this exact screen-side recipe before rendering: cell 1 is contact with the screen-left
+      foot and sandal clearly extended toward the bottom edge as the large near/front foot; the
+      screen-right leg is behind, bent, and its smaller sandal is visible. Cell 2 is passing: the
+      screen-left foot lifts and passes visibly through the center while the screen-right leg is
+      the support leg directly under the torso; there must be no screen-left front foot planted.
+      Cell 3 is contact with the screen-right foot and sandal clearly extended toward the bottom
+      edge as the large near/front foot; the screen-left leg is behind, bent, and its smaller
+      sandal is visible. Cell 4 is passing/recovery: the screen-right foot lifts and passes visibly
+      through the center while the screen-left leg is the support leg under the torso; there must be
+      no screen-right front foot planted. Thus cells 1 and 3 must have opposite front sandals, and
+      cells 2 and 4 must visibly pass between them. Keep the skirt hem high enough to expose both
+      knees, calves, ankles, and complete sandals in every cell while preserving the character's
+      skirt design. Do not use a standing pose or four variations of one leg stance. Redraw the
+      lower body if this screen-left/screen-right alternation is not unmistakable.
+    negative: >-
+      No black or colored background, opaque backdrop, floor, scenery, shadow blob, grid,
+      checkerboard, text, labels, numbers, border, watermark, guide, unrelated elements, separate
+      images, contact sheet, copied reference character, copied face, copied clothing, copied
+      colors, copied silhouette, copied anatomy, copied visual style, eye-level portrait framing,
+      repeated arm pose, frozen arms, uncoordinated limbs, same front foot in every frame,
+      identical lower body, fused legs, hidden legs, feet together, standing portrait pose,
+      cropped body parts, clipping,
+      deformation, anti-aliasing, blur, gradients, painterly brushwork, vector art, 3D render,
+      or frame overlap.
+  background:
+    mode: transparent_required
+    fallback: reject
+    max_attempts: 1
+    color: "#00FF00"
+
+render:
+  cell_size: [64, 64]
+  target_body_height_px: 56
+  palette_lock: false
+  dithering: false
+  integrated_shadow: false
+  resampling:
+    methods: [pixel_majority]
+    selection: pixel_majority
+    save_variants: false
+
+alignment:
+  method: torso_hybrid_v1
+  canonical_canvas_anchor: [32, 52]
+  confidence_review_threshold: 0.65
+  allow_manual_override: true
+
+quality_gates:
+  block_export_on_review: true
+  alpha_integrity:
+    min_transparent_ratio: 0.05
+    min_border_transparent_ratio: 0.98
+    max_foreground_border_ratio: 0.01
+    alpha_threshold: 8
+
+export:
+  formats: [horizontal]
+  output_dir: jobs/caminante-01-walk-south-4x4-v003/exports
+
+metadata:
+  cultural_review_required: true
+  reference_layout: four_horizontal_poses
+  incremental_row_workflow: true
+  requested_direction: south
+  source_reference_row: south
+  concept_role: identity_only
+  movement_reference_role: movement_timing_poses_rhythm_cell_distribution_only
+  retry_of: caminante-01-walk-south-4x4-v002
+  retry_reason: rejected_same_front_foot_in_both_generated_variants

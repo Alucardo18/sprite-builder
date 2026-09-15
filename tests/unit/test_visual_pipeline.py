@@ -121,6 +121,62 @@ class VisualPipelineTests(unittest.TestCase):
         self.assertEqual(arr[33, 45, 3], 255)
         self.assertGreater(result.confidence, 0.8)
 
+    def test_opt_in_unmix_tracks_painted_key_and_preserves_hidden_rgb_contract(self):
+        im = Image.new("RGB", (48, 48), (8, 162, 24))
+        draw = ImageDraw.Draw(im)
+        draw.rectangle((14, 12, 33, 35), fill=(180, 90, 30))
+        # A 50% subject/background blend one pixel outside the silhouette.
+        draw.point((13, 20), fill=(94, 126, 27))
+
+        result = remove_background(
+            im,
+            chroma_rgb=(0, 255, 0),
+            color_space="rgb",
+            tolerance=24,
+            feather_px=0,
+            preserve_outline=True,
+            unmix_enabled=True,
+            unmix_reach=2,
+        )
+        arr = np.asarray(result.image)
+        self.assertEqual(result.metrics["method"], "rgb_unmix_candidate")
+        observed = result.metrics["observed_background_rgb"]
+        self.assertLessEqual(
+            max(abs(observed[index] - (8, 162, 24)[index]) for index in range(3)),
+            4,
+        )
+        self.assertGreater(result.metrics["hard_cut_pixels"], 0)
+        self.assertGreater(result.metrics["despill_pixels"], 0)
+        self.assertGreater(int(arr[20, 13, 3]), 0)
+        self.assertLess(int(arr[20, 13, 3]), 255)
+        self.assertEqual(arr[0, 0].tolist(), [0, 0, 0, 0])
+
+    def test_opt_in_unmix_keeps_enclosed_key_island_and_only_small_spill(self):
+        im = Image.new("RGB", (64, 64), (0, 200, 0))
+        draw = ImageDraw.Draw(im)
+        draw.rectangle((8, 8, 55, 55), fill=(120, 80, 40))
+        draw.rectangle((20, 20, 21, 21), fill=(0, 255, 0))
+        draw.rectangle((25, 25, 27, 27), fill=(80, 150, 20))
+        draw.rectangle((42, 42, 49, 49), fill=(80, 150, 20))
+
+        result = remove_background(
+            im,
+            chroma_rgb=(0, 255, 0),
+            color_space="rgb",
+            tolerance=24,
+            feather_px=0,
+            preserve_outline=True,
+            unmix_enabled=True,
+            unmix_reach=2,
+        )
+        arr = np.asarray(result.image)
+        self.assertEqual(arr[20, 20].tolist(), [0, 255, 0, 255])
+        self.assertEqual(int(arr[26, 26, 3]), 255)
+        self.assertNotEqual(arr[26, 26, :3].tolist(), [80, 150, 20])
+        self.assertEqual(arr[45, 45, :3].tolist(), [80, 150, 20])
+        self.assertEqual(int(arr[45, 45, 3]), 255)
+        self.assertEqual(result.metrics["despill_pixels"], 9)
+
     def test_crop_and_palette_scale(self):
         transparent = remove_background(sprite(), chroma_rgb=(0, 255, 0), feather_px=0).image
         crop = autocut_sprite(transparent, padding=2)

@@ -1,0 +1,139 @@
+{
+  "source": "/Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/jobs/zorro-decomp-v001/source/frames/fox-000.png",
+  "image_size": [
+    392,
+    322
+  ],
+  "content_bbox": [
+    91,
+    196,
+    294,
+    322
+  ],
+  "component_bboxes": [
+    [
+      91,
+      196,
+      294,
+      322
+    ]
+  ],
+  "frame_bboxes": [
+    [
+      91,
+      196,
+      294,
+      322
+    ]
+  ],
+  "palette": [
+    {
+      "hex": "#12141D",
+      "rgb": [
+        18,
+        20,
+        29
+      ],
+      "weight": 0.369024
+    },
+    {
+      "hex": "#FC6B23",
+      "rgb": [
+        252,
+        107,
+        35
+      ],
+      "weight": 0.231041
+    },
+    {
+      "hex": "#FFF6B1",
+      "rgb": [
+        255,
+        246,
+        177
+      ],
+      "weight": 0.131565
+    },
+    {
+      "hex": "#C74912",
+      "rgb": [
+        199,
+        73,
+        18
+      ],
+      "weight": 0.080223
+    },
+    {
+      "hex": "#9D320A",
+      "rgb": [
+        157,
+        50,
+        10
+      ],
+      "weight": 0.070596
+    },
+    {
+      "hex": "#6B1702",
+      "rgb": [
+        107,
+        23,
+        2
+      ],
+      "weight": 0.044925
+    },
+    {
+      "hex": "#B7AC7E",
+      "rgb": [
+        183,
+        172,
+        126
+      ],
+      "weight": 0.019253
+    },
+    {
+      "hex": "#2A261F",
+      "rgb": [
+        42,
+        38,
+        31
+      ],
+      "weight": 0.019253
+    },
+    {
+      "hex": "#D6C598",
+      "rgb": [
+        214,
+        197,
+        152
+      ],
+      "weight": 0.016045
+    },
+    {
+      "hex": "#90866E",
+      "rgb": [
+        144,
+        134,
+        110
+      ],
+      "weight": 0.012836
+    },
+    {
+      "hex": "#454545",
+      "rgb": [
+        69,
+        69,
+        69
+      ],
+      "weight": 0.005239
+    }
+  ],
+  "proportions": {
+    "content_width_ratio": 0.517857,
+    "content_height_ratio": 0.391304,
+    "foreground_occupancy": 0.120975,
+    "mean_frame_width_px": 203.0,
+    "mean_frame_height_px": 126.0,
+    "mean_frame_aspect_ratio": 1.611111
+  },
+  "background_removed": true
+}

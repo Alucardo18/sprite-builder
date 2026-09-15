@@ -1,0 +1,14 @@
+identity:
+  name: walk_reference_trial_character
+  description: "The supplied concept image is the sole visual identity source for this generated character."
+  immutable_features:
+    - "Preserve the concept image's anatomy, silhouette, palette, clothing, and visible details."
+    - "Keep one consistent torso/body anchor and native scale across all four cells."
+  forbidden_changes:
+    - "Do not copy the movement reference character's face, clothing, colors, silhouette, anatomy, or visual style."
+
+visual_rules:
+  style: "Native-resolution pixel-art sprite row with crisp intentional clusters and readable silhouettes."
+  lighting: "Keep one stable light direction and value hierarchy across all cells."
+  camera: "Keep one fixed orthographic top-down three-quarter camera and identical scale in every cell."
+  palette: "Derive the character palette exclusively from the supplied concept image."

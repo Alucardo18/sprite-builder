@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from math import ceil
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -22,6 +22,7 @@ from sprite_builder.alignment import (
 from sprite_builder.export import SheetResult, build_spritesheet
 from sprite_builder.postprocess import remove_background, resize_sprite_variants
 from sprite_builder.sheets.models import (
+    AnchorPoint,
     AutoCenterConfig,
     BackgroundRemovalConfig,
     ExportCropConfig,
@@ -41,6 +42,19 @@ class CenteringResult:
 class CenteringAnalysis:
     detections: tuple[AnchorDetection, ...]
     bboxes: tuple[tuple[int, int, int, int], ...]
+    anchor_sets: tuple[tuple[AnchorPoint, ...], ...] = ()
+    anchor_disagreements: tuple[float, ...] = ()
+    profile: str = "legacy"
+
+
+@dataclass(frozen=True, slots=True)
+class FrameLayoutPlan:
+    layout: str
+    columns: int
+    rows: int
+    cell_size: tuple[int, int]
+    sheet_size: tuple[int, int]
+    regions: tuple[tuple[int, int, int, int], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,14 +76,22 @@ class ScaleMeasurement:
 
 
 OverflowStrategy = Literal["strict", "clamp", "clip"]
+_ANCHOR_ROLE_COLORS = {
+    "stabilize": (76, 224, 255),
+    "validate": (255, 190, 72),
+    "socket": (183, 120, 255),
+}
 
 
 def apply_background_removal(
     frames: Sequence[Image.Image],
     config: BackgroundRemovalConfig,
+    *,
+    reports: list[dict[str, Any]] | None = None,
 ) -> tuple[Image.Image, ...]:
-    return tuple(
-        remove_background(
+    output: list[Image.Image] = []
+    for index, frame in enumerate(frames):
+        result = remove_background(
             frame,
             chroma_rgb=config.color,
             tolerance=config.tolerance,
@@ -82,9 +104,16 @@ def apply_background_removal(
             near_transparent_threshold=config.near_transparent_threshold,
             preserve_outline=config.preserve_outline,
             border_connected_only=config.border_connected_only,
-        ).image
-        for frame in frames
-    )
+            unmix_enabled=config.unmix_enabled,
+            unmix_reach=config.unmix_reach,
+            unmix_fringe_tolerance=config.unmix_fringe_tolerance,
+            unmix_tint_threshold=config.unmix_tint_threshold,
+            spill_max_fraction=config.spill_max_fraction,
+        )
+        output.append(result.image)
+        if reports is not None and config.unmix_enabled:
+            reports.append({"frame_index": index, **result.metrics})
+    return tuple(output)
 
 
 def pad_frames_to_common_canvas(
@@ -298,12 +327,186 @@ def _feet_detections(
     return detections, bboxes
 
 
+_MULTI_ANCHOR_WEIGHTS: dict[str, dict[str, tuple[float, float]]] = {
+    "idle": {
+        "torso": (0.55, 0.55),
+        "pelvis_root": (0.45, 0.30),
+        "ground_support": (0.00, 0.15),
+    },
+    "walk": {
+        "torso": (0.40, 0.10),
+        "pelvis_root": (0.50, 0.20),
+        "ground_support": (0.10, 0.70),
+    },
+    "attack": {
+        "torso": (0.55, 0.50),
+        "pelvis_root": (0.40, 0.40),
+        "ground_support": (0.05, 0.10),
+    },
+}
+
+
+def _weighted_anchor_axis(
+    anchors: Sequence[AnchorPoint],
+    *,
+    axis: int,
+) -> float:
+    weighted = [
+        (anchor.position[axis], anchor.weight_x if axis == 0 else anchor.weight_y)
+        for anchor in anchors
+        if (anchor.weight_x if axis == 0 else anchor.weight_y) > 0
+    ]
+    if not weighted:
+        raise ValueError("Multi-anchor profile has no stabilizing observations")
+    values = np.asarray([item[0] for item in weighted], dtype=np.float64)
+    weights = np.asarray([item[1] for item in weighted], dtype=np.float64)
+    order = np.argsort(values)
+    cumulative = np.cumsum(weights[order])
+    index = int(np.searchsorted(cumulative, float(weights.sum()) / 2, side="left"))
+    return float(values[order[min(index, len(order) - 1)]])
+
+
+def _multi_anchor_detections(
+    frames: Sequence[Image.Image],
+    profile: str,
+) -> CenteringAnalysis:
+    weights = _MULTI_ANCHOR_WEIGHTS[profile]
+    torso_detections, _ = _body_detections(frames)
+    records: list[
+        tuple[
+            AnchorDetection,
+            tuple[int, int, int, int],
+            tuple[AnchorPoint, ...],
+            float | None,
+            float,
+        ]
+    ] = []
+    ground_gaps: list[float] = []
+    for frame, tracked in zip(frames, torso_detections, strict=True):
+        body = estimate_body_anchor(frame)
+        pelvis = (
+            float(body.anchor[0]),
+            float(body.anchor[1] + body.torso_height * 0.42),
+        )
+        observations = [
+            AnchorPoint(
+                "torso",
+                tracked.anchor,
+                tracked.confidence,
+                "stabilize",
+                tracked.source,
+                *weights["torso"],
+            ),
+            AnchorPoint(
+                "pelvis_root",
+                pelvis,
+                body.confidence,
+                "stabilize",
+                "body_core_geometry",
+                *weights["pelvis_root"],
+            ),
+            AnchorPoint(
+                "shoulder_center",
+                (
+                    float(body.anchor[0]),
+                    float(body.anchor[1] - body.torso_height * 0.45),
+                ),
+                body.confidence * 0.9,
+                "validate",
+                "body_core_geometry",
+            ),
+            AnchorPoint(
+                "head_base",
+                (
+                    float(body.anchor[0]),
+                    float(body.anchor[1] - body.torso_height * 0.75),
+                ),
+                body.confidence * 0.8,
+                "validate",
+                "body_core_geometry",
+            ),
+        ]
+        gap: float | None = None
+        try:
+            feet = estimate_feet_anchor(frame)
+        except ValueError:
+            feet = None
+        if feet is not None:
+            observations.append(
+                AnchorPoint(
+                    "ground_support",
+                    feet.anchor,
+                    feet.confidence,
+                    "stabilize",
+                    "feet_support",
+                    *weights["ground_support"],
+                )
+            )
+            gap = float(feet.anchor[1] - pelvis[1])
+            ground_gaps.append(gap)
+        tracking_error = float(np.linalg.norm(np.subtract(tracked.anchor, body.anchor)))
+        records.append(
+            (tracked, body.body_bbox, tuple(observations), gap, tracking_error)
+        )
+
+    median_ground_gap = float(np.median(ground_gaps)) if ground_gaps else 0.0
+    detections: list[AnchorDetection] = []
+    bboxes: list[tuple[int, int, int, int]] = []
+    anchor_sets: list[tuple[AnchorPoint, ...]] = []
+    disagreements: list[float] = []
+    for tracked, bbox, observations, gap, tracking_error in records:
+        disagreement = max(
+            tracking_error,
+            abs(gap - median_ground_gap) if gap is not None else 0.0,
+        )
+        stabilizers = [anchor for anchor in observations if anchor.role == "stabilize"]
+        fused = (
+            _weighted_anchor_axis(stabilizers, axis=0),
+            _weighted_anchor_axis(stabilizers, axis=1),
+        )
+        total_weight = sum(anchor.weight_x + anchor.weight_y for anchor in stabilizers)
+        confidence = (
+            sum(
+                anchor.confidence * (anchor.weight_x + anchor.weight_y)
+                for anchor in stabilizers
+            )
+            / max(total_weight, 1e-6)
+        )
+        body_height = max(1.0, float(bbox[3] - bbox[1]))
+        allowed = max(2.0, body_height * 0.12)
+        if disagreement > allowed:
+            confidence *= float(np.exp(-(disagreement - allowed) / allowed))
+        confidence = float(np.clip(confidence, 0.0, 1.0))
+        detections.append(
+            AnchorDetection(
+                fused,
+                confidence,
+                tracked.template_score,
+                tracked.flow_inlier_ratio,
+                tracked.core_score,
+                f"multi_anchor:{profile}",
+            )
+        )
+        bboxes.append(bbox)
+        anchor_sets.append(observations)
+        disagreements.append(disagreement)
+    return CenteringAnalysis(
+        tuple(detections),
+        tuple(bboxes),
+        tuple(anchor_sets),
+        tuple(disagreements),
+        profile,
+    )
+
+
 def analyze_center_frames(
     frames: Sequence[Image.Image],
     config: AutoCenterConfig,
 ) -> CenteringAnalysis:
     if not frames:
         raise ValueError("At least one frame is required")
+    if config.method == "multi_anchor":
+        return _multi_anchor_detections(frames, config.alignment_profile)
     if config.method == "body":
         detections, bboxes = _body_detections(frames)
     elif config.method == "feet":
@@ -342,6 +545,16 @@ def _apply_centering(
 
     detections = analysis.detections
     bboxes = analysis.bboxes
+    anchor_sets = (
+        analysis.anchor_sets
+        if len(analysis.anchor_sets) == len(frames)
+        else ((),) * len(frames)
+    )
+    anchor_disagreements = (
+        analysis.anchor_disagreements
+        if len(analysis.anchor_disagreements) == len(frames)
+        else (0.0,) * len(frames)
+    )
     target = (
         config.canonical_anchor
         if target_anchor is None
@@ -445,8 +658,16 @@ def _apply_centering(
     residuals: list[float] = []
     source_deltas: list[float] = []
     manual_deltas: list[float] = []
-    for index, (detection, offset, bbox, scale) in enumerate(
-        zip(detections, offsets, bboxes, scales, strict=True)
+    for index, (detection, offset, bbox, scale, anchors, disagreement) in enumerate(
+        zip(
+            detections,
+            offsets,
+            bboxes,
+            scales,
+            anchor_sets,
+            anchor_disagreements,
+            strict=True,
+        )
     ):
         dx = round(target[0] - detection.anchor[0]) + offset[0]
         dy = round(target[1] - detection.anchor[1]) + offset[1]
@@ -474,6 +695,9 @@ def _apply_centering(
                 frame_index=index,
                 auto_anchor=detection.anchor,
                 auto_confidence=detection.confidence,
+                anchors=anchors,
+                alignment_profile=analysis.profile,
+                anchor_disagreement_px=disagreement,
                 manual_offset_x=offset[0],
                 manual_offset_y=offset[1],
                 final_anchor=expected,
@@ -493,6 +717,10 @@ def _apply_centering(
                         detection.confidence < config.confidence_threshold
                         and not locks[index]
                     )
+                    or (
+                        disagreement > max(3.0, float(bbox[3] - bbox[1]) * 0.12)
+                        and not locks[index]
+                    )
                 ),
             )
         )
@@ -510,6 +738,13 @@ def _apply_centering(
         "final_anchor_max_error": max(residuals, default=0.0),
         "minimum_confidence": min(item.auto_confidence for item in adjustments),
         "mean_confidence": float(np.mean([item.auto_confidence for item in adjustments])),
+        "anchor_disagreement_mean_px": float(
+            np.mean([item.anchor_disagreement_px for item in adjustments])
+        ),
+        "anchor_disagreement_max_px": max(
+            (item.anchor_disagreement_px for item in adjustments),
+            default=0.0,
+        ),
         "scale_factor_min": min(item.scale_factor for item in adjustments),
         "scale_factor_max": max(item.scale_factor for item in adjustments),
         "scale_factor_mean": float(np.mean([item.scale_factor for item in adjustments])),
@@ -538,6 +773,46 @@ def _apply_centering(
         ),
     }
     return CenteringResult(tuple(aligned), tuple(adjustments), jitter, status)
+
+
+def plan_frame_layout(
+    frames: Sequence[Image.Image],
+    *,
+    layout: str,
+    columns: int | None = None,
+) -> FrameLayoutPlan:
+    """Describe the final fixed-cell cuts without modifying aligned pixels."""
+
+    if not frames:
+        raise ValueError("At least one frame is required")
+    if layout not in {"horizontal", "vertical", "grid"}:
+        raise ValueError(f"Unsupported layout: {layout}")
+    cell_width = max(frame.width for frame in frames)
+    cell_height = max(frame.height for frame in frames)
+    if layout == "horizontal":
+        actual_columns = len(frames)
+    elif layout == "vertical":
+        actual_columns = 1
+    else:
+        actual_columns = max(1, min(int(columns or ceil(len(frames) ** 0.5)), len(frames)))
+    rows = ceil(len(frames) / actual_columns)
+    regions = tuple(
+        (
+            (index % actual_columns) * cell_width,
+            (index // actual_columns) * cell_height,
+            cell_width,
+            cell_height,
+        )
+        for index in range(len(frames))
+    )
+    return FrameLayoutPlan(
+        layout=layout,
+        columns=actual_columns,
+        rows=rows,
+        cell_size=(cell_width, cell_height),
+        sheet_size=(actual_columns * cell_width, rows * cell_height),
+        regions=regions,
+    )
 
 
 def auto_center_frames(
@@ -622,6 +897,18 @@ def render_frame_overlay(
         draw.line((center[0], 0, center[0], rgba.height - 1), fill=(255, 255, 255, 150), width=1)
         draw.line((0, center[1], rgba.width - 1, center[1]), fill=(255, 255, 255, 150), width=1)
     if adjustment is not None:
+        for anchor in adjustment.anchors:
+            anchor_x = round(
+                anchor.position[0] + adjustment.applied_translation[0] - origin_x
+            )
+            anchor_y = round(
+                anchor.position[1] + adjustment.applied_translation[1] - origin_y
+            )
+            color = _ANCHOR_ROLE_COLORS.get(anchor.role, (210, 210, 220)) + (255,)
+            draw.ellipse(
+                (anchor_x - 1, anchor_y - 1, anchor_x + 1, anchor_y + 1),
+                fill=color,
+            )
         target_x = round(
             adjustment.auto_anchor[0] + adjustment.applied_translation[0] - origin_x
         )
@@ -715,11 +1002,51 @@ def render_contact_sheet(
         cell_width = width * scale
         cell_height = height * scale
         anchor_centers: list[tuple[int, int]] = []
+        multi_anchor_centers: list[tuple[int, int, tuple[int, int, int]]] = []
         if show_anchor_guides and adjustments is not None:
             for index, _frame in enumerate(frames):
                 adjustment = adjustments[index]
                 x = padding + (index % columns) * cell_width
                 y = padding + (index // columns) * cell_height
+                for anchor in adjustment.anchors:
+                    point_x = x + round(
+                        (
+                            anchor.position[0]
+                            + adjustment.applied_translation[0]
+                            - origin_offset[0]
+                        )
+                        * scale
+                    )
+                    point_y = y + round(
+                        (
+                            anchor.position[1]
+                            + adjustment.applied_translation[1]
+                            - origin_offset[1]
+                        )
+                        * scale
+                    )
+                    color = _ANCHOR_ROLE_COLORS.get(anchor.role, (210, 210, 220))
+                    multi_anchor_centers.append((point_x, point_y, color))
+                    point_radius = max(2, scale + 1)
+                    guide_draw.ellipse(
+                        (
+                            point_x - point_radius,
+                            point_y - point_radius,
+                            point_x + point_radius,
+                            point_y + point_radius,
+                        ),
+                        outline=(7, 8, 14),
+                        width=max(2, scale),
+                    )
+                    guide_draw.ellipse(
+                        (
+                            point_x - point_radius + 1,
+                            point_y - point_radius + 1,
+                            point_x + point_radius - 1,
+                            point_y + point_radius - 1,
+                        ),
+                        fill=color,
+                    )
                 anchor_x = x + round(
                     (
                         adjustment.auto_anchor[0]
@@ -789,6 +1116,8 @@ def render_contact_sheet(
         # its dark outline to erase a complete X/Y guide after crop changes.
         for anchor_x, anchor_y in anchor_centers:
             guide_draw.point((anchor_x, anchor_y), fill=(255, 76, 160))
+        for anchor_x, anchor_y, color in multi_anchor_centers:
+            guide_draw.point((anchor_x, anchor_y), fill=color)
         if show_cell_guides:
             guide_width = max(
                 1,

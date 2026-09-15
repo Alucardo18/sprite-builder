@@ -1,0 +1,67 @@
+schema_version: '1.0'
+identity:
+  id: zorro-cenote-01
+  name: zorro-cenote-01
+  description: 'Zorro original para un juego 2D de aventura: criatura pequeña y ágil
+    de perfil legible, pelaje terracota quemado con pecho y punta de cola jade pálido,
+    máscara facial marfil, orejas grandes con interior turquesa apagado y una pequeña
+    marca de obsidiana sobre el ojo; pixel art limpio y expresivo, sin copiar el
+    personaje de referencia.'
+review:
+  required: true
+  status: draft
+  note: Complete immutable features and forbidden changes before generation.
+visual_rules:
+  immutable_features:
+  - four-legged compact body with a slightly oversized head
+  - two tall ears with muted turquoise inner ears
+  - pale jade chest and pale jade tail tip
+  - small obsidian crescent mark above the visible eye
+  - dark indigo pixel outline and readable paws
+  optional_features:
+  - a single tiny jade bead at the neck may appear only if it does not break the silhouette
+  forbidden_changes:
+  - do not reproduce the reference fox face, orange-and-white markings, or exact silhouette
+  - no clothing, weapon, text, watermark, scenery, or cast shadow baked into the sheet
+  - no realistic fur texture, gradients, blur, anti-aliased edges, or perspective camera
+  silhouette_notes: 'Side-facing game sprite with a compact torso, lifted brush tail, upright ears,
+    and a clear four-paw read. Keep the body anchor stable across all frames.'
+  lighting: 'Simple warm key light from upper left with one darker underside band; flat pixel clusters.'
+  outline: 'One-to-two pixel dark indigo outline, with selective interior dark accents and no black halo.'
+equipment:
+  default_weapon: null
+  attachment_rules: {}
+scale_profile:
+  reference_animation: idle
+  status: pending_idle_approval
+  target_body_height_px: null
+  reference_path: null
+  canonical_anchor: null
+  measurement: robust_body_without_equipment
+  exclude_from_measurement:
+  - weapons
+  - staffs
+  - extended_limbs
+  - hair_tips
+  - detached_effects
+  - vfx
+  tolerance_px: 1.0
+palette:
+  locked: false
+  file: palette.json
+  tolerance_delta_e00: 8
+reference:
+  source: /Users/emmanuel/Documents/ANTIGRAVITY/sprite-builder/jobs/zorro-decomp-v001/source/frames/fox-000.png
+  frame_count_detected: 1
+  frame_bboxes:
+  - - 91
+    - 196
+    - 294
+    - 322
+  proportions:
+    content_width_ratio: 0.517857
+    content_height_ratio: 0.391304
+    foreground_occupancy: 0.120975
+    mean_frame_width_px: 203.0
+    mean_frame_height_px: 126.0
+    mean_frame_aspect_ratio: 1.611111

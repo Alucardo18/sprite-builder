@@ -1,0 +1,32 @@
+schema_version: "1.0"
+
+identity:
+  name: caminante-01
+  description: >-
+    Feminine-presenting 16-bit RPG character with warm skin, dark brown hair gathered toward
+    one side, a terracotta sleeveless blouse, brown skirt, cream sash with a hanging tail, and
+    dark sandals. The user-approved south walk row is the only visual design authority.
+  immutable_features:
+    - Preserve the warm skin tone, dark brown side-gathered hair and ponytail silhouette.
+    - Preserve the terracotta sleeveless blouse with its V-shaped neckline.
+    - Preserve the cream waist sash and hanging sash tail.
+    - Preserve the brown skirt, dark sandals, proportions, and friendly expression.
+    - Keep one fixed shallow 2D RPG top-down gameplay camera without a cenital or bird's-eye angle.
+    - Keep identical body scale, torso anchor, support row, outline weight, and palette logic in all cells.
+  forbidden_changes:
+    - Do not copy any other character's face, clothing, colors, silhouette, anatomy, or style.
+    - Do not add weapons, props, scenery, text, borders, shadows, or extra characters.
+
+visual_rules:
+  style: >-
+    Native-resolution 16-bit pixel art with crisp hard-edged clusters, deliberate 1px and 2px
+    details, stepped silhouettes, stable dark outlines, and no anti-aliasing, blur, painterly
+    rendering, gradients, vector smoothness, or 3D rendering.
+  lighting: Keep one stable light direction and value hierarchy across the complete sheet.
+  camera: >-
+    Standard 2D RPG top-down gameplay camera without a cenital angle: orthographic, shallow
+    elevation, almost parallel to the ground plane, with readable front and side surfaces and
+    only minimal top planes. Never use a steep overhead, bird's-eye, aerial, or downward-looking view.
+  palette: >-
+    Use the approved south reference palette and material roles consistently across all four
+    directions; do not introduce colors from any other source.

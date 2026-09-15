@@ -380,6 +380,15 @@ def test_dual_grid_material_pair_selector_has_bounded_deterministic_variation() 
     assert "Sombra acuática, ribete claro y banco terroso irregular" in source
 
 
+def test_blob_procedural_preset_bypasses_source_edge_rows() -> None:
+    source = STUDIO_HTML.read_text(encoding="utf-8")
+
+    assert 'id="blobMaterialMode"' in source
+    assert 'function buildProceduralBlob(profile)' in source
+    assert 'if(!showEdges||isProceduralBlob(set)){' in source
+    assert 'Pinta una isla y un hueco para comprobar las uniones del Blob 47.' in source
+
+
 def test_degenerate_dual_grid_project_is_skipped_without_losing_it() -> None:
     project = {
         "version": 3,
@@ -558,7 +567,8 @@ def test_dual_grid_documentation_distinguishes_atlas_from_runtime() -> None:
     assert "Para **Blob/Wang**, configure **Tile Properties**" in readme
     assert "Dual Grid sólo expone Terreno A y Terreno B." in readme
     assert "Custom corners son exclusivos de Blob" in readme
-    assert "Tile Size** cuadrado de 1 a 64 px" in readme
+    assert "predeterminado es **16×16 px**" in readme
+    assert "**32×32, 64×64 y 128×128 px**" in readme
     assert "bounds absolutos en píxeles" in readme
     assert "El export traduce ese orden al contrato de" in " ".join(readme.split())
     assert "No instala ni reemplaza ese plugin/nodo." in " ".join(readme.split())
@@ -634,4 +644,3 @@ def test_studio_component_supports_rounded_profiles_and_source_bounds() -> None:
     assert '"rounded_dither"' in studio
     assert "source.x!==undefined?source.x:(Array.isArray(source.rect)" in studio
     assert "const sb=sourceBounds(source);copy.querySelector(\"span\").textContent=" in studio
-

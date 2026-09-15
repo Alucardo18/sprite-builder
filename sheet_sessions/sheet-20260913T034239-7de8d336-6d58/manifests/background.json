@@ -1,0 +1,53 @@
+{
+  "cache_key": "8ce420f7bb16d43db7618690be18a49d9d471895c6984c477af0ad4657964e92",
+  "config": {
+    "border_connected_only": true,
+    "cleanup_enabled": true,
+    "color": [
+      254,
+      254,
+      254
+    ],
+    "color_space": "rgb",
+    "fringe_cleanup_strength": 3,
+    "mode": "chroma",
+    "near_transparent_threshold": 8,
+    "preserve_outline": true,
+    "remove_near_transparent": true,
+    "spill_max_fraction": 0.005,
+    "tolerance": 140.0,
+    "unmix_enabled": false,
+    "unmix_fringe_tolerance": 160.0,
+    "unmix_reach": 2,
+    "unmix_tint_threshold": 18.0
+  },
+  "created_at": "2026-09-13T03:43:34.074261+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260913T034239-7de8d336-6d58/source/7de8d336b7753f1ab14065d0b166123bd9f51633e6c616710d69da58baecb04d.png",
+      "role": "source",
+      "sha256": "7de8d336b7753f1ab14065d0b166123bd9f51633e6c616710d69da58baecb04d",
+      "size_bytes": 1285146
+    }
+  ],
+  "metadata": {
+    "manual_edit_operations": {},
+    "processing_signature": "c50f90d708f5a8420028cb305968002a167f16f000778b3f90d9d374253cc1f4"
+  },
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260913T034239-7de8d336-6d58/attempts/background/8ce420f7bb16d43db7618690be18a49d9d471895c6984c477af0ad4657964e92/frame_000.png",
+      "role": "output",
+      "sha256": "eef66068def464d72516fc2a034b6b114c3366b1d10ba3fc9a47cace3cc4bf83",
+      "size_bytes": 1451089
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260913T034239-7de8d336-6d58",
+  "stage": "background",
+  "status": "passed",
+  "warnings": []
+}

@@ -11,6 +11,7 @@ import sys
 from collections.abc import Iterable
 from dataclasses import fields
 from pathlib import Path
+from typing import Any
 
 from PIL import Image
 
@@ -45,6 +46,7 @@ from sprite_builder.sheets import (
     SheetSessionStore,
     apply_background_removal,
     auto_center_frames,
+    plan_frame_layout,
     segment_sheet,
 )
 
@@ -377,11 +379,6 @@ def command_sheet_process(args: argparse.Namespace) -> int:
         spacing_x=args.spacing_x,
         spacing_y=args.spacing_y,
     )
-    segmented = segment_sheet(
-        source,
-        segmentation_config,
-        background_rgb=session.inspection.border_rgb,
-    )
     background_config = BackgroundRemovalConfig(
         color=args.background_color or session.inspection.border_rgb,
         tolerance=args.tolerance,
@@ -389,13 +386,29 @@ def command_sheet_process(args: argparse.Namespace) -> int:
         fringe_cleanup_strength=args.fringe_cleanup,
         remove_near_transparent=args.remove_near_transparent,
         preserve_outline=not args.no_preserve_outline,
+        unmix_enabled=args.chroma_unmix and not args.manual_alpha,
+        unmix_reach=args.unmix_reach,
+        unmix_fringe_tolerance=args.unmix_fringe_tolerance,
+        unmix_tint_threshold=args.unmix_tint_threshold,
+        spill_max_fraction=args.spill_max_fraction,
     )
+    background_reports: list[dict[str, Any]] = []
     if args.manual_alpha:
         # Sheet Studio has already authored the alpha.  Do not run chroma
         # removal again: it can damage the deliberate 16-bit outline colors.
-        transparent = tuple(frame.convert("RGBA") for frame in segmented.frames)
+        background_source = source.convert("RGBA")
     else:
-        transparent = apply_background_removal(segmented.frames, background_config)
+        background_source = apply_background_removal(
+            (source,),
+            background_config,
+            reports=background_reports,
+        )[0]
+    segmented = segment_sheet(
+        background_source,
+        segmentation_config,
+        background_rgb=background_config.color,
+    )
+    transparent = tuple(frame.convert("RGBA") for frame in segmented.frames)
     assert segmented.resolved_config.cell_width is not None
     assert segmented.resolved_config.cell_height is not None
     canvas_width = args.canvas_width or segmented.resolved_config.cell_width
@@ -416,6 +429,7 @@ def command_sheet_process(args: argparse.Namespace) -> int:
         scale_min_ratio=args.scale_min_ratio,
         scale_max_ratio=args.scale_max_ratio,
         scale_reference=args.scale_reference,
+        alignment_profile=args.alignment_profile,
     )
     previous = {
         item.frame_index: item
@@ -444,24 +458,27 @@ def command_sheet_process(args: argparse.Namespace) -> int:
     session.segmentation_config = segmentation_config
     session.background_removal_config = background_config
     session.auto_center_config = center_config
-    store.commit_stage(
-        session,
-        "segmentation",
-        segmented.frames,
-        config=segmentation_config.to_dict(),
-        warnings=segmented.warnings,
-        metadata={
-            "regions": [list(region) for region in segmented.regions],
-            "resolved_config": segmented.resolved_config.to_dict(),
-        },
-    )
+    background_metadata: dict[str, Any] = {}
+    if background_reports:
+        background_metadata["background_removal"] = {"frames": background_reports}
     store.commit_stage(
         session,
         "background",
+        (background_source,),
+        config=background_config.to_dict(),
+        status="manual_review" if background_config.unmix_enabled else "passed",
+        metadata=background_metadata,
+    )
+    store.commit_stage(
+        session,
+        "segmentation",
         transparent,
-        config={
-            "segmentation": segmentation_config.to_dict(),
-            "background": background_config.to_dict(),
+        config=segmentation_config.to_dict(),
+        warnings=segmented.warnings,
+        metadata={
+            "kind": "provisional_pose_map",
+            "regions": [list(region) for region in segmented.regions],
+            "resolved_config": segmented.resolved_config.to_dict(),
         },
     )
     store.commit_stage(
@@ -478,6 +495,30 @@ def command_sheet_process(args: argparse.Namespace) -> int:
         metadata={"frames": [item.to_dict() for item in centered.adjustments]},
     )
     store.save_adjustments(session, centered.adjustments)
+    layout_columns = args.columns if args.orientation == "grid" else None
+    layout_plan = plan_frame_layout(
+        centered.frames,
+        layout=args.orientation,
+        columns=layout_columns,
+    )
+    store.commit_stage(
+        session,
+        "layout",
+        centered.frames,
+        config={
+            "layout": layout_plan.layout,
+            "columns": layout_plan.columns,
+            "rows": layout_plan.rows,
+            "cell_size": list(layout_plan.cell_size),
+            "alignment_cache_key": session.stages["alignment"]["cache_key"],
+        },
+        metadata={
+            "regions": [list(region) for region in layout_plan.regions],
+            "sheet_size": list(layout_plan.sheet_size),
+            "alignment_profile": args.alignment_profile,
+        },
+        status=centered.status,
+    )
     _json_print(
         {
             "session_id": session.session_id,
@@ -494,15 +535,29 @@ def command_sheet_export(args: argparse.Namespace) -> int:
     root = _workspace(args.workspace)
     store = SheetSessionStore(root)
     session = store.load(args.session)
-    paths = store.stage_paths(session, "alignment")
+    layout_record = session.stages.get("layout")
+    layout_config: dict[str, Any] = {}
+    if layout_record and layout_record.get("manifest"):
+        layout_manifest = json.loads(
+            (root / str(layout_record["manifest"])).read_text(encoding="utf-8")
+        )
+        raw_layout_config = layout_manifest.get("config", {})
+        if isinstance(raw_layout_config, dict):
+            layout_config = raw_layout_config
+    stage = "layout" if layout_record else "alignment"
+    paths = store.stage_paths(session, stage)
     if not paths:
-        raise FileNotFoundError("No aligned sheet-session frames; run sheet-process first")
+        raise FileNotFoundError("No final sheet-session frames; run sheet-process first")
     frames = [Image.open(path).convert("RGBA") for path in paths]
+    layout = args.layout or str(layout_config.get("layout", "horizontal"))
+    columns = args.columns
+    if columns is None and layout == "grid":
+        columns = int(layout_config.get("columns", 1))
     manifest = store.export(
         session,
         frames,
-        layout=args.layout,
-        columns=args.columns,
+        layout=layout,
+        columns=columns,
         export_frames=not args.no_frames,
         export_contact_sheet=not args.no_contact_sheet,
         export_gif=args.gif,
@@ -732,9 +787,23 @@ def build_parser() -> argparse.ArgumentParser:
     sheet_process.add_argument("--remove-near-transparent", action="store_true")
     sheet_process.add_argument("--no-preserve-outline", action="store_true")
     sheet_process.add_argument(
+        "--chroma-unmix",
+        action="store_true",
+        help="Enable conservative spatial fringe unmix and internal spill correction",
+    )
+    sheet_process.add_argument("--unmix-reach", type=int, default=2)
+    sheet_process.add_argument("--unmix-fringe-tolerance", type=float, default=160.0)
+    sheet_process.add_argument("--unmix-tint-threshold", type=float, default=18.0)
+    sheet_process.add_argument("--spill-max-fraction", type=float, default=0.005)
+    sheet_process.add_argument(
         "--center-method",
-        choices=("body", "feet", "bounding_box"),
-        default="body",
+        choices=("multi_anchor", "body", "feet", "bounding_box"),
+        default="multi_anchor",
+    )
+    sheet_process.add_argument(
+        "--alignment-profile",
+        choices=("idle", "walk", "attack"),
+        default="walk",
     )
     sheet_process.add_argument("--canvas-width", type=int)
     sheet_process.add_argument("--canvas-height", type=int)
@@ -757,7 +826,7 @@ def build_parser() -> argparse.ArgumentParser:
     sheet_export.add_argument(
         "--layout",
         choices=("horizontal", "vertical", "grid"),
-        default="horizontal",
+        help="Defaults to the saved final-cuts layout",
     )
     sheet_export.add_argument("--columns", type=int)
     sheet_export.add_argument("--no-frames", action="store_true")

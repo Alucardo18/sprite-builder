@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "character_id": "zorro-cenote-01",
+  "locked": false,
+  "color_space": "sRGB",
+  "extraction": "hand-authored draft derived from the approved design brief",
+  "colors": [
+    {
+      "hex": "#242238",
+      "rgb": [36, 34, 56],
+      "weight": 0.28,
+      "role": "outline and deepest shadow"
+    },
+    {
+      "hex": "#A94E32",
+      "rgb": [169, 78, 50],
+      "weight": 0.25,
+      "role": "terracotta coat"
+    },
+    {
+      "hex": "#D97645",
+      "rgb": [217, 118, 69],
+      "weight": 0.12,
+      "role": "coat light"
+    },
+    {
+      "hex": "#6E2F2B",
+      "rgb": [110, 47, 43],
+      "weight": 0.10,
+      "role": "coat shadow"
+    },
+    {
+      "hex": "#D9E6B8",
+      "rgb": [217, 230, 184],
+      "weight": 0.12,
+      "role": "chest and tail tip"
+    },
+    {
+      "hex": "#F4E2AF",
+      "rgb": [244, 226, 175],
+      "weight": 0.06,
+      "role": "muzzle and highlight"
+    },
+    {
+      "hex": "#4EA99B",
+      "rgb": [78, 169, 155],
+      "weight": 0.04,
+      "role": "inner ears and jade bead"
+    },
+    {
+      "hex": "#8A5A44",
+      "rgb": [138, 90, 68],
+      "weight": 0.03,
+      "role": "warm midtone accent"
+    },
+    {
+      "hex": "#B7C989",
+      "rgb": [183, 201, 137],
+      "weight": 0.02,
+      "role": "jade shadow"
+    },
+    {
+      "hex": "#252B45",
+      "rgb": [37, 43, 69],
+      "weight": 0.02,
+      "role": "cool outline accent"
+    }
+  ]
+}

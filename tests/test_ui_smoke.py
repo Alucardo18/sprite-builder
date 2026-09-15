@@ -38,9 +38,9 @@ def test_streamlit_app_opens_with_all_workflow_tabs(
     assert test_app.title[0].value == "sprite-builder"
     assert [tab.label for tab in test_app.tabs] == [
         "1. Fondo",
-        "2. Segmentación",
-        "3. Alineación & Anchors",
-        "4. Studio",
+        "2. Preparar poses",
+        "3. Alineación & anchors",
+        "4. Cortes finales",
         "5. Export",
     ]
 
@@ -89,8 +89,8 @@ def test_studio_keeps_the_canvas_dominant_and_separates_publication() -> None:
     source = Path(app.__file__).read_text(encoding="utf-8")
 
     assert 'publish_col, canvas_col = st.columns((1.05, 4.95)' in source
-    assert '"Publicar capas para Auto Center"' in source
-    assert '"pendiente de publicar a Auto Center"' in source
+    assert '"Publicar capas para alineación"' in source
+    assert '"pendiente de publicar a alineación"' in source
     assert "studio_layers=studio_layers" in source
     assert "active_layer_id=active_layer_id" in source
     # Pixel edits revise the document, but must not force the component to fit
@@ -98,12 +98,25 @@ def test_studio_keeps_the_canvas_dominant_and_separates_publication() -> None:
     assert 'f"{prefix}:layers:{document.document_id}:{document.revision}:"' not in source
 
 
-def test_export_allows_an_explicit_manual_review_override() -> None:
+def test_final_cuts_own_geometry_and_export_only_packages_layout() -> None:
     source = Path(app.__file__).read_text(encoding="utf-8")
+    cuts_source, export_source = source.split("    with export_tab:", maxsplit=1)
+    cuts_source = cuts_source.rsplit("    with cuts_tab:", maxsplit=1)[1]
 
     assert "_alignment_export_readiness(" in source
-    assert '"Exportar con advertencias"' in source
-    assert "allow_manual_review=True" in source
+    assert '"Orientación / layout final"' in cuts_source
+    assert '"Columnas"' in cuts_source
+    assert '"Recorte inteligente"' in cuts_source
+    assert '"Padding crop"' in cuts_source
+    assert '"Umbral alpha"' in cuts_source
+    assert '"Orientación / layout final"' not in export_source
+    assert '"Recorte inteligente"' not in export_source
+    assert '"Padding crop"' not in export_source
+    assert '"Umbral alpha"' not in export_source
+    assert '"Exportar con advertencias"' not in export_source
+    assert "allow_manual_review=True" in export_source
+    assert "Layout alineado guardado" in export_source
+    assert '"Exportación aún no disponible:' in export_source
     assert '"Anchor revisado y aprobado"' in source
     assert "if manifest:" in source
     assert "export_sheet_png=not include_frames" in source
@@ -233,5 +246,3 @@ def test_tileset_presets_up_to_128px_and_dual_source_assignment() -> None:
     assert set_obj["baseSource"] is not None
     assert set_obj["secondarySource"] == sec_source
     assert set_obj["baseSource"] != set_obj["secondarySource"]
-
-
