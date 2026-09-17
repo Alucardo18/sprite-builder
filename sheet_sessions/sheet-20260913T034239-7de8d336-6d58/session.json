@@ -1620,7 +1620,13 @@
     "uses_transparency": false,
     "width": 1254
   },
-  "layer_document": null,
+  "layer_document": {
+    "cache_key": "3b2b6c8a28395d5c8a0bae871ebcc3cda989bd64e63a60125ff5f3c20368cbbf",
+    "document_id": "sprite-bcc00f53766b",
+    "manifest": "sheet_sessions/sheet-20260913T034239-7de8d336-6d58/attempts/layers/3b2b6c8a28395d5c8a0bae871ebcc3cda989bd64e63a60125ff5f3c20368cbbf/manifest.json",
+    "manifest_sha256": "2ea067aa4111cbf060c850051dd0aa901e951e4db7c1f1794cd8e7988d7143bc",
+    "revision": 1
+  },
   "output_dir": "sheet_sessions/sheet-20260913T034239-7de8d336-6d58",
   "schema_version": "1.0",
   "segmentation_config": {
@@ -1710,5 +1716,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-09-13T04:13:28.361118+00:00"
+  "updated_at": "2026-09-15T22:35:06.948969+00:00"
 }

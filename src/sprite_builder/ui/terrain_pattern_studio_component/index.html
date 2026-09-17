@@ -155,6 +155,33 @@
       align-items:center; gap:6px; color:var(--muted); font-size:7px; }
     .edge-cutoff input { min-width:0; width:100%; }
     .action-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+    .blob-action-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+    .blob-palette-bar {
+      display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+      padding:6px 10px; margin:6px 0 8px; background:rgba(15,23,42,.75);
+      border:1px solid rgba(87,223,188,.24); border-radius:8px;
+    }
+    .palette-biome-select { display:flex; align-items:center; gap:6px; }
+    .palette-label { font-size:7px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+    .palette-biome-select select {
+      min-height:24px; padding:2px 6px; font-size:7px; border-radius:6px;
+      background:#1e293b; color:#f8fafc; border:1px solid rgba(148,163,184,.25);
+    }
+    .palette-swatches { display:flex; align-items:center; gap:6px; }
+    .palette-swatch-item {
+      display:inline-flex; align-items:center; gap:4px; padding:2px 6px;
+      background:rgba(30,41,59,.85); border:1px solid rgba(255,255,255,.08);
+      border-radius:6px; cursor:pointer;
+    }
+    .swatch-tag { font-size:7px; font-weight:600; color:#cbd5e1; }
+    .palette-swatch-item input[type="color"] {
+      -webkit-appearance:none; border:none; width:18px; height:18px;
+      border-radius:4px; cursor:pointer; padding:0; background:transparent;
+    }
+    .palette-swatch-item input[type="color"]::-webkit-color-swatch-wrapper { padding:0; }
+    .palette-swatch-item input[type="color"]::-webkit-color-swatch {
+      border:1px solid rgba(255,255,255,.25); border-radius:3px;
+    }
     .source-tools { padding:8px; display:grid; gap:7px; border-bottom:1px solid var(--line); }
     .source-stage { height:230px; overflow:auto; padding:10px; background:#111827; }
     #sourceCanvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges;
@@ -362,12 +389,43 @@
   <section class="section" aria-label="Crear terreno Blob 47" style="margin:10px 0">
     <div class="board-heading"><strong>Blob 47 · terreno orgánico</strong><span class="badge">47 formas · 3 variantes</span></div>
     <p class="hint">Empieza con materiales generados. Elige lo que vas a pintar y su fondo; las esquinas y las uniones se construyen automáticamente.</p>
-    <div class="action-grid">
-      <button id="blobGrassDirt" class="primary">Pasto sobre tierra</button>
-      <button id="blobDirtWater">Tierra sobre agua</button>
-      <button id="blobGrassWater">Pasto sobre agua</button>
+    
+    <div class="blob-palette-bar">
+      <div class="palette-biome-select">
+        <label for="blobPaletteBiome" class="palette-label">Bioma:</label>
+        <select id="blobPaletteBiome" title="Selecciona un bioma predefinido o ajusta los colores libremente">
+          <option value="pradera">🌿 Pradera / Bosque</option>
+          <option value="costa">🏖️ Costa Tropical</option>
+          <option value="mazmorra">🏰 Mazmorra Abisal</option>
+          <option value="nieve">❄️ Tundra Nevada</option>
+          <option value="lava">🌋 Tierras Volcánicas</option>
+          <option value="clean">🧼 Prototipado Limpio</option>
+          <option value="custom">🎨 Personalizado</option>
+        </select>
+      </div>
+      <div class="palette-swatches">
+        <label class="palette-swatch-item" title="Color Primario / Relleno (🌱)">
+          <span class="swatch-tag">🌱 Primario</span>
+          <input type="color" id="blobColorPrimary" value="#48A832">
+        </label>
+        <label class="palette-swatch-item" title="Color Secundario / Fondo de transición (🟤)">
+          <span class="swatch-tag">🟤 Secundario</span>
+          <input type="color" id="blobColorSecondary" value="#8B5A2B">
+        </label>
+        <label class="palette-swatch-item" title="Color de Agua / Costa (🌊)">
+          <span class="swatch-tag">🌊 Agua</span>
+          <input type="color" id="blobColorWater" value="#2B65EC">
+        </label>
+      </div>
+      <span id="blobPaletteSyncBadge" class="badge" style="margin-left:auto" title="Estado de sincronización cromática">Sincronizado</span>
     </div>
-    <span class="hint">Cada botón crea un set nuevo. Para conservar arte existente, usa Build Borders con tus Sources.</span>
+
+    <div class="action-grid blob-action-grid">
+      <button id="blobGrassDirt" class="primary" title="Genera un autotile Blob 47 con Primario sobre Secundario">🌱 Pasto sobre tierra 🟤</button>
+      <button id="blobDirtWater" title="Genera un autotile Blob 47 con Secundario sobre Agua">🟤 Tierra sobre agua 🌊</button>
+      <button id="blobGrassWater" title="Genera un autotile Blob 47 con Primario sobre Agua">🌱 Pasto sobre agua 🌊</button>
+    </div>
+    <span class="hint">Cada botón crea un set nuevo con la paleta actual. Si seleccionas un set procedural existente, cambiar los pickers actualiza sus colores en tiempo real.</span>
   </section>
   <div id="buildRequirements" class="build-guide">
     <div class="build-rule"><span class="build-count">1</span><span><strong>Blob con Sources</strong><br />Selecciona exactamente 1 tile base completo y configura sus bordes.</span></div>
@@ -560,6 +618,14 @@
           <details class="advanced">
             <summary>Ajustes avanzados · rotación, flip y reemplazos</summary>
             <div class="advanced-body">
+              <div id="innerCornerSection" class="section">
+                <span class="section-label">Curvatura de esquinas interiores</span>
+                <label class="hint">Redondeo y calado cóncavo (huecos y bahías):
+                  <input id="innerCornerRounding" type="range" min="0" max="100" value="50" />
+                  <strong id="innerCornerRoundingValue">50%</strong>
+                </label>
+                <span class="hint">Controla la suavidad y profundidad de los calados de agua y huecos interiores.</span>
+              </div>
               <div id="cutoffSection" class="section">
                 <span id="cutoffTitle" class="section-label">Cutoff rápido · los 4 bordes</span>
                 <label id="cutoffHint" class="hint">Aplica la misma entrada del terreno a todos:
@@ -617,7 +683,6 @@ const setCanvas=$("#setCanvas"),setCtx=setCanvas.getContext("2d");
 const sourceCanvas=$("#sourceCanvas"),sourceCtx=sourceCanvas.getContext("2d",{willReadFrequently:true});
 const tilePreview=$("#tilePreview"),previewCtx=tilePreview.getContext("2d");
 const sandboxCanvas=$("#sandboxCanvas"),sandboxCtx=sandboxCanvas.getContext("2d");
-document.querySelector(".workspace").before($("#terrainPreviewPanel"));
 const sourceBuffer=document.createElement("canvas"),sourceBufferCtx=sourceBuffer.getContext("2d",{willReadFrequently:true});
 const patternBuffer=document.createElement("canvas"),patternBufferCtx=patternBuffer.getContext("2d");
 const state={project:null,roles:[],kind:"blob_47",tileWidth:16,tileHeight:16,imageReady:false,patternReady:false,
@@ -663,10 +728,11 @@ function requiresTwoBases(kind){return kind==="wang_16"||kind==="dual_grid_15"}
 function baseRequirement(kind){return requiresTwoBases(kind)?2:1}
 function isDualGrid(set){return set?.kind==="dual_grid_15"}
 function isTerrainProfilePattern(set){return PROFILED_PATTERN_KINDS.includes(set?.kind)}
-function isProceduralBlob(set){return set?.kind==="blob_47"&&set.blobMaterialMode==="procedural"}
+function isProcedural(set){return (set?.blobMaterialMode==="procedural"&&!set?.baseSource)||Boolean(set?.primaryColor&&set?.secondaryColor&&!set?.baseSource)}
+function isProceduralBlob(set){return set?.kind==="blob_47"&&isProcedural(set)}
 function isBlobSynthesis(set){return set?.kind==="blob_47"&&set?.blobMode!=="manual_edges"&&!isProceduralBlob(set)}
 function requiresEdges(set){return !isDualGrid(set)}
-function requiresConfiguredEdges(set){return requiresEdges(set)&&!isProceduralBlob(set)&&!isBlobSynthesis(set)}
+function requiresConfiguredEdges(set){return requiresEdges(set)&&!isProcedural(set)&&!isBlobSynthesis(set)}
 function dualGridRole(role){return DUAL_GRID_TRANSITION_MASKS.includes(Number(role?.mask))}
 function dualGridTileSizeValid(){return state.tileWidth>=2&&state.tileHeight>=2}
 function dualGridTileSizeMessage(){return "Dual Grid requiere tiles de al menos 2×2 px (ancho y alto)."}
@@ -710,11 +776,127 @@ function cleanSet(raw){
     corners:{...(item.corners||{})},customCorners:{...(item.customCorners||{})},cornerTransforms,
     overrides};
 }
+const BIOME_PALETTES = {
+  pradera: {
+    name: "🌿 Pradera / Bosque",
+    primary: "#48A832",
+    secondary: "#8B5A2B",
+    water: "#2B65EC",
+    materials: { primary: "grass", secondary: "dirt", water: "water" }
+  },
+  costa: {
+    name: "🏖️ Costa Tropical",
+    primary: "#E5B869",
+    secondary: "#8B5A2B",
+    water: "#2B65EC",
+    materials: { primary: "sand", secondary: "dirt", water: "water" }
+  },
+  mazmorra: {
+    name: "🏰 Mazmorra Abisal",
+    primary: "#505A69",
+    secondary: "#202530",
+    water: "#1E3A8A",
+    materials: { primary: "stone", secondary: "dirt", water: "water" }
+  },
+  nieve: {
+    name: "❄️ Tundra Nevada",
+    primary: "#E8F4F8",
+    secondary: "#6898B8",
+    water: "#38BDF8",
+    materials: { primary: "snow", secondary: "stone", water: "water" }
+  },
+  lava: {
+    name: "🌋 Tierras Volcánicas",
+    primary: "#353038",
+    secondary: "#D84820",
+    water: "#991B1B",
+    materials: { primary: "stone", secondary: "dirt", water: "water" }
+  },
+  clean: {
+    name: "🧼 Prototipado Limpio",
+    primary: "#60A5FA",
+    secondary: "#1E293B",
+    water: "#38BDF8",
+    materials: { primary: "grass", secondary: "dirt", water: "water" }
+  },
+  custom: {
+    name: "🎨 Personalizado",
+    primary: "#48A832",
+    secondary: "#8B5A2B",
+    water: "#2B65EC",
+    materials: { primary: "grass", secondary: "dirt", water: "water" }
+  }
+};
+
+function cleanPalette(raw){
+  const biome = raw?.biome && BIOME_PALETTES[raw.biome] ? raw.biome : "pradera";
+  const def = BIOME_PALETTES[biome] || BIOME_PALETTES.pradera;
+  return {
+    biome: raw?.biome || "pradera",
+    primary: raw?.primary || def.primary,
+    secondary: raw?.secondary || def.secondary,
+    water: raw?.water || def.water,
+    materials: raw?.materials || def.materials,
+  };
+}
+
+function getProjectPalette(){
+  return cleanPalette(state.project?.palette);
+}
+
+function syncBlobPaletteUI(){
+  const pal = getProjectPalette();
+  const biomeSelect = $("#blobPaletteBiome");
+  const pInput = $("#blobColorPrimary");
+  const sInput = $("#blobColorSecondary");
+  const wInput = $("#blobColorWater");
+  const badge = $("#blobPaletteSyncBadge");
+  if(biomeSelect) biomeSelect.value = pal.biome;
+  if(pInput) pInput.value = pal.primary;
+  if(sInput) sInput.value = pal.secondary;
+  if(wInput) wInput.value = pal.water;
+  if(badge){
+    if(pal.biome !== "custom" && BIOME_PALETTES[pal.biome]){
+      badge.textContent = `✨ ${BIOME_PALETTES[pal.biome].name}`;
+      badge.style.borderColor = "rgba(87,223,188,.4)";
+    } else {
+      badge.textContent = "🎨 Personalizado";
+      badge.style.borderColor = "rgba(255,199,109,.4)";
+    }
+  }
+}
+
+function updateActiveSetColorsFromPalette(){
+  const set = activeSet();
+  if(!set || !isProcedural(set)) return;
+  const pal = getProjectPalette();
+  if(set.terrainProfile === "grass_over_dirt"){
+    set.primaryColor = pal.primary;
+    set.secondaryColor = pal.secondary;
+    set.insideMaterial = (pal.materials && pal.materials.primary) || "grass";
+    set.outsideMaterial = (pal.materials && pal.materials.secondary) || "dirt";
+  } else if(set.terrainProfile === "dirt_over_water"){
+    set.primaryColor = pal.secondary;
+    set.secondaryColor = pal.water;
+    set.insideMaterial = (pal.materials && pal.materials.secondary) || "dirt";
+    set.outsideMaterial = (pal.materials && pal.materials.water) || "water";
+  } else if(set.terrainProfile === "grass_over_water"){
+    set.primaryColor = pal.primary;
+    set.secondaryColor = pal.water;
+    set.insideMaterial = (pal.materials && pal.materials.primary) || "grass";
+    set.outsideMaterial = (pal.materials && pal.materials.water) || "water";
+  } else {
+    set.primaryColor = pal.primary;
+    set.secondaryColor = pal.secondary;
+  }
+}
+
 function cleanProject(raw){
   const project={...(raw&&typeof raw==="object"?raw:{}),version:3,
     sources:Array.isArray(raw?.sources)?raw.sources.map(item=>({...item})):[],
     tiles:Array.isArray(raw?.tiles)?raw.tiles.map(item=>({...item})):[],
     sets:Array.isArray(raw?.sets)?raw.sets.map(cleanSet):[],activeSetId:raw?.activeSetId||null,
+    palette:cleanPalette(raw?.palette),
     ui:{...(raw?.ui||{}),selectedTileIds:Array.isArray(raw?.ui?.selectedTileIds)?raw.ui.selectedTileIds:[],
       selectedMask:Number.isInteger(raw?.ui?.selectedMask)?raw.ui.selectedMask:null,
       activeSourceId:raw?.ui?.activeSourceId||null,selectedSetId:raw?.ui?.selectedSetId||null}};
@@ -913,12 +1095,12 @@ function renderDualProfileControls(set){
   $("#dualEdgeSeed").value=String(seed);$("#dualEdgeSeed").disabled=profile==="clean";$("#shuffleDualEdgeSeed").disabled=profile==="clean";
   $("#blobVariantCountControl").hidden=set.kind!=="blob_47";
   $("#blobVariantCount").value=String(clampInteger(set.variantCount,1,5,1));
-  for(const option of $("#dualTerrainProfile").options)option.disabled=isProceduralBlob(set)&&!["grass_over_dirt","dirt_over_water","grass_over_water"].includes(option.value);
+  for(const option of $("#dualTerrainProfile").options)option.disabled=set?.kind==="blob_47"&&isProceduralBlob(set)&&!["grass_over_dirt","dirt_over_water","grass_over_water"].includes(option.value);
   const grammar=set.kind==="dual_grid_15"||set.kind==="wang_16"
     ?DUAL_GRID_PROFILE_COPY[profile]
     :`${TERRAIN_EDGE_PROFILE_COPY[profile]} La textura se compone sobre ${set.kind==="blob_47"?"la base y sus Border Sources":"el tile base y sus bordes"}.`;
   $("#dualProfileCopy").textContent=`Aplicado · ${DUAL_GRID_PROFILE_LABELS[profile]}. ${grammar}`;
-  if(isProceduralBlob(set))$("#dualProfileCopy").textContent=`${DUAL_GRID_PROFILE_LABELS[profile]}. Materiales generados, curvas orgánicas y sombras sobre el contorno. Pinta en la vista conectada para comprobar las uniones.`;
+  if(isProcedural(set))$("#dualProfileCopy").textContent=`${DUAL_GRID_PROFILE_LABELS[profile]}. Materiales generados, curvas orgánicas y sombras sobre el contorno. Pinta en la vista conectada para comprobar las uniones.`;
 }
 function renderAnimationControls(set){
   if(!set) return;
@@ -975,6 +1157,11 @@ function renderConfigurator(set,role){
   }
   $("#dualProfileSection").hidden=!isDualGrid(set);
   $("#dualProfileSection").hidden=!isTerrainProfilePattern(set);if(isTerrainProfilePattern(set))renderDualProfileControls(set);
+  const rawInnerRounding=set.innerCornerRounding!==undefined?set.innerCornerRounding:(set.inner_corner_rounding!==undefined?set.inner_corner_rounding:0.5);
+  const innerRounding=Math.round((Number.isFinite(Number(rawInnerRounding))?Number(rawInnerRounding):0.5)*100);
+  $("#innerCornerRounding").value=String(innerRounding);
+  $("#innerCornerRoundingValue").textContent=`${innerRounding}%`;
+  $("#innerCornerSection").hidden=!isTerrainProfilePattern(set);
   const showEdges=requiresEdges(set);$("#edgeSection").hidden=!showEdges;
   const configuredEdges=requiresConfiguredEdges(set);$("#edgeSection").hidden=!configuredEdges;$("#cornerSection").hidden=!configuredEdges;
   $("#cutoffSection").hidden=!showEdges;
@@ -1097,12 +1284,12 @@ function renderStatus(){
   // Keep the original requiresEdges contract visible for integrations that
   // inspect this bridge while the procedural Blob path bypasses edge Sources.
   // (!requiresEdges(set)||edgeDirections.every(direction=>Boolean(set.edges?.[direction])) )
-  const set=activeSet(),ready=(isProceduralBlob(set)||Boolean(set?.baseSource))&&(!requiresTwoBases(set?.kind)||Boolean(set?.secondarySource))&&(!requiresConfiguredEdges(set)||edgeDirections.every(direction=>Boolean(set?.edges?.[direction])) )&&state.roles.length>0;
+  const set=activeSet(),ready=(isProcedural(set)||(Boolean(set?.baseSource)&&(!requiresTwoBases(set?.kind)||Boolean(set?.secondarySource))))&&(!requiresConfiguredEdges(set)||edgeDirections.every(direction=>Boolean(set?.edges?.[direction])) )&&state.roles.length>0;
   const selectedCount=selectedTiles().length;
-  $("#status").classList.toggle("ready",ready);$("#status").textContent=!state.project.sources.length&&!isProceduralBlob(set)?"Importa Sources":!set
+  $("#status").classList.toggle("ready",ready);$("#status").textContent=!state.project.sources.length&&!isProcedural(set)?"Importa Sources":!set
     ?selectedCount===2&&!dualGridTileSizeValid()?dualGridTileSizeMessage():selectedCount===2?"2 tiles seleccionados · listo para Dual Grid":selectedCount===1?"1 tile seleccionado · listo para Blob":"Selecciona 1 tile para Blob o exactamente 2 para Wang / Dual Grid"
     :ready?isDualGrid(set)?`Dual Grid listo · ${dualProfileStatus(set)}`:isTerrainProfilePattern(set)?`${patternLabel(set.kind)} listo · ${terrainEdgeStatus(set)}`:`${variantCount(set.kind)} tiles listos`
-    :isDualGrid(set)&&!dualGridTileSizeValid()?dualGridTileSizeMessage():isDualGrid(set)?"Faltan Terreno A o Terreno B · Dual Grid requiere exactamente 2":`${Object.values(set.edges||{}).filter(Boolean).length}/4 bordes · ${roleCount(set.kind)} roles · ${visualVariantCount(set)} variantes`;
+    :isDualGrid(set)&&!dualGridTileSizeValid()?dualGridTileSizeMessage():isDualGrid(set)&&!isProcedural(set)?"Faltan Terreno A o Terreno B · Dual Grid requiere exactamente 2":`${Object.values(set.edges||{}).filter(Boolean).length}/4 bordes · ${roleCount(set.kind)} roles · ${visualVariantCount(set)} variantes`;
 }
 function roleVariant(mask,x,y,set){
   const matches=state.roles.filter(role=>Number(role.mask)===Number(mask));if(!matches.length)return null;
@@ -1133,8 +1320,8 @@ function renderSandbox(){
   sandboxCtx.fillStyle="#0a101a";sandboxCtx.fillRect(0,0,sandboxCanvas.width,sandboxCanvas.height);
   $("#sandboxHint").textContent=isDualGrid(set)
     ?"Pinta la cuadrícula lógica cuadrada. El display contiene una fila y columna extra, desplazadas medio tile, y calcula NW, NE, SE, SW."
-    :isProceduralBlob(set)
-    ?"Pinta una isla y un hueco para comprobar las uniones del Blob 47."
+    :isProcedural(set)
+    ?(isDualGrid(set)?"Pinta la cuadrícula lógica para comprobar las 15 transiciones Dual Grid.":"Pinta una isla y un hueco para comprobar las uniones del Blob 47.")
     :"Prueba el set activo mientras configuras sus Sources";
   if(!set||!state.patternReady)return;
   if(set.kind==="blob_47"){
@@ -1173,8 +1360,8 @@ function buildSet(kind){
   const tileMaxY=state.project.tiles.reduce((value,tile)=>Math.max(value,Number(tile.y)||0),0);
   const maxY=state.project.sets.reduce((value,item)=>Math.max(value,Number(item.originY||0)+setViewRows(item)),tileMaxY),setId=id();
   const set={id:setId,name:kind==="wang_16"?"Wang Set":kind==="dual_grid_15"?"Dual Grid Set":"Blob Set",kind,baseSource:tiles[0].sourceId,
-    secondarySource:requiresTwoBases(kind)?tiles[1].sourceId:null,originX:0,originY:maxY+2,columns:kind==="blob_47"?11:4,rows:kind==="blob_47"?5:4,overrides:{}};
-  if(isDualGrid(set))Object.assign(set,{terrainProfile:"grass_over_dirt",edgeVariation:1,edgeSeed:0});
+    secondarySource:requiresTwoBases(kind)?tiles[1].sourceId:null,originX:0,originY:maxY+2,columns:kind==="blob_47"?11:4,rows:kind==="blob_47"?5:4,overrides:{},innerCornerRounding:0.5};
+  if(isDualGrid(set))Object.assign(set,{terrainProfile:"organic_neutral",edgeVariation:2,edgeSeed:0});
   else if(kind==="blob_47")Object.assign(set,{terrainProfile:"organic_neutral",edgeVariation:3,edgeSeed:0,variantCount:3,blobMode:"synthesis",dropShadow:2,shadowDirection:"south",rimLight:true});
   else Object.assign(set,{terrainProfile:"clean",edgeVariation:0,edgeSeed:0});
   if(!isDualGrid(set))Object.assign(set,{autoOrientEdges:true,cutoff:kind==="blob_47"?Math.max(1,Math.floor(Math.min(state.tileWidth,state.tileHeight)/8)):0,
@@ -1188,7 +1375,7 @@ function buildBlobFromTwoTiles(){
   const tileMaxY=state.project.tiles.reduce((value,tile)=>Math.max(value,Number(tile.y)||0),0);
   const maxY=state.project.sets.reduce((value,item)=>Math.max(value,Number(item.originY||0)+setViewRows(item)),tileMaxY),setId=id();
   const set={id:setId,name:"Blob Set (A sobre B)",kind:"blob_47",baseSource:tiles[0].sourceId,
-    secondarySource:tiles[1].sourceId,originX:0,originY:maxY+2,columns:11,rows:5,overrides:{},
+    secondarySource:tiles[1].sourceId,originX:0,originY:maxY+2,columns:11,rows:5,overrides:{},innerCornerRounding:0.5,
     terrainProfile:"organic_neutral",edgeVariation:3,edgeSeed:0,variantCount:3,
     blobMode:"synthesis",dropShadow:2,shadowDirection:"south",rimLight:true,
     autoOrientEdges:true,cutoff:Math.max(1,Math.floor(Math.min(state.tileWidth,state.tileHeight)/8)),
@@ -1206,16 +1393,118 @@ function showIslandExample(){
   renderSandbox();
 }
 function buildProceduralBlob(profile){
+  const pal = getProjectPalette();
+  let primaryColor, secondaryColor, insideMat, outsideMat;
+  if(profile === "grass_over_dirt"){
+    primaryColor = pal.primary;
+    secondaryColor = pal.secondary;
+    insideMat = (pal.materials && pal.materials.primary) || "grass";
+    outsideMat = (pal.materials && pal.materials.secondary) || "dirt";
+  } else if(profile === "dirt_over_water"){
+    primaryColor = pal.secondary;
+    secondaryColor = pal.water;
+    insideMat = (pal.materials && pal.materials.secondary) || "dirt";
+    outsideMat = (pal.materials && pal.materials.water) || "water";
+  } else { // grass_over_water
+    primaryColor = pal.primary;
+    secondaryColor = pal.water;
+    insideMat = (pal.materials && pal.materials.primary) || "grass";
+    outsideMat = (pal.materials && pal.materials.water) || "water";
+  }
+
   const setId=id(),maxY=Math.max(0,...state.project.tiles.map(tile=>Number(tile.y)||0),...state.project.sets.map(set=>Number(set.originY||0)+setViewRows(set)));
-  state.project.sets.push({id:setId,name:`Blob · ${DUAL_GRID_PROFILE_LABELS[profile]}`,kind:"blob_47",blobMaterialMode:"procedural",
-    baseSource:null,terrainProfile:profile,edgeVariation:2,edgeSeed:0,variantCount:3,originX:0,originY:maxY+2,columns:11,rows:5,edges:{},overrides:{}});
-  state.project.activeSetId=setId;state.project.ui.selectedSetId=setId;state.project.ui.selectedTileIds=[];state.project.ui.selectedMask=null;
-  showIslandExample();emit();renderAll();
+  state.project.sets.push({
+    id: setId,
+    name: `Blob · ${DUAL_GRID_PROFILE_LABELS[profile]}`,
+    kind: "blob_47",
+    blobMaterialMode: "procedural",
+    baseSource: null,
+    secondarySource: null,
+    primaryColor: primaryColor,
+    secondaryColor: secondaryColor,
+    insideMaterial: insideMat,
+    outsideMaterial: outsideMat,
+    terrainProfile: profile,
+    edgeVariation: 2,
+    edgeSeed: 0,
+    variantCount: 3,
+    originX: 0,
+    originY: maxY + 2,
+    columns: 11,
+    rows: 5,
+    edges: {},
+    overrides: {}
+  });
+  state.project.activeSetId=setId;
+  state.project.ui.selectedSetId=setId;
+  state.project.ui.selectedTileIds=[];
+  state.project.ui.selectedMask=null;
+  showIslandExample();
+  emit();
+  renderAll();
   $("#terrainPreviewPanel").scrollIntoView({block:"start",behavior:"smooth"});
 }
 $("#blobGrassDirt").onclick=()=>buildProceduralBlob("grass_over_dirt");
 $("#blobDirtWater").onclick=()=>buildProceduralBlob("dirt_over_water");
 $("#blobGrassWater").onclick=()=>buildProceduralBlob("grass_over_water");
+
+$("#blobPaletteBiome").onchange=()=>{
+  const biome=$("#blobPaletteBiome").value;
+  if(BIOME_PALETTES[biome]&&biome!=="custom"){
+    const def=BIOME_PALETTES[biome];
+    $("#blobColorPrimary").value=def.primary;
+    $("#blobColorSecondary").value=def.secondary;
+    $("#blobColorWater").value=def.water;
+    state.project.palette={
+      biome,
+      primary:def.primary,
+      secondary:def.secondary,
+      water:def.water,
+      materials:def.materials
+    };
+  } else {
+    state.project.palette=state.project.palette||{};
+    state.project.palette.biome="custom";
+  }
+  syncBlobPaletteUI();
+  updateActiveSetColorsFromPalette();
+  emit();
+  renderAll();
+};
+
+function onBlobColorChange(isFinal){
+  const primary=$("#blobColorPrimary").value;
+  const secondary=$("#blobColorSecondary").value;
+  const water=$("#blobColorWater").value;
+  let matchedBiome="custom";
+  for(const [k, v] of Object.entries(BIOME_PALETTES)){
+    if(k!=="custom"&&v.primary.toLowerCase()===primary.toLowerCase()&&v.secondary.toLowerCase()===secondary.toLowerCase()&&v.water.toLowerCase()===water.toLowerCase()){
+      matchedBiome=k;
+      break;
+    }
+  }
+  const currentMaterials=(state.project.palette&&state.project.palette.materials)||BIOME_PALETTES.pradera.materials;
+  state.project.palette={
+    biome:matchedBiome,
+    primary,
+    secondary,
+    water,
+    materials:currentMaterials
+  };
+  syncBlobPaletteUI();
+  updateActiveSetColorsFromPalette();
+  if(isFinal){
+    emit();
+    renderAll();
+  }
+}
+
+$("#blobColorPrimary").oninput=()=>onBlobColorChange(false);
+$("#blobColorSecondary").oninput=()=>onBlobColorChange(false);
+$("#blobColorWater").oninput=()=>onBlobColorChange(false);
+$("#blobColorPrimary").onchange=()=>onBlobColorChange(true);
+$("#blobColorSecondary").onchange=()=>onBlobColorChange(true);
+$("#blobColorWater").onchange=()=>onBlobColorChange(true);
 $("#islandExample").onclick=showIslandExample;
 $("#blobMaterialMode").onchange=event=>{
   const set=activeSet();if(set?.kind!=="blob_47")return;
@@ -1238,6 +1527,9 @@ $("#rotateAllEdges").onclick=completeEdgesByRotation;
 $("#blobCutoff").oninput=event=>{$("#blobCutoffValue").textContent=`${event.target.value} px`};
 $("#blobCutoff").onchange=event=>{const set=activeSet();if(!set)return;set.cutoff=Number(event.target.value)||0;
   set.edgeCutoffs=set.edgeCutoffs||{};for(const direction of ["top","right","bottom","left"])set.edgeCutoffs[direction]=set.cutoff;emit();renderAll()};
+$("#innerCornerRounding").oninput=event=>{$("#innerCornerRoundingValue").textContent=`${event.target.value}%`};
+$("#innerCornerRounding").onchange=event=>{const set=activeSet();if(!set)return;
+  set.innerCornerRounding=Math.max(0,Math.min(100,Number(event.target.value)))/100.0;emit();renderAll()};
 $("#dualTerrainProfile").onchange=event=>{const set=activeSet();if(!isTerrainProfilePattern(set))return;set.terrainProfile=DUAL_GRID_TERRAIN_PROFILES.includes(event.target.value)?event.target.value:"clean";
   if(set.terrainProfile==="clean")set.edgeVariation=0;else if(clampInteger(set.edgeVariation,0,3,0)===0)set.edgeVariation=1;emit();renderAll()};
 $("#dualEdgeVariation").oninput=event=>{$("#dualEdgeVariationValue").textContent=`${dualVariationLabel(event.target.value)} · ${event.target.value}`};
@@ -1660,7 +1952,8 @@ $("#analyzeBiomeBtn").onclick=createBiomeEcosystem;
 window.addEventListener("message",event=>{if(event.data?.type!==RENDER)return;const args=event.data.args||{};
   state.tileWidth=Math.max(1,Number(args.tileWidth)||16);state.tileHeight=Math.max(1,Number(args.tileHeight)||16);state.kind=PATTERN_KINDS.includes(args.kind)?args.kind:"blob_47";
   state.roles=Array.isArray(args.roles)?args.roles:[];state.project=cleanProject(args.project||{});
-  if(!state.map.length){if(isProceduralBlob(activeSet()))showIslandExample();else state.map=Array(state.mapWidth*state.mapHeight).fill(false)}
+  syncBlobPaletteUI();
+  if(!state.map.length){if(isProcedural(activeSet()))showIslandExample();else state.map=Array(state.mapWidth*state.mapHeight).fill(false)}
   state.previews=new Map();for(const item of Array.isArray(args.setPreviews)?args.setPreviews:[]){const canvas=document.createElement("canvas");
     const preview={roles:Array.isArray(item.roles)?item.roles:[],canvas,ready:false};state.previews.set(item.id,preview);const previewImage=new Image();
     previewImage.onload=()=>{canvas.width=previewImage.naturalWidth;canvas.height=previewImage.naturalHeight;canvas.getContext("2d").drawImage(previewImage,0,0);preview.ready=true;renderSetView()};

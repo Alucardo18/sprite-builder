@@ -1,0 +1,32 @@
+{
+  "cache_key": "63148e716dcdc1ac8f22f354bd995bf668e585f5e7d8c9d08c79dece3011ae4a",
+  "config": {
+    "processing_signature": "fox_bg"
+  },
+  "created_at": "2026-09-16T17:09:46.778085+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/source/838a20be491dd445a01f39882be4ba0a07034a177bf9c85f03e6aa550fcfc39a.png",
+      "role": "source",
+      "sha256": "838a20be491dd445a01f39882be4ba0a07034a177bf9c85f03e6aa550fcfc39a",
+      "size_bytes": 455669
+    }
+  ],
+  "metadata": {},
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/background/63148e716dcdc1ac8f22f354bd995bf668e585f5e7d8c9d08c79dece3011ae4a/frame_000.png",
+      "role": "output",
+      "sha256": "d2380933dec5c690b16d53656f1ad33b15a066cf983928f603a51c32e47463b5",
+      "size_bytes": 383841
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260916T163000-838a20be-94a2",
+  "stage": "background",
+  "status": "passed",
+  "warnings": []
+}

@@ -69,15 +69,21 @@ from sprite_builder.sheets.models import ExportCropConfig
 from sprite_builder.tilesets import (
     TerrainEdgeProfile,
     TerrainPatternKind,
+    TilesetAestheticPreset,
+    TILESET_AESTHETIC_PRESETS,
     TilesetGrid,
     build_terrain_pattern_bundle,
     build_tiled_bundle,
     build_tileset_bundle,
     build_tilesetter_terrain_pattern,
     build_unity_ruletile_bundle,
+    detect_matching_aesthetic_preset,
     format_tile_prompt,
+    generate_procedural_material,
     generate_procedural_reference_tile,
+    get_aesthetic_preset,
     get_material_template,
+    list_aesthetic_presets,
     list_material_templates,
     render_terrain_bitmask_template,
     resize_tileset,
@@ -85,6 +91,16 @@ from sprite_builder.tilesets import (
     slice_tileset,
     terrain_edge_profiles,
     terrain_pattern_set_layout,
+)
+from sprite_builder.tilesets.color import (
+    CURATED_BIOME_PALETTES,
+    TerrainPalette,
+    get_curated_palette,
+)
+from sprite_builder.tilesets.suite import (
+    TerrainSuiteResult,
+    build_omnibundle_zip,
+    generate_terrain_suite,
 )
 from sprite_builder.tilesets.palette_analyzer import (
     analyze_image_biome_palette,
@@ -349,8 +365,8 @@ def _build_terrain_pattern_safely(
             res = (None, f"Set inválido ({kind}): {exc}")
 
     if cache_key is not None:
-        if len(_TERRAIN_PATTERN_SAFE_CACHE) >= 64:
-            _TERRAIN_PATTERN_SAFE_CACHE.clear()
+        if len(_TERRAIN_PATTERN_SAFE_CACHE) >= 128:
+            _TERRAIN_PATTERN_SAFE_CACHE.pop(next(iter(_TERRAIN_PATTERN_SAFE_CACHE)), None)
         _TERRAIN_PATTERN_SAFE_CACHE[cache_key] = res
 
     return res
@@ -838,7 +854,7 @@ def _add_material_tile_to_project(
         atlas.paste(curr_image, (0, 0))
 
     atlas.paste(tile_img, (target_x, target_y))
-    _set_tileset_image(atlas, source_name="tileset_ai.png", reset_canvas=False)
+    _set_tileset_image(atlas, source_name="tileset_ai.png", reset_canvas=True)
 
     prefix = f"{_TILESET_STATE_PREFIX}:patterns"
     project_key = f"{prefix}:set_view_project"
@@ -869,6 +885,12 @@ def _add_material_tile_to_project(
         "width": tw,
         "height": th,
         "rect": [target_x, target_y, tw, th],
+    })
+    project["tiles"].append({
+        "id": f"tile_{uuid.uuid4().hex[:6]}",
+        "sourceId": source_id,
+        "x": target_x // tw,
+        "y": target_y // th,
     })
 
     project.setdefault("ui", {})
@@ -910,6 +932,241 @@ def _add_material_tile_to_project(
     st.session_state[project_key] = project
 
 
+def _trigger_biome_ecosystem_creation(
+    project: dict[str, Any],
+    project_key: str,
+    image: Image.Image,
+    grid: TilesetGrid,
+) -> None:
+    project.setdefault("version", 3)
+    project.setdefault("sources", [])
+    project.setdefault("tiles", [])
+    project.setdefault("sets", [])
+    project.setdefault("activeSetId", None)
+    current_sets = list(project.get("sets", []))
+    tile_max_y = max([int(t.get("y", 0)) for t in project.get("tiles", [])], default=0)
+    start_max_y = max([int(s.get("originY", 0)) + int(s.get("rows", 5)) for s in current_sets], default=tile_max_y)
+
+    harvested = harvest_image_terrain_tiles(image, tile_size=(grid.tile_width, grid.tile_height))
+    source_id_map: dict[str, str] = {}
+    sources_list = project.setdefault("sources", [])
+    tiles_list = project.setdefault("tiles", [])
+    for terrain_key, samples in harvested.items():
+        if samples:
+            best = samples[0]
+            existing = next(
+                (s for s in sources_list if s.get("x") == best.bounds[0] and s.get("y") == best.bounds[1]),
+                None,
+            )
+            if existing:
+                source_id_map[terrain_key] = str(existing.get("id"))
+            else:
+                new_source_id = uuid.uuid4().hex[:8]
+                sources_list.append({
+                    "id": new_source_id,
+                    "name": f"{terrain_key.capitalize()} Cosechado",
+                    "x": best.bounds[0],
+                    "y": best.bounds[1],
+                    "width": best.bounds[2],
+                    "height": best.bounds[3],
+                })
+                tiles_list.append({
+                    "id": uuid.uuid4().hex[:8],
+                    "sourceId": new_source_id,
+                    "x": len(tiles_list) % 10,
+                    "y": tile_max_y + 1,
+                })
+                source_id_map[terrain_key] = new_source_id
+
+    palette = analyze_image_biome_palette(image)
+    new_ecosystem = generate_biome_ecosystem_sets(
+        palette,
+        kind="blob_47",
+        start_y=start_max_y + 2,
+        variant_count=3,
+        harvested_tiles=harvested,
+        source_id_map=source_id_map,
+    )
+    current_sets.extend(new_ecosystem)
+    project["sets"] = current_sets
+    project["activeSetId"] = new_ecosystem[0]["id"]
+    st.session_state[project_key] = project
+    st.toast("✅ Ecosistema de 3 sets creado con texturas cosechadas")
+    st.rerun()
+
+
+def _normalize_hex_color(raw: str, fallback: str = "#48A832") -> str:
+    """Normalize user input to a valid 7-character uppercase HEX string (e.g. '#48A832')."""
+    s = raw.strip()
+    if not s:
+        return fallback
+    if not s.startswith("#"):
+        s = "#" + s
+    if len(s) == 4:
+        s = f"#{s[1]*2}{s[2]*2}{s[3]*2}"
+    if len(s) == 7:
+        try:
+            int(s[1:], 16)
+            return s.upper()
+        except ValueError:
+            pass
+    return fallback
+
+
+def _render_color_picker_with_hex(
+    label: str,
+    current_hex: str,
+    key_prefix: str,
+    help_text: str = "",
+) -> str:
+    """Render a synchronized color picker (with OS/browser color wheel) and manual HEX input."""
+    picker_key = f"{key_prefix}:picker"
+    hex_key = f"{key_prefix}:hex"
+    last_caller_hex_key = f"{key_prefix}:last_caller_hex"
+
+    normalized_default = _normalize_hex_color(current_hex, fallback="#48A832")
+    prev_caller_hex = st.session_state.get(last_caller_hex_key)
+    if prev_caller_hex is not None and prev_caller_hex != current_hex:
+        # Caller changed the input hex externally (e.g. preset or biome switched)
+        st.session_state[picker_key] = normalized_default
+        st.session_state[hex_key] = normalized_default
+    st.session_state[last_caller_hex_key] = current_hex
+
+    if picker_key not in st.session_state:
+        st.session_state[picker_key] = normalized_default
+    if hex_key not in st.session_state:
+        st.session_state[hex_key] = normalized_default
+
+    def _sync_from_picker() -> None:
+        picked = str(st.session_state.get(picker_key, "")).upper()
+        st.session_state[hex_key] = picked
+
+    def _sync_from_hex() -> None:
+        entered = str(st.session_state.get(hex_key, ""))
+        valid = _normalize_hex_color(
+            entered,
+            fallback=st.session_state.get(picker_key, normalized_default),
+        )
+        st.session_state[picker_key] = valid
+        st.session_state[hex_key] = valid
+
+    st.markdown(
+        f"<span style='font-size:12px; font-weight:600; color:#cbd5e1;'>{label}</span>",
+        unsafe_allow_html=True,
+    )
+    col_picker, col_text = st.columns((0.9, 1.4), gap="small")
+    col_picker.color_picker(
+        label,
+        key=picker_key,
+        on_change=_sync_from_picker,
+        label_visibility="collapsed",
+        help=help_text or f"Abre la paleta o rueda de color para {label}",
+    )
+    col_text.text_input(
+        f"HEX {label}",
+        key=hex_key,
+        on_change=_sync_from_hex,
+        label_visibility="collapsed",
+        placeholder="#RRGGBB",
+        help=f"Ingresa el código HEX manualmente para {label}",
+    )
+    return str(st.session_state.get(picker_key, normalized_default))
+
+
+def _create_quick_procedural_set(
+    name: str,
+    primary_color: str,
+    secondary_color: str,
+    kind: str = "blob_47",
+    preset_id: str = "zelda_topdown",
+    origin_y: int = 0,
+    inside_material: str = "grass",
+    outside_material: str = "dirt",
+) -> dict[str, Any]:
+    preset = get_aesthetic_preset(preset_id) or get_aesthetic_preset("zelda_topdown")
+    set_id = f"set-{uuid.uuid4().hex[:8]}"
+    base_set: dict[str, Any] = {
+        "id": set_id,
+        "name": name,
+        "kind": kind,
+        "originX": 0,
+        "originY": origin_y,
+        "columns": 12 if kind == "blob_47" else 4,
+        "rows": 4,
+        "blobMaterialMode": "procedural",
+        "blobMode": "synthesis",
+        "primaryColor": primary_color,
+        "secondaryColor": secondary_color,
+        "insideColor": primary_color,
+        "outsideColor": secondary_color,
+        "primaryMaterial": name,
+        "secondaryMaterial": "Suelo / Fondo",
+        "insideMaterial": inside_material,
+        "outsideMaterial": outside_material,
+    }
+    if preset:
+        base_set = preset.apply_to_set(base_set)
+    return base_set
+
+
+def _build_multi_set_omnibundle_zip(
+    project_name: str,
+    sets: Sequence[Mapping[str, Any]],
+    set_results: Mapping[str, TerrainPatternResult] | Sequence[Any],
+    tile_size: tuple[int, int],
+) -> bytes:
+    """Package all completed sets into an organized Omnibundle ZIP."""
+    safe_name = project_name.lower().replace(" ", "_") or "terrain_suite"
+    results_map: dict[str, Any] = {}
+    if isinstance(set_results, Mapping):
+        results_map = dict(set_results)
+    elif isinstance(set_results, Sequence):
+        for idx_item, item in enumerate(set_results):
+            if isinstance(item, (tuple, list)) and len(item) == 2:
+                results_map[str(item[0])] = item[1]
+            elif hasattr(item, "set_id"):
+                results_map[str(getattr(item, "set_id"))] = item
+            elif idx_item < len(sets):
+                results_map[str(sets[idx_item].get("id", ""))] = item
+
+    archive = io.BytesIO()
+    readme_lines = [
+        f"# {project_name} · Omnibundle de Terrenos Autotile",
+        "Generado con SpriteBuilder\n",
+        f"- Resolución de Tile: {tile_size[0]}x{tile_size[1]} px",
+        f"- Total de Sets Incluidos: {len(results_map)}\n",
+        "## Contenido del Paquete\n",
+    ]
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        for idx, set_cfg in enumerate(sets):
+            set_id = str(set_cfg.get("id", ""))
+            res = results_map.get(set_id)
+            if res is None or not getattr(res, "complete", False):
+                continue
+            set_name = str(set_cfg.get("name") or f"Set_{idx+1}")
+            safe_folder = f"{idx+1:02d}_{set_cfg.get('kind', 'autotile')}_{set_name}".lower().replace(" ", "_")
+            safe_folder = "".join(c for c in safe_folder if c.isalnum() or c in ("_", "-"))
+
+            readme_lines.append(f"### {idx+1}. `{safe_folder}/` ({set_name})")
+            readme_lines.append(f"- Formato: `{res.kind}` ({len(res.tiles)} tiles, {res.columns}x{res.rows} en atlas)")
+
+            atlas_io = io.BytesIO()
+            res.image.save(atlas_io, format="PNG", optimize=False)
+            bundle.writestr(f"{safe_folder}/terrain_tiles.png", atlas_io.getvalue())
+
+            ref_io = io.BytesIO()
+            render_terrain_bitmask_template(res.kind).save(ref_io, format="PNG", optimize=False)
+            bundle.writestr(f"{safe_folder}/terrain_bitmask_reference.png", ref_io.getvalue())
+
+            bundle.writestr(f"{safe_folder}/godot_installer.zip", build_terrain_pattern_bundle(res, terrain_name=set_name))
+            bundle.writestr(f"{safe_folder}/unity_ruletile.zip", build_unity_ruletile_bundle(res, terrain_name=set_name))
+            bundle.writestr(f"{safe_folder}/tiled_wangset.zip", build_tiled_bundle(res, terrain_name=set_name))
+
+        bundle.writestr("README.md", "\n".join(readme_lines) + "\n")
+    return archive.getvalue()
+
+
+
 def _render_terrain_patterns() -> None:
     """Render the fragment-first, TileSetter-inspired terrain workspace."""
 
@@ -920,16 +1177,21 @@ def _render_terrain_patterns() -> None:
     )
     image = _tileset_state_image()
     grid = _tileset_grid_from_state()
-    if image is None:
-        # A procedural Blob does not require an imported atlas. This blank
-        # transport image is ephemeral; it never replaces the user's Atlas.
-        image = Image.new("RGBA", (grid.tile_width, grid.tile_height))
-
     project_key = f"{prefix}:set_view_project"
     raw_project = st.session_state.get(project_key)
     project: dict[str, Any] = (
         dict(raw_project) if isinstance(raw_project, Mapping) else {}
     )
+    if image is None:
+        # A procedural set does not require an imported atlas. This blank
+        # transport image is ephemeral; it never replaces the user's Atlas.
+        sources_list = [s for s in project.get("sources", []) if isinstance(s, Mapping)]
+        max_x = max([int(s.get("x", 0) or 0) + int(s.get("width", grid.tile_width) or grid.tile_width) for s in sources_list], default=grid.tile_width)
+        max_y = max([int(s.get("y", 0) or 0) + int(s.get("height", grid.tile_height) or grid.tile_height) for s in sources_list], default=grid.tile_height)
+        ephemeral_w = max(grid.tile_width, max_x)
+        ephemeral_h = max(grid.tile_height, max_y)
+        image = Image.new("RGBA", (ephemeral_w, ephemeral_h), (0, 0, 0, 0))
+        setattr(image, "_cache_token", f"ephemeral:{ephemeral_w}x{ephemeral_h}")
     if int(project.get("version", 0)) < 3:
         legacy_sources = project.get("fragments", [])
         sources = legacy_sources if isinstance(legacy_sources, list) else []
@@ -967,6 +1229,15 @@ def _render_terrain_patterns() -> None:
             "selectedMask": None,
             "activeSourceId": None,
             "selectedSetId": None,
+        },
+    )
+    project.setdefault(
+        "palette",
+        {
+            "biome": "pradera",
+            "primary": "#48A832",
+            "secondary": "#8B5A2B",
+            "water": "#2B65EC",
         },
     )
     project = _strip_dual_grid_background_overrides(project)
@@ -1092,333 +1363,34 @@ def _render_terrain_patterns() -> None:
         else:
             st.warning(f"Set generado inválido ({set_id or 'sin id'}): {error}")
 
-    with st.expander("🌲 Analizador de Biomas & Ecosistemas Multi-Blob", expanded=False):
-        bio_col1, bio_col2 = st.columns((2.5, 1.5), gap="medium")
-        palette = analyze_image_biome_palette(image)
-        with bio_col1:
-            st.markdown(
-                "**Paleta de Bioma extraída:** "
-                f"<span style='display:inline-block;padding:2px 8px;border-radius:4px;background:{palette.grass.hex_color};color:#fff'>🌿 Pasto {palette.grass.hex_color}</span> "
-                f"<span style='display:inline-block;padding:2px 8px;border-radius:4px;background:{palette.dirt.hex_color};color:#fff'>🟤 Tierra {palette.dirt.hex_color}</span> "
-                f"<span style='display:inline-block;padding:2px 8px;border-radius:4px;background:{palette.water.hex_color};color:#fff'>🌊 Agua {palette.water.hex_color}</span> ",
-                unsafe_allow_html=True,
-            )
-            st.caption(
-                f"Terreno dominante: **{palette.dominant_terrain}** · "
-                f"Detectados: {', '.join(palette.detected_terrains) if palette.detected_terrains else 'Valores armonizados'}"
-            )
-        with bio_col2:
-            if st.button("⚡ Crear Ecosistema Completo (3 Sets)", key=f"{prefix}:create_biome_sets", type="primary"):
-                current_sets = list(project.get("sets", []))
-                tile_max_y = max([int(t.get("y", 0)) for t in project.get("tiles", [])], default=0)
-                start_max_y = max([int(s.get("originY", 0)) + int(s.get("rows", 5)) for s in current_sets], default=tile_max_y)
-
-                harvested = harvest_image_terrain_tiles(image, tile_size=(grid.tile_width, grid.tile_height))
-                source_id_map: dict[str, str] = {}
-                sources_list = project.setdefault("sources", [])
-                tiles_list = project.setdefault("tiles", [])
-                for terrain_key, samples in harvested.items():
-                    if samples:
-                        best = samples[0]
-                        existing = next(
-                            (s for s in sources_list if s.get("x") == best.bounds[0] and s.get("y") == best.bounds[1]),
-                            None,
-                        )
-                        if existing:
-                            source_id_map[terrain_key] = str(existing.get("id"))
-                        else:
-                            new_source_id = uuid.uuid4().hex[:8]
-                            sources_list.append({
-                                "id": new_source_id,
-                                "name": f"{terrain_key.capitalize()} Cosechado",
-                                "x": best.bounds[0],
-                                "y": best.bounds[1],
-                                "width": best.bounds[2],
-                                "height": best.bounds[3],
-                            })
-                            tiles_list.append({
-                                "id": uuid.uuid4().hex[:8],
-                                "sourceId": new_source_id,
-                                "x": len(tiles_list) % 10,
-                                "y": tile_max_y + 1,
-                            })
-                            source_id_map[terrain_key] = new_source_id
-
-                new_ecosystem = generate_biome_ecosystem_sets(
-                    palette,
-                    kind=kind,
-                    start_y=start_max_y + 2,
-                    variant_count=max(1, min(5, int(active_set.get("variantCount", 3)))) if active_set else 3,
-                    harvested_tiles=harvested,
-                    source_id_map=source_id_map,
-                )
-                current_sets.extend(new_ecosystem)
-                project["sets"] = current_sets
-                project["activeSetId"] = new_ecosystem[0]["id"]
-                st.session_state[project_key] = project
-                st.toast("✅ Ecosistema de 3 sets creado con texturas del artista")
-                st.rerun()
-
-    if active_set is not None and active_set.get("blobMaterialMode") != "procedural":
-        with st.expander("🎨 Bordes Redondeados, Contorno Retro y Texturas", expanded=True):
-            r_col1, r_col2, r_col3, r_col4 = st.columns((1.5, 1.2, 2, 1.3), gap="small")
-            max_r = max(1, min(grid.tile_width, grid.tile_height) // 2)
-            cur_r = max(0, min(max_r, int(active_set.get("cornerRadius", 0))))
-            new_r = int(
-                r_col1.slider(
-                    "Radio de esquina (px)",
-                    min_value=0,
-                    max_value=max_r,
-                    value=cur_r,
-                    key=f"{prefix}:set_corner_radius:{active_set_id}",
-                )
-            )
-            cur_outline = bool(active_set.get("retroOutline", False))
-            new_outline = bool(
-                r_col2.checkbox(
-                    "Contorno retro (1px)",
-                    value=cur_outline,
-                    key=f"{prefix}:set_retro_outline:{active_set_id}",
-                )
-            )
-            available_profiles = list(terrain_edge_profiles())
-            cur_profile = str(active_set.get("terrainProfile") or "clean")
-            if cur_profile not in available_profiles:
-                cur_profile = "clean"
-            profile_idx = available_profiles.index(cast(TerrainEdgeProfile, cur_profile))
-            profile_labels = {
-                "clean": "Borde limpio",
-                "organic_neutral": "Orgánico neutral",
-                "grass_over_dirt": "Pasto sobre tierra",
-                "dirt_over_water": "Tierra sobre agua",
-                "grass_over_water": "Pasto sobre agua",
-                "rounded_clean": "Bordes redondeados · limpio",
-                "rounded_grass_tufts": "Bordes redondeados · pasto",
-                "rounded_dither": "Bordes redondeados · dither",
-                "rounded_chamfer": "Bisel 45° · chamfer retro",
-            }
-            new_profile = r_col3.selectbox(
-                "Perfil de transición",
-                available_profiles,
-                index=profile_idx,
-                format_func=lambda p: profile_labels.get(p, p),
-                key=f"{prefix}:set_terrain_profile:{active_set_id}",
-            )
-            cur_var = max(0, min(3, int(active_set.get("edgeVariation", 0))))
-            new_var = int(
-                r_col4.slider(
-                    "Variación",
-                    min_value=0,
-                    max_value=3,
-                    value=cur_var,
-                    key=f"{prefix}:set_edge_var:{active_set_id}",
-                )
-            )
-            cur_variant_count = max(1, min(5, int(active_set.get("variantCount", 1))))
-            new_variant_count = cur_variant_count
-            cur_blob_mode = str(active_set.get("blobMode") or active_set.get("blob_mode") or "synthesis")
-            cur_drop_shadow = max(0, min(4, int(active_set.get("dropShadow") if active_set.get("dropShadow") is not None else (active_set.get("drop_shadow") or 0))))
-            cur_shadow_dir = str(active_set.get("shadowDirection") or active_set.get("shadow_direction") or "south")
-            cur_shadow_tint = str(active_set.get("shadowTint") or active_set.get("shadow_tint") or "cool")
-            raw_shadow_intensity = active_set.get("shadowIntensity") if active_set.get("shadowIntensity") is not None else active_set.get("shadow_intensity")
-            try:
-                cur_shadow_intensity = max(0.2, min(1.0, float(raw_shadow_intensity))) if raw_shadow_intensity is not None else 0.70
-            except (TypeError, ValueError):
-                cur_shadow_intensity = 0.70
-            cur_corner_style = str(active_set.get("cornerStyle") or active_set.get("corner_style") or "arc")
-            cur_rim_light = bool(active_set.get("rimLight") if "rimLight" in active_set else active_set.get("rim_light", False))
-            new_blob_mode = cur_blob_mode
-            new_drop_shadow = cur_drop_shadow
-            new_shadow_dir = cur_shadow_dir
-            new_shadow_tint = cur_shadow_tint
-            new_shadow_intensity = cur_shadow_intensity
-            new_corner_style = cur_corner_style
-            new_rim_light = cur_rim_light
-
-            if kind == "blob_47":
-                new_variant_count = int(
-                    st.select_slider(
-                        "Variantes orgánicas por máscara",
-                        options=(1, 2, 3, 4, 5),
-                        value=cur_variant_count,
-                        key=f"{prefix}:set_variant_count:{active_set_id}",
-                        help=(
-                            "Cada banco conserva los mismos peering bits. Cinco variantes "
-                            "producen hasta 235 tiles Blob compatibles entre sí."
-                        ),
-                    )
-                )
-                b_col1, b_col2, b_col3, b_col4 = st.columns((1.8, 1.4, 1.8, 1.4), gap="small")
-                blob_mode_options = ("synthesis", "manual_edges")
-                blob_mode_labels = {
-                    "synthesis": "Síntesis inteligente (1 o 2 tiles)",
-                    "manual_edges": "Bordes manuales (Legacy)",
-                }
-                new_blob_mode = b_col1.selectbox(
-                    "Modo Blob 47",
-                    blob_mode_options,
-                    index=0 if cur_blob_mode != "manual_edges" else 1,
-                    format_func=lambda m: blob_mode_labels.get(m, m),
-                    key=f"{prefix}:set_blob_mode:{active_set_id}",
-                    help="Síntesis inteligente genera las 47 formas desde tu tile base sin requerir recortar 4 bordes.",
-                )
-                if new_blob_mode == "synthesis":
-                    new_drop_shadow = int(
-                        b_col2.slider(
-                            "Sombra (px)",
-                            min_value=0,
-                            max_value=4,
-                            value=cur_drop_shadow,
-                            key=f"{prefix}:set_drop_shadow:{active_set_id}",
-                        )
-                    )
-                    shadow_dir_options = ("south", "south_east", "all_around")
-                    shadow_dir_labels = {
-                        "south": "Abajo (Sur)",
-                        "south_east": "Diagonal (Sur-Este)",
-                        "all_around": "Omnidireccional",
-                    }
-                    shadow_dir_idx = (
-                        shadow_dir_options.index(cur_shadow_dir)
-                        if cur_shadow_dir in shadow_dir_options
-                        else 0
-                    )
-                    new_shadow_dir = b_col3.selectbox(
-                        "Dirección de sombra",
-                        shadow_dir_options,
-                        index=shadow_dir_idx,
-                        format_func=lambda d: shadow_dir_labels.get(d, d),
-                        key=f"{prefix}:set_shadow_dir:{active_set_id}",
-                    )
-                    new_rim_light = bool(
-                        b_col4.checkbox(
-                            "Cresta de luz (Rim)",
-                            value=cur_rim_light,
-                            key=f"{prefix}:set_rim_light:{active_set_id}",
-                            help="Añade un resalte iluminado en la cresta superior expuesta.",
-                        )
-                    )
-                    c_col1, c_col2, c_col3 = st.columns((1.4, 1.4, 1.4), gap="small")
-                    corner_style_options = ("arc", "chamfer")
-                    corner_style_labels = {
-                        "arc": "Curvo suave (Arco)",
-                        "chamfer": "Bisel a 45° (Chamfer)",
-                    }
-                    new_corner_style = c_col1.selectbox(
-                        "Estilo de esquina",
-                        corner_style_options,
-                        index=0 if cur_corner_style != "chamfer" else 1,
-                        format_func=lambda s: corner_style_labels.get(s, s),
-                        key=f"{prefix}:set_corner_style:{active_set_id}",
-                    )
-                    shadow_tint_options = ("cool", "warm", "mystic", "neutral")
-                    shadow_tint_labels = {
-                        "cool": "Azul frío (Cool)",
-                        "warm": "Cálido / Ámbar (Warm)",
-                        "mystic": "Místico / Púrpura (Mystic)",
-                        "neutral": "Neutro monocromo",
-                    }
-                    shadow_tint_idx = (
-                        shadow_tint_options.index(cur_shadow_tint)
-                        if cur_shadow_tint in shadow_tint_options
-                        else 0
-                    )
-                    new_shadow_tint = c_col2.selectbox(
-                        "Tinte de sombra",
-                        shadow_tint_options,
-                        index=shadow_tint_idx,
-                        format_func=lambda t: shadow_tint_labels.get(t, t),
-                        key=f"{prefix}:set_shadow_tint:{active_set_id}",
-                    )
-                    new_shadow_intensity = float(
-                        c_col3.slider(
-                            "Intensidad de sombra",
-                            min_value=20,
-                            max_value=100,
-                            value=int(round(cur_shadow_intensity * 100)),
-                            step=5,
-                            format="%d%%",
-                            key=f"{prefix}:set_shadow_intensity:{active_set_id}",
-                        )
-                    ) / 100.0
-            if (
-                new_r != cur_r
-                or new_outline != cur_outline
-                or new_profile != cur_profile
-                or new_var != cur_var
-                or new_variant_count != cur_variant_count
-                or new_blob_mode != cur_blob_mode
-                or new_drop_shadow != cur_drop_shadow
-                or new_shadow_dir != cur_shadow_dir
-                or new_shadow_tint != cur_shadow_tint
-                or abs(new_shadow_intensity - cur_shadow_intensity) > 0.01
-                or new_corner_style != cur_corner_style
-                or new_rim_light != cur_rim_light
-            ):
-                active_set_dict = dict(active_set)
-                active_set_dict["cornerRadius"] = new_r
-                active_set_dict["retroOutline"] = new_outline
-                active_set_dict["terrainProfile"] = new_profile
-                active_set_dict["edgeVariation"] = new_var
-                if kind == "blob_47":
-                    active_set_dict["variantCount"] = new_variant_count
-                    active_set_dict["blobMode"] = new_blob_mode
-                    active_set_dict["dropShadow"] = new_drop_shadow
-                    active_set_dict["shadowDirection"] = new_shadow_dir
-                    active_set_dict["shadowTint"] = new_shadow_tint
-                    active_set_dict["shadowIntensity"] = new_shadow_intensity
-                    active_set_dict["cornerStyle"] = new_corner_style
-                    active_set_dict["rimLight"] = new_rim_light
-                for idx, s in enumerate(sets):
-                    if isinstance(s, Mapping) and str(s.get("id", "")) == str(active_set_id):
-                        sets[idx] = active_set_dict
-                        break
-                project["sets"] = sets
-                st.session_state[project_key] = project
-                st.rerun()
-
-    with st.expander("✨ Plantillas IA de Texturas (Generador de Materiales)", expanded=False):
-        st.caption(
-            "Crea muestras de texturas base rápidamente usando plantillas curadas con prompts de IA y síntesis inmediata para autotiling."
-        )
-        t_col1, t_col2 = st.columns((2, 1.5), gap="small")
+def _render_material_texture_generator_expander(prefix: str) -> None:
+    with st.expander("✨ Generador de Texturas con Plantillas IA (Muestras)", expanded=False):
         templates = list_material_templates()
         tmpl_names = [f"{t.name} ({t.category})" for t in templates]
-        selected_tmpl_idx = t_col1.selectbox(
+        selected_tmpl_idx = st.selectbox(
             "Plantilla de material",
             range(len(templates)),
             format_func=lambda i: tmpl_names[i],
-            key=f"{prefix}:ai_template_select",
+            key=f"{prefix}:finish_ai_template_select",
         )
         chosen_tmpl = templates[selected_tmpl_idx]
-        target_role = t_col2.radio(
+        role_state_key = f"{prefix}:ai_role_select"
+        finish_role_state_key = f"{prefix}:finish_ai_role_select"
+        radio_key = role_state_key if role_state_key in st.session_state else finish_role_state_key
+        target_role = st.radio(
             "Asignar como",
             ("Base (Relleno)", "Secundario (Suelo/Fondo)"),
             horizontal=True,
-            key=f"{prefix}:ai_role_select",
+            key=radio_key,
         )
-        t_col1.info(f"**Descripción:** {chosen_tmpl.description} · *Perfil sugerido:* `{chosen_tmpl.suggested_profile}`")
+        st.caption(f"**Descripción:** {chosen_tmpl.description} · *Perfil sugerido:* `{chosen_tmpl.suggested_profile}`")
         custom_inst = st.text_input(
             "Instrucciones o detalles de estilo adicionales (opcional)",
             placeholder="Ej. estilo 16-bit SNES con flores silvestres, tonalidad otoñal...",
-            key=f"{prefix}:ai_custom_inst",
+            key=f"{prefix}:finish_ai_custom_inst",
         )
-        preview_prompt = format_tile_prompt(
-            chosen_tmpl.id,
-            custom_instruction=custom_inst,
-            tile_size=(grid.tile_width, grid.tile_height),
-        )
-        with st.expander("Ver prompt generado para IA", expanded=False):
-            st.code(preview_prompt, language="markdown")
-
-        gen_col1, gen_col2 = st.columns(2, gap="small")
-        if gen_col1.button(
-            "⚡ Generar y Asignar Muestra de Textura",
-            type="primary",
-            width="stretch",
-            key=f"{prefix}:ai_generate_apply",
-        ):
-            role_key = "secondary" if "Secundario" in target_role else "base"
+        if st.button("⚡ Generar y Asignar Muestra de Textura", type="primary", key=f"{prefix}:finish_ai_generate_apply"):
+            role_key = "secondary" if "Secundario" in str(target_role) else "base"
             _add_material_tile_to_project(
                 chosen_tmpl.id,
                 role=role_key,
@@ -1426,15 +1398,895 @@ def _render_terrain_patterns() -> None:
             )
             st.rerun()
 
-    with st.expander("Proyecto y exportación", expanded=True):
-        name_col, status_col = st.columns((2.7, 1.3), gap="small")
+
+def _render_finishing_and_export_studio() -> None:
+    """Render the dedicated studio for Materials, Procedural Noise, Edges and Game Engine Export."""
+    from sprite_builder.tilesets.autotile import (
+        autotile_blob47,
+        autotile_dual_grid,
+        autotile_sides16,
+        generate_dungeon_map,
+        generate_island_map,
+        generate_paths_map,
+    )
+
+    prefix = f"{_TILESET_STATE_PREFIX}:patterns"
+    image = _tileset_state_image()
+    grid = _tileset_grid_from_state()
+    tile_size = (grid.tile_width, grid.tile_height)
+    project_key = f"{prefix}:set_view_project"
+    raw_project = st.session_state.get(project_key)
+    project: dict[str, Any] = dict(raw_project) if isinstance(raw_project, Mapping) else {}
+    raw_sets = project.get("sets", [])
+    sets: list[dict[str, Any]] = [dict(s) for s in raw_sets if isinstance(s, Mapping)] if isinstance(raw_sets, list) else []
+
+    st.subheader("Estudio de Acabado, Materiales y Exportación")
+    st.caption(
+        "Ajusta paletas, texturas híbridas, capas de ruido procedural, distorsión y rugosidad en bordes, "
+        "sombras dinámicas e iluminación, y genera los bundles de exportación para Godot 4, Unity y Tiled."
+    )
+
+    if not sets:
+        st.info(
+            "💡 No hay ningún set de patrones configurado aún. Ve a la pestaña **Pattern Studio** o utiliza "
+            "el botón inferior para inicializar un bioma completo (Blob 47, Dual Grid 15 y Wang 16) con 1 clic."
+        )
+        if st.button("⚡ Crear Bioma de Prueba (3 Sets)", type="primary", key=f"{prefix}:finish_create_starter_biome"):
+            from sprite_builder.tilesets.suite import generate_terrain_suite
+            palette = project.get("palette", {})
+            p_col = str(palette.get("primary", "#48A832"))
+            s_col = str(palette.get("secondary", "#8B5A2B"))
+            suite = generate_terrain_suite(
+                name="Pradera Verde",
+                primary_color=p_col,
+                secondary_color=s_col,
+                kinds=("blob_47", "dual_grid_15", "wang_16"),
+                tile_size=tile_size,
+                variant_count=1,
+            )
+            project["sets"] = [s for s in suite.sets]
+            project["sources"] = [s for s in suite.sources]
+            project["activeSetId"] = suite.sets[0]["id"]
+            if suite.source_atlas is not None:
+                _set_tileset_image(suite.source_atlas, source_name="procedural_biome.png", reset_canvas=False)
+            st.session_state[project_key] = project
+            st.toast("✅ Bioma completo generado exitosamente")
+            st.rerun()
+        _render_material_texture_generator_expander(prefix)
+        return
+
+    active_set_id = str(project.get("activeSetId", "")) or str(sets[0].get("id", ""))
+    set_ids = [str(s.get("id", "")) for s in sets]
+    if active_set_id not in set_ids and set_ids:
+        active_set_id = set_ids[0]
+
+    def _set_label(sid: str) -> str:
+        s = next((item for item in sets if str(item.get("id", "")) == sid), None)
+        if not s:
+            return sid
+        s_name = s.get("name") or s.get("id") or "Set"
+        s_kind = "Blob 47" if s.get("kind") == "blob_47" else ("Dual Grid 15" if s.get("kind") == "dual_grid_15" else "Wang 16")
+        return f"{s_name} ({s_kind})"
+
+    # Selector de Set Activo y Receta Estética
+    head_col1, head_col2 = st.columns((2.2, 1.8), gap="medium")
+    cur_set_idx = set_ids.index(active_set_id) if active_set_id in set_ids else 0
+    selected_set_id = head_col1.selectbox(
+        "📐 Seleccionar Set para Acabado",
+        set_ids,
+        index=cur_set_idx,
+        format_func=_set_label,
+        key=f"{prefix}:finishing_set_select",
+    )
+    if selected_set_id != active_set_id:
+        project["activeSetId"] = selected_set_id
+        st.session_state[project_key] = project
+        st.rerun()
+
+    active_set = next((s for s in sets if str(s.get("id", "")) == selected_set_id), sets[0])
+    kind = _ui_pattern_kind(active_set.get("kind", "blob_47"))
+
+    # Recetas Estéticas en 1 Clic
+    with head_col2:
+        matched_preset_id = detect_matching_aesthetic_preset(active_set)
+        presets_list = list_aesthetic_presets()
+        preset_options = [p.id for p in presets_list]
+        preset_labels = {p.id: f"{p.icon} {p.name}" for p in presets_list}
+
+        p_sel_col, p_btn1, p_btn2 = st.columns((2.0, 1.0, 1.0), gap="small")
+        preset_state_key = f"{prefix}:select_aesthetic_preset:{selected_set_id}"
+        widget_preset_key = f"{prefix}:finish_preset_picker:{selected_set_id}"
+        if preset_state_key in st.session_state and str(st.session_state[preset_state_key]) in preset_options:
+            st.session_state[widget_preset_key] = str(st.session_state[preset_state_key])
+            def_idx = preset_options.index(str(st.session_state[preset_state_key]))
+        elif matched_preset_id in preset_options:
+            def_idx = preset_options.index(matched_preset_id)
+        else:
+            def_idx = 0
+
+        selected_preset_id = p_sel_col.selectbox(
+            "🎨 Receta Estética (1 Clic)",
+            preset_options,
+            index=def_idx,
+            format_func=lambda pid: preset_labels.get(pid, pid),
+            key=widget_preset_key,
+        )
+        selected_preset = get_aesthetic_preset(selected_preset_id)
+        if p_btn1.button("⚡ Aplicar Receta", key=f"{prefix}:finish_apply_preset:{selected_set_id}", type="primary", width="stretch"):
+            if selected_preset:
+                applied = selected_preset.apply_to_set(active_set)
+                for idx, s in enumerate(sets):
+                    if str(s.get("id", "")) == str(selected_set_id):
+                        sets[idx] = applied
+                        break
+                project["sets"] = sets
+                st.session_state[project_key] = project
+                for k in [
+                    f"{prefix}:finish_noise_style:{selected_set_id}",
+                    f"{prefix}:finish_noise_intensity:{selected_set_id}",
+                    f"{prefix}:finish_terrain_profile:{selected_set_id}",
+                    f"{prefix}:finish_edge_var:{selected_set_id}",
+                    f"{prefix}:finish_corner_radius:{selected_set_id}",
+                    f"{prefix}:finish_corner_style:{selected_set_id}",
+                    f"{prefix}:finish_retro_outline:{selected_set_id}",
+                    f"{prefix}:finish_drop_shadow:{selected_set_id}",
+                    f"{prefix}:finish_shadow_dir:{selected_set_id}",
+                    f"{prefix}:finish_shadow_tint:{selected_set_id}",
+                    f"{prefix}:finish_shadow_intensity:{selected_set_id}",
+                    f"{prefix}:finish_rim_light:{selected_set_id}",
+                    f"{prefix}:finish_variant_count:{selected_set_id}",
+                    f"{prefix}:finish_ess_drop_shadow:{selected_set_id}",
+                    f"{prefix}:finish_ess_rim_light:{selected_set_id}",
+                    f"{prefix}:finish_ess_noise_style:{selected_set_id}",
+                    f"{prefix}:finish_ess_noise_intensity:{selected_set_id}",
+                    f"{prefix}:finish_ess_variants:{selected_set_id}",
+                ]:
+                    st.session_state.pop(k, None)
+                st.toast(f"✅ Receta '{selected_preset.name}' aplicada al set activo")
+                st.rerun()
+
+        if len(sets) >= 2 and p_btn2.button("🔄 A Todos", key=f"{prefix}:finish_apply_all_preset:{selected_set_id}", width="stretch"):
+            if selected_preset:
+                for idx, s in enumerate(sets):
+                    sets[idx] = selected_preset.apply_to_set(s)
+                    sid = str(s.get("id", ""))
+                    for k in [
+                        f"{prefix}:finish_noise_style:{sid}",
+                        f"{prefix}:finish_noise_intensity:{sid}",
+                        f"{prefix}:finish_terrain_profile:{sid}",
+                        f"{prefix}:finish_edge_var:{sid}",
+                        f"{prefix}:finish_corner_radius:{sid}",
+                        f"{prefix}:finish_corner_style:{sid}",
+                        f"{prefix}:finish_retro_outline:{sid}",
+                        f"{prefix}:finish_drop_shadow:{sid}",
+                        f"{prefix}:finish_shadow_dir:{sid}",
+                        f"{prefix}:finish_shadow_tint:{sid}",
+                        f"{prefix}:finish_shadow_intensity:{sid}",
+                        f"{prefix}:finish_rim_light:{sid}",
+                        f"{prefix}:finish_variant_count:{sid}",
+                        f"{prefix}:finish_ess_drop_shadow:{sid}",
+                        f"{prefix}:finish_ess_rim_light:{sid}",
+                        f"{prefix}:finish_ess_noise_style:{sid}",
+                        f"{prefix}:finish_ess_noise_intensity:{sid}",
+                        f"{prefix}:finish_ess_variants:{sid}",
+                    ]:
+                        st.session_state.pop(k, None)
+                project["sets"] = sets
+                st.session_state[project_key] = project
+                st.toast(f"✅ Receta '{selected_preset.name}' aplicada a todos los sets")
+                st.rerun()
+
+    # Pre-generar resultado para el set activo y para la suite
+    source_mappings = [s for s in project.get("sources", []) if isinstance(s, Mapping)]
+    synth_image = image
+    if synth_image is None:
+        max_x = max([int(s.get("x", 0) or 0) + int(s.get("width", tile_size[0]) or tile_size[0]) for s in source_mappings], default=tile_size[0])
+        max_y = max([int(s.get("y", 0) or 0) + int(s.get("height", tile_size[1]) or tile_size[1]) for s in source_mappings], default=tile_size[1])
+        ephemeral_w = max(tile_size[0], max_x)
+        ephemeral_h = max(tile_size[1], max_y)
+        synth_image = Image.new("RGBA", (ephemeral_w, ephemeral_h), (0, 0, 0, 0))
+        palette = project.get("palette", {}) if isinstance(project.get("palette"), Mapping) else {}
+        for s in source_mappings:
+            sx = int(s.get("x", 0) or 0)
+            sy = int(s.get("y", 0) or 0)
+            sw = int(s.get("width", tile_size[0]) or tile_size[0])
+            sh = int(s.get("height", tile_size[1]) or tile_size[1])
+            is_secondary = "fondo" in str(s.get("name", "")).lower() or "(b)" in str(s.get("name", "")).lower()
+            col = str(palette.get("secondary" if is_secondary else "primary", "#8B5A2B" if is_secondary else "#48A832"))
+            mat = "dirt" if is_secondary else "grass"
+            m_tile = generate_procedural_material((sw, sh), mat, base_color=col, seed=1 if is_secondary else 0)
+            synth_image.paste(m_tile, (sx, sy))
+        setattr(synth_image, "_cache_token", f"ephemeral_finishing:{ephemeral_w}x{ephemeral_h}:{len(source_mappings)}")
+
+    result, err = _build_terrain_pattern_safely(
+        synth_image,
+        tile_size=tile_size,
+        sources=source_mappings,
+        set_config=active_set,
+        kind=kind,
+    )
+
+    set_results: dict[str, TerrainPatternResult] = {}
+    for s in sets:
+        sid = str(s.get("id", ""))
+        k = _ui_pattern_kind(s.get("kind", "blob_47"))
+        res, _ = _build_terrain_pattern_safely(synth_image, tile_size=tile_size, sources=source_mappings, set_config=s, kind=k)
+        if res is not None:
+            set_results[sid] = res
+
+    st.markdown("---")
+
+    # DISTRIBUCIÓN EN 2 COLUMNAS
+    col_ctrl, col_view = st.columns((1.15, 0.85), gap="large")
+
+    with col_ctrl:
+        st.markdown("#### 🎛️ Personalización y Acabado")
+
+        mode_options = ("⚡ Esencial (Guiado)", "🎛️ Avanzado (Control Total)")
+        saved_mode_key = f"{prefix}:saved_ctrl_mode:{selected_set_id}"
+        mode_widget_key = f"{prefix}:finish_ctrl_mode:{selected_set_id}"
+        saved_mode = str(st.session_state.get(saved_mode_key) or st.session_state.get(mode_widget_key) or "⚡ Esencial (Guiado)")
+        mode_idx = mode_options.index(saved_mode) if saved_mode in mode_options else 0
+
+        def _sync_ctrl_mode() -> None:
+            st.session_state[saved_mode_key] = st.session_state.get(mode_widget_key, "⚡ Esencial (Guiado)")
+
+        ctrl_mode = st.radio(
+            "Modo de Personalización",
+            mode_options,
+            index=mode_idx,
+            horizontal=True,
+            key=mode_widget_key,
+            on_change=_sync_ctrl_mode,
+            label_visibility="collapsed",
+            help="Elige entre un flujo simplificado basado en recetas estéticas o control granular de cada píxel.",
+        )
+        st.session_state[saved_mode_key] = ctrl_mode
+        is_essential = "Esencial" in (ctrl_mode or "⚡ Esencial (Guiado)")
+
+        cur_p_color = str(active_set.get("primaryColor") or active_set.get("insideColor") or "#48A832")
+        cur_s_color = str(active_set.get("secondaryColor") or active_set.get("outsideColor") or "#8B5A2B")
+
+        cur_noise_style = str(active_set.get("noiseStyle") or active_set.get("noise_style") or "none")
+        noise_options = ["none", "dither", "simplex", "gravel"]
+        if cur_noise_style not in noise_options:
+            cur_noise_style = "none"
+
+        raw_noise_intensity = active_set.get("noiseIntensity", active_set.get("noise_intensity"))
+        try:
+            cur_noise_intensity = max(0.0, min(1.0, float(raw_noise_intensity))) if raw_noise_intensity is not None else (0.35 if cur_noise_style != "none" else 0.0)
+        except (TypeError, ValueError):
+            cur_noise_intensity = 0.35 if cur_noise_style != "none" else 0.0
+
+        cur_edge_seed = int(active_set.get("edgeSeed") or active_set.get("edge_seed") or 0)
+
+        available_profiles = list(terrain_edge_profiles())
+        cur_profile = str(active_set.get("terrainProfile") or "clean")
+        if cur_profile not in available_profiles:
+            cur_profile = "clean"
+
+        cur_var = max(0, min(3, int(active_set.get("edgeVariation", 0))))
+        max_r = max(1, min(grid.tile_width, grid.tile_height) // 2)
+        cur_r = max(0, min(max_r, int(active_set.get("cornerRadius", 0))))
+        cur_corner_style = str(active_set.get("cornerStyle") or "arc")
+        cur_outline = bool(active_set.get("retroOutline", False))
+
+        cur_drop_shadow = max(0, min(8, int(active_set.get("dropShadow") if active_set.get("dropShadow") is not None else (active_set.get("drop_shadow") or 0))))
+        cur_shadow_dir = str(active_set.get("shadowDirection") or active_set.get("shadow_direction") or "south")
+        cur_shadow_tint = str(active_set.get("shadowTint") or active_set.get("shadow_tint") or "cool")
+        raw_shadow_intensity = active_set.get("shadowIntensity") if active_set.get("shadowIntensity") is not None else active_set.get("shadow_intensity")
+        try:
+            cur_shadow_intensity = max(0.2, min(1.0, float(raw_shadow_intensity))) if raw_shadow_intensity is not None else 0.70
+        except (TypeError, ValueError):
+            cur_shadow_intensity = 0.70
+        cur_rim_light = bool(active_set.get("rimLight") if "rimLight" in active_set else active_set.get("rim_light", False))
+
+        cur_variant_count = max(1, min(5, int(active_set.get("variantCount", 1))))
+        cur_anim_enabled = bool(active_set.get("animated") or active_set.get("is_animated", False))
+        cur_anim_style = str(active_set.get("animationStyle") or "shore_ripples")
+        cur_frames = max(2, min(8, int(active_set.get("animationFrames", 4))))
+        cur_fps = max(2.0, min(24.0, float(active_set.get("animationFps", 8.0))))
+
+        # Valores por defecto para preservar lo existente en caso de no ser editados
+        new_noise_style = cur_noise_style
+        new_noise_intensity = cur_noise_intensity
+        new_edge_seed = cur_edge_seed
+        new_profile = cur_profile
+        new_var = cur_var
+        new_r = cur_r
+        new_corner_style = cur_corner_style
+        new_outline = cur_outline
+        new_drop_shadow = cur_drop_shadow
+        new_shadow_dir = cur_shadow_dir
+        new_shadow_tint = cur_shadow_tint
+        new_shadow_intensity = cur_shadow_intensity
+        new_rim_light = cur_rim_light
+        new_variant_count = cur_variant_count
+        new_anim_enabled = cur_anim_enabled
+        new_anim_style = cur_anim_style
+        new_frames = cur_frames
+        new_fps = cur_fps
+
+        if is_essential:
+            # 1. MATERIALES Y PALETA CROMÁTICA
+            with st.container(border=True):
+                st.markdown("##### 🎨 Materiales y Paleta Cromática")
+                col_p, col_s = st.columns(2, gap="medium")
+                with col_p:
+                    new_p_color = _render_color_picker_with_hex(
+                        "🌱 Color Base (Relleno)",
+                        current_hex=cur_p_color,
+                        key_prefix=f"{prefix}:finish_primary:{selected_set_id}",
+                        help_text="Color del suelo o relleno principal",
+                    )
+                with col_s:
+                    new_s_color = _render_color_picker_with_hex(
+                        "🟤 Color Secundario (Fondo)",
+                        current_hex=cur_s_color,
+                        key_prefix=f"{prefix}:finish_secondary:{selected_set_id}",
+                        help_text="Color del exterior o borde de transición",
+                    )
+
+                sync_suite_colors = st.checkbox(
+                    "Sincronizar colores con toda la suite",
+                    value=(len(sets) >= 2),
+                    key=f"{prefix}:finish_sync_colors:{selected_set_id}",
+                    help="Propaga los cambios de color automáticamente a los demás sets generados",
+                )
+
+                if new_p_color != cur_p_color or new_s_color != cur_s_color:
+                    active_set_dict = dict(active_set)
+                    active_set_dict["primaryColor"] = new_p_color
+                    active_set_dict["insideColor"] = new_p_color
+                    active_set_dict["secondaryColor"] = new_s_color
+                    active_set_dict["outsideColor"] = new_s_color
+                    active_set_dict["blobMaterialMode"] = "procedural"
+                    for idx, s in enumerate(sets):
+                        sid = str(s.get("id", ""))
+                        if sid == str(selected_set_id):
+                            sets[idx] = active_set_dict
+                        elif sync_suite_colors and (s.get("blobMaterialMode") == "procedural" or s.get("primaryColor")):
+                            s_dict = dict(s)
+                            s_dict["primaryColor"] = new_p_color
+                            s_dict["insideColor"] = new_p_color
+                            s_dict["secondaryColor"] = new_s_color
+                            s_dict["outsideColor"] = new_s_color
+                            sets[idx] = s_dict
+                    project["sets"] = sets
+                    st.session_state[project_key] = project
+                    st.rerun()
+
+                _render_material_texture_generator_expander(prefix)
+
+            # 2. RECETA VISUAL ACTIVA
+            with st.container(border=True):
+                matched_preset_id = detect_matching_aesthetic_preset(active_set)
+                p_obj = get_aesthetic_preset(matched_preset_id) if matched_preset_id else None
+                p_name = p_obj.name if p_obj else "Personalizado"
+                p_icon = p_obj.icon if p_obj else "🎨"
+                p_desc = p_obj.description if p_obj else "Configuración visual a medida"
+                st.markdown(f"##### {p_icon} Receta Estética: **{p_name}**")
+                st.caption(f"*{p_desc}* — Los bordes, radios y oclusiones están calibrados según este estilo.")
+
+            # 3. MACRO-AJUSTES ESENCIALES (Relieve, Textura, Variantes)
+            with st.container(border=True):
+                st.markdown("##### 🎚️ Ajustes Esenciales de Estilo")
+
+                sh_col1, sh_col2 = st.columns((2.0, 1.0), gap="small")
+                new_drop_shadow = int(
+                    sh_col1.slider(
+                        "Sombra / Relieve (px)",
+                        min_value=0,
+                        max_value=8,
+                        value=cur_drop_shadow,
+                        key=f"{prefix}:finish_ess_drop_shadow:{selected_set_id}",
+                        help="Profundidad física de la sombra bajo el terreno superior",
+                    )
+                )
+                new_rim_light = bool(
+                    sh_col2.checkbox(
+                        "Cresta de luz (Rim)",
+                        value=cur_rim_light,
+                        key=f"{prefix}:finish_ess_rim_light:{selected_set_id}",
+                        help="Resalta el borde con un pixel de brillo solar",
+                    )
+                )
+
+                t_col1, t_col2 = st.columns((1.4, 1.6), gap="medium")
+                noise_labels_ess = {
+                    "none": "Superficie Lisa",
+                    "dither": "Pixel Dither (Retro)",
+                    "simplex": "Orgánico (Suave)",
+                    "gravel": "Gravilla / Moteado",
+                }
+                new_noise_style = t_col1.selectbox(
+                    "Textura de Superficie",
+                    noise_options,
+                    index=noise_options.index(cur_noise_style),
+                    format_func=lambda s: noise_labels_ess.get(s, s),
+                    key=f"{prefix}:finish_ess_noise_style:{selected_set_id}",
+                )
+
+                ess_slider_key = f"{prefix}:finish_ess_noise_intensity:{selected_set_id}"
+                if new_noise_style != cur_noise_style:
+                    if new_noise_style != "none" and (cur_noise_intensity <= 0.05 or cur_noise_style == "none"):
+                        cur_noise_intensity = 0.35
+                        st.session_state[ess_slider_key] = 35
+                    elif new_noise_style == "none":
+                        cur_noise_intensity = 0.0
+                        st.session_state[ess_slider_key] = 0
+                elif ess_slider_key not in st.session_state:
+                    st.session_state[ess_slider_key] = int(round(cur_noise_intensity * 100))
+
+                new_noise_intensity = float(
+                    t_col2.slider(
+                        "Intensidad de Textura",
+                        min_value=0,
+                        max_value=100,
+                        step=5,
+                        format="%d%%",
+                        key=ess_slider_key,
+                        disabled=(new_noise_style == "none"),
+                    )
+                ) / 100.0
+
+                var_col1, var_col2 = st.columns((2.0, 1.0), gap="small")
+                new_variant_count = int(
+                    var_col1.select_slider(
+                        "Variantes alternativas por celda",
+                        options=(1, 2, 3, 4, 5),
+                        value=cur_variant_count,
+                        key=f"{prefix}:finish_ess_variants:{selected_set_id}",
+                        help="Genera múltiples variaciones para evitar que el terreno se vea repetitivo",
+                    )
+                )
+                if var_col2.button("🎲 Re-roll", key=f"{prefix}:finish_ess_reroll:{selected_set_id}", width="stretch", help="Cambia la semilla aleatoria del ruido y bordes"):
+                    import random
+                    new_edge_seed = random.randint(1, 999999)
+
+            st.caption(
+                "💡 ¿Quieres afinar curvatura en píxeles, bisel chamfer a 45°, tintes cromáticos (frío/cálido/místico) "
+                "o autotiles animados con olas/lava? Activa arriba el modo **🎛️ Avanzado (Control Total)**."
+            )
+
+        else:
+            # MODO AVANZADO (CONTROL TOTAL)
+            # 1. MATERIALES Y PALETA CROMÁTICA
+            with st.container(border=True):
+                st.markdown("##### 🎨 Materiales y Paleta Cromática")
+                col_p, col_s = st.columns(2, gap="medium")
+                with col_p:
+                    new_p_color = _render_color_picker_with_hex(
+                        "🌱 Color Base (Relleno)",
+                        current_hex=cur_p_color,
+                        key_prefix=f"{prefix}:finish_primary:{selected_set_id}",
+                        help_text="Color del suelo o relleno principal",
+                    )
+                with col_s:
+                    new_s_color = _render_color_picker_with_hex(
+                        "🟤 Color Secundario (Fondo)",
+                        current_hex=cur_s_color,
+                        key_prefix=f"{prefix}:finish_secondary:{selected_set_id}",
+                        help_text="Color del exterior o borde de transición",
+                    )
+
+                sync_suite_colors = st.checkbox(
+                    "Sincronizar colores con toda la suite",
+                    value=(len(sets) >= 2),
+                    key=f"{prefix}:finish_sync_colors:{selected_set_id}",
+                    help="Propaga los cambios de color automáticamente a los demás sets generados",
+                )
+
+                if new_p_color != cur_p_color or new_s_color != cur_s_color:
+                    active_set_dict = dict(active_set)
+                    active_set_dict["primaryColor"] = new_p_color
+                    active_set_dict["insideColor"] = new_p_color
+                    active_set_dict["secondaryColor"] = new_s_color
+                    active_set_dict["outsideColor"] = new_s_color
+                    active_set_dict["blobMaterialMode"] = "procedural"
+                    for idx, s in enumerate(sets):
+                        sid = str(s.get("id", ""))
+                        if sid == str(selected_set_id):
+                            sets[idx] = active_set_dict
+                        elif sync_suite_colors and (s.get("blobMaterialMode") == "procedural" or s.get("primaryColor")):
+                            s_dict = dict(s)
+                            s_dict["primaryColor"] = new_p_color
+                            s_dict["insideColor"] = new_p_color
+                            s_dict["secondaryColor"] = new_s_color
+                            s_dict["outsideColor"] = new_s_color
+                            sets[idx] = s_dict
+                    project["sets"] = sets
+                    st.session_state[project_key] = project
+                    st.rerun()
+
+                _render_material_texture_generator_expander(prefix)
+
+            # 2. RUIDO PROCEDURAL Y TEXTURA DE SUPERFICIE
+            with st.container(border=True):
+                st.markdown("##### 🌫️ Ruido Procedural & Textura de Superficie")
+                st.caption("Aplica micro-textura pixel-art y grano procedural a las superficies sólidas.")
+
+                noise_labels = {
+                    "none": "Ninguno (Superficie plana)",
+                    "dither": "Pixel Dither (Grano Retro)",
+                    "simplex": "Simplex / Perlin (Relieve Suave)",
+                    "gravel": "Gravilla / Moteado Orgánico",
+                }
+
+                n_col1, n_col2 = st.columns((1.5, 1.5), gap="medium")
+                new_noise_style = n_col1.selectbox(
+                    "Tipo de Ruido Procedural",
+                    noise_options,
+                    index=noise_options.index(cur_noise_style),
+                    format_func=lambda s: noise_labels.get(s, s),
+                    key=f"{prefix}:finish_noise_style:{selected_set_id}",
+                )
+
+                slider_key = f"{prefix}:finish_noise_intensity:{selected_set_id}"
+                if new_noise_style != cur_noise_style:
+                    if new_noise_style != "none" and (cur_noise_intensity <= 0.05 or cur_noise_style == "none"):
+                        cur_noise_intensity = 0.35
+                        st.session_state[slider_key] = 35
+                    elif new_noise_style == "none":
+                        cur_noise_intensity = 0.0
+                        st.session_state[slider_key] = 0
+                elif slider_key not in st.session_state:
+                    st.session_state[slider_key] = int(round(cur_noise_intensity * 100))
+
+                new_noise_intensity = float(
+                    n_col2.slider(
+                        "Intensidad del Ruido",
+                        min_value=0,
+                        max_value=100,
+                        step=5,
+                        format="%d%%",
+                        key=slider_key,
+                        disabled=(new_noise_style == "none"),
+                    )
+                ) / 100.0
+
+                seed_col1, seed_col2 = st.columns((2.0, 1.0), gap="small")
+                new_edge_seed = int(
+                    seed_col1.number_input(
+                        "Semilla de Aleatoriedad (Seed)",
+                        min_value=0,
+                        max_value=999999,
+                        value=cur_edge_seed,
+                        step=1,
+                        key=f"{prefix}:finish_edge_seed:{selected_set_id}",
+                        help="Semilla matemática que rige el ruido de superficie y la distorsión de contornos.",
+                    )
+                )
+                if seed_col2.button("🎲 Re-roll", key=f"{prefix}:finish_reroll_seed:{selected_set_id}", width="stretch", help="Genera una nueva semilla aleatoria"):
+                    import random
+                    new_edge_seed = random.randint(1, 999999)
+
+            # 3. DISTORSIÓN DE CONTORNOS Y BORDES
+            with st.container(border=True):
+                st.markdown("##### 🌿 Distorsión de Contornos y Bordes")
+                profile_labels = {
+                    "clean": "Borde limpio",
+                    "organic_neutral": "Orgánico neutral",
+                    "grass_over_dirt": "Pasto sobre tierra",
+                    "dirt_over_water": "Tierra sobre agua",
+                    "grass_over_water": "Pasto sobre agua",
+                    "rounded_clean": "Bordes redondeados · limpio",
+                    "rounded_grass_tufts": "Bordes redondeados · pasto",
+                    "rounded_dither": "Bordes redondeados · dither",
+                    "rounded_chamfer": "Bisel 45° · chamfer retro",
+                }
+                prof_col1, prof_col2 = st.columns((2.0, 1.0), gap="small")
+                new_profile = prof_col1.selectbox(
+                    "Perfil de transición",
+                    available_profiles,
+                    index=available_profiles.index(cast(TerrainEdgeProfile, cur_profile)),
+                    format_func=lambda p: profile_labels.get(p, p),
+                    key=f"{prefix}:finish_terrain_profile:{selected_set_id}",
+                )
+                new_var = int(
+                    prof_col2.slider(
+                        "Rugosidad / Jitter",
+                        min_value=0,
+                        max_value=3,
+                        value=cur_var,
+                        key=f"{prefix}:finish_edge_var:{selected_set_id}",
+                        help="Nivel de dispersión y distorsión orgánica de los bordes (0 = recto, 3 = máxima irregularidad)",
+                    )
+                )
+
+                c_col1, c_col2, c_col3 = st.columns((1.2, 1.2, 1.0), gap="small")
+                new_r = int(
+                    c_col1.slider(
+                        "Radio esquina (px)",
+                        min_value=0,
+                        max_value=max_r,
+                        value=cur_r,
+                        key=f"{prefix}:finish_corner_radius:{selected_set_id}",
+                    )
+                )
+                corner_style_options = ("arc", "chamfer")
+                corner_style_labels = {"arc": "Arco (Curvo)", "chamfer": "Chamfer (Bisel)"}
+                new_corner_style = c_col2.selectbox(
+                    "Estilo de esquina",
+                    corner_style_options,
+                    index=0 if cur_corner_style != "chamfer" else 1,
+                    format_func=lambda s: corner_style_labels.get(s, s),
+                    key=f"{prefix}:finish_corner_style:{selected_set_id}",
+                )
+                new_outline = bool(
+                    c_col3.checkbox(
+                        "Contorno 1px",
+                        value=cur_outline,
+                        key=f"{prefix}:finish_retro_outline:{selected_set_id}",
+                        help="Añade un contorno retro contrastado de 1 píxel al borde del terreno.",
+                    )
+                )
+
+            # 4. ILUMINACIÓN Y SOMBRAS
+            with st.container(border=True):
+                st.markdown("##### ☀️ Iluminación y Sombras")
+                s_col1, s_col2, s_col3 = st.columns((1.1, 1.1, 1.0), gap="small")
+                new_drop_shadow = int(
+                    s_col1.slider(
+                        "Sombra (px)",
+                        min_value=0,
+                        max_value=8,
+                        value=cur_drop_shadow,
+                        key=f"{prefix}:finish_drop_shadow:{selected_set_id}",
+                    )
+                )
+                shadow_dir_options = ("south", "south_east", "all_around")
+                shadow_dir_labels = {"south": "Abajo (Sur)", "south_east": "Diagonal (Sur-Este)", "all_around": "Omnidireccional"}
+                new_shadow_dir = s_col2.selectbox(
+                    "Dirección de sombra",
+                    shadow_dir_options,
+                    index=shadow_dir_options.index(cur_shadow_dir) if cur_shadow_dir in shadow_dir_options else 0,
+                    format_func=lambda d: shadow_dir_labels.get(d, d),
+                    key=f"{prefix}:finish_shadow_dir:{selected_set_id}",
+                )
+                new_rim_light = bool(
+                    s_col3.checkbox(
+                        "Cresta de luz (Rim)",
+                        value=cur_rim_light,
+                        key=f"{prefix}:finish_rim_light:{selected_set_id}",
+                        help="Añade un resalte iluminado en la cresta superior expuesta.",
+                    )
+                )
+
+                st_col1, st_col2 = st.columns(2, gap="small")
+                shadow_tint_options = ("cool", "warm", "mystic", "neutral")
+                shadow_tint_labels = {"cool": "Azul frío (Cool)", "warm": "Cálido / Ámbar (Warm)", "mystic": "Místico / Púrpura (Mystic)", "neutral": "Neutro monocromo"}
+                new_shadow_tint = st_col1.selectbox(
+                    "Tinte de sombra",
+                    shadow_tint_options,
+                    index=shadow_tint_options.index(cur_shadow_tint) if cur_shadow_tint in shadow_tint_options else 0,
+                    format_func=lambda t: shadow_tint_labels.get(t, t),
+                    key=f"{prefix}:finish_shadow_tint:{selected_set_id}",
+                )
+                new_shadow_intensity = float(
+                    st_col2.slider(
+                        "Intensidad de sombra",
+                        min_value=20,
+                        max_value=100,
+                        value=int(round(cur_shadow_intensity * 100)),
+                        step=5,
+                        format="%d%%",
+                        key=f"{prefix}:finish_shadow_intensity:{selected_set_id}",
+                    )
+                ) / 100.0
+
+            # 5. VARIANTES Y ANIMACIÓN
+            with st.container(border=True):
+                st.markdown("##### 🎲 Variantes de Aleatoriedad")
+                new_variant_count = int(
+                    st.select_slider(
+                        "Variantes alternativas por máscara",
+                        options=(1, 2, 3, 4, 5),
+                        value=cur_variant_count,
+                        key=f"{prefix}:finish_variant_count:{selected_set_id}",
+                        help="Genera múltiples variaciones con micro-detalles y ruido distintos para romper la repetición en el mapa.",
+                    )
+                )
+
+                with st.expander("🌊 Autotiles Animados en Tiempo Real", expanded=False):
+                    new_anim_enabled = st.checkbox(
+                        "Habilitar animación en este set",
+                        value=cur_anim_enabled,
+                        key=f"{prefix}:finish_anim_enabled:{selected_set_id}",
+                    )
+                    anim_styles = {
+                        "shore_ripples": "Oleaje en orillas y costas (Shore Ripples)",
+                        "water_waves": "Ondas de agua en superficie (Water Waves)",
+                        "lava_pulse": "Lava incandescente con pulso térmico (Lava Pulse)",
+                        "wind_sway": "Vaivén de follaje con viento (Wind Sway)",
+                    }
+                    if cur_anim_style not in anim_styles:
+                        cur_anim_style = "shore_ripples"
+                    style_keys = list(anim_styles.keys())
+                    new_anim_style = st.selectbox(
+                        "Estilo de animación",
+                        style_keys,
+                        index=style_keys.index(cur_anim_style),
+                        format_func=lambda k: anim_styles[k],
+                        key=f"{prefix}:finish_anim_style:{selected_set_id}",
+                        disabled=not new_anim_enabled,
+                    )
+                    fa_col1, fa_col2 = st.columns(2, gap="small")
+                    new_frames = int(
+                        fa_col1.slider(
+                            "Frames por ciclo",
+                            min_value=2,
+                            max_value=8,
+                            value=cur_frames,
+                            key=f"{prefix}:finish_anim_frames:{selected_set_id}",
+                            disabled=not new_anim_enabled,
+                        )
+                    )
+                    new_fps = float(
+                        fa_col2.slider(
+                            "Velocidad (FPS)",
+                            min_value=2.0,
+                            max_value=24.0,
+                            value=cur_fps,
+                            step=1.0,
+                            key=f"{prefix}:finish_anim_fps:{selected_set_id}",
+                            disabled=not new_anim_enabled,
+                        )
+                    )
+
+        # Sincronizar y persistir cambios detectados
+        if (
+            new_noise_style != cur_noise_style
+            or abs(new_noise_intensity - cur_noise_intensity) > 0.01
+            or new_edge_seed != cur_edge_seed
+            or new_profile != cur_profile
+            or new_var != cur_var
+            or new_r != cur_r
+            or new_corner_style != cur_corner_style
+            or new_outline != cur_outline
+            or new_drop_shadow != cur_drop_shadow
+            or new_shadow_dir != cur_shadow_dir
+            or new_shadow_tint != cur_shadow_tint
+            or abs(new_shadow_intensity - cur_shadow_intensity) > 0.01
+            or new_rim_light != cur_rim_light
+            or new_variant_count != cur_variant_count
+            or new_anim_enabled != cur_anim_enabled
+            or new_anim_style != cur_anim_style
+            or new_frames != cur_frames
+            or abs(new_fps - cur_fps) > 0.01
+        ):
+            active_set_dict = dict(active_set)
+            active_set_dict["noiseStyle"] = new_noise_style
+            active_set_dict["noiseIntensity"] = new_noise_intensity
+            active_set_dict["edgeSeed"] = new_edge_seed
+            active_set_dict["terrainProfile"] = new_profile
+            active_set_dict["edgeVariation"] = new_var
+            active_set_dict["cornerRadius"] = new_r
+            active_set_dict["cornerStyle"] = new_corner_style
+            active_set_dict["retroOutline"] = new_outline
+            active_set_dict["dropShadow"] = new_drop_shadow
+            active_set_dict["shadowDirection"] = new_shadow_dir
+            active_set_dict["shadowTint"] = new_shadow_tint
+            active_set_dict["shadowIntensity"] = new_shadow_intensity
+            active_set_dict["rimLight"] = new_rim_light
+            active_set_dict["variantCount"] = new_variant_count
+            active_set_dict["animated"] = new_anim_enabled
+            active_set_dict["is_animated"] = new_anim_enabled
+            active_set_dict["animationStyle"] = new_anim_style
+            active_set_dict["animationFrames"] = new_frames
+            active_set_dict["animationFps"] = new_fps
+
+            for idx, s in enumerate(sets):
+                if str(s.get("id", "")) == str(selected_set_id):
+                    sets[idx] = active_set_dict
+                    break
+            project["sets"] = sets
+            st.session_state[project_key] = project
+            if is_essential:
+                for k in [
+                    f"{prefix}:finish_noise_style:{selected_set_id}",
+                    f"{prefix}:finish_noise_intensity:{selected_set_id}",
+                    f"{prefix}:finish_edge_seed:{selected_set_id}",
+                    f"{prefix}:finish_drop_shadow:{selected_set_id}",
+                    f"{prefix}:finish_rim_light:{selected_set_id}",
+                    f"{prefix}:finish_variant_count:{selected_set_id}",
+                ]:
+                    st.session_state.pop(k, None)
+            else:
+                for k in [
+                    f"{prefix}:finish_ess_noise_style:{selected_set_id}",
+                    f"{prefix}:finish_ess_noise_intensity:{selected_set_id}",
+                    f"{prefix}:finish_ess_drop_shadow:{selected_set_id}",
+                    f"{prefix}:finish_ess_rim_light:{selected_set_id}",
+                    f"{prefix}:finish_ess_variants:{selected_set_id}",
+                ]:
+                    st.session_state.pop(k, None)
+            st.rerun()
+
+    # RIGHT COLUMN: LIVE TILESHEET PREVIEW + CONNECTED TERRAIN MINI-SANDBOX
+    with col_view:
+        st.markdown("#### 👁️ Vista Previa en Vivo")
+
+        if result is not None and result.image is not None:
+            with st.container(border=True):
+                st.markdown("##### 📄 Hoja de Tileset Acabada")
+                b_col1, b_col2, b_col3 = st.columns(3, gap="small")
+                b_col1.caption(f"📐 **{result.tile_width}×{result.tile_height} px**")
+                b_col2.caption(f"📦 **{len(result.tiles)} tiles**")
+                b_col3.caption(f"🎲 **{result.variant_count} variante(s)**")
+
+                st.image(
+                    result.image,
+                    caption=f"Tileset ({result.image.width}×{result.image.height} px)",
+                    output_format="PNG",
+                    width="stretch",
+                )
+
+            # Mini-Sandbox de Terreno Conectado en Vivo
+            with st.container(border=True):
+                st.markdown("##### 🗺️ Terreno Conectado (Mini-Sandbox)")
+                st.caption("Verifica cómo fluyen las esquinas, el ruido y los bordes al ensamblarse.")
+
+                sandbox_scene_options = ["Isla natural", "Cueva / Mazmorra", "Senderos"]
+                sb_col1, sb_col2 = st.columns((2.0, 1.0), gap="small")
+                chosen_scene = sb_col1.selectbox(
+                    "Escena de prueba",
+                    sandbox_scene_options,
+                    key=f"{prefix}:finish_sandbox_scene:{selected_set_id}",
+                    label_visibility="collapsed",
+                )
+                sb_seed_key = f"{prefix}:finish_sb_seed:{selected_set_id}"
+                if sb_seed_key not in st.session_state:
+                    st.session_state[sb_seed_key] = 42
+
+                if sb_col2.button("🎲 Re-roll", key=f"{prefix}:finish_reroll_sb:{selected_set_id}", width="stretch"):
+                    import random
+                    st.session_state[sb_seed_key] = random.randint(1, 999999)
+                    st.rerun()
+
+                sb_seed = st.session_state[sb_seed_key]
+                if chosen_scene == "Isla natural":
+                    sb_matrix = generate_island_map(8, 8)
+                elif chosen_scene == "Cueva / Mazmorra":
+                    sb_matrix = generate_dungeon_map(8, 8)
+                else:
+                    sb_matrix = generate_paths_map(8, 8, seed=sb_seed)
+
+                # Render connected terrain
+                from sprite_builder.tilesets.patterns import _GODOT_PATTERN_LAYOUTS
+                lay = _GODOT_PATTERN_LAYOUTS.get(kind)
+                if kind == "blob_47":
+                    rendered_preview = autotile_blob47(sb_matrix, result.image, tile_size)
+                elif kind in {"wang_16", "sides_16"}:
+                    rendered_preview = autotile_sides16(sb_matrix, result.image, tile_size, layout=lay)
+                else:
+                    rendered_preview = autotile_dual_grid(sb_matrix, result.image, tile_size, layout=lay)
+
+                st.image(
+                    rendered_preview,
+                    caption=f"Ensamblado 8×8 ({rendered_preview.width}×{rendered_preview.height} px)",
+                    output_format="PNG",
+                    width="stretch",
+                )
+        else:
+            st.warning(f"No se pudo generar la vista previa del set activo: {err or 'Configuración incompleta'}")
+
+    # BOTTOM HORIZONTAL FULL-WIDTH SECTION: EXPORTACIÓN A MOTORES Y PROYECTO
+    st.markdown("---")
+    st.markdown("#### 📦 Proyecto y Exportación a Motores de Videojuegos")
+    st.caption("Descarga tus tilesets empaquetados y listos para importar con 1 clic en Godot 4, Unity, Tiled o como sprite sheets.")
+
+    with st.container(border=True):
+        name_col, omni_col = st.columns((1.5, 2.5), gap="medium")
         terrain_name = name_col.text_input(
-            "Nombre del patrón",
-            value="Terrain",
-            key=f"{prefix}:terrain_name",
+            "Nombre del Proyecto / Tileset",
+            value=str(st.session_state.get(f"{prefix}:terrain_name", "Terrain")),
+            key=f"{prefix}:finish_terrain_name",
         ).strip() or "Terrain"
-        status_col.metric("Variantes", len(result.tiles) if result is not None else 0)
-        atlas_sha256 = hashlib.sha256(_png_bytes(image)).hexdigest()
+        safe_name = terrain_name.lower().replace(" ", "-")
+
+        # Project JSON download / upload
+        atlas_sha256 = hashlib.sha256(_png_bytes(synth_image)).hexdigest()
         saved_project = {
             "schema_version": "3.0",
             "kind": "tilesetter_set_project",
@@ -1443,33 +2295,23 @@ def _render_terrain_patterns() -> None:
             "tile_size": [grid.tile_width, grid.tile_height],
             "studio": project,
         }
-        project_payload = (
-            json.dumps(saved_project, indent=2, ensure_ascii=False) + "\n"
-        ).encode("utf-8")
-        safe_name = terrain_name.lower().replace(" ", "-")
-        project_col, import_col = st.columns(2, gap="small")
-        project_col.download_button(
-            "Guardar proyecto Set View",
+        project_payload = (json.dumps(saved_project, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+
+        p_col1, p_col2 = name_col.columns(2, gap="small")
+        p_col1.download_button(
+            "💾 Guardar JSON",
             data=project_payload,
             file_name=f"{safe_name}.tilesetter-project.json",
             mime="application/json",
             width="stretch",
-            key=f"{prefix}:download_project",
+            key=f"{prefix}:finish_download_project",
         )
-        project_upload = import_col.file_uploader(
-            "Abrir proyecto Set View",
-            type=["json"],
-            key=f"{prefix}:project_upload",
-        )
+        project_upload = p_col2.file_uploader("📂 Abrir JSON", type=["json"], key=f"{prefix}:finish_project_upload", label_visibility="collapsed")
         if project_upload is not None:
             payload = project_upload.getvalue()
             digest = hashlib.sha256(payload).hexdigest()
             upload_digest_key = f"{prefix}:project_upload_sha256"
-            if _tilesetter_project_upload_is_new(
-                st.session_state,
-                upload_digest_key=upload_digest_key,
-                upload_sha256=digest,
-            ):
+            if _tilesetter_project_upload_is_new(st.session_state, upload_digest_key=upload_digest_key, upload_sha256=digest):
                 try:
                     incoming_project = json.loads(payload)
                     _restore_tilesetter_project_import(
@@ -1482,30 +2324,34 @@ def _render_terrain_patterns() -> None:
                     )
                     st.rerun()
                 except (AttributeError, TypeError, ValueError, json.JSONDecodeError) as exc:
-                    st.error(f"Proyecto Set View inválido: {exc}")
+                    st.error(f"Proyecto inválido: {exc}")
 
-        if result is not None and result.complete:
-            if kind == "dual_grid_15":
-                st.success(
-                    "Dual Grid Square completo: 15 transiciones desde dos "
-                    "terrenos y su fondo lógico están listos para exportar. El "
-                    "bundle prepara el atlas; TileMapDual o un adaptador propio "
-                    "realiza el runtime de las cuadrículas lógica/display."
+        with omni_col:
+            if len(set_results) >= 2:
+                st.markdown(f"**📦 Omnibundle Multi-Set ({len(set_results)} Sets)**")
+                st.caption("Descarga todos los autotiles del proyecto (Blob, Dual Grid, Wang) en un único ZIP organizado por subcarpetas con sus respectivos scripts de instalación.")
+                st.download_button(
+                    f"📦 Descargar Omnibundle ZIP ({len(set_results)} Sets)",
+                    data=_build_multi_set_omnibundle_zip(terrain_name, sets, set_results, (grid.tile_width, grid.tile_height)),
+                    file_name=f"{safe_name}-omnibundle.zip",
+                    mime="application/zip",
+                    type="primary",
+                    width="stretch",
+                    key=f"{prefix}:finish_download_omnibundle",
                 )
             else:
-                st.success(
-                    "Patrón completo. Puedes exportarlo, corregir variantes en el "
-                    "compositor o seguir probándolo en el mapa."
-                )
-            st.markdown("##### 📦 Exportadores para Motores de Videojuegos")
+                st.info("💡 Si creas 2 o más sets (ej. Pasto/Tierra y Tierra/Agua), aquí podrás descargar el Omnibundle unificado con 1 solo clic.")
+
+        st.markdown("##### 🚀 Exportadores por Motor (Set Activo)")
+        if result is not None and result.complete:
             eng_col1, eng_col2, eng_col3 = st.columns(3, gap="small")
             eng_col1.download_button(
-                "🎮 Bundle Godot 4 (.zip)",
+                "🎮 Godot 4 (.zip)",
                 data=build_terrain_pattern_bundle(result, terrain_name=terrain_name),
                 file_name=f"{safe_name}-godot.zip",
                 mime="application/zip",
                 width="stretch",
-                key=f"{prefix}:download_bundle",
+                key=f"{prefix}:finish_download_godot",
                 help="Incluye terrain_tiles.png, install_terrain_tileset.gd y manifest con peering bits para Godot 4.",
             )
             eng_col2.download_button(
@@ -1514,7 +2360,7 @@ def _render_terrain_patterns() -> None:
                 file_name=f"{safe_name}-unity-ruletile.zip",
                 mime="application/zip",
                 width="stretch",
-                key=f"{prefix}:download_unity_bundle",
+                key=f"{prefix}:finish_download_unity",
                 help="Incluye atlas PNG, script editor CreateRuleTile.cs y RuleTileConfig.json para Unity 2D Tilemaps.",
             )
             eng_col3.download_button(
@@ -1523,36 +2369,32 @@ def _render_terrain_patterns() -> None:
                 file_name=f"{safe_name}-tiled.zip",
                 mime="application/zip",
                 width="stretch",
-                key=f"{prefix}:download_tiled_bundle",
-                help="Incluye atlas PNG y archivo .tsx con WangSet preconfigurado para pintar con la brocha de terreno de Tiled.",
+                key=f"{prefix}:finish_download_tiled",
+                help="Incluye atlas PNG y archivo .tsx con WangSet preconfigurado para la brocha de Tiled.",
             )
 
-            st.markdown("##### 🖼️ Recursos y Canvas")
+            st.markdown("##### 🖼️ Recursos Gráficos")
             png_col, guide_col, atlas_col = st.columns(3, gap="small")
             png_col.download_button(
-                "Tileset PNG",
+                "📥 Tileset PNG",
                 data=_png_bytes(result.image),
                 file_name=f"{safe_name}-terrain.png",
                 mime="image/png",
                 width="stretch",
-                key=f"{prefix}:download_png",
+                key=f"{prefix}:finish_download_png",
             )
             guide_col.download_button(
-                "Guía técnica",
-                data=_png_bytes(
-                    render_terrain_bitmask_template(
-                        cast(TerrainPatternKind, kind)
-                    )
-                ),
+                "📘 Guía Técnica Bitmask",
+                data=_png_bytes(render_terrain_bitmask_template(cast(TerrainPatternKind, kind))),
                 file_name=f"{safe_name}-bitmask-reference.png",
                 mime="image/png",
                 width="stretch",
-                key=f"{prefix}:download_bitmask_guide",
+                key=f"{prefix}:finish_download_bitmask",
             )
             if atlas_col.button(
-                "Abrir resultado en Atlas",
+                "🖌️ Abrir resultado en Atlas",
                 width="stretch",
-                key=f"{prefix}:open_in_atlas",
+                key=f"{prefix}:finish_open_in_atlas",
             ):
                 _set_tileset_image(
                     result.image,
@@ -1566,14 +2408,8 @@ def _render_terrain_patterns() -> None:
                 st.session_state[f"{_TILESET_STATE_PREFIX}:spacing_y"] = 0
                 st.rerun()
         else:
-            st.info(
-                "Blob procedural puede generarse desde Pattern Studio sin "
-                "Sources. Para una composición basada en arte importado, Blob "
-                "requiere un tile y sus cuatro Border Sources; Wang requiere "
-                "dos tiles y sus Border Sources. Dual "
-                "Grid requiere exactamente dos terrenos y no necesita Border "
-                "Sources para quedar listo."
-            )
+            st.info("Configura los materiales o sources para completar el patrón antes de exportar a motores.")
+
 
 
 def _render_tileset_map_tester() -> None:
@@ -1581,6 +2417,7 @@ def _render_tileset_map_tester() -> None:
     from sprite_builder.tilesets.autotile import (
         autotile_blob47,
         autotile_dual_grid,
+        autotile_sides16,
         clear_tile_matrix,
         flood_fill_matrix,
         generate_dungeon_map,
@@ -1623,17 +2460,25 @@ def _render_tileset_map_tester() -> None:
 
     pattern_image = None
     pattern_result = None
-    if image is not None:
-        source_mappings = [s for s in project.get("sources", []) if isinstance(s, Mapping)] if isinstance(project, Mapping) else []
-        pattern_result, _ = _build_terrain_pattern_safely(
-            image,
-            tile_size=tile_size,
-            sources=source_mappings,
-            set_config=active_set or {},
-            kind=kind,
-        )
-        if pattern_result is not None:
-            pattern_image = pattern_result.image
+    source_mappings = [s for s in project.get("sources", []) if isinstance(s, Mapping)] if isinstance(project, Mapping) else []
+    tester_image = image
+    if tester_image is None:
+        max_x = max([int(s.get("x", 0) or 0) + int(s.get("width", tile_size[0]) or tile_size[0]) for s in source_mappings], default=tile_size[0])
+        max_y = max([int(s.get("y", 0) or 0) + int(s.get("height", tile_size[1]) or tile_size[1]) for s in source_mappings], default=tile_size[1])
+        ephemeral_w = max(tile_size[0], max_x)
+        ephemeral_h = max(tile_size[1], max_y)
+        tester_image = Image.new("RGBA", (ephemeral_w, ephemeral_h), (0, 0, 0, 0))
+        setattr(tester_image, "_cache_token", f"ephemeral_tester:{ephemeral_w}x{ephemeral_h}")
+
+    pattern_result, _ = _build_terrain_pattern_safely(
+        tester_image,
+        tile_size=tile_size,
+        sources=source_mappings,
+        set_config=active_set or {},
+        kind=kind,
+    )
+    if pattern_result is not None:
+        pattern_image = pattern_result.image
 
     if pattern_image is None:
         st.info("💡 Usando atlas de demostración con texturas procedurales mientras configuras un set en Pattern Studio.")
@@ -1788,6 +2633,8 @@ def _render_tileset_map_tester() -> None:
         for frame_sheet in pattern_result.animation_frames_images:
             if kind == "blob_47":
                 anim_rendered_frames.append(autotile_blob47(matrix, frame_sheet, tile_size))
+            elif kind in {"wang_16", "sides_16"}:
+                anim_rendered_frames.append(autotile_sides16(matrix, frame_sheet, tile_size))
             else:
                 anim_rendered_frames.append(autotile_dual_grid(matrix, frame_sheet, tile_size))
         rendered = anim_rendered_frames[0]
@@ -1795,6 +2642,8 @@ def _render_tileset_map_tester() -> None:
         anim_rendered_frames = None
         if kind == "blob_47":
             rendered = autotile_blob47(matrix, pattern_image, tile_size)
+        elif kind in {"wang_16", "sides_16"}:
+            rendered = autotile_sides16(matrix, pattern_image, tile_size)
         else:
             rendered = autotile_dual_grid(matrix, pattern_image, tile_size)
 
@@ -2026,16 +2875,362 @@ def _render_tile_builder_guide() -> None:
             )
 
 
+def _render_tile_builder_wizard_and_status() -> None:
+    """Render the state summary header, onboarding wizard, and quick guide."""
+    patterns_prefix = f"{_TILESET_STATE_PREFIX}:patterns"
+    project_key = f"{patterns_prefix}:set_view_project"
+    raw_project = st.session_state.get(project_key)
+    project = dict(raw_project) if isinstance(raw_project, Mapping) else {}
+    project.setdefault("version", 3)
+    project.setdefault("sources", [])
+    project.setdefault("tiles", [])
+    project.setdefault("sets", [])
+    project.setdefault("activeSetId", None)
+    project.setdefault(
+        "ui",
+        {
+            "selectedTileIds": [],
+            "selectedMask": None,
+            "activeSourceId": None,
+            "selectedSetId": None,
+        },
+    )
+    sets = project.get("sets", []) if isinstance(project.get("sets"), list) else []
+    active_set_id = project.get("activeSetId")
+    active_set = next((s for s in sets if isinstance(s, Mapping) and s.get("id") == active_set_id), None)
+    grid = _tileset_grid_from_state()
+
+    with st.container(border=True):
+        stat_col1, stat_col2, stat_col3, stat_col4 = st.columns((2.4, 1.2, 1.2, 2.2), gap="small")
+        if active_set:
+            set_name = active_set.get("name") or active_set.get("id", "Set activo")
+            kind_label = {
+                "blob_47": "Blob 47 (Orgánico)",
+                "dual_grid_15": "Dual Grid 15",
+                "wang_16": "Wang 16 (Caminos / Aristas)",
+            }.get(str(active_set.get("kind", "blob_47")), "Autotile")
+            matched_preset = detect_matching_aesthetic_preset(active_set)
+            p_obj = get_aesthetic_preset(matched_preset) if matched_preset else None
+            preset_badge = f" · {p_obj.icon} {p_obj.name}" if p_obj else ""
+            stat_col1.markdown(
+                f"**Set Activo:** `{set_name}`\n\n<span style='color:#94a3b8; font-size:12px;'>{kind_label}{preset_badge}</span>",
+                unsafe_allow_html=True,
+            )
+        else:
+            stat_col1.markdown(
+                "**Set Activo:** *Ninguno seleccionado*\n\n<span style='color:#94a3b8; font-size:12px;'>Crea un set o usa el asistente</span>",
+                unsafe_allow_html=True,
+            )
+
+        stat_col2.metric("Resolución", f"{grid.tile_width}×{grid.tile_height} px")
+        stat_col3.metric("Sets", len(sets))
+
+        act_col1, act_col2 = stat_col4.columns(2, gap="small")
+        show_wizard = act_col1.toggle(
+            "🪄 Asistente",
+            value=(len(sets) == 0),
+            key="tileset:toggle_wizard",
+            help="Abrir el asistente de inicio rápido para crear terrenos en 1 clic",
+        )
+        show_guide = act_col2.toggle(
+            "📖 Guía",
+            value=False,
+            key="tileset:toggle_guide",
+            help="Ver la guía de uso paso a paso",
+        )
+
+    if show_guide:
+        _render_tile_builder_guide()
+
+    if show_wizard:
+        with st.container(border=True):
+            st.markdown("#### 🪄 Asistente de Inicio Rápido · Elige tu Flujo")
+            st.caption("Crea o importa terrenos en segundos seleccionando el camino que mejor se adapte a tus recursos:")
+
+            wizard_path = st.segmented_control(
+                "Flujo Guiado",
+                options=(
+                    "✨ Generar desde Cero (Procedural)",
+                    "🪄 Cosechar de Mockup (3 Sets)",
+                    "🎨 Modo Artista (Mis Sprites)",
+                ),
+                default="✨ Generar desde Cero (Procedural)",
+                key="tileset_wizard:active_path",
+                label_visibility="collapsed",
+            )
+
+            if wizard_path == "✨ Generar desde Cero (Procedural)":
+                st.markdown("##### 1. Elige un Bioma y Estilo Visual")
+                b_col1, b_col2, b_col3 = st.columns((2.4, 1.4, 1.8), gap="medium")
+                biome_presets = {
+                    "pradera": ("🌿 Pradera / Bosque", "#48A832", "#8B5A2B", "zelda_topdown"),
+                    "costa": ("🏖️ Costa Tropical", "#E5B869", "#2B65EC", "coastal_organic"),
+                    "mazmorra": ("🏰 Mazmorra Abisal", "#505A69", "#202530", "neon_dungeon"),
+                    "nieve": ("❄️ Tundra Nevada", "#E8F4F8", "#6898B8", "retro_16bit"),
+                    "lava": ("🌋 Tierras Volcánicas", "#353038", "#D84820", "retro_16bit"),
+                    "clean": ("🧼 Prototipado Limpio", "#60A5FA", "#1E293B", "clean_pixel"),
+                }
+
+                def _on_wizard_biome_change() -> None:
+                    bk = st.session_state.get("tileset_wizard:biome_key")
+                    if bk in biome_presets:
+                        _, p_hex, s_hex, def_preset = biome_presets[bk]
+                        st.session_state["tileset_wizard:primary:picker"] = p_hex
+                        st.session_state["tileset_wizard:primary:hex"] = p_hex
+                        st.session_state["tileset_wizard:secondary:picker"] = s_hex
+                        st.session_state["tileset_wizard:secondary:hex"] = s_hex
+                        st.session_state["tileset_wizard:aesthetic_preset"] = def_preset
+
+                cur_pal = project.get("palette")
+                if isinstance(cur_pal, Mapping):
+                    pal_biome = cur_pal.get("biome")
+                    last_synced_biome = st.session_state.get("tileset_wizard:last_synced_biome")
+                    if pal_biome and pal_biome != last_synced_biome and pal_biome in biome_presets:
+                        st.session_state["tileset_wizard:biome_key"] = pal_biome
+                        st.session_state["tileset_wizard:last_synced_biome"] = pal_biome
+
+                selected_biome_key = b_col1.selectbox(
+                    "Bioma Predefinido",
+                    options=list(biome_presets.keys()),
+                    format_func=lambda k: biome_presets[k][0],
+                    key="tileset_wizard:biome_key",
+                    on_change=_on_wizard_biome_change,
+                )
+                b_name, b_primary, b_secondary, b_def_preset = biome_presets[selected_biome_key]
+                if isinstance(cur_pal, Mapping):
+                    if cur_pal.get("primary"):
+                        b_primary = str(cur_pal["primary"])
+                    if cur_pal.get("secondary"):
+                        b_secondary = str(cur_pal["secondary"])
+
+                color_c1, color_c2 = b_col1.columns(2, gap="small")
+                with color_c1:
+                    chosen_primary = _render_color_picker_with_hex(
+                        "🌱 Base (Relleno)",
+                        current_hex=b_primary,
+                        key_prefix="tileset_wizard:primary",
+                        help_text="Color del suelo o relleno principal del terreno",
+                    )
+                with color_c2:
+                    chosen_secondary = _render_color_picker_with_hex(
+                        "🟤 Secundario (Fondo)",
+                        current_hex=b_secondary,
+                        key_prefix="tileset_wizard:secondary",
+                        help_text="Color exterior, fondo o borde de transición",
+                    )
+                cur_pal = project.get("palette")
+                cur_water = cur_pal.get("water") if isinstance(cur_pal, Mapping) else None
+                biome_water = {
+                    "pradera": "#2B65EC",
+                    "costa": "#2B65EC",
+                    "mazmorra": "#1E3A8A",
+                    "nieve": "#38BDF8",
+                    "lava": "#991B1B",
+                    "clean": "#38BDF8",
+                }.get(selected_biome_key, "#2B65EC")
+                new_palette = {
+                    "biome": selected_biome_key,
+                    "primary": chosen_primary,
+                    "secondary": chosen_secondary,
+                    "water": cur_water or biome_water,
+                }
+                if project.get("palette") != new_palette:
+                    project["palette"] = new_palette
+                    st.session_state[project_key] = project
+
+                with b_col2:
+                    st.markdown("<span style='font-size:12px; font-weight:600; color:#cbd5e1;'>Formatos a Generar</span>", unsafe_allow_html=True)
+                    gen_blob = st.checkbox("Blob 47 (Orgánico)", value=True, key="tileset_wizard:gen_blob", help="Ideal para terrenos continuos de juego (16/47 máscaras)")
+                    gen_dual = st.checkbox("Dual Grid 15 (TileMapDual)", value=True, key="tileset_wizard:gen_dual", help="Atlas 4x4 de 16 casillas para Godot 4 con TileMapDual")
+                    gen_wang = st.checkbox("Wang 16 (Caminos / Aristas)", value=True, key="tileset_wizard:gen_wang", help="16 tiles de 2 aristas ideales para caminos o Tiled")
+
+                aesthetic_presets = list_aesthetic_presets()
+                preset_keys = [p.id for p in aesthetic_presets]
+                preset_labels = {p.id: f"{p.icon} {p.name}" for p in aesthetic_presets}
+                selected_aesthetic = b_col3.selectbox(
+                    "Receta Visual",
+                    preset_keys,
+                    index=preset_keys.index(b_def_preset) if b_def_preset in preset_keys else 0,
+                    format_func=lambda k: preset_labels.get(k, k),
+                    key="tileset_wizard:aesthetic_preset",
+                )
+                p_obj = get_aesthetic_preset(selected_aesthetic)
+                if p_obj:
+                    b_col3.caption(f"*{p_obj.description}*")
+                if gen_blob:
+                    blob_variants = int(
+                        b_col3.select_slider(
+                            "Variantes Blob",
+                            options=(1, 2, 3, 4, 5),
+                            value=3,
+                            key="tileset_wizard:blob_variants",
+                            help="Variantes por máscara para eliminar patrones repetitivos",
+                        )
+                    )
+                else:
+                    blob_variants = 1
+
+                selected_kinds: list[TerrainPatternKind] = []
+                if gen_blob:
+                    selected_kinds.append("blob_47")
+                if gen_dual:
+                    selected_kinds.append("dual_grid_15")
+                if gen_wang:
+                    selected_kinds.append("wang_16")
+
+                is_triad = len(selected_kinds) == 3
+                if is_triad:
+                    button_label = "⚡ Crear y Activar Terreno Procedural (Tríada Completa)"
+                elif selected_kinds:
+                    button_label = f"⚡ Crear y Activar Terreno Procedural ({len(selected_kinds)} formatos)"
+                else:
+                    button_label = "Selecciona al menos 1 formato"
+
+                if st.button(button_label, type="primary", key="tileset_wizard:create_suite", disabled=(len(selected_kinds) == 0)):
+                    clean_name = b_name.split(" ", 1)[1] if " " in b_name else b_name
+                    clean_lower = clean_name.lower()
+                    if selected_biome_key == "pradera" or any(k in clean_lower for k in ("pasto", "prad", "hierba", "cesped", "césped", "bosque", "selva")):
+                        mat_primary = "grass"
+                        mat_secondary = "dirt"
+                    elif selected_biome_key == "costa" or any(k in clean_lower for k in ("costa", "arena", "playa")):
+                        mat_primary = "sand"
+                        mat_secondary = "water"
+                    elif selected_biome_key == "mazmorra" or "mazmorra" in clean_lower:
+                        mat_primary = "stone"
+                        mat_secondary = "dirt"
+                    elif selected_biome_key == "nieve" or any(k in clean_lower for k in ("nieve", "tundra", "hielo")):
+                        mat_primary = "snow"
+                        mat_secondary = "stone"
+                    elif selected_biome_key == "lava" or any(k in clean_lower for k in ("lava", "volcan", "volcán")):
+                        mat_primary = "stone"
+                        mat_secondary = "dirt"
+                    else:
+                        mat_primary = "stone"
+                        mat_secondary = "dirt"
+
+                    tile_max_y = max([int(t.get("y", 0)) for t in project.get("tiles", [])], default=0)
+                    start_max_y = max([int(s.get("originY", 0)) + int(s.get("rows", 5)) for s in sets], default=tile_max_y)
+
+                    suite = generate_terrain_suite(
+                        name=clean_name,
+                        primary_color=chosen_primary,
+                        secondary_color=chosen_secondary,
+                        inside_material=mat_primary,
+                        outside_material=mat_secondary,
+                        preset_id=selected_aesthetic,
+                        kinds=selected_kinds,
+                        tile_size=(grid.tile_width, grid.tile_height),
+                        variant_count=blob_variants,
+                        start_y=start_max_y + 1,
+                    )
+
+                    tw, th = grid.tile_width, grid.tile_height
+                    tile_a = generate_procedural_material((tw, th), mat_primary, base_color=chosen_primary, seed=0)
+                    tile_b = generate_procedural_material((tw, th), mat_secondary, base_color=chosen_secondary, seed=1)
+
+                    current_atlas = _tileset_state_image()
+                    if current_atlas is None:
+                        starter_atlas = Image.new("RGBA", (tw * 2, th), (0, 0, 0, 0))
+                        starter_atlas.paste(tile_a, (0, 0))
+                        starter_atlas.paste(tile_b, (tw, 0))
+                        _set_tileset_image(starter_atlas, source_name="procedural_terrain.png", reset_canvas=True)
+                        src_offset_x = 0
+                    else:
+                        cw, ch = current_atlas.size
+                        src_offset_x = cw
+                        new_atlas = Image.new("RGBA", (cw + tw * 2, max(ch, th)), (0, 0, 0, 0))
+                        new_atlas.paste(current_atlas, (0, 0))
+                        new_atlas.paste(tile_a, (cw, 0))
+                        new_atlas.paste(tile_b, (cw + tw, 0))
+                        _set_tileset_image(
+                            new_atlas,
+                            source_name=st.session_state.get(f"{_TILESET_STATE_PREFIX}:source_name", "procedural_terrain.png"),
+                            reset_canvas=False,
+                        )
+
+                    src_a_id = f"src_{uuid.uuid4().hex[:6]}"
+                    src_b_id = f"src_{uuid.uuid4().hex[:6]}"
+                    project.setdefault("sources", []).extend([
+                        {"id": src_a_id, "name": f"{clean_name} (A)", "x": src_offset_x, "y": 0, "width": tw, "height": th, "rect": [src_offset_x, 0, tw, th]},
+                        {"id": src_b_id, "name": f"{clean_name} (B)", "x": src_offset_x + tw, "y": 0, "width": tw, "height": th, "rect": [src_offset_x + tw, 0, tw, th]},
+                    ])
+                    tile_max_x = max([int(t.get("x", 0)) for t in project.get("tiles", [])], default=-1)
+                    project.setdefault("tiles", []).extend([
+                        {"id": f"tile_{uuid.uuid4().hex[:6]}", "sourceId": src_a_id, "x": tile_max_x + 1, "y": 0},
+                        {"id": f"tile_{uuid.uuid4().hex[:6]}", "sourceId": src_b_id, "x": tile_max_x + 2, "y": 0},
+                    ])
+
+                    sets_list = list(project.get("sets", []))
+                    for new_set in suite.project_sets:
+                        new_set_copy = dict(new_set)
+                        new_set_copy["baseSource"] = src_a_id
+                        new_set_copy["secondarySource"] = src_b_id
+                        sets_list.append(new_set_copy)
+
+                    project["sets"] = sets_list
+                    if suite.project_sets:
+                        project["activeSetId"] = suite.project_sets[0]["id"]
+                    st.session_state[project_key] = project
+                    if is_triad:
+                        st.toast(f"✨ Tríada de Autotiles '{clean_name}' (Blob 47, Dual Grid 15 y Wang 16) creada con éxito!")
+                    else:
+                        st.toast(f"✨ Suite '{clean_name}' ({len(suite.project_sets)} sets) creada con éxito!")
+                    st.rerun()
+
+            elif wizard_path == "🪄 Cosechar de Mockup (3 Sets)":
+                st.markdown("##### Cosecha Inteligente y Síntesis de Ecosistema Completo")
+                image = _tileset_state_image()
+                if image is not None:
+                    palette = analyze_image_biome_palette(image)
+                    st.markdown(
+                        f"**Paleta detectada en Atlas:** "
+                        f"<span style='display:inline-block;padding:2px 8px;border-radius:4px;background:{palette.grass.hex_color};color:#fff'>🌿 Pasto {palette.grass.hex_color}</span> "
+                        f"<span style='display:inline-block;padding:2px 8px;border-radius:4px;background:{palette.dirt.hex_color};color:#fff'>🟤 Tierra {palette.dirt.hex_color}</span> "
+                        f"<span style='display:inline-block;padding:2px 8px;border-radius:4px;background:{palette.water.hex_color};color:#fff'>🌊 Agua {palette.water.hex_color}</span> · "
+                        f"Dominante: **{palette.dominant_terrain}**",
+                        unsafe_allow_html=True,
+                    )
+                    st.caption("Al pulsar el botón se sintetizan 3 sets complementarios: Pasto sobre Tierra, Tierra sobre Agua y Pasto sobre Agua.")
+                    if st.button("⚡ Generar Ecosistema Completo (3 Sets)", type="primary", key="tileset_wizard:generate_ecosystem"):
+                        _trigger_biome_ecosystem_creation(project, project_key, image, grid)
+                else:
+                    st.info("💡 Sube una imagen de referencia (paisaje o mockup pixel-art) para cosechar sus biomas automáticamente:")
+                    uploaded_ref = st.file_uploader("Cargar Mockup o Spritesheet PNG", type=["png"], key="tileset_wizard:ref_uploader")
+                    if uploaded_ref is not None:
+                        payload = uploaded_ref.getvalue()
+                        with Image.open(io.BytesIO(payload)) as incoming:
+                            _set_tileset_image(incoming.convert("RGBA"), source_name=uploaded_ref.name, reset_canvas=True)
+                        st.toast("✅ Imagen de referencia cargada en Atlas.")
+                        st.rerun()
+
+            elif wizard_path == "🎨 Modo Artista (Mis Sprites)":
+                st.markdown("##### 🎨 Flujo de Trabajo Profesional para Artistas (Estilo Tilesetter)")
+                c1, c2, c3 = st.columns(3, gap="medium")
+                with c1:
+                    st.markdown("**Paso 1 · Cargar Atlas**")
+                    st.caption("En la pestaña **Atlas**, carga tu PNG dibujado en Aseprite/Photoshop y define el tamaño de cuadrícula (ej. 16×16 px).")
+                with c2:
+                    st.markdown("**Paso 2 · Asignar en Pattern Studio**")
+                    st.caption("Selecciona el tile central y los 4 bordes. Usa el botón *'Completar 4 por rotación'* si solo dibujaste un lado.")
+                with c3:
+                    st.markdown("**Paso 3 · Probar y Exportar**")
+                    st.caption("Pinta en **Map Tester** para verificar que todas las esquinas encajen a la perfección y descarga el bundle para Godot 4, Unity o Tiled.")
+
+
 def _render_tileset_builder() -> None:
     """Render the standalone Tilebuilder page and its authoring tabs."""
 
     st.subheader("Tileset Builder")
-    _render_tile_builder_guide()
-    atlas_tab, patterns_tab, test_map_tab = st.tabs(("Atlas", "Pattern Studio", "Map Tester"))
+    _render_tile_builder_wizard_and_status()
+    atlas_tab, patterns_tab, finishing_tab, test_map_tab = st.tabs(
+        ("Atlas", "Pattern Studio", "Estudio de Acabado y Materiales", "Map Tester")
+    )
     with atlas_tab:
         _render_tileset_atlas_editor()
     with patterns_tab:
         _render_terrain_patterns()
+    with finishing_tab:
+        _render_finishing_and_export_studio()
     with test_map_tab:
         _render_tileset_map_tester()
 

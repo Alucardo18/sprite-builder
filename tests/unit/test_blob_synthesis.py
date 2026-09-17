@@ -8,6 +8,7 @@ from PIL import Image
 
 from sprite_builder.tilesets import (
     build_tilesetter_terrain_pattern,
+    generate_procedural_material,
     render_godot_terrain_installer,
     terrain_pattern_manifest,
 )
@@ -462,5 +463,112 @@ def test_blob_synthesis_chamfer_corner_style() -> None:
             diff_found = True
             break
     assert diff_found
+
+
+def test_blob_procedural_set_with_colors_assigns_both_materials() -> None:
+    """A procedural blob set with primary and secondary colors/sources must assign both."""
+    size = 16
+    tile_a = generate_procedural_material((size, size), "grass", base_color="#48A832", seed=0)
+    tile_b = generate_procedural_material((size, size), "dirt", base_color="#8B5A2B", seed=1)
+    atlas = Image.new("RGBA", (size * 2, size), (0, 0, 0, 0))
+    atlas.paste(tile_a, (0, 0))
+    atlas.paste(tile_b, (size, 0))
+
+    sources = [
+        {"id": "src_a", "name": "Pradera (A)", "rect": [0, 0, size, size]},
+        {"id": "src_b", "name": "Pradera (B)", "rect": [size, 0, size, size]},
+    ]
+    set_config = {
+        "id": "proc_set_test",
+        "name": "Pradera",
+        "kind": "blob_47",
+        "blobMaterialMode": "procedural",
+        "blobMode": "synthesis",
+        "primaryColor": "#48A832",
+        "secondaryColor": "#8B5A2B",
+        "insideColor": "#48A832",
+        "outsideColor": "#8B5A2B",
+        "baseSource": "src_a",
+        "secondarySource": "src_b",
+        "terrainProfile": "rounded_grass_tufts",
+        "cornerRadius": 3,
+        "dropShadow": 0,
+        "rimLight": False,
+    }
+
+    result = build_tilesetter_terrain_pattern(
+        atlas,
+        tile_size=(size, size),
+        sources=sources,
+        set_config=set_config,
+        kind="blob_47",
+    )
+
+    assert result.complete
+    assert len(result.tiles) == 47
+
+    # Mask 0 (empty background) must be fully painted with Tile B (secondary dirt)
+    tile_0 = next(r for r in result.tiles if r.mask == 0)
+    crop_0 = np.asarray(result.image.crop(
+        (tile_0.column * size, tile_0.row * size, (tile_0.column + 1) * size, (tile_0.row + 1) * size)
+    ))
+    assert np.all(crop_0[..., 3] == 255), "Mask 0 must not be transparent"
+    b_mean = np.asarray(tile_b)[..., :3].mean(axis=(0, 1))
+    assert np.mean(np.abs(crop_0[..., :3] - b_mean)) < 15, "Mask 0 should match Tile B (dirt)"
+
+    # Mask 255 (solid center) must be fully painted with Tile A (primary grass)
+    tile_255 = next(r for r in result.tiles if r.mask == 255)
+    crop_255 = np.asarray(result.image.crop(
+        (tile_255.column * size, tile_255.row * size, (tile_255.column + 1) * size, (tile_255.row + 1) * size)
+    ))
+    assert np.all(crop_255[..., 3] == 255)
+    a_mean = np.asarray(tile_a)[..., :3].mean(axis=(0, 1))
+    assert np.mean(np.abs(crop_255[..., :3] - a_mean)) < 15, "Mask 255 should match Tile A (grass)"
+
+    # Transition tile (mask 1) must contain pixels from both materials
+    tile_1 = next(r for r in result.tiles if r.mask == 1)
+    crop_1 = np.asarray(result.image.crop(
+        (tile_1.column * size, tile_1.row * size, (tile_1.column + 1) * size, (tile_1.row + 1) * size)
+    ))
+    assert np.all(crop_1[..., 3] == 255)
+    # Top is grass, bottom is dirt
+    assert np.mean(np.abs(crop_1[0, size // 2, :3] - a_mean)) < 25
+    assert np.mean(np.abs(crop_1[size - 1, size // 2, :3] - b_mean)) < 25
+
+
+def test_blob_procedural_set_without_sources_assigns_both_colors() -> None:
+    """Pure procedural blob with no sources must generate and blend both colors."""
+    size = 16
+    ephemeral = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    set_config = {
+        "id": "proc_colors_only",
+        "name": "Pradera Procedural",
+        "kind": "blob_47",
+        "blobMaterialMode": "procedural",
+        "primaryColor": "#48A832",
+        "secondaryColor": "#8B5A2B",
+        "insideMaterial": "grass",
+        "outsideMaterial": "dirt",
+        "terrainProfile": "rounded_grass_tufts",
+        "cornerRadius": 2,
+    }
+    result = build_tilesetter_terrain_pattern(
+        ephemeral,
+        tile_size=(size, size),
+        sources=[],
+        set_config=set_config,
+        kind="blob_47",
+    )
+
+    assert result.complete
+    arr = np.asarray(result.image)
+    # Output must contain non-transparent pixels for both materials
+    tile_0 = next(r for r in result.tiles if r.mask == 0)
+    crop_0 = arr[tile_0.row * size : (tile_0.row + 1) * size, tile_0.column * size : (tile_0.column + 1) * size]
+    assert np.all(crop_0[..., 3] == 255)
+    # Brownish dirt color in mask 0
+    assert crop_0[..., 0].mean() > 100
+    assert crop_0[..., 1].mean() < 130
+
 
 

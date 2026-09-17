@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Sprite Builder & Tile Builder · Real Flow Showcase</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #06080d;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #f1f5f9;
+        -webkit-font-smoothing: antialiased;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+
+      /* Pixel Art Utility */
+      .pixelated {
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+
+      /* Base Scene */
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 40px 60px;
+        background: radial-gradient(circle at 50% 20%, #101626 0%, #06080d 85%);
+      }
+
+      /* Glass Panel */
+      .glass-panel {
+        background: rgba(15, 22, 36, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 20px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+      }
+
+      /* Pill Badges */
+      .pill-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 20px;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      }
+      .pill-cyan {
+        background: rgba(0, 242, 254, 0.12);
+        border: 1px solid rgba(0, 242, 254, 0.45);
+        color: #00f2fe;
+        box-shadow: 0 0 16px rgba(0, 242, 254, 0.2);
+      }
+      .pill-purple {
+        background: rgba(192, 132, 252, 0.12);
+        border: 1px solid rgba(192, 132, 252, 0.45);
+        color: #c084fc;
+        box-shadow: 0 0 16px rgba(192, 132, 252, 0.2);
+      }
+      .pill-emerald {
+        background: rgba(52, 211, 153, 0.12);
+        border: 1px solid rgba(52, 211, 153, 0.45);
+        color: #34d399;
+        box-shadow: 0 0 16px rgba(52, 211, 153, 0.2);
+      }
+      .pill-amber {
+        background: rgba(251, 191, 36, 0.12);
+        border: 1px solid rgba(251, 191, 36, 0.45);
+        color: #fbbf24;
+        box-shadow: 0 0 16px rgba(251, 191, 36, 0.2);
+      }
+
+      /* Typography */
+      .scene-title {
+        font-size: 44px;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+        text-align: center;
+        margin-bottom: 8px;
+      }
+      .scene-desc {
+        font-size: 20px;
+        color: #94a3b8;
+        text-align: center;
+        max-width: 1100px;
+        line-height: 1.35;
+        margin-bottom: 24px;
+      }
+
+      /* Checkerboard */
+      .checkerboard {
+        background-color: #1a2233;
+        background-image: 
+          linear-gradient(45deg, #0e1624 25%, transparent 25%), 
+          linear-gradient(-45deg, #0e1624 25%, transparent 25%), 
+          linear-gradient(45deg, transparent 75%, #0e1624 75%), 
+          linear-gradient(-45deg, transparent 75%, #0e1624 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+      }
+
+      /* macOS Style App Window */
+      .app-window {
+        position: relative;
+        width: 1540px;
+        height: 740px;
+        background: #090d16;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 242, 254, 0.08);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .window-header {
+        height: 38px;
+        background: rgba(18, 24, 38, 0.95);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        gap: 14px;
+      }
+      .window-dots {
+        display: flex;
+        gap: 7px;
+      }
+      .window-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .dot-red { background: #ff5f56; }
+      .dot-yellow { background: #ffbd2e; }
+      .dot-green { background: #27c93f; }
+      .window-url {
+        flex: 1;
+        max-width: 460px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 3px 12px;
+        font-size: 12px;
+        color: #94a3b8;
+        text-align: center;
+        font-family: monospace;
+      }
+      .window-video-wrapper {
+        position: relative;
+        flex: 1;
+        width: 100%;
+        height: calc(100% - 38px);
+        overflow: hidden;
+        background: #05070c;
+      }
+      .window-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top center;
+        display: block;
+      }
+
+      /* Lower Third overlay bar */
+      .lower-bar {
+        position: absolute;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 1460px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 28px;
+        background: rgba(10, 15, 26, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 14px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+        z-index: 10;
+      }
+      .lower-info h4 {
+        font-size: 19px;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 3px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .lower-info p {
+        font-size: 14px;
+        color: #cbd5e1;
+      }
+      .lower-tags {
+        display: flex;
+        gap: 10px;
+      }
+      .lower-tag {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .tag-highlight {
+        background: rgba(0, 242, 254, 0.14);
+        border-color: rgba(0, 242, 254, 0.4);
+        color: #00f2fe;
+      }
+      .tag-purple {
+        background: rgba(192, 132, 252, 0.14);
+        border-color: rgba(192, 132, 252, 0.4);
+        color: #c084fc;
+      }
+      .tag-emerald {
+        background: rgba(52, 211, 153, 0.14);
+        border-color: rgba(52, 211, 153, 0.4);
+        color: #34d399;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-width="1920" data-height="1080" data-duration="95.91">
+      <!-- =================================================================== -->
+      <!-- AUDIO TRACKS (Narración Jorge de México · es-MX-JorgeNeural)       -->
+      <!-- =================================================================== -->
+      <audio id="vo-sc1" src="assets/audio_v2/scene1_intro.mp3" data-start="0" data-duration="13.97"></audio>
+      <audio id="vo-sc2" src="assets/audio_v2/scene2_sprites_poses.mp3" data-start="13.97" data-duration="20.09"></audio>
+      <audio id="vo-sc3" src="assets/audio_v2/scene3_sprites_gif.mp3" data-start="34.06" data-duration="21.36"></audio>
+      <audio id="vo-sc4" src="assets/audio_v2/scene4_tiles_wheel.mp3" data-start="55.42" data-duration="21.91"></audio>
+      <audio id="vo-sc5" src="assets/audio_v2/scene5_tiles_map.mp3" data-start="77.33" data-duration="18.58"></audio>
+
+      <!-- =================================================================== -->
+      <!-- ESCENA 1: APERTURA SUITE INTEGRAL (0.0s - 14.0s)                   -->
+      <!-- =================================================================== -->
+      <div id="scene1" class="scene clip" data-start="0" data-duration="13.97" data-track-index="0">
+        <div class="pill-badge pill-cyan" id="sc1-badge">
+          <span>✨</span>
+          <span>Suite Integral de Arte 2D</span>
+        </div>
+        <h1 class="scene-title" id="sc1-title" style="font-size: 60px; margin-bottom: 12px;">
+          "Sprite Builder" &amp; "Tile Builder"
+        </h1>
+        <p class="scene-desc" id="sc1-desc">
+          Convierte hojas de sprites en animaciones fluidas y sintetiza patrones de terreno interactivos con autotiling automático.
+        </p>
+
+        <!-- Dos Tarjetas Héroe -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; max-width: 1400px; margin-top: 10px;">
+          <!-- Card 1: Sprite Builder (Zorro Místico) -->
+          <div class="glass-panel" id="sc1-card-sprites" style="padding: 36px; display: flex; align-items: center; gap: 32px; border-color: rgba(0, 242, 254, 0.4);">
+            <div class="checkerboard" style="width: 200px; height: 200px; border-radius: 18px; display: flex; align-items: center; justify-content: center; border: 2px solid #00f2fe; box-shadow: 0 0 30px rgba(0, 242, 254, 0.35);">
+              <img src="assets/sprites/fox_meditation.gif" class="pixelated" style="width: 160px; height: 160px; object-fit: contain;" alt="Zorro Místico GIF Loop" />
+            </div>
+            <div>
+              <div style="color: #00f2fe; font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;">Sprite Builder · Sheet Studio</div>
+              <h3 style="font-size: 30px; font-weight: 800; margin: 6px 0 12px; color: #ffffff;">Sprites &amp; Animación</h3>
+              <p style="font-size: 16px; color: #cbd5e1; line-height: 1.5;">
+                • Remoción de fondo y tolerancia alfa<br />
+                • Detección precisa de 12 poses en grid 6×2<br />
+                • Reproductor con "Onion Skin" y exportación "GIF"
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 2: Tile Builder (Terrenos y Autotiling) -->
+          <div class="glass-panel" id="sc1-card-tiles" style="padding: 36px; display: flex; align-items: center; gap: 32px; border-color: rgba(251, 191, 36, 0.4);">
+            <div style="width: 200px; height: 200px; border-radius: 18px; overflow: hidden; border: 2px solid #fbbf24; box-shadow: 0 0 30px rgba(251, 191, 36, 0.35); background: #000;">
+              <img src="assets/tiles/sample_map_blob47.png" class="pixelated" style="width: 100%; height: 100%; object-fit: cover;" alt="Mapa Blob 47" />
+            </div>
+            <div>
+              <div style="color: #fbbf24; font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;">Tile Builder · Pattern Studio</div>
+              <h3 style="font-size: 30px; font-weight: 800; margin: 6px 0 12px; color: #ffffff;">Terrenos &amp; Autotiling</h3>
+              <p style="font-size: 16px; color: #cbd5e1; line-height: 1.5;">
+                • Selector "Wheel Picker" interactivo<br />
+                • Variantes de textura y recetas visuales<br />
+                • Atlas Blob 47 y prueba en vivo con Map Tester
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- ESCENA 2: SPRITE BUILDER · FONDO Y 12 POSES (14.0s - 34.5s)        -->
+      <!-- =================================================================== -->
+      <div id="scene2" class="scene clip" data-start="13.97" data-duration="20.09" data-track-index="0">
+        <div class="pill-badge pill-cyan">
+          <span>🦊</span>
+          <span>Paso 1 · "Sheet Studio"</span>
+        </div>
+        <h2 class="scene-title">Remoción de Fondo y Detección de 12 Poses</h2>
+        <p class="scene-desc">
+          Carga de la hoja del zorro místico: verificación de transparencia alfa y cuadrícula de 6 columnas por 2 filas.
+        </p>
+
+        <!-- App Window con Video Real de Playwright -->
+        <div class="app-window">
+          <div class="window-header">
+            <div class="window-dots">
+              <div class="window-dot dot-red"></div>
+              <div class="window-dot dot-yellow"></div>
+              <div class="window-dot dot-green"></div>
+            </div>
+            <div class="window-url">localhost:8501/?page=sprites · Sheet Studio</div>
+          </div>
+          <div class="window-video-wrapper">
+            <video id="vid-sc2" class="window-video" src="assets/video_clips/clip_sprites_poses.mp4" data-start="13.97" data-duration="20.09" data-track-index="1" muted playsinline></video>
+            
+            <!-- Lower Floating Callout -->
+            <div class="lower-bar">
+              <div class="lower-info">
+                <h4><span>⚡</span> Flujo Real en Streamlit: Detección y Recorte de 12 Poses</h4>
+                <p>Verificación de canal alfa sin halos · Cuadrícula 6×2 con 12 posturas místicas delimitadas a pixel real</p>
+              </div>
+              <div class="lower-tags">
+                <span class="lower-tag tag-highlight">1024×682 px · RGBA</span>
+                <span class="lower-tag tag-highlight">12 Frames</span>
+                <span class="lower-tag">Transparencia Inmutable</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- ESCENA 3: SPRITE BUILDER · LAYER STUDIO Y GIF (34.5s - 56.0s)      -->
+      <!-- =================================================================== -->
+      <div id="scene3" class="scene clip" data-start="34.06" data-duration="21.36" data-track-index="0">
+        <div class="pill-badge pill-purple">
+          <span>🎬</span>
+          <span>Paso 2 · "Layer Studio"</span>
+        </div>
+        <h2 class="scene-title">Alineación Multi-Anchor y Animación "GIF"</h2>
+        <p class="scene-desc">
+          Reproductor integrado con loop en vivo a 8 FPS, Onion Skin activo y exportación directa en formato GIF.
+        </p>
+
+        <!-- App Window con Video Real de Playwright -->
+        <div class="app-window">
+          <div class="window-header">
+            <div class="window-dots">
+              <div class="window-dot dot-red"></div>
+              <div class="window-dot dot-yellow"></div>
+              <div class="window-dot dot-green"></div>
+            </div>
+            <div class="window-url">localhost:8501/?page=sprites · Layer Studio &amp; Export</div>
+          </div>
+          <div class="window-video-wrapper">
+            <video id="vid-sc3" class="window-video" src="assets/video_clips/clip_sprites_gif.mp4" data-start="34.06" data-duration="21.36" data-track-index="1" muted playsinline></video>
+
+            <!-- Lower Floating Callout -->
+            <div class="lower-bar">
+              <div class="lower-info">
+                <h4><span>🔮</span> Estudio de Capas: Reproducción en Bucle y Onion Skin</h4>
+                <p>Autoalineación por centro de masa · Comparación de frames vecinos · Exportación de preview GIF a 8 FPS</p>
+              </div>
+              <div class="lower-tags">
+                <span class="lower-tag tag-purple">Bucle Animado</span>
+                <span class="lower-tag tag-purple">Onion Skin</span>
+                <span class="lower-tag">Export Preview GIF</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- ESCENA 4: TILE BUILDER · WHEEL PICKER Y TEXTURA (56.0s - 78.0s)     -->
+      <!-- =================================================================== -->
+      <div id="scene4" class="scene clip" data-start="55.42" data-duration="21.91" data-track-index="0">
+        <div class="pill-badge pill-amber">
+          <span>🎨</span>
+          <span>Paso 3 · "Tile Builder"</span>
+        </div>
+        <h2 class="scene-title">Asistente: "Wheel Picker" y Variante de Textura</h2>
+        <p class="scene-desc">
+          Generación rápida de terrenos seleccionando paleta cromática con rueda interactiva y recetas de estilo visual.
+        </p>
+
+        <!-- App Window con Video Real de Playwright -->
+        <div class="app-window">
+          <div class="window-header">
+            <div class="window-dots">
+              <div class="window-dot dot-red"></div>
+              <div class="window-dot dot-yellow"></div>
+              <div class="window-dot dot-green"></div>
+            </div>
+            <div class="window-url">localhost:8501/?page=tilesets · Asistente Procedural</div>
+          </div>
+          <div class="window-video-wrapper">
+            <video id="vid-sc4" class="window-video" src="assets/video_clips/clip_tiles_wheel.mp4" data-start="55.42" data-duration="21.91" data-track-index="1" muted playsinline></video>
+
+            <!-- Lower Floating Callout -->
+            <div class="lower-bar">
+              <div class="lower-info">
+                <h4><span>⚡</span> Wheel Picker Interactivo y Variantes de Textura</h4>
+                <p>Ajuste de color base y secundario con rueda RGB · Selección de receta visual Zelda Top-Down en 1 clic</p>
+              </div>
+              <div class="lower-tags">
+                <span class="lower-tag tag-emerald">Wheel Picker</span>
+                <span class="lower-tag tag-emerald">Receta Zelda</span>
+                <span class="lower-tag">Sintetizado Inmediato</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- ESCENA 5: TILE BUILDER · PATTERN STUDIO Y MAP TESTER (78.0s - 97.0s)-->
+      <!-- =================================================================== -->
+      <div id="scene5" class="scene clip" data-start="77.33" data-duration="18.58" data-track-index="0">
+        <div class="pill-badge pill-emerald">
+          <span>🗺️</span>
+          <span>Paso 4 · "Pattern Studio" &amp; "Map Tester"</span>
+        </div>
+        <h2 class="scene-title">Atlas Blob 47 y Autotiling en Vivo</h2>
+        <p class="scene-desc">
+          47 combinaciones orgánicas que resuelven todas las uniones de costa y pradera al dibujar en el mapa interactivo.
+        </p>
+
+        <!-- App Window con Video Real de Playwright -->
+        <div class="app-window">
+          <div class="window-header">
+            <div class="window-dots">
+              <div class="window-dot dot-red"></div>
+              <div class="window-dot dot-yellow"></div>
+              <div class="window-dot dot-green"></div>
+            </div>
+            <div class="window-url">localhost:8501/?page=tilesets · Pattern Studio &amp; Map Tester</div>
+          </div>
+          <div class="window-video-wrapper">
+            <video id="vid-sc5" class="window-video" src="assets/video_clips/clip_tiles_map.mp4" data-start="77.33" data-duration="18.58" data-track-index="1" muted playsinline></video>
+
+            <!-- Lower Floating Callout -->
+            <div class="lower-bar">
+              <div class="lower-info">
+                <h4><span>🌿</span> Blob 47: 47 Losas Orgánicas y Conexión Automática</h4>
+                <p>Esquinas, senderos y costas conectados sin uniones forzadas · Exportación nativa lista para Godot 4 y Unity</p>
+              </div>
+              <div class="lower-tags">
+                <span class="lower-tag tag-highlight">Blob 47 Completo</span>
+                <span class="lower-tag tag-highlight">Map Tester Activo</span>
+                <span class="lower-tag">Godot &amp; Unity</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- GSAP Animations & Timeline Transitions -->
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline();
+      window.__timelines["main"] = tl;
+
+      // Escena 1: Animación de entrada de tarjetas y textos
+      tl.from("#sc1-badge", { y: -20, opacity: 0, duration: 0.8, ease: "power3.out" }, 0.2)
+        .from("#sc1-title", { y: 25, opacity: 0, duration: 0.9, ease: "power3.out" }, 0.4)
+        .from("#sc1-desc", { y: 20, opacity: 0, duration: 0.9, ease: "power3.out" }, 0.6)
+        .from("#sc1-card-sprites", { x: -60, opacity: 0, duration: 1.0, ease: "power3.out" }, 0.8)
+        .from("#sc1-card-tiles", { x: 60, opacity: 0, duration: 1.0, ease: "power3.out" }, 0.9);
+    </script>
+  </body>
+</html>

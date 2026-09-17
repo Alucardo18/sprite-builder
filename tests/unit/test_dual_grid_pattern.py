@@ -989,7 +989,7 @@ def test_existing_terrain_patterns_keep_their_masks_layouts_and_modes() -> None:
     inside = Image.new("RGBA", (4, 4), (220, 50, 60, 255))
     outside = Image.new("RGBA", (4, 4), (30, 40, 150, 255))
     for kind, expected_mode, expected_count in (
-        ("wang_16", "match_corners", 16),
+        ("wang_16", "match_sides", 16),
         ("sides_16", "match_sides", 16),
         ("blob_47", "match_corners_and_sides", 47),
     ):

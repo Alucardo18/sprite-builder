@@ -10,7 +10,7 @@ import zipfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from functools import lru_cache
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -79,6 +79,33 @@ _DUAL_GRID_TERRAIN_PROFILES: tuple[DualGridTerrainProfile, ...] = (
     "dirt_over_water",
     "grass_over_water",
 )
+_CORNER_MASK_PAIRS = {
+    0b00000001: (0b00000010, 0b10000000),
+    0b00000100: (0b00000010, 0b00001000),
+    0b00010000: (0b00001000, 0b00100000),
+    0b01000000: (0b00100000, 0b10000000),
+}
+_CORNER_MASKS = frozenset(_CORNER_MASK_PAIRS.keys())
+_OPPOSITE_DIRECTIONS = {
+    "top": "bottom",
+    "top_right": "bottom_left",
+    "right": "left",
+    "bottom_right": "top_left",
+    "bottom": "top",
+    "bottom_left": "top_right",
+    "left": "right",
+    "top_left": "bottom_right",
+}
+_DIRECTION_DELTAS = {
+    "top": (0, -1),
+    "top_right": (1, -1),
+    "right": (1, 0),
+    "bottom_right": (1, 1),
+    "bottom": (0, 1),
+    "bottom_left": (-1, 1),
+    "left": (-1, 0),
+    "top_left": (-1, -1),
+}
 _TERRAIN_EDGE_PROFILES: tuple[TerrainEdgeProfile, ...] = (
     "clean",
     "organic_neutral",
@@ -93,9 +120,217 @@ _TERRAIN_EDGE_PROFILES: tuple[TerrainEdgeProfile, ...] = (
 _DUAL_GRID_EDGE_VARIATION_MAX = 3
 _DUAL_GRID_EDGE_SEED_MAX = 999_999
 _BLOB_VARIANT_COUNT_MAX = 5
+
+
+@dataclass(frozen=True, slots=True)
+class TilesetAestheticPreset:
+    """Curated visual recipe bundling edge profile, corner radius, style, and physical lighting."""
+
+    id: str
+    name: str
+    icon: str
+    description: str
+    terrain_profile: TerrainEdgeProfile
+    corner_radius: int
+    corner_style: Literal["arc", "chamfer"]
+    retro_outline: bool
+    edge_variation: int
+    drop_shadow: int
+    shadow_direction: Literal["south", "south_east", "all_around"]
+    shadow_tint: Literal["cool", "warm", "mystic", "neutral"]
+    shadow_intensity: float
+    rim_light: bool
+    variant_count: int
+    noise_style: str = "none"
+    noise_intensity: float = 0.0
+
+    def apply_to_set(self, set_config: Mapping[str, Any]) -> dict[str, Any]:
+        """Return a copy of set_config with this aesthetic preset applied."""
+        updated = dict(set_config)
+        updated["terrainProfile"] = self.terrain_profile
+        updated["cornerRadius"] = self.corner_radius
+        updated["cornerStyle"] = self.corner_style
+        updated["retroOutline"] = self.retro_outline
+        updated["edgeVariation"] = self.edge_variation
+        updated["dropShadow"] = self.drop_shadow
+        updated["shadowDirection"] = self.shadow_direction
+        updated["shadowTint"] = self.shadow_tint
+        updated["shadowIntensity"] = self.shadow_intensity
+        updated["rimLight"] = self.rim_light
+        updated["variantCount"] = self.variant_count
+        updated["aestheticPreset"] = self.id
+        updated["noiseStyle"] = self.noise_style
+        updated["noiseIntensity"] = self.noise_intensity
+        return updated
+
+
+TILESET_AESTHETIC_PRESETS: tuple[TilesetAestheticPreset, ...] = (
+    TilesetAestheticPreset(
+        id="zelda_topdown",
+        name="Zelda Top-Down",
+        icon="🗡️",
+        description=(
+            "Aventura SNES/GBA: silueta orgánica con mechones de césped, "
+            "sombra inferior fría y cresta solar cenital."
+        ),
+        terrain_profile="rounded_grass_tufts",
+        corner_radius=4,
+        corner_style="arc",
+        retro_outline=False,
+        edge_variation=2,
+        drop_shadow=2,
+        shadow_direction="south",
+        shadow_tint="cool",
+        shadow_intensity=0.70,
+        rim_light=True,
+        variant_count=3,
+        noise_style="simplex",
+        noise_intensity=0.25,
+    ),
+    TilesetAestheticPreset(
+        id="retro_16bit",
+        name="Plataformas Retro 16-bit",
+        icon="🍄",
+        description=(
+            "Consola clásica: bisel geométrico a 45°, contorno exterior de 1px "
+            "y sombra diagonal marcada."
+        ),
+        terrain_profile="rounded_chamfer",
+        corner_radius=3,
+        corner_style="chamfer",
+        retro_outline=True,
+        edge_variation=1,
+        drop_shadow=3,
+        shadow_direction="south_east",
+        shadow_tint="neutral",
+        shadow_intensity=0.85,
+        rim_light=False,
+        variant_count=3,
+        noise_style="dither",
+        noise_intensity=0.25,
+    ),
+    TilesetAestheticPreset(
+        id="gameboy_dither",
+        name="Nostalgia Dither / 1-Bit",
+        icon="🕹️",
+        description=(
+            "Tramado retro punteado y contorno 1px sin degradados de sombra; "
+            "ideal para Game Boy o estética pixel-art 1-bit."
+        ),
+        terrain_profile="rounded_dither",
+        corner_radius=4,
+        corner_style="arc",
+        retro_outline=True,
+        edge_variation=1,
+        drop_shadow=0,
+        shadow_direction="south",
+        shadow_tint="neutral",
+        shadow_intensity=0.70,
+        rim_light=False,
+        variant_count=2,
+        noise_style="dither",
+        noise_intensity=0.45,
+    ),
+    TilesetAestheticPreset(
+        id="neon_dungeon",
+        name="Mazmorra Neón / Abisal",
+        icon="🌌",
+        description=(
+            "Losas limpias con contorno nítido, sombra omnidireccional profunda "
+            "con tinte místico púrpura y rim light."
+        ),
+        terrain_profile="rounded_clean",
+        corner_radius=2,
+        corner_style="chamfer",
+        retro_outline=True,
+        edge_variation=0,
+        drop_shadow=3,
+        shadow_direction="all_around",
+        shadow_tint="mystic",
+        shadow_intensity=0.90,
+        rim_light=True,
+        variant_count=3,
+        noise_style="simplex",
+        noise_intensity=0.20,
+    ),
+    TilesetAestheticPreset(
+        id="coastal_organic",
+        name="Costa Orgánica / Playa",
+        icon="🏖️",
+        description=(
+            "Ribete irregular de orilla con contacto orgánico suave y sutil sombra acuática translúcida."
+        ),
+        terrain_profile="dirt_over_water",
+        corner_radius=3,
+        corner_style="arc",
+        retro_outline=False,
+        edge_variation=3,
+        drop_shadow=1,
+        shadow_direction="south",
+        shadow_tint="cool",
+        shadow_intensity=0.50,
+        rim_light=False,
+        variant_count=3,
+        noise_style="gravel",
+        noise_intensity=0.35,
+    ),
+    TilesetAestheticPreset(
+        id="clean_pixel",
+        name="Pixel Limpio / Minimal",
+        icon="🧼",
+        description=(
+            "Geometría ortogonal pura sin alteración de silueta ni sombras proyectadas; "
+            "ideal para prototipado rápido."
+        ),
+        terrain_profile="clean",
+        corner_radius=0,
+        corner_style="arc",
+        retro_outline=False,
+        edge_variation=0,
+        drop_shadow=0,
+        shadow_direction="south",
+        shadow_tint="neutral",
+        shadow_intensity=0.70,
+        rim_light=False,
+        variant_count=1,
+        noise_style="none",
+        noise_intensity=0.0,
+    ),
+)
+_AESTHETIC_PRESETS_BY_ID = {preset.id: preset for preset in TILESET_AESTHETIC_PRESETS}
+
+
+def list_aesthetic_presets() -> tuple[TilesetAestheticPreset, ...]:
+    """Return all pre-curated aesthetic recipes for tilesets."""
+    return TILESET_AESTHETIC_PRESETS
+
+
+def get_aesthetic_preset(preset_id: str) -> TilesetAestheticPreset | None:
+    """Look up an aesthetic preset by id."""
+    return _AESTHETIC_PRESETS_BY_ID.get(preset_id)
+
+
+def detect_matching_aesthetic_preset(set_config: Mapping[str, Any]) -> str | None:
+    """Return the id of a matching preset if set_config matches all its key traits, else None."""
+    explicit = set_config.get("aestheticPreset")
+    if explicit and explicit in _AESTHETIC_PRESETS_BY_ID:
+        return str(explicit)
+    for preset in TILESET_AESTHETIC_PRESETS:
+        if (
+            set_config.get("terrainProfile") == preset.terrain_profile
+            and int(set_config.get("cornerRadius", 0)) == preset.corner_radius
+            and set_config.get("cornerStyle", "arc") == preset.corner_style
+            and bool(set_config.get("retroOutline", False)) == preset.retro_outline
+            and int(set_config.get("dropShadow", 0)) == preset.drop_shadow
+            and bool(set_config.get("rimLight", False)) == preset.rim_light
+        ):
+            return preset.id
+    return None
+
+
 _WANG_PATTERN_KINDS = frozenset(("wang_16", "dual_grid_15"))
 _PATTERN_MODES = {
-    "wang_16": "match_corners",
+    "wang_16": "match_sides",
     "dual_grid_15": "match_corners",
     "sides_16": "match_sides",
     "blob_47": "match_corners_and_sides",
@@ -113,12 +348,13 @@ _GODOT_PATTERN_LAYOUTS: dict[
         (1, 5, 69, 65, 23, 223, 247, 209, 95, 255, 221, 241),
         (0, 4, 68, 64, 117, 71, 197, 93, 7, 199, 215, 193),
     ),
-    # Official Godot 3.x 2x2/corners template.
+    # Official Godot 3.x 3x3-minimal-16 arrangement for Wang 16 (matching
+    # cardinal sides/edges for roads, paths, and pipes).
     "wang_16": (
-        (8, 6, 13, 12),
-        (5, 14, 15, 11),
-        (2, 3, 7, 9),
-        (0, 4, 10, 1),
+        (4, 6, 14, 12),
+        (5, 7, 15, 13),
+        (1, 3, 11, 9),
+        (0, 2, 10, 8),
     ),
     # TileMapDual's Standard preset is a full 4x4 atlas.  The 15 authored
     # foreground roles omit mask 0, while the builder fills this physical
@@ -207,6 +443,9 @@ class TerrainPatternResult:
     animation_style: str = "shore_ripples"
     animation_frames_images: tuple[Image.Image, ...] | None = None
     base_rows: int | None = None
+    noise_style: str = "none"
+    noise_intensity: float = 0.0
+    inner_corner_rounding: float = 0.5
 
     @property
     def complete(self) -> bool:
@@ -450,6 +689,105 @@ def _wang_bitmap_mask(mask: int, width: int, height: int) -> np.ndarray:
     return _wang_bitmap_coverage(mask, width, height) >= 0.5
 
 
+def _wang_edge_path_coverage(
+    mask: int,
+    width: int,
+    height: int,
+    *,
+    profile: TerrainEdgeProfile = "clean",
+    variation: int = 0,
+    seed: int = 0,
+    path_width_ratio: float = 0.45,
+) -> np.ndarray:
+    """Return organic path/road coverage for 2-edge cardinal Wang 16 autotiles."""
+    n = bool(mask & 1)
+    e = bool(mask & 2)
+    s = bool(mask & 4)
+    w = bool(mask & 8)
+
+    if not (n or e or s or w):
+        return np.zeros((height, width), dtype=np.float32)
+
+    yy, xx = np.indices((height, width), dtype=np.float32)
+    cx = (width - 1) / 2.0
+    cy = (height - 1) / 2.0
+    r0 = width * (path_width_ratio / 2.0)
+
+    dist = np.full((height, width), 999.0, dtype=np.float32)
+    dist = np.minimum(dist, np.hypot(xx - cx, yy - cy))
+
+    if n:
+        dist = np.minimum(dist, np.hypot(np.abs(xx - cx), np.maximum(0.0, yy - cy)))
+    if s:
+        dist = np.minimum(dist, np.hypot(np.abs(xx - cx), np.maximum(0.0, cy - yy)))
+    if w:
+        dist = np.minimum(dist, np.hypot(np.maximum(0.0, xx - cx), np.abs(yy - cy)))
+    if e:
+        dist = np.minimum(dist, np.hypot(np.maximum(0.0, cx - xx), np.abs(yy - cy)))
+
+    if profile in {"clean", "rounded_clean"} or variation <= 0:
+        cov = np.clip(0.5 - (dist - r0) / 0.8, 0.0, 1.0)
+    else:
+        digest = hashlib.sha256(f"wang-edge:{profile}:{seed}:{mask}".encode()).digest()
+        p1 = (digest[0] / 255.0) * (2.0 * math.pi)
+        p2 = (digest[1] / 255.0) * (2.0 * math.pi)
+        p3 = (digest[2] / 255.0) * (2.0 * math.pi)
+        p4 = (digest[3] / 255.0) * (2.0 * math.pi)
+
+        x_norm = xx / max(1.0, width - 1.0)
+        y_norm = yy / max(1.0, height - 1.0)
+
+        w1 = np.sin(2.0 * math.pi * x_norm + p1) + np.cos(2.0 * math.pi * y_norm + p2)
+        w2 = 0.50 * (np.sin(4.0 * math.pi * x_norm + p3) + np.cos(4.0 * math.pi * y_norm + p4))
+        wave = (w1 + w2) / 1.5
+
+        # Port envelope: keep exact road width at tile boundary seams
+        border_dist = np.minimum.reduce((xx, width - 1.0 - xx, yy, height - 1.0 - yy))
+        envelope = np.clip(border_dist / 1.5, 0.0, 1.0) ** 0.6
+
+        size_scale = math.sqrt(max(2, min(width, height)) / 16.0)
+        amp = (0.9, 1.5, 2.2)[variation - 1] * size_scale
+        disp = amp * wave * envelope
+
+        if profile == "rounded_grass_tufts":
+            field = _dual_grid_texture_field(width, height, profile="rounded_grass_tufts", seed=seed)
+            tufts = (field > 0.42).astype(np.float32) * 0.18
+            cov = np.clip(0.5 - (dist - disp - r0) / 0.8 + tufts * envelope, 0.0, 1.0)
+        elif profile == "rounded_dither":
+            bayer = np.where((xx.astype(int) % 2 == 0) == (yy.astype(int) % 2 == 0), 0.12, -0.12).astype(np.float32)
+            raw_cov = np.clip(0.5 - (dist - disp - r0) / 0.8, 0.0, 1.0)
+            near_boundary = (raw_cov > 0.3) & (raw_cov < 0.7)
+            cov = np.where(near_boundary, np.clip(raw_cov + bayer * envelope, 0.0, 1.0), raw_cov)
+        else:
+            cov = np.clip(0.5 - (dist - disp - r0) / 0.8, 0.0, 1.0)
+
+    # Guarantee strict port boundary compatibility:
+    port_mask_x = np.abs(xx - cx) <= r0
+    port_mask_y = np.abs(yy - cy) <= r0
+
+    if n:
+        cov[0, :] = np.where(port_mask_x[0, :], 1.0, 0.0)
+    else:
+        cov[0, :] = 0.0
+
+    if s:
+        cov[-1, :] = np.where(port_mask_x[-1, :], 1.0, 0.0)
+    else:
+        cov[-1, :] = 0.0
+
+    if w:
+        cov[:, 0] = np.where(port_mask_y[:, 0], 1.0, 0.0)
+    else:
+        cov[:, 0] = 0.0
+
+    if e:
+        cov[:, -1] = np.where(port_mask_y[:, -1], 1.0, 0.0)
+    else:
+        cov[:, -1] = 0.0
+
+    return np.asarray(cov, dtype=np.float32)
+
+
 @lru_cache(maxsize=512)
 def _cached_rounded_corner_coverage(
     mask: int,
@@ -460,43 +798,33 @@ def _cached_rounded_corner_coverage(
     corner_style: str,
 ) -> np.ndarray:
     if radius <= 0:
-        if _is_wang_pattern(kind):
+        if kind == "dual_grid_15":
             return _wang_bitmap_coverage(mask, width, height)
-        elif kind == "sides_16":
-            return _blob_bitmap_coverage(_sides_blob_mask(mask), width, height)
+        elif kind in ("sides_16", "wang_16"):
+            return _wang_edge_path_coverage(mask, width, height)
         return _blob_bitmap_coverage(mask, width, height)
 
     max_r = max(1, min(width, height) // 2)
     r = min(max_r, max(0, int(radius)))
 
-    if _is_wang_pattern(kind):
+    if kind == "dual_grid_15":
         cov = _wang_bitmap_coverage(mask, width, height).copy()
         nw, ne, se, sw = (bool(mask & (1 << i)) for i in range(4))
-        # Top-Left (NW)
+        half_w = width / 2.0
+        half_h = height / 2.0
+
+        # Outer corner fillets (1 corner on, 3 off):
         if nw and not ne and not sw:
             for y in range(r):
                 for x in range(r):
                     if (r - x) ** 2 + (r - y) ** 2 > r ** 2:
                         cov[y, x] = min(cov[y, x], 0.2)
-        elif not nw and ne and sw:
-            for y in range(r):
-                for x in range(r):
-                    if x ** 2 + y ** 2 < r ** 2:
-                        cov[y, x] = min(cov[y, x], 0.2)
-        # Top-Right (NE)
         if ne and not nw and not se:
             for y in range(r):
                 for dx in range(r):
                     x = width - 1 - dx
                     if (r - dx) ** 2 + (r - y) ** 2 > r ** 2:
                         cov[y, x] = min(cov[y, x], 0.2)
-        elif not ne and nw and se:
-            for y in range(r):
-                for dx in range(r):
-                    x = width - 1 - dx
-                    if dx ** 2 + y ** 2 < r ** 2:
-                        cov[y, x] = min(cov[y, x], 0.2)
-        # Bottom-Right (SE)
         if se and not ne and not sw:
             for dy in range(r):
                 y = height - 1 - dy
@@ -504,29 +832,18 @@ def _cached_rounded_corner_coverage(
                     x = width - 1 - dx
                     if (r - dx) ** 2 + (r - dy) ** 2 > r ** 2:
                         cov[y, x] = min(cov[y, x], 0.2)
-        elif not se and ne and sw:
-            for dy in range(r):
-                y = height - 1 - dy
-                for dx in range(r):
-                    x = width - 1 - dx
-                    if dx ** 2 + dy ** 2 < r ** 2:
-                        cov[y, x] = min(cov[y, x], 0.2)
-        # Bottom-Left (SW)
         if sw and not nw and not se:
             for dy in range(r):
                 y = height - 1 - dy
                 for x in range(r):
                     if (r - x) ** 2 + (r - dy) ** 2 > r ** 2:
                         cov[y, x] = min(cov[y, x], 0.2)
-        elif not sw and nw and se:
-            for dy in range(r):
-                y = height - 1 - dy
-                for x in range(r):
-                    if x ** 2 + dy ** 2 < r ** 2:
-                        cov[y, x] = min(cov[y, x], 0.2)
+
         return cov
+    elif kind in ("sides_16", "wang_16"):
+        return _wang_edge_path_coverage(mask, width, height)
     else:
-        blob_m = _sides_blob_mask(mask) if kind == "sides_16" else mask
+        blob_m = mask
         if blob_m in (0, 0xFF):
             return np.full(
                 (height, width),
@@ -607,39 +924,29 @@ def _cached_rounded_corner_coverage(
                         else:
                             distance = math.sqrt((1.0 - u) ** 2 + (1.0 - v) ** 2)
                             signed = 1.0 - distance
+                        cov[y, x] = float(
+                            np.clip(0.5 + signed / (2.0 * soft_width), 0.0, 1.0)
+                        )
                     elif first_on and second_on:
-                        # Concave inner corner: carve a notch from the
-                        # corner while retaining the two connected sides.
+                        # Concave inner corner: gentle organic fillet without aggressive scoops
                         if corner_style == "chamfer":
-                            signed = (u + v) - 1.0
+                            signed = (u + v) - 0.65
+                            cov[y, x] = float(
+                                np.clip(0.5 + signed / (2.0 * soft_width), 0.0, 1.0)
+                            )
                         else:
-                            distance = math.sqrt(u**2 + v**2)
-                            signed = distance - 1.0
+                            corner_env = max(0.0, 1.0 - u / 0.5) * max(0.0, 1.0 - v / 0.5)
+                            cov[y, x] = float(
+                                np.clip(u + v - u * v - 0.28 * corner_env, 0.0, 1.0)
+                            )
                     else:
                         # A one-sided quadrant is a straight port transition;
                         # keep its midpoint tangent and let the organic pass
                         # introduce the small material-specific undulation.
                         signed = v - 0.5 if second_on else u - 0.5
-                    cov[y, x] = float(
-                        np.clip(0.5 + signed / (2.0 * soft_width), 0.0, 1.0)
-                    )
-        # A mathematical inner arc touches a cardinal port at a zero-width
-        # tangent. On an even pixel grid that point falls between two columns
-        # and can disconnect the arm entirely. Keep a narrow proportional
-        # corridor for every connected cardinal before restoring the seam.
-        port_half_width = max(1, min(width, height) // 16)
-        centre_x0 = max(0, (width - 1) // 2 - (port_half_width - 1))
-        centre_x1 = min(width, width // 2 + 1 + (port_half_width - 1))
-        centre_y0 = max(0, (height - 1) // 2 - (port_half_width - 1))
-        centre_y1 = min(height, height // 2 + 1 + (port_half_width - 1))
-        if blob_m & _DIRECTION_BITS["top"]:
-            cov[:centre_y1, centre_x0:centre_x1] = 1.0
-        if blob_m & _DIRECTION_BITS["bottom"]:
-            cov[centre_y0:, centre_x0:centre_x1] = 1.0
-        if blob_m & _DIRECTION_BITS["left"]:
-            cov[centre_y0:centre_y1, :centre_x1] = 1.0
-        if blob_m & _DIRECTION_BITS["right"]:
-            cov[centre_y0:centre_y1, centre_x0:] = 1.0
+                        cov[y, x] = float(
+                            np.clip(0.5 + signed / (2.0 * soft_width), 0.0, 1.0)
+                        )
         # The outer ring is the Blob port contract.  Pixel centres on a
         # quarter-circle can otherwise appear one row inside the mathematical
         # midpoint, making a role claim a neighbour's side at the seam.
@@ -774,6 +1081,7 @@ def _dual_grid_profile_coverage(
     variation: int = 0,
     seed: int = 0,
     corner_radius: int = 0,
+    inner_rounding: float = 0.5,
 ) -> np.ndarray:
     """Return styled coverage while keeping compatible atlas edges deterministic."""
 
@@ -783,6 +1091,16 @@ def _dual_grid_profile_coverage(
         else _normalize_terrain_edge_style
     )
     profile, variation, seed = normalizer(profile, variation, seed)
+    if kind in ("wang_16", "sides_16"):
+        return _wang_edge_path_coverage(
+            mask,
+            width,
+            height,
+            profile=profile,
+            variation=variation,
+            seed=seed,
+        )
+
     if corner_radius > 0 or profile in {"rounded_clean", "rounded_grass_tufts", "rounded_dither"}:
         eff_radius = (
             corner_radius
@@ -790,10 +1108,8 @@ def _dual_grid_profile_coverage(
             else max(1, (variation + 1) * max(1, min(width, height) // 16))
         )
         coverage = _rounded_corner_coverage(mask, width, height, radius=eff_radius, kind=kind)
-    elif _is_wang_pattern(kind):
+    elif kind == "dual_grid_15":
         coverage = _wang_bitmap_coverage(mask, width, height)
-    elif kind == "sides_16":
-        coverage = _blob_bitmap_coverage(_sides_blob_mask(mask), width, height)
     else:
         coverage = _blob_bitmap_coverage(mask, width, height)
 
@@ -808,7 +1124,8 @@ def _dual_grid_profile_coverage(
         field = _dual_grid_texture_field(width, height, profile="rounded_grass_tufts", seed=seed)
         tufts = (field > 0.40).astype(np.float32) * 0.16
         coverage = np.clip(coverage + tufts, 0.0, 1.0)
-        return np.asarray(coverage, dtype=np.float32)
+        if variation <= 0:
+            return np.asarray(coverage, dtype=np.float32)
 
     if profile == "rounded_dither":
         yy, xx = np.indices((height, width))
@@ -826,6 +1143,7 @@ def _dual_grid_profile_coverage(
         "grass_over_dirt": 1.0,
         "dirt_over_water": 0.84,
         "grass_over_water": 0.92,
+        "rounded_grass_tufts": 1.05,
     }.get(profile, 1.0)
     amplitude = min(0.24, requested_pixels * profile_scale / max(2, min(width, height)))
     field = _dual_grid_texture_field(width, height, profile=profile, seed=seed)
@@ -843,7 +1161,7 @@ def _dual_grid_profile_coverage(
     # make two compatible roles see slightly different distances from their
     # shared boundary. Sample the exact mathematical edge instead, so shading
     # bands and ownership meet without a one-pixel colour break.
-    if _is_wang_pattern(kind):
+    if kind == "dual_grid_15":
         nw, ne, se, sw = (1.0 if mask & (1 << index) else 0.0 for index in range(4))
         edge_x = (np.arange(width, dtype=np.float32) + 0.5) / width
         edge_y = (np.arange(height, dtype=np.float32) + 0.5) / height
@@ -852,6 +1170,7 @@ def _dual_grid_profile_coverage(
         styled[:, 0] = nw * (1.0 - edge_y) + sw * edge_y
         styled[:, -1] = ne * (1.0 - edge_y) + se * edge_y
         styled[0, 0], styled[0, -1] = nw, ne
+        styled[-1, 0], styled[-1, -1] = sw, se
         styled[-1, -1], styled[-1, 0] = se, sw
     return np.asarray(styled, dtype=np.float32)
 
@@ -919,6 +1238,7 @@ def _organic_blob_corner_coverage(
     profile: TerrainEdgeProfile,
     variation: int,
     seed: int,
+    inner_rounding: float = 0.5,
 ) -> np.ndarray:
     """Warp Blob corner arcs into asymmetric, port-safe organic contours."""
 
@@ -1021,37 +1341,42 @@ def _organic_blob_corner_coverage(
             # pass. A min(u, v) field makes a square wedge; the radial
             # field gives the convex shoreline one broad arc.
             signed = 1.0 - distance
+            angle = np.where(distance > 1e-6, np.arctan2(radial_y, radial_x), 0.0)
+            port_envelope = np.maximum(0.0, np.sin(2.0 * angle)) ** 2.0
+            broad_lobe = np.sin(angle + phase)
+            secondary_lobe = np.cos(2.0 * angle + phase2)
+            warp = (
+                amplitude
+                / minimum_radius
+                * port_envelope
+                * (bias + 0.68 * broad_lobe + 0.16 * secondary_lobe)
+            )
         elif is_inner:
-            radial_x = u_grid
-            radial_y = v_grid
-            distance = np.sqrt(radial_x**2 + radial_y**2)
-            # Keep the inner cut as wide as the outer fillet. The
-            # deterministic warp adds asymmetry without collapsing
-            # the notch into a little rectangular hole.
-            signed = distance - 0.85
+            # Gentle organic inner corner:
+            # Starts from the clean bilinear boundary (u + v - u*v)
+            corner_env = np.maximum(0.0, 1.0 - u_grid / 0.8) * np.maximum(0.0, 1.0 - v_grid / 0.8)
+            angle = np.arctan2(v_grid, u_grid)
+            broad_lobe = np.sin(2.0 * angle + phase)
+            secondary_lobe = np.cos(3.0 * angle + phase2)
+            warp = (
+                amplitude
+                * 0.08
+                / minimum_radius
+                * corner_env
+                * (bias * 0.5 + 0.5 * broad_lobe + 0.2 * secondary_lobe)
+            )
+            output[y0:y1, x0:x1] = np.clip(
+                u_grid + v_grid - u_grid * v_grid - 0.25 * max(0.0, min(1.0, float(inner_rounding))) * corner_env + warp,
+                0.0,
+                1.0,
+            )
+            continue
         else:
             radial_x = u_grid
             radial_y = v_grid
             distance = np.ones((len(ys), len(xs)), dtype=np.float64)
             signed = v_grid - 0.5 if second_on else u_grid - 0.5
-
-        angle = np.where(distance > 1e-6, np.arctan2(radial_y, radial_x), 0.0)
-        port_envelope = np.maximum(0.0, np.sin(2.0 * angle)) ** 2.0
-        broad_lobe = np.sin(angle + phase)
-        secondary_lobe = np.cos(2.0 * angle + phase2)
-        warp = (
-            amplitude
-            / minimum_radius
-            * port_envelope
-            * (bias + 0.68 * broad_lobe + 0.16 * secondary_lobe)
-        )
-        if not (is_outer or is_inner):
             warp = 0.0
-        elif is_inner:
-            # Concave cuts need slightly more character than convex
-            # shores; otherwise a one-tile hole still reads as a
-            # square even when the outer island is visibly organic.
-            warp *= -1.18
 
         output[y0:y1, x0:x1] = np.clip(0.5 + (signed + warp) / (2.0 * transition), 0.0, 1.0)
 
@@ -1091,11 +1416,12 @@ def _organic_blob_coverage(
     seed: int,
     exposed_directions: Sequence[str] | None = None,
     mask: int | None = None,
+    inner_rounding: float = 0.5,
 ) -> np.ndarray:
     """Displace a smooth Blob boundary without making noisy pixel holes.
 
     The canonical coverage supplies topology; this pass converts it to a
-    signed pixel distance and adds a restrained low-frequency offset.  Using a
+    signed pixel distance and adds a multi-harmonic organic offset. Using a
     distance field keeps each contour connected, while the immutable outer
     ring guarantees byte-identical atlas ports for every variant.
     """
@@ -1111,6 +1437,7 @@ def _organic_blob_coverage(
             profile=profile,
             variation=variation,
             seed=seed,
+            inner_rounding=inner_rounding,
         )
     minimum_axis = max(2, min(width, height))
     ownership = source >= 0.5
@@ -1121,19 +1448,19 @@ def _organic_blob_coverage(
     outside_distance = _pixel_distance_to_mask(ownership).astype(np.float32)
     distance_signed = np.where(ownership, inside_distance, -outside_distance)
     # Keep the sub-pixel position from the analytical arc as well as the
-    # integer distance.  This lets a one-pixel wave move a boundary smoothly
+    # integer distance. This lets a wave move a boundary smoothly
     # instead of waiting until a whole binary row flips at once.
     fractional_signed = (source - 0.5) * float(minimum_axis)
     signed = 0.58 * distance_signed + 0.42 * fractional_signed
     size_scale = math.sqrt(minimum_axis / 16.0)
     material_scale = {
-        "organic_neutral": 0.90,
-        "grass_over_dirt": 1.00,
-        "dirt_over_water": 0.82,
-        "grass_over_water": 0.94,
-        "rounded_grass_tufts": 1.00,
-        "rounded_dither": 0.72,
-    }.get(profile, 0.9)
+        "organic_neutral": 0.95,
+        "grass_over_dirt": 1.05,
+        "dirt_over_water": 0.88,
+        "grass_over_water": 1.00,
+        "rounded_grass_tufts": 1.05,
+        "rounded_dither": 0.75,
+    }.get(profile, 0.95)
     displacement_pixels = min(
         2.8 * size_scale,
         (0.65, 0.95, 1.30)[variation - 1] * size_scale * material_scale,
@@ -1146,17 +1473,19 @@ def _organic_blob_coverage(
     lock_width = max(1.0, minimum_axis / 16.0)
     port_envelope = np.clip(border_distance / lock_width, 0.0, 1.0)
 
-    # One broad lobe per axis; analytical corner arcs are already deformed.
-    # Never reconstruct an arc from first-owned integer pixels: doing so
-    # quantizes it twice and creates teeth at its tangencies.
+    # Multi-harmonic wave for organic pixel-art clusters
     x = xx / max(1.0, width - 1.0)
     y = yy / max(1.0, height - 1.0)
     phase_x = digest[0] / 255.0 * (2.0 * math.pi)
     phase_y = digest[1] / 255.0 * (2.0 * math.pi)
-    wave = 0.85 * (
-        np.cos(2.0 * math.pi * x + phase_x)
-        + np.cos(2.0 * math.pi * y + phase_y)
-    )
+    phase_x2 = digest[2] / 255.0 * (2.0 * math.pi)
+    phase_y2 = digest[3] / 255.0 * (2.0 * math.pi)
+
+    w1 = np.cos(2.0 * math.pi * x + phase_x) + np.cos(2.0 * math.pi * y + phase_y)
+    w2 = 0.50 * (np.sin(4.0 * math.pi * x + phase_y) + np.sin(4.0 * math.pi * y + phase_x))
+    w3 = 0.25 * (np.cos(6.0 * math.pi * x + phase_x2) + np.cos(6.0 * math.pi * y + phase_y2))
+    wave = (w1 + w2 + w3) / 1.75
+
     # Fade only at the immutable outer ring. A fractional power keeps the
     # first interior row visibly wavy while still reaching exactly zero at
     # every shared port; the old linear envelope made straight shores read as
@@ -1165,13 +1494,13 @@ def _organic_blob_coverage(
         np.clip(np.sin(math.pi * x) * np.sin(math.pi * y), 0.0, 1.0),
         0.80,
     )
+    near_boundary = np.abs(distance_signed) <= 1.5
     if mask is not None:
-        # Preserve the continuous radial field, including its subpixel phase.
-        signed = np.where(
-            (source > 0.0) & (source < 1.0),
-            (source - 0.5) * (2.0 * max(0.55, 0.72 * size_scale)),
-            distance_signed,
-        )
+        # Preserve the continuous radial field, including its subpixel phase,
+        # but only close to the boundary so deep interior pixels preserve their
+        # true signed Euclidean distance and cannot be breached by displacement.
+        subpixel = (source - 0.5) * (2.0 * max(0.55, 0.72 * size_scale))
+        signed = np.where(near_boundary, subpixel, distance_signed)
     else:
         signed = np.where(ownership, inside_distance - 0.5, 0.5 - outside_distance)
     displaced = np.clip(
@@ -1415,6 +1744,7 @@ def _render_dual_grid_pixels(
     material_fringe: np.ndarray | None = None,
     corner_radius: int = 0,
     retro_outline: bool = False,
+    inner_rounding: float = 0.5,
 ) -> np.ndarray:
     """Compose a pattern role with material-specific pixel-art edge bands."""
 
@@ -1435,6 +1765,7 @@ def _render_dual_grid_pixels(
             variation=variation,
             seed=seed,
             corner_radius=corner_radius,
+            inner_rounding=inner_rounding,
         )
         if coverage_override is None
         else np.asarray(coverage_override, dtype=np.float32)
@@ -1715,9 +2046,9 @@ def _blob_bitmap_mask(mask: int, width: int, height: int) -> np.ndarray:
 
 
 def _tile_neighbors(kind: TerrainPatternKind, mask: int) -> tuple[str, ...]:
-    if _is_wang_pattern(kind):
+    if kind == "dual_grid_15":
         return tuple(name for index, name in enumerate(_WANG_CORNERS) if mask & (1 << index))
-    if kind == "sides_16":
+    if kind in ("wang_16", "sides_16"):
         return tuple(
             name
             for index, name in enumerate(("top", "right", "bottom", "left"))
@@ -1727,9 +2058,9 @@ def _tile_neighbors(kind: TerrainPatternKind, mask: int) -> tuple[str, ...]:
 
 
 def _relevant_directions(kind: TerrainPatternKind) -> tuple[str, ...]:
-    if _is_wang_pattern(kind):
+    if kind == "dual_grid_15":
         return _WANG_CORNERS
-    if kind == "sides_16":
+    if kind in ("wang_16", "sides_16"):
         return ("top", "right", "bottom", "left")
     return _DIRECTIONS
 
@@ -1825,7 +2156,7 @@ def render_terrain_bitmask_template(
                     width=1,
                 )
                 continue
-            if _is_wang_pattern(kind):
+            if kind == "dual_grid_15":
                 half = logical_size // 2
                 quadrants = (
                     (0, 0, 1),
@@ -1862,7 +2193,7 @@ def render_terrain_bitmask_template(
                     y0 = oy + round(inner_row * step)
                     x1 = ox + round((inner_column + 1) * step) - 1
                     y1 = oy + round((inner_row + 1) * step) - 1
-                    if kind == "sides_16" and "_" in direction:
+                    if kind in ("sides_16", "wang_16") and "_" in direction:
                         draw.rectangle((x0, y0, x1, y1), fill=ignored)
                         continue
                     if direction in neighbors:
@@ -2200,7 +2531,7 @@ def build_fragment_terrain_pattern(
             )
         elif ready:
             neighbors = set(_tile_neighbors(kind, mask))
-            if _is_wang_pattern(kind):
+            if kind == "dual_grid_15":
                 corner_neighbors = neighbors
                 neighbors = {
                     direction
@@ -2276,8 +2607,15 @@ def _tilesetter_source_image(
     )
     if source is None:
         return None
+    try:
+        bounds = _fragment_bounds(source, atlas.size)
+    except (ValueError, IndexError):
+        return None
+    cropped = atlas.convert("RGBA").crop(bounds)
+    if cropped.getextrema()[3][1] == 0:
+        return None
     return _fit_source(
-        atlas.convert("RGBA").crop(_fragment_bounds(source, atlas.size)),
+        cropped,
         size,
     )
 
@@ -3058,7 +3396,10 @@ def _blob_procedural_material(
     mat_key = material.lower() if material.lower() in default_colors else "grass"
     if base_color is not None:
         if isinstance(base_color, str):
-            color = _hex_to_rgb(base_color)
+            try:
+                color = _hex_to_rgb(base_color)
+            except ValueError:
+                color = default_colors[mat_key]
         else:
             color = (int(base_color[0]), int(base_color[1]), int(base_color[2]))
     else:
@@ -3138,6 +3479,73 @@ def _blob_procedural_material(
     return Image.fromarray(pixels, mode="RGBA")
 
 
+generate_procedural_material = _blob_procedural_material
+
+
+def apply_procedural_surface_noise(
+    image: Image.Image,
+    noise_style: str = "none",
+    intensity: float = 0.0,
+    *,
+    seed: int = 0,
+) -> Image.Image:
+    """Apply authentic pixel-art surface noise and micro-texture to a tile or atlas.
+
+    noise_style:
+      - 'none': no noise modification
+      - 'dither' or 'grain': subtle pseudo-random pixel-art stippling/dither
+      - 'simplex' or 'smooth': low-frequency organic continuous undulating relief
+      - 'gravel' or 'pebbles': high-contrast pebble and grit flecks
+    intensity:
+      - float from 0.0 (off) to 1.0 (maximum)
+    seed:
+      - integer randomization seed
+    """
+    if not noise_style or noise_style == "none" or intensity <= 0.001:
+        return image
+
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.float32)
+    h, w = rgba.shape[:2]
+    alpha = rgba[..., 3]
+    valid_mask = alpha > 10
+
+    if not np.any(valid_mask):
+        return image
+
+    xs = np.arange(w, dtype=np.int32)
+    ys = np.arange(h, dtype=np.int32)[:, None]
+
+    if noise_style in {"dither", "grain"}:
+        bayer4 = np.array([
+            [ 0,  8,  2, 10],
+            [12,  4, 14,  6],
+            [ 3, 11,  1,  9],
+            [15,  7, 13,  5],
+        ], dtype=np.float32) / 15.0 - 0.5
+        bayer = bayer4[ys % 4, xs % 4]
+        jitter = (((xs * 17 + ys * 31 + (seed % 1000) * 13) % 11 - 5).astype(np.float32) / 5.0) * 0.25
+        grid = (bayer * 0.75 + jitter * 0.25) * (intensity * 0.65)
+    elif noise_style in {"simplex", "perlin", "smooth"}:
+        f1 = np.sin((xs + (seed % 1000) * 7) * 0.25) * np.cos((ys + (seed % 1000) * 11) * 0.25)
+        f2 = np.sin((xs * 0.5 + (seed % 1000) * 13)) * np.cos((ys * 0.5 + (seed % 1000) * 17)) * 0.5
+        grid = (f1 + f2) * (intensity * 0.45)
+    elif noise_style in {"gravel", "pebbles"}:
+        speckle_hash = ((xs * 7919 + ys * 65537 + ((seed % 1000) + 1) * 104729) % 1000).astype(np.float32) / 1000.0
+        grid = np.zeros((h, w), dtype=np.float32)
+        grid[speckle_hash < 0.08] = -intensity * 0.55
+        grid[(speckle_hash >= 0.08) & (speckle_hash < 0.16)] = intensity * 0.50
+    else:
+        return image
+
+    rgb = rgba[..., :3]
+    modulated_rgb = np.clip(np.round(rgb * (1.0 + grid[..., None])), 0, 255)
+    rgba[valid_mask, :3] = modulated_rgb[valid_mask]
+
+    result_arr = np.clip(rgba, 0, 255).astype(np.uint8)
+    return Image.fromarray(result_arr, mode="RGBA")
+
+
+
 def _render_blob_synthesis_tile(
     base: Image.Image,
     outside: Image.Image,
@@ -3155,6 +3563,7 @@ def _render_blob_synthesis_tile(
     shadow_tint: str = "cool",
     shadow_intensity: float = 0.70,
     rim_light: bool = False,
+    inner_rounding: float = 0.5,
 ) -> Image.Image:
     """Deterministically synthesize a Blob 47 tile from 1 or 2 material samples.
 
@@ -3185,6 +3594,14 @@ def _render_blob_synthesis_tile(
 
     # 2. Organic / micro-texture displacement
     if variation > 0 and profile not in {"clean", "rounded_clean", "rounded_chamfer"}:
+        cov = _organic_blob_coverage(
+            cov,
+            profile=profile,
+            variation=variation,
+            seed=seed,
+            mask=mask,
+            inner_rounding=inner_rounding,
+        )
         if profile == "rounded_grass_tufts":
             field = _dual_grid_texture_field(width, height, profile="rounded_grass_tufts", seed=seed)
             tufts = (field > 0.40).astype(np.float32) * 0.16
@@ -3194,8 +3611,6 @@ def _render_blob_synthesis_tile(
             bayer = np.where((xx % 2 == 0) == (yy % 2 == 0), 0.10, -0.10).astype(np.float32)
             near_boundary = (cov > 0.3) & (cov < 0.7)
             cov = np.where(near_boundary, np.clip(cov + bayer, 0.0, 1.0), cov)
-        else:
-            cov = _organic_blob_coverage(cov, profile=profile, variation=variation, seed=seed, mask=mask)
 
     ownership = cov >= 0.5
 
@@ -3397,6 +3812,14 @@ def build_tilesetter_terrain_pattern(
     )
     raw_corner_radius = set_config.get("cornerRadius", set_config.get("corner_radius", 0))
     corner_radius = max(0, min(min(size) // 2, _object_int(raw_corner_radius, 0)))
+    raw_inner_rounding = set_config.get(
+        "innerCornerRounding",
+        set_config.get("inner_corner_rounding", 0.5),
+    )
+    try:
+        inner_corner_rounding = max(0.0, min(1.0, float(raw_inner_rounding)))
+    except (TypeError, ValueError):
+        inner_corner_rounding = 0.5
     retro_outline = bool(set_config.get("retroOutline", set_config.get("retro_outline", False)))
     base = _tilesetter_source_image(
         atlas,
@@ -3410,6 +3833,53 @@ def build_tilesetter_terrain_pattern(
         str(set_config.get("secondarySource") or "") or None,
         size,
     )
+    authored_base_id = str(set_config.get("baseSource") or "") or None
+    authored_secondary_id = str(set_config.get("secondarySource") or "") or None
+    is_procedural_mode = set_config.get("blobMaterialMode") == "procedural"
+    is_procedural = is_procedural_mode or (
+        not authored_base_id
+        and not authored_secondary_id
+        and (bool(set_config.get("primaryColor") or set_config.get("insideColor")) or not sources)
+    )
+    procedural_blob = (kind in {"blob_47", "sides_16"}) and is_procedural
+    procedural_outside: Image.Image | None = None
+
+    inside_material = (
+        set_config.get("insideMaterial")
+        or set_config.get("primaryMaterial")
+        or ("dirt" if terrain_profile_name == "dirt_over_water" else "grass")
+    )
+    outside_material = (
+        set_config.get("outsideMaterial")
+        or set_config.get("secondaryMaterial")
+        or ("dirt" if terrain_profile_name == "grass_over_dirt" else "water")
+    )
+    inside_color = set_config.get("primaryColor") or set_config.get("insideColor")
+    outside_color = set_config.get("secondaryColor") or set_config.get("outsideColor")
+
+    if base is None and (is_procedural or (not authored_base_id and bool(inside_color))):
+        base = _blob_procedural_material(
+            size,
+            str(inside_material),
+            base_color=inside_color,
+            seed=0,
+        )
+
+    if secondary is None and (
+        is_procedural
+        or (not authored_secondary_id and (kind in {"dual_grid_15", "wang_16"} and bool(outside_color)))
+    ):
+        fallback_outside = outside_color or ("#2563EB" if "water" in str(terrain_profile_name) else "#6B4423")
+        secondary = _blob_procedural_material(
+            size,
+            str(outside_material),
+            base_color=fallback_outside,
+            seed=1,
+        )
+        procedural_outside = secondary
+    elif secondary is not None and procedural_outside is None:
+        procedural_outside = secondary
+
     raw_edges = set_config.get("edges", {})
     edges = raw_edges if isinstance(raw_edges, Mapping) else {}
     raw_transforms = set_config.get("edgeTransforms", {})
@@ -3417,8 +3887,6 @@ def build_tilesetter_terrain_pattern(
     edge_images: dict[str, Image.Image | None] = {
         direction: None for direction in ("top", "right", "bottom", "left")
     }
-    procedural_blob = kind == "blob_47" and set_config.get("blobMaterialMode") == "procedural"
-    procedural_outside: Image.Image | None = None
     auto_orient_edges = bool(set_config.get("autoOrientEdges", False))
     if kind != "dual_grid_15":
         for direction in ("top", "right", "bottom", "left"):
@@ -3452,39 +3920,19 @@ def build_tilesetter_terrain_pattern(
                 flip_x=bool(transform_map.get("flipX", False)),
                 flip_y=bool(transform_map.get("flipY", False)),
             )
-    if procedural_blob:
-        inside_material = (
-            set_config.get("insideMaterial")
-            or set_config.get("primaryMaterial")
-            or ("dirt" if terrain_profile_name == "dirt_over_water" else "grass")
-        )
-        outside_material = (
-            set_config.get("outsideMaterial")
-            or set_config.get("secondaryMaterial")
-            or ("dirt" if terrain_profile_name == "grass_over_dirt" else "water")
-        )
-        inside_color = set_config.get("primaryColor") or set_config.get("insideColor")
-        outside_color = set_config.get("secondaryColor") or set_config.get("outsideColor")
-        base = _blob_procedural_material(
-            size,
-            str(inside_material),
-            base_color=inside_color,
-            seed=0,
-        )
-        procedural_outside = _blob_procedural_material(
-            size,
-            str(outside_material),
-            base_color=outside_color,
-            seed=1,
-        )
-        for direction in edge_images:
-            border = Image.new("RGBA", size)
-            depth = max(1, size[1] // 4)
-            border.paste(procedural_outside.crop((0, 0, size[0], depth)), (0, 0))
-            edge_images[direction] = _transform_layer(
-                border, size, quarter_turns=("top", "right", "bottom", "left").index(direction),
-                flip_x=False, flip_y=False,
-            )
+        if procedural_blob and procedural_outside is not None:
+            for direction in edge_images:
+                if edge_images[direction] is None:
+                    border = Image.new("RGBA", size)
+                    depth = max(1, size[1] // 4)
+                    border.paste(procedural_outside.crop((0, 0, size[0], depth)), (0, 0))
+                    edge_images[direction] = _transform_layer(
+                        border,
+                        size,
+                        quarter_turns=("top", "right", "bottom", "left").index(direction),
+                        flip_x=False,
+                        flip_y=False,
+                    )
     raw_corners = set_config.get("corners", {})
     corners = raw_corners if isinstance(raw_corners, Mapping) else {}
     raw_corner_transforms = set_config.get("cornerTransforms", {})
@@ -3549,23 +3997,44 @@ def build_tilesetter_terrain_pattern(
     rim_light = bool(set_config.get("rimLight", set_config.get("rim_light", False)))
     all_edges_ready = all(edge_images[direction] is not None for direction in edge_images)
     has_authored_edges = any(bool(edges.get(direction)) for direction in ("top", "right", "bottom", "left"))
+    has_secondary_target = (
+        secondary is not None
+        or bool(set_config.get("secondarySource"))
+        or bool(set_config.get("secondaryColor"))
+        or bool(set_config.get("outsideColor"))
+    )
     is_blob_synthesis = (
         kind == "blob_47"
-        and not procedural_blob
         and (
             raw_blob_mode == "synthesis"
             or set_config.get("blobMaterialMode") in ("synthesis", "two_tile")
             or (
-                raw_blob_mode != "manual_edges"
+                has_secondary_target
+                and not all_edges_ready
+                and raw_blob_mode != "manual_edges"
+                and base is not None
+            )
+            or (
+                not procedural_blob
+                and raw_blob_mode != "manual_edges"
                 and not all_edges_ready
                 and base is not None
                 and (secondary is not None or not has_authored_edges)
             )
         )
     )
+    is_procedural_wang = (
+        kind == "wang_16"
+        and secondary is not None
+        and (is_procedural or not has_authored_edges or raw_blob_mode == "synthesis")
+    )
     required_bases = base is not None and (not _is_wang_pattern(kind) or secondary is not None)
     # Dual Grid depends only on its two terrain Sources. Blob synthesis depends on base.
-    ready = (base is not None) if is_blob_synthesis else (required_bases and (kind == "dual_grid_15" or all_edges_ready))
+    ready = (
+        (base is not None)
+        if is_blob_synthesis
+        else (required_bases and (kind == "dual_grid_15" or is_procedural_wang or all_edges_ready))
+    )
     default_cutoff = 0 if _is_wang_pattern(kind) else max(1, min(size) // 8)
     raw_cutoff = _object_int(set_config.get("cutoff"), default_cutoff)
     cutoff = (
@@ -3622,9 +4091,10 @@ def build_tilesetter_terrain_pattern(
                 shadow_tint=shadow_tint,
                 shadow_intensity=shadow_intensity,
                 rim_light=rim_light,
+                inner_rounding=inner_corner_rounding,
             )
         elif _is_wang_pattern(kind) and secondary is not None:
-            if kind == "dual_grid_15":
+            if kind == "dual_grid_15" or is_procedural_wang:
                 tile = Image.fromarray(
                     _render_dual_grid_pixels(
                         np.asarray(base, dtype=np.uint8),
@@ -3636,6 +4106,7 @@ def build_tilesetter_terrain_pattern(
                         seed=terrain_edge_seed,
                         corner_radius=corner_radius,
                         retro_outline=retro_outline,
+                        inner_rounding=inner_corner_rounding,
                     ),
                     mode="RGBA",
                 )
@@ -3650,13 +4121,14 @@ def build_tilesetter_terrain_pattern(
                 )
                 if retro_outline and override is None:
                     tile = _apply_retro_outline(tile, _wang_bitmap_mask(mask, size[0], size[1]))
-            transitions = _wang_transitions(mask)
-            for direction, present in transitions.items():
-                if not present:
-                    continue
-                if kind != "dual_grid_15" and edge_images[direction] is None:
-                    _draw_missing_border(tile, direction)
-            if kind == "wang_16" and terrain_profile_name != "clean":
+            if not is_procedural_wang:
+                transitions = _wang_transitions(mask)
+                for direction, present in transitions.items():
+                    if not present:
+                        continue
+                    if kind != "dual_grid_15" and edge_images[direction] is None:
+                        _draw_missing_border(tile, direction)
+            if kind == "wang_16" and not is_procedural_wang and terrain_profile_name != "clean":
                 available = tuple(
                     direction
                     for direction, present in transitions.items()
@@ -3818,6 +4290,7 @@ def build_tilesetter_terrain_pattern(
                     seed=terrain_edge_seed,
                     exposed_directions=exposed_directions,
                     mask=mask,
+                    inner_rounding=inner_corner_rounding,
                 )
                 authored_band = (
                     _authored_edge_profile_coverage(
@@ -3828,9 +4301,10 @@ def build_tilesetter_terrain_pattern(
                     if authored_edge_ownership is not None
                     else None
                 )
-                has_outer_corner = any(
-                    first not in neighbors and second not in neighbors
-                    for _diagonal, first, second in (
+                has_corner = any(
+                    (first not in neighbors and second not in neighbors)
+                    or (first in neighbors and second in neighbors and diagonal not in neighbors)
+                    for diagonal, first, second in (
                         ("top_left", "top", "left"),
                         ("top_right", "top", "right"),
                         ("bottom_right", "bottom", "right"),
@@ -3839,7 +4313,7 @@ def build_tilesetter_terrain_pattern(
                 )
                 if (
                     not procedural_blob and min(size) > 32
-                    and authored_band is not None and not has_outer_corner
+                    and authored_band is not None and not has_corner
                 ):
                     authored_window = (
                         np.abs(authored_band - 0.5) * max(2, min(size))
@@ -3885,7 +4359,7 @@ def build_tilesetter_terrain_pattern(
                 )
                 outside_sample = (
                     procedural_outside if procedural_outside is not None
-                    else _fill_transparent_edge_source(outside_source, base)
+                    else (secondary if secondary is not None else _fill_transparent_edge_source(outside_source, base))
                 )
                 base_pixels = np.asarray(base, dtype=np.uint8)
                 outside_pixels = np.asarray(outside_sample, dtype=np.uint8)
@@ -3963,6 +4437,7 @@ def build_tilesetter_terrain_pattern(
                         coverage_override=organic_coverage,
                         profile_mask=None if procedural_blob else organic_influence,
                         material_fringe=base_pixels if procedural_blob else None,
+                        inner_rounding=inner_corner_rounding,
                     ),
                     mode="RGBA",
                 )
@@ -3985,6 +4460,7 @@ def build_tilesetter_terrain_pattern(
                         variation=terrain_edge_variation,
                         seed=terrain_edge_seed,
                         base_output=np.asarray(tile, dtype=np.uint8),
+                        inner_rounding=inner_corner_rounding,
                     ),
                     mode="RGBA",
                 )
@@ -3996,6 +4472,8 @@ def build_tilesetter_terrain_pattern(
                 )
                 and not all_edges_ready
                 and override is None
+                and secondary is None
+                and procedural_outside is None
             ):
                 r_val = (
                     corner_radius
@@ -4040,6 +4518,19 @@ def build_tilesetter_terrain_pattern(
         )
     if kind == "dual_grid_15" and secondary is not None:
         _place_dual_grid_background(output, secondary, size)
+    raw_noise_style = str(set_config.get("noiseStyle") or set_config.get("noise_style") or "none")
+    raw_noise_intensity = set_config.get("noiseIntensity", set_config.get("noise_intensity", 0.0))
+    try:
+        noise_intensity = max(0.0, min(1.0, float(raw_noise_intensity)))
+    except (TypeError, ValueError):
+        noise_intensity = 0.0
+    if raw_noise_style != "none" and noise_intensity > 0.001:
+        output = apply_procedural_surface_noise(
+            output,
+            noise_style=raw_noise_style,
+            intensity=noise_intensity,
+            seed=terrain_edge_seed,
+        )
     final_result = TerrainPatternResult(
         kind=kind,
         mode=_terrain_mode(kind),
@@ -4065,6 +4556,9 @@ def build_tilesetter_terrain_pattern(
         shadow_intensity=shadow_intensity,
         rim_light=rim_light,
         corner_style=corner_style,
+        noise_style=raw_noise_style,
+        noise_intensity=noise_intensity,
+        inner_corner_rounding=inner_corner_rounding,
     )
     from .animation import TerrainAnimationConfig, build_animated_terrain_frames
 
@@ -4844,13 +5338,13 @@ def _unity_neighbor_rules(kind: TerrainPatternKind, mask: int) -> dict[str, str]
                 rules[corner] = "This" if corner in neighbors else "NotThis"
             else:
                 rules[corner] = "DontCare"
-    elif kind in ("wang_16", "dual_grid_15"):
+    elif kind == "dual_grid_15":
         corner_names = ("top_left", "top_right", "bottom_right", "bottom_left")
         for corner in corner_names:
             rules[corner] = "This" if corner in neighbors else "NotThis"
         for card in ("top", "right", "bottom", "left"):
             rules[card] = "DontCare"
-    else:  # sides_16
+    else:  # wang_16, sides_16
         for card in ("top", "right", "bottom", "left"):
             rules[card] = "This" if card in neighbors else "NotThis"
         for corner in ("top_left", "top_right", "bottom_right", "bottom_left"):
@@ -5097,11 +5591,12 @@ def render_tiled_wangset_tsx(
             tile_anim_lines.append('  </animation>\n </tile>')
         anim_tiles_xml = "\n" + "\n".join(tile_anim_lines)
 
+    wangset_type = "corner" if result.kind == "dual_grid_15" else ("edge" if result.kind in ("wang_16", "sides_16") else "mixed")
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.10.2" name="{terrain_name}" tilewidth="{result.tile_width}" tileheight="{result.tile_height}" tilecount="{tile_count}" columns="{result.columns}">
  <image source="{image_source}" width="{image_w}" height="{image_h}"/>{anim_tiles_xml}
  <wangsets>
-  <wangset name="{terrain_name}" type="mixed" tile="-1">
+  <wangset name="{terrain_name}" type="{wangset_type}" tile="-1">
    <wangcolor name="{terrain_name}" color="#44aa66" tile="-1" probability="1"/>
 {wang_tiles_xml}
   </wangset>

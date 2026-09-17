@@ -142,12 +142,12 @@ def test_terrain_patterns_use_official_godot_bitmap_layouts() -> None:
     assert blob[3][0] == 0
     assert blob[2][9] == 255
     assert wang == (
-        (8, 6, 13, 12),
-        (5, 14, 15, 11),
-        (2, 3, 7, 9),
-        (0, 4, 10, 1),
+        (4, 6, 14, 12),
+        (5, 7, 15, 13),
+        (1, 3, 11, 9),
+        (0, 2, 10, 8),
     )
-    assert sides[3] == (0, 2, 10, 8)
+    assert sides == wang
 
 
 def test_blob_set_view_uses_tilesetter_visual_layout_without_changing_export() -> None:
@@ -244,7 +244,7 @@ def test_wang_pattern_composes_bitmap_sources_and_corner_roles() -> None:
     result = generate_terrain_pattern(inside, outside, kind="wang_16")
 
     assert result.image.size == (16, 16)
-    assert result.mode == "match_corners"
+    assert result.mode == "match_sides"
     assert len(result.tiles) == 16
     empty_role = result.tiles[0]
     full_role = result.tiles[-1]
@@ -252,13 +252,13 @@ def test_wang_pattern_composes_bitmap_sources_and_corner_roles() -> None:
         (empty_role.column * 4, empty_role.row * 4)
     ) == (30, 50, 120, 255)
     assert result.image.getpixel(
-        (full_role.column * 4 + 3, full_role.row * 4 + 3)
+        (full_role.column * 4 + 2, full_role.row * 4 + 2)
     ) == (20, 180, 70, 255)
     assert result.tiles[-1].neighbors == (
-        "top_left",
-        "top_right",
-        "bottom_right",
-        "bottom_left",
+        "top",
+        "right",
+        "bottom",
+        "left",
     )
 
 

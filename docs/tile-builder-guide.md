@@ -4,14 +4,25 @@ Esta guía documenta paso a paso el funcionamiento y las mejores prácticas de *
 
 ---
 
+## Flujo de Trabajo en 4 Pestañas
+
+Tileset Builder organiza la creación de autotiles en 4 etapas limpias y especializadas:
+1. **Atlas**: Carga o cosecha imágenes de referencia, define la grilla base (ej. 16×16 o 32×32 px) y recorta celdas.
+2. **Pattern Studio**: Diseña composiciones de cuadrícula y asignación de celdas para Blob 47, Dual Grid 15 o Wang 16.
+3. **Estudio de Acabado y Materiales**: Afina la estética con capas de ruido procedural (`dither`, `simplex`, `gravel`), distorsión de contornos y rugosidad, iluminación con sombras dinámicas (Sur, Sur-Este, Omnidireccional), cresta de luz (Rim), mini-sandbox conectado en vivo y exportación directa (Omnibundle ZIP, Godot 4, Unity, Tiled).
+4. **Map Tester**: Pinta en mapas interactivos de gran escala y valida en tiempo real la continuidad de los terrenos.
+
+---
+
 ## Índice de Contenidos
 
 1. [Módulo 1 · Inicio Rápido (1-Click Wizard & Cosecha Automática)](#módulo-1--inicio-rápido-1-click-wizard--cosecha-automática)
 2. [Módulo 2 · Generador Procedural Orgánico con Colores Base](#módulo-2--generador-procedural-orgánico-con-colores-base)
-3. [Módulo 3 · Flujo Manual por Selección (Estilo Tilesetter)](#módulo-3--flujo-manual-por-selección-estilo-tilesetter)
-4. [Módulo 4 · Autotiles Animados](#módulo-4--autotiles-animados)
-5. [Módulo 5 · Map Tester y Exportación Agnóstica de Bundles](#módulo-5--map-tester-y-exportación-agnóstica-de-bundles)
-6. [Resumen del Formato y Archivos del Bundle](#resumen-del-formato-y-archivos-del-bundle)
+3. [Módulo 3 · Estudio de Acabado, Materiales y Exportación](#módulo-3--estudio-de-acabado-materiales-y-exportación)
+4. [Módulo 4 · Flujo Manual por Selección (Estilo Tilesetter)](#módulo-4--flujo-manual-por-selección-estilo-tilesetter)
+5. [Módulo 5 · Autotiles Animados](#módulo-5--autotiles-animados)
+6. [Módulo 6 · Map Tester y Exportación Agnóstica de Bundles](#módulo-6--map-tester-y-exportación-agnóstica-de-bundles)
+7. [Resumen del Formato y Archivos del Bundle](#resumen-del-formato-y-archivos-del-bundle)
 
 ---
 
@@ -66,9 +77,58 @@ Para evitar que los tiles se vean planos o monótonos, el motor ofrece controles
 2. **Cresta de Luz Superior (`Rim Light`)**:
    - Resalta el borde superior de los acantilados o masas de césped con un pixel de brillo derivado de la paleta, dando sensación de relieve y luz solar incidente.
 
+### Generación Simultánea de la Tríada (Blob 47 + Dual Grid 15 + Wang 16)
+
+Tileset Builder permite generar la **tríada completa de autotiling** en un solo paso:
+1. En el **Asistente** o en **Pattern Studio**, define tu paleta cromática (Terreno Base y Terreno Secundario) y elige una **Receta Visual** (ej. *Zelda Topdown*, *Retro 16-bit*, *Clean Pixel*).
+2. Marca los formatos deseados (`[x] Blob 47`, `[x] Dual Grid 15`, `[x] Wang 16`).
+3. Pulsa **"⚡ Generar Tríada Completa"**:
+   - El motor sintetiza las 3 familias de autotiles compartiendo exactamente la misma paleta y estilizado de bordes.
+   - Cada set se ubica de forma no superpuesta en el eje vertical (`originY`).
+   - Puedes pintar inmediatamente con cualquiera de ellos en el **Map Tester** o descargarlos en un **📦 Omnibundle ZIP** que incluye las 3 hojas de sprites y los instaladores para Godot 4, Unity y Tiled.
+
 ---
 
-## Módulo 3 · Flujo Manual por Selección (Estilo Tilesetter)
+## Módulo 3 · Estudio de Acabado, Materiales y Exportación
+
+Una vez definidos los patrones geométricos (Blob 47, Dual Grid 15 o Wang 16), el **Estudio de Acabado y Materiales** permite refinar el tratamiento estético y exportar los assets listos para el motor de juego en una interfaz optimizada de dos columnas.
+
+### 1. Panel de Controles (Columna Izquierda)
+- **Paleta Cromática y Materiales**:
+  - Ajuste interactivo con ruedas de color y valores HEX para el terreno base y secundario.
+  - Opción de sincronizar cambios de color en toda la suite con un solo clic.
+  - Generador de texturas asistido por plantillas IA para enriquecer el suelo con detalles temáticos (flores, rocas, líquenes).
+- **Ruido Procedural y Textura de Superficie**:
+  - `Pixel Dither`: Micro-trama retro tipo 1-bit / 16-bit para romper el color plano.
+  - `Simplex / Perlin`: Ondulación orgánica continua de baja frecuencia.
+  - `Gravilla Orgánica`: Moteado y piedrillas de alto contraste.
+  - Control de intensidad (0 a 100%) y Semilla (`Seed`) con botón `🎲 Re-roll` para alternar variantes estocásticas.
+- **Distorsión de Contornos y Bordes**:
+  - Perfiles de transición: `clean`, `organic_neutral`, `grass_over_dirt`, `dirt_over_water`, etc.
+  - Rugosidad / Jitter de borde (0 a 3) y Radio de esquina en píxeles.
+  - Estilos de esquina: Curvo (`arc`) o Biselado a 45° (`chamfer`).
+  - Contorno retro de 1px para estética arcade/SNES.
+- **Iluminación y Sombras**:
+  - Sombra proyectada (0 a 8px) con dirección Sur, Sur-Este u Omnidireccional.
+  - Tintes cromáticos: Azul frío (`cool`), Cálido/Ámbar (`warm`), Místico (`mystic`) o Neutro.
+  - Cresta de luz superior (`Rim Light`).
+- **Variantes de Aleatoriedad**:
+  - 1 a 5 variantes por máscara para eliminar patrones perceptibles de repetición en el mapa.
+
+### 2. Vista Previa en Vivo & Mini-Sandbox (Columna Derecha)
+- **Hoja de Sprites Nítida**: Muestra el atlas completo renderizado pixel-perfect con resolución y conteo de variantes.
+- **Mini-Sandbox de Terreno Conectado**: Ensambla y autotilea al vuelo una escena de prueba (8×8) para evaluar cómo conectan las transiciones, el ruido y las sombras sin salir de la pestaña.
+
+### 3. Exportación a Motores (Panel Inferior)
+- **Omnibundle ZIP**: Descarga unificada con todos los sets de la suite y sus scripts de instalación organizados en carpetas.
+- **Instalador Godot 4 (.zip)**: Con script `.gd` y asignación automática de peering bits.
+- **Unity RuleTile (.zip)**: Con atlas PNG, script `CreateRuleTile.cs` y configuración RuleTile.
+- **Tiled Map (.tsx .zip)**: Con archivo TSX preconfigurado para brochas de terreno.
+- **Proyecto JSON**: Guarda y restaura el estado completo de la sesión de trabajo.
+
+---
+
+## Módulo 4 · Flujo Manual por Selección (Estilo Tilesetter)
 
 Para artistas que dibujan sus propios tiles en Aseprite, Photoshop o Pyxel Edit, Tileset Builder ofrece un flujo idéntico a herramientas especializadas como Tilesetter.
 
@@ -99,7 +159,7 @@ Para artistas que dibujan sus propios tiles en Aseprite, Photoshop o Pyxel Edit,
 
 ---
 
-## Módulo 4 · Autotiles Animados
+## Módulo 5 · Autotiles Animados
 
 Los autotiles animados añaden movimiento orgánico a superficies líquidas o con viento directamente en la textura, sin requerir shaders adicionales en el motor.
 
@@ -122,7 +182,7 @@ Los autotiles animados añaden movimiento orgánico a superficies líquidas o co
 
 ---
 
-## Módulo 5 · Map Tester y Exportación Agnóstica de Bundles
+## Módulo 6 · Map Tester y Exportación Agnóstica de Bundles
 
 La pestaña **Map Tester** permite validar el comportamiento de los autotiles en un entorno de juego real antes de exportar los archivos al proyecto final.
 

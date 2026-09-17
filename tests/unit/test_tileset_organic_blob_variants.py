@@ -420,3 +420,120 @@ def test_material_profiles_keep_all_native_topologies(profile: str) -> None:
             border = set(labels[0]) | set(labels[-1]) | set(labels[:, 0]) | set(labels[:, -1])
             for component in range(1, count):
                 assert component in border and stats[component, cv2.CC_STAT_AREA] > 2
+
+
+def test_blob_inner_corners_have_organic_curved_fillet() -> None:
+    """Validate that inner corner cutouts have organic curves rather than rigid 90° blocks."""
+    atlas, sources, config = _blob_sources(16)
+    config.update(terrainProfile="dirt_over_water", edgeVariation=2, edgeSeed=847546)
+    result = build_tilesetter_terrain_pattern(
+        atlas, tile_size=(16, 16), sources=sources, set_config=config, kind="blob_47",
+    )
+    pixels = _tile_pixels(result, 127, 0)
+    owned = (pixels[..., 1] > pixels[..., 0]).astype(int)
+    quadrant = owned[:8, :8]
+    row_zeros = [int(np.count_nonzero(row == 0)) for row in quadrant]
+    assert row_zeros[0] == 4
+    assert row_zeros[4] < row_zeros[3]
+    assert row_zeros[5] == 0
+    assert len(set(row_zeros[:5])) >= 2
+    assert any(row_zeros[i] != row_zeros[i + 1] for i in range(len(row_zeros) - 1))
+
+
+def test_dual_grid_15_procedural_organic_synthesis() -> None:
+    """Validate that Dual Grid 15 procedural synthesis creates continuous corner-Wang terrain."""
+    base = Image.new("RGBA", (16, 16), (72, 146, 65, 255))
+    sec = Image.new("RGBA", (16, 16), (112, 76, 48, 255))
+    atlas = Image.new("RGBA", (32, 16))
+    atlas.paste(base, (0, 0))
+    atlas.paste(sec, (16, 0))
+    sources = [
+        {"id": "base", "rect": [0, 0, 16, 16]},
+        {"id": "sec", "rect": [16, 0, 16, 16]},
+    ]
+    config = {
+        "baseSource": "base",
+        "secondarySource": "sec",
+        "terrainProfile": "rounded_grass_tufts",
+        "edgeVariation": 2,
+        "edgeSeed": 847546,
+    }
+    result = build_tilesetter_terrain_pattern(
+        atlas, tile_size=(16, 16), sources=sources, set_config=config, kind="dual_grid_15",
+    )
+    assert result.complete
+    # Mask 15 is 100% solid base (all 4 corners are land)
+    role_15 = next(r for r in result.tiles if r.mask == 15)
+    left = role_15.column * 16
+    top = role_15.row * 16
+    pixels_15 = np.asarray(result.image.crop((left, top, left + 16, top + 16)))
+    owned_15 = (pixels_15[..., 1] > pixels_15[..., 0]).astype(int)
+    assert np.all(owned_15 == 1)
+
+    # Mask 7 is inner corner (SW is water, NW, NE, SE are land)
+    role_7 = next(r for r in result.tiles if r.mask == 7)
+    left_7 = role_7.column * 16
+    top_7 = role_7.row * 16
+    pixels_7 = np.asarray(result.image.crop((left_7, top_7, left_7 + 16, top_7 + 16)))
+    owned_7 = (pixels_7[..., 1] > pixels_7[..., 0]).astype(int)
+    assert owned_7[0, 0] == 1 and owned_7[0, 15] == 1 and owned_7[8, 8] == 1
+    assert owned_7[15, 0] == 0  # SW corner is water
+    sw_quadrant = owned_7[8:, :8]
+    row_zeros = [int(np.count_nonzero(row == 0)) for row in sw_quadrant]
+    assert row_zeros[-1] == 8  # seam midpoint
+    assert row_zeros[0] <= 5   # fillet curves inward
+    assert row_zeros[0] < row_zeros[-1]
+
+
+def test_wang_16_procedural_organic_synthesis() -> None:
+    """Validate that Wang 16 procedural synthesis creates continuous 2-edge paths/roads."""
+    base = Image.new("RGBA", (16, 16), (72, 146, 65, 255))
+    sec = Image.new("RGBA", (16, 16), (112, 76, 48, 255))
+    atlas = Image.new("RGBA", (32, 16))
+    atlas.paste(base, (0, 0))
+    atlas.paste(sec, (16, 0))
+    sources = [
+        {"id": "base", "rect": [0, 0, 16, 16]},
+        {"id": "sec", "rect": [16, 0, 16, 16]},
+    ]
+    config = {
+        "baseSource": "base",
+        "secondarySource": "sec",
+        "terrainProfile": "organic_neutral",
+        "edgeVariation": 2,
+        "edgeSeed": 847546,
+    }
+    result = build_tilesetter_terrain_pattern(
+        atlas, tile_size=(16, 16), sources=sources, set_config=config, kind="wang_16",
+    )
+    assert result.complete
+    # Mask 15 is a 4-way crossroad: center is road, all 4 border ports connect
+    pixels_15 = _tile_pixels(result, 15, 0)
+    owned_15 = (pixels_15[..., 1] > pixels_15[..., 0]).astype(int)
+    assert owned_15[8, 8] == 1
+    assert owned_15[0, 8] == 1 and owned_15[15, 8] == 1
+    assert owned_15[8, 0] == 1 and owned_15[8, 15] == 1
+    assert owned_15[0, 0] == 0 and owned_15[0, 15] == 0
+    assert owned_15[15, 0] == 0 and owned_15[15, 15] == 0
+
+
+def test_inner_corner_rounding_slider_modulates_cutout() -> None:
+    """Test that innerCornerRounding parameter modulates the concave cutout depth."""
+    atlas, sources, config = _blob_sources(16)
+    config.update(terrainProfile="dirt_over_water", edgeVariation=2, edgeSeed=42)
+
+    config["innerCornerRounding"] = 0.0
+    res_tight = build_tilesetter_terrain_pattern(
+        atlas, tile_size=(16, 16), sources=sources, set_config=config, kind="blob_47",
+    )
+    pix_tight = _tile_pixels(res_tight, 127, 0)
+    owned_tight = (pix_tight[..., 1] > pix_tight[..., 0]).astype(int)
+
+    config["innerCornerRounding"] = 1.0
+    res_deep = build_tilesetter_terrain_pattern(
+        atlas, tile_size=(16, 16), sources=sources, set_config=config, kind="blob_47",
+    )
+    pix_deep = _tile_pixels(res_deep, 127, 0)
+    owned_deep = (pix_deep[..., 1] > pix_deep[..., 0]).astype(int)
+
+    assert np.count_nonzero(owned_deep[:8, :8]) < np.count_nonzero(owned_tight[:8, :8])

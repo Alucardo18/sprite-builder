@@ -376,3 +376,58 @@ def autotile_blob47(
             output.paste(cached_tiles[mask], (x * tile_w, y * tile_h))
 
     return output
+
+
+def autotile_sides16(
+    grid: Sequence[Sequence[int | bool]],
+    pattern_image: Image.Image,
+    tile_size: tuple[int, int],
+    layout: Sequence[Sequence[int | None]] | None = None,
+) -> Image.Image:
+    """Render a visual map using Godot 3x3 minimal sides / Wang 16 edge autotiling.
+
+    Maps cardinal connections on each logical cell:
+    North (bit 0 = 1), East (bit 1 = 2), South (bit 2 = 4), West (bit 3 = 8).
+    """
+    map_h = len(grid)
+    map_w = len(grid[0]) if map_h > 0 else 0
+    if map_w == 0 or map_h == 0:
+        return Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+
+    tile_w, tile_h = tile_size
+    active_layout = layout if layout is not None else _GODOT_PATTERN_LAYOUTS["wang_16"]
+    coord_lookup = _mask_to_layout_coord(active_layout)
+
+    pattern_rgba = pattern_image.convert("RGBA")
+    cached_tiles: dict[int, Image.Image] = {}
+
+    output = Image.new("RGBA", (map_w * tile_w, map_h * tile_h), (0, 0, 0, 0))
+
+    def _is_on(x: int, y: int) -> bool:
+        if 0 <= x < map_w and 0 <= y < map_h:
+            return bool(grid[y][x])
+        return False
+
+    for y in range(map_h):
+        for x in range(map_w):
+            if not _is_on(x, y):
+                continue
+
+            n = 1 if _is_on(x, y - 1) else 0
+            e = 2 if _is_on(x + 1, y) else 0
+            s = 4 if _is_on(x, y + 1) else 0
+            w = 8 if _is_on(x - 1, y) else 0
+            mask = n | e | s | w
+
+            if mask not in cached_tiles:
+                pos = coord_lookup.get(mask)
+                if pos is None:
+                    pos = coord_lookup.get(0, (0, 3))
+                cx, cy = pos
+                tile_box = (cx * tile_w, cy * tile_h, (cx + 1) * tile_w, (cy + 1) * tile_h)
+                cached_tiles[mask] = pattern_rgba.crop(tile_box)
+
+            output.paste(cached_tiles[mask], (x * tile_w, y * tile_h))
+
+    return output
+

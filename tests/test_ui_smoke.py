@@ -59,6 +59,7 @@ def test_tileset_builder_is_available_without_a_sprite_session(
     assert [tab.label for tab in test_app.tabs] == [
         "Atlas",
         "Pattern Studio",
+        "Estudio de Acabado y Materiales",
         "Map Tester",
     ]
     assert any(
@@ -79,7 +80,7 @@ def test_tileset_builder_is_a_page_not_a_sprite_workflow_tab() -> None:
     assert 'textContent.trim() === "Deploy"' in header_source
     assert "deployButton.parentElement.insertBefore(navigation, deployButton)" in header_source
     assert "with tileset_tab:" not in source
-    assert 'st.tabs(("Atlas", "Pattern Studio", "Map Tester"))' in source
+    assert 'st.tabs(\n        ("Atlas", "Pattern Studio", "Estudio de Acabado y Materiales", "Map Tester")\n    )' in source
     assert "Tile Size" in (
         Path(app.__file__).parent / "tileset_editor_component" / "index.html"
     ).read_text(encoding="utf-8")
@@ -218,6 +219,12 @@ def test_tileset_presets_up_to_128px_and_dual_source_assignment() -> None:
     assert not test_app.exception
 
     prefix = "tileset_builder:patterns"
+    # Ensure a starter set exists so Finishing & Export studio is active
+    create_biome_btn = next((b for b in test_app.button if "Crear Bioma de Prueba" in b.label), None)
+    if create_biome_btn is not None:
+        create_biome_btn.click().run(timeout=30)
+        assert not test_app.exception
+
     # Assign secondary tile via procedural generation
     test_app.session_state[f"{prefix}:ai_role_select"] = "Secundario (Suelo/Fondo)"
     test_app.run(timeout=30)
@@ -228,7 +235,7 @@ def test_tileset_presets_up_to_128px_and_dual_source_assignment() -> None:
     assert not test_app.exception
 
     project = test_app.session_state[f"{prefix}:set_view_project"]
-    assert len(project["sets"]) == 1
+    assert len(project["sets"]) >= 1
     sec_source = project["sets"][0]["secondarySource"]
     assert sec_source is not None
 
@@ -246,3 +253,150 @@ def test_tileset_presets_up_to_128px_and_dual_source_assignment() -> None:
     assert set_obj["baseSource"] is not None
     assert set_obj["secondarySource"] == sec_source
     assert set_obj["baseSource"] != set_obj["secondarySource"]
+
+
+def test_tileset_builder_onboarding_wizard_creates_procedural_set() -> None:
+    test_app = AppTest.from_file(str(Path(app.__file__)))
+    test_app.query_params["page"] = "tilesets"
+    test_app.run(timeout=30)
+    assert not test_app.exception
+
+    # Find the procedural create button from the wizard
+    create_btn = next(
+        (b for b in test_app.button if "Crear y Activar Terreno Procedural" in b.label),
+        None,
+    )
+    assert create_btn is not None
+    create_btn.click().run(timeout=30)
+    assert not test_app.exception
+
+    prefix = "tileset_builder:patterns"
+    project = test_app.session_state[f"{prefix}:set_view_project"]
+    assert project["version"] == 3
+    assert len(project["sets"]) >= 1
+    created_set = project["sets"][0]
+    assert created_set["blobMaterialMode"] == "procedural"
+    assert project["activeSetId"] == created_set["id"]
+    assert created_set["primaryColor"] == "#48A832"
+    assert created_set["secondaryColor"] == "#8B5A2B"
+
+
+def test_aesthetic_preset_application_to_active_set() -> None:
+    test_app = AppTest.from_file(str(Path(app.__file__)))
+    test_app.query_params["page"] = "tilesets"
+    test_app.run(timeout=30)
+    assert not test_app.exception
+
+    # Create procedural set first
+    create_btn = next(
+        (b for b in test_app.button if "Crear y Activar Terreno Procedural" in b.label),
+        None,
+    )
+    assert create_btn is not None
+    create_btn.click().run(timeout=30)
+    assert not test_app.exception
+
+    prefix = "tileset_builder:patterns"
+    project = test_app.session_state[f"{prefix}:set_view_project"]
+    active_id = project["activeSetId"]
+
+    # Select Retro 16-bit preset and apply
+    test_app.session_state[f"{prefix}:select_aesthetic_preset:{active_id}"] = "retro_16bit"
+    test_app.run(timeout=30)
+
+    apply_btn = next((b for b in test_app.button if "Aplicar Receta" in b.label), None)
+    assert apply_btn is not None
+    apply_btn.click().run(timeout=30)
+    assert not test_app.exception
+
+    project_after = test_app.session_state[f"{prefix}:set_view_project"]
+    updated_set = project_after["sets"][0]
+    assert updated_set["aestheticPreset"] == "retro_16bit"
+    assert updated_set["retroOutline"] is True
+    assert updated_set["cornerStyle"] == "chamfer"
+    assert updated_set["cornerRadius"] == 3
+    assert updated_set["terrainProfile"] == "rounded_chamfer"
+    assert updated_set["dropShadow"] == 3
+
+
+def test_tileset_color_picker_and_hex_manual_sync() -> None:
+    test_app = AppTest.from_file(str(Path(app.__file__)))
+    test_app.query_params["page"] = "tilesets"
+    test_app.run(timeout=30)
+    assert not test_app.exception
+
+    primary_picker = next(
+        (cp for cp in test_app.color_picker if "Base" in cp.label),
+        None,
+    )
+    assert primary_picker is not None
+    assert primary_picker.value == "#48A832"
+
+    primary_hex = next(
+        (ti for ti in test_app.text_input if "Base" in ti.label),
+        None,
+    )
+    assert primary_hex is not None
+    assert primary_hex.value == "#48A832"
+
+    # Input custom HEX value manually without '#'
+    primary_hex.input("1A2B3C").run(timeout=30)
+    assert not test_app.exception
+
+    assert test_app.session_state["tileset_wizard:primary:picker"] == "#1A2B3C"
+    assert test_app.session_state["tileset_wizard:primary:hex"] == "#1A2B3C"
+
+    # Create procedural set with the customized color
+    create_btn = next(
+        (b for b in test_app.button if "Crear y Activar Terreno Procedural" in b.label),
+        None,
+    )
+    assert create_btn is not None
+    create_btn.click().run(timeout=30)
+    assert not test_app.exception
+
+    prefix = "tileset_builder:patterns"
+    project = test_app.session_state[f"{prefix}:set_view_project"]
+    created_set = project["sets"][0]
+    assert created_set["primaryColor"] == "#1A2B3C"
+
+
+def test_tileset_dual_grid_wizard_creation_and_map_tester_smoke() -> None:
+    test_app = AppTest.from_file(str(Path(app.__file__)))
+    test_app.query_params["page"] = "tilesets"
+    test_app.run(timeout=30)
+    assert not test_app.exception
+
+    cb_blob = next((cb for cb in test_app.checkbox if "Blob" in cb.label), None)
+    cb_wang = next((cb for cb in test_app.checkbox if "Wang" in cb.label), None)
+    if cb_blob is not None:
+        cb_blob.uncheck()
+    if cb_wang is not None:
+        cb_wang.uncheck()
+    test_app.run(timeout=30)
+    assert not test_app.exception
+
+    create_btn = next(
+        (b for b in test_app.button if "Crear y Activar Terreno Procedural" in b.label),
+        None,
+    )
+    assert create_btn is not None
+    create_btn.click().run(timeout=30)
+    assert not test_app.exception
+
+    prefix = "tileset_builder:patterns"
+    project = test_app.session_state[f"{prefix}:set_view_project"]
+    created_set = project["sets"][0]
+    assert created_set["kind"] == "dual_grid_15"
+    assert created_set["blobMaterialMode"] == "procedural"
+
+    # Verify starter atlas and sources were automatically created and assigned
+    assert len(project["sources"]) == 2
+    assert len(project["tiles"]) == 2
+    assert created_set["baseSource"] == project["sources"][0]["id"]
+    assert created_set["secondarySource"] == project["sources"][1]["id"]
+    assert "tileset_builder:image" in test_app.session_state
+    assert test_app.session_state["tileset_builder:image"] is not None
+
+
+

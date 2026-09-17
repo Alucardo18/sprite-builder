@@ -1,0 +1,1274 @@
+{
+  "cache_key": "477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a",
+  "config": {
+    "adjustments": [
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 0.003999999999990678,
+        "anchors": [
+          {
+            "confidence": 1.0,
+            "name": "torso",
+            "position": [
+              109.0,
+              272.0
+            ],
+            "role": "stabilize",
+            "source": "body_core",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 1.0,
+            "name": "pelvis_root",
+            "position": [
+              109.0,
+              297.2
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.9,
+            "name": "shoulder_center",
+            "position": [
+              109.0,
+              245.0
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.8,
+            "name": "head_base",
+            "position": [
+              109.0,
+              227.0
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9945945945945946,
+            "name": "ground_support",
+            "position": [
+              111.0,
+              315.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          8,
+          -23
+        ],
+        "auto_anchor": [
+          109.0,
+          315.0
+        ],
+        "auto_confidence": 0.9978378378378379,
+        "body_bbox": [
+          60,
+          164,
+          170,
+          316
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 0,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 4.242640687119285,
+        "anchors": [
+          {
+            "confidence": 0.8972435435986134,
+            "name": "torso",
+            "position": [
+              103.0,
+              273.0
+            ],
+            "role": "stabilize",
+            "source": "torso_hybrid",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 0.9986574034609155,
+            "name": "pelvis_root",
+            "position": [
+              100.0,
+              294.36
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.898791663114824,
+            "name": "shoulder_center",
+            "position": [
+              100.0,
+              243.9
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.7989259227687324,
+            "name": "head_base",
+            "position": [
+              100.0,
+              226.5
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9964837941257259,
+            "name": "ground_support",
+            "position": [
+              101.0,
+              315.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          17,
+          -23
+        ],
+        "auto_anchor": [
+          100.0,
+          315.0
+        ],
+        "auto_confidence": 0.9724344947612641,
+        "body_bbox": [
+          52,
+          169,
+          151,
+          316
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 1,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 3.605551275463989,
+        "anchors": [
+          {
+            "confidence": 0.9221099749388996,
+            "name": "torso",
+            "position": [
+              95.0,
+              274.0
+            ],
+            "role": "stabilize",
+            "source": "torso_hybrid",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 0.9961203770848441,
+            "name": "pelvis_root",
+            "position": [
+              92.0,
+              296.192
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.8965083393763598,
+            "name": "shoulder_center",
+            "position": [
+              92.0,
+              246.07999999999998
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.7968963016678754,
+            "name": "head_base",
+            "position": [
+              92.0,
+              228.8
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.995234628449296,
+            "name": "ground_support",
+            "position": [
+              91.0,
+              315.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          25,
+          -23
+        ],
+        "auto_anchor": [
+          92.0,
+          315.0
+        ],
+        "auto_confidence": 0.9772634770941386,
+        "body_bbox": [
+          32,
+          169,
+          151,
+          316
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 2,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 10.770329614269007,
+        "anchors": [
+          {
+            "confidence": 0.8361476757326625,
+            "name": "torso",
+            "position": [
+              87.0,
+              272.0
+            ],
+            "role": "stabilize",
+            "source": "torso_hybrid",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 0.9799115807634247,
+            "name": "pelvis_root",
+            "position": [
+              77.0,
+              293.2
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.8819204226870823,
+            "name": "shoulder_center",
+            "position": [
+              77.0,
+              241.0
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.7839292646107398,
+            "name": "head_base",
+            "position": [
+              77.0,
+              223.0
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9735667540352684,
+            "name": "ground_support",
+            "position": [
+              83.0,
+              315.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          40,
+          -23
+        ],
+        "auto_anchor": [
+          77.0,
+          315.0
+        ],
+        "auto_confidence": 0.9414326738144716,
+        "body_bbox": [
+          18,
+          163,
+          136,
+          316
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 3,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 1.0,
+        "anchors": [
+          {
+            "confidence": 0.90073012488174,
+            "name": "torso",
+            "position": [
+              74.0,
+              274.0
+            ],
+            "role": "stabilize",
+            "source": "torso_hybrid",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 0.9909221902017291,
+            "name": "pelvis_root",
+            "position": [
+              74.0,
+              297.192
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.8918299711815563,
+            "name": "shoulder_center",
+            "position": [
+              74.0,
+              247.07999999999998
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.7927377521613833,
+            "name": "head_base",
+            "position": [
+              74.0,
+              229.8
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9923045019082484,
+            "name": "ground_support",
+            "position": [
+              75.0,
+              315.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          43,
+          -23
+        ],
+        "auto_anchor": [
+          74.0,
+          315.0
+        ],
+        "auto_confidence": 0.9689270985543394,
+        "body_bbox": [
+          24,
+          169,
+          135,
+          316
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 4,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 5.164000000000016,
+        "anchors": [
+          {
+            "confidence": 0.9045375971351052,
+            "name": "torso",
+            "position": [
+              68.0,
+              272.0
+            ],
+            "role": "stabilize",
+            "source": "torso_hybrid",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 0.9956274082760932,
+            "name": "pelvis_root",
+            "position": [
+              67.0,
+              292.032
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.8960646674484839,
+            "name": "shoulder_center",
+            "position": [
+              67.0,
+              240.18
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.7965019266208746,
+            "name": "head_base",
+            "position": [
+              67.0,
+              222.3
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9975950745518514,
+            "name": "ground_support",
+            "position": [
+              67.0,
+              315.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          50,
+          -23
+        ],
+        "auto_anchor": [
+          67.0,
+          315.0
+        ],
+        "auto_confidence": 0.9736420220011494,
+        "body_bbox": [
+          17,
+          164,
+          118,
+          316
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 5,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 19.697715603592208,
+        "anchors": [
+          {
+            "confidence": 0.674171153134601,
+            "name": "torso",
+            "position": [
+              132.0,
+              168.0
+            ],
+            "role": "stabilize",
+            "source": "torso_hybrid",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 1.0,
+            "name": "pelvis_root",
+            "position": [
+              114.0,
+              200.696
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.9,
+            "name": "shoulder_center",
+            "position": [
+              114.0,
+              149.54
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.8,
+            "name": "head_base",
+            "position": [
+              114.0,
+              131.9
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9813953488372094,
+            "name": "ground_support",
+            "position": [
+              106.0,
+              216.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          3,
+          76
+        ],
+        "auto_anchor": [
+          114.0,
+          216.0
+        ],
+        "auto_confidence": 0.8588864383868892,
+        "body_bbox": [
+          38,
+          62,
+          170,
+          217
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 6,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": true,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 16.15549442140351,
+        "anchors": [
+          {
+            "confidence": 0.7481033942245638,
+            "name": "torso",
+            "position": [
+              132.0,
+              169.0
+            ],
+            "role": "stabilize",
+            "source": "torso_hybrid",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 0.9958954935456443,
+            "name": "pelvis_root",
+            "position": [
+              117.0,
+              199.696
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.8963059441910799,
+            "name": "shoulder_center",
+            "position": [
+              117.0,
+              148.54
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.7967163948365155,
+            "name": "head_base",
+            "position": [
+              117.0,
+              130.9
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9715520452596281,
+            "name": "ground_support",
+            "position": [
+              106.0,
+              216.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          0,
+          76
+        ],
+        "auto_anchor": [
+          117.0,
+          216.0
+        ],
+        "auto_confidence": 0.9242100894009677,
+        "body_bbox": [
+          38,
+          62,
+          170,
+          218
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 7,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 12.041594578792296,
+        "anchors": [
+          {
+            "confidence": 0.7601017495204262,
+            "name": "torso",
+            "position": [
+              124.0,
+              173.0
+            ],
+            "role": "stabilize",
+            "source": "torso_hybrid",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 0.9889661096361081,
+            "name": "pelvis_root",
+            "position": [
+              112.0,
+              196.528
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.8900694986724973,
+            "name": "shoulder_center",
+            "position": [
+              112.0,
+              145.72
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.7911728877088865,
+            "name": "head_base",
+            "position": [
+              112.0,
+              128.2
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9689313602998594,
+            "name": "ground_support",
+            "position": [
+              102.0,
+              216.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          5,
+          76
+        ],
+        "auto_anchor": [
+          112.0,
+          216.0
+        ],
+        "auto_confidence": 0.9237361198726881,
+        "body_bbox": [
+          35,
+          65,
+          165,
+          217
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 8,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 3.5,
+        "anchors": [
+          {
+            "confidence": 0.8836079191978335,
+            "name": "torso",
+            "position": [
+              92.0,
+              177.0
+            ],
+            "role": "stabilize",
+            "source": "body_core_fallback",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 0.9817865768864817,
+            "name": "pelvis_root",
+            "position": [
+              92.0,
+              201.696
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.8836079191978335,
+            "name": "shoulder_center",
+            "position": [
+              92.0,
+              150.54
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.7854292615091855,
+            "name": "head_base",
+            "position": [
+              92.0,
+              132.9
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9761895138392891,
+            "name": "ground_support",
+            "position": [
+              86.0,
+              216.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          25,
+          76
+        ],
+        "auto_anchor": [
+          92.0,
+          216.0
+        ],
+        "auto_confidence": 0.9550030872454426,
+        "body_bbox": [
+          18,
+          62,
+          155,
+          217
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 9,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 6.082762530298219,
+        "anchors": [
+          {
+            "confidence": 0.7149309669858739,
+            "name": "torso",
+            "position": [
+              102.0,
+              175.0
+            ],
+            "role": "stabilize",
+            "source": "torso_hybrid",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 0.9958507368586965,
+            "name": "pelvis_root",
+            "position": [
+              96.0,
+              200.024
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.8962656631728269,
+            "name": "shoulder_center",
+            "position": [
+              96.0,
+              150.26
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.7966805894869573,
+            "name": "head_base",
+            "position": [
+              96.0,
+              133.1
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9736215197301145,
+            "name": "ground_support",
+            "position": [
+              86.0,
+              216.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          21,
+          76
+        ],
+        "auto_anchor": [
+          96.0,
+          216.0
+        ],
+        "auto_confidence": 0.916729107539058,
+        "body_bbox": [
+          20,
+          67,
+          155,
+          218
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 10,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      },
+      {
+        "alignment_profile": "walk",
+        "anchor_disagreement_px": 10.816653826391969,
+        "anchors": [
+          {
+            "confidence": 0.7738328935121058,
+            "name": "torso",
+            "position": [
+              91.0,
+              170.0
+            ],
+            "role": "stabilize",
+            "source": "torso_hybrid",
+            "weight_x": 0.4,
+            "weight_y": 0.1
+          },
+          {
+            "confidence": 0.9961736484905219,
+            "name": "pelvis_root",
+            "position": [
+              82.0,
+              200.696
+            ],
+            "role": "stabilize",
+            "source": "body_core_geometry",
+            "weight_x": 0.5,
+            "weight_y": 0.2
+          },
+          {
+            "confidence": 0.8965562836414698,
+            "name": "shoulder_center",
+            "position": [
+              82.0,
+              149.54
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.7969389187924176,
+            "name": "head_base",
+            "position": [
+              82.0,
+              131.9
+            ],
+            "role": "validate",
+            "source": "body_core_geometry",
+            "weight_x": 0.0,
+            "weight_y": 0.0
+          },
+          {
+            "confidence": 0.9828955066697872,
+            "name": "ground_support",
+            "position": [
+              76.0,
+              216.0
+            ],
+            "role": "stabilize",
+            "source": "feet_support",
+            "weight_x": 0.1,
+            "weight_y": 0.7
+          }
+        ],
+        "applied_translation": [
+          35,
+          76
+        ],
+        "auto_anchor": [
+          82.0,
+          216.0
+        ],
+        "auto_confidence": 0.935277203017624,
+        "body_bbox": [
+          9,
+          62,
+          140,
+          217
+        ],
+        "cropped_pixel_count": 0,
+        "final_anchor": [
+          117,
+          292
+        ],
+        "frame_index": 11,
+        "locked": false,
+        "manual_offset_x": 0,
+        "manual_offset_y": 0,
+        "manual_review": false,
+        "normalized_body_height_px": 0.0,
+        "notes": "",
+        "scale_factor": 1.0,
+        "scale_manual_review": false,
+        "scale_reference_height_px": 0.0,
+        "scale_reference_width_px": 0.0
+      }
+    ]
+  },
+  "created_at": "2026-09-16T17:16:25.268930+00:00",
+  "inputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/source/838a20be491dd445a01f39882be4ba0a07034a177bf9c85f03e6aa550fcfc39a.png",
+      "role": "source",
+      "sha256": "838a20be491dd445a01f39882be4ba0a07034a177bf9c85f03e6aa550fcfc39a",
+      "size_bytes": 455669
+    }
+  ],
+  "metadata": {},
+  "metrics": {},
+  "outputs": [
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_000.png",
+      "role": "output",
+      "sha256": "5c450f030265539e280ffc2f5c5864aa4a122294bd63c49c33c994be7e428d1f",
+      "size_bytes": 32042
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_001.png",
+      "role": "output",
+      "sha256": "535374aa32a48ecb2a3a3a9bc516e08f14295af8316e33489522a162fe28bf91",
+      "size_bytes": 31147
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_002.png",
+      "role": "output",
+      "sha256": "c189ce912881892f0474ef1f4d6c350f1bac206cf8e0b55f8bbe1560351ef955",
+      "size_bytes": 34079
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_003.png",
+      "role": "output",
+      "sha256": "7d28da618f707ef28c54755cc6098ddfe62d2f73b6fb8dfa37fe624479cda644",
+      "size_bytes": 38653
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_004.png",
+      "role": "output",
+      "sha256": "338601ef0fb6b590cda0660ca99eadec582363b4ee2fd8239cd3b2a309c13dcd",
+      "size_bytes": 34175
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_005.png",
+      "role": "output",
+      "sha256": "e6458304aebdebbc9cc76450261a7dca2f911b06cb1fa1140e7921b7bbfa5564",
+      "size_bytes": 31586
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_006.png",
+      "role": "output",
+      "sha256": "902efda1dee0468ad448050861738942f7c8463c3624fb1948abf1c643acf020",
+      "size_bytes": 31850
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_007.png",
+      "role": "output",
+      "sha256": "9baa7f723219802f9b1039d96eb6172ee31693b4d9e6fc2d40cd1c1942dd7554",
+      "size_bytes": 32666
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_008.png",
+      "role": "output",
+      "sha256": "fcb225735f0a761b004babc88ea2e414f5bfd6631c49eea58297b2075effdb87",
+      "size_bytes": 33893
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_009.png",
+      "role": "output",
+      "sha256": "ffe7ee2d5ee78220011e8ceb689b3536f4ecea4706468cfabcb3029be8bfa604",
+      "size_bytes": 36393
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_010.png",
+      "role": "output",
+      "sha256": "957f083f3ac2c139fffd64ba9ffa2f9df7cb2168adafcef959607c88fbbd667e",
+      "size_bytes": 32949
+    },
+    {
+      "media_type": "image/png",
+      "path": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/alignment/477c1b39efb5ef360273b93c217e5a14486bae43982dcd8e00f4a25fb1fd909a/frame_011.png",
+      "role": "output",
+      "sha256": "536de2ad791f5c9a9f6b7ba8c18f919bf4083177f37b3d5403c1ad5d47b73c16",
+      "size_bytes": 32420
+    }
+  ],
+  "schema_version": "1.0",
+  "session_id": "sheet-20260916T163000-838a20be-94a2",
+  "stage": "alignment",
+  "status": "passed",
+  "warnings": []
+}
