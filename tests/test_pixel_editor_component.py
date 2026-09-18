@@ -488,7 +488,10 @@ def test_component_receives_every_manual_guide_prop() -> None:
 def test_center_canvas_uses_a_stable_component_key() -> None:
     source = _ui_app_source()
 
-    assert 'if st.button(\n                "Guardar alineación",' in source
+    assert (
+        'if st.button(\n                "Guardar alineación",' in source
+        or 'if st.button(\n                    "Guardar alineación",' in source
+    )
     assert 'key=f"{prefix}:center_pixel_editor"' in source
     assert 'key=f"{prefix}:center_pixel_editor:{selected}"' not in source
     assert "frame_token=(" in source
@@ -536,7 +539,9 @@ def test_sheet_cut_commit_immediately_reruns_with_confirmed_state() -> None:
     source = _ui_app_source()
 
     handler = source[source.index("changed = _handle_segmentation_cut_event(") :]
-    handler = handler[: handler.index("else:\n            with st.container", 1)]
+    delims = ("else:\n                with st.container", "else:\n            with st.container")
+    delim = next(d for d in delims if d in handler)
+    handler = handler[: handler.index(delim, 1)]
     assert 'event.get("type") == "cut"' in handler
     assert 'event.get("action") == "end"' in handler
     assert "st.rerun()" in handler
@@ -678,8 +683,8 @@ def test_pose_editor_owns_non_destructive_selection_and_move_tools() -> None:
     assert "Ctrl/Cmd+V" in component_source
     assert 'aria-label="Copiar selección"' not in component_source
     assert 'aria-label="Pegar selección"' not in component_source
-    assert "toolCropLasso.hidden = !(layerMode || poseMode)" in component_source
-    assert "toolCropRect.disabled = !(layerMode || poseMode)" in component_source
+    assert "toolCropLasso.hidden = !(layerMode || poseMode || backgroundMode)" in component_source
+    assert "toolCropRect.disabled = !(layerMode || poseMode || backgroundMode)" in component_source
     assert 'state.mode === "pose-layout"' in component_source
     assert 'mode="pose-layout"' in source
     assert ':pose_layout_tool' in source
@@ -697,8 +702,26 @@ def test_pose_editor_owns_non_destructive_selection_and_move_tools() -> None:
     assert "floating_selection=floating_piece" in source
     assert 'state.mode === "background" && state.floatingSelection' in component_source
     assert 'type: "floating-transform"' in component_source
-    assert "toolMove.hidden = !(layerMode || poseMode)" in component_source
+    assert "toolMove.hidden = !(layerMode || poseMode || backgroundMode)" in component_source
     assert '"Mover selección (haz un recorte primero)"' in component_source
+
+
+def test_background_mode_exposes_full_studio_tools() -> None:
+    component_source = _component_source()
+    app_source = _ui_app_source()
+
+    assert "const studioToolsVisible = layerMode || backgroundMode;" in component_source
+    assert "toolPencil.hidden = !studioToolsVisible;" in component_source
+    assert "toolFill.hidden = !studioToolsVisible;" in component_source
+    assert "toolReplaceColor.hidden = !studioToolsVisible;" in component_source
+    assert "toolSelectLasso.hidden = !studioToolsVisible;" in component_source
+    assert "toolSelectRect.hidden = !studioToolsVisible;" in component_source
+    assert "toolSelectEllipse.hidden = !studioToolsVisible;" in component_source
+    assert "pixelActionsGroup.hidden = !studioToolsVisible;" in component_source
+    assert "rotateControl.hidden = centerMode || cutMode;" in component_source
+    assert '"1. Fondo & Estudio"' in app_source
+    assert '"Fondo & Estudio de píxeles"' in app_source
+    assert "paint_color=tuple(" in app_source
 
 
 def test_magic_wand_opens_a_color_tolerance_card_in_the_canvas_toolbar() -> None:
@@ -1023,3 +1046,12 @@ def test_pixel_editor_component_wrapper_accepts_float_zoom() -> None:
 
     sig = inspect.signature(pixel_editor)
     assert sig.parameters["zoom"].default == 12.0
+
+
+def test_center_mode_allows_dragging_frame_and_normalizes_tool() -> None:
+    source = _component_source()
+
+    assert 'tool === "drag"' in source
+    assert 'return "move";' in source
+    assert 'frameIndexAtPoint(point) === state.activeFrame' in source
+    assert '(state.mode === "segmentation-center" || state.tool === "move")' in source

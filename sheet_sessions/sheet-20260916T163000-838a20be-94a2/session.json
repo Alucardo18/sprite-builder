@@ -40,7 +40,7 @@
     "unmix_tint_threshold": 18.0
   },
   "created_at": "2026-09-16T16:30:00.831674+00:00",
-  "current_stage": "segmentation",
+  "current_stage": "background",
   "export_crop_config": {
     "alpha_threshold": 8,
     "enabled": false,
@@ -68,11 +68,11 @@
     "width": 1024
   },
   "layer_document": {
-    "cache_key": "1282fc2371a66e4f79bb5143f925596a2a19ce2bf32e08ec4bf8622cf5475879",
+    "cache_key": "c9d21b46a897d4d3c627f080b6210d19241656faa3c513b9e7bcb809eea7a5ba",
     "document_id": "sprite-83e2675a3a52",
-    "manifest": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/layers/1282fc2371a66e4f79bb5143f925596a2a19ce2bf32e08ec4bf8622cf5475879/manifest.json",
-    "manifest_sha256": "9d726c21f4f87ba65c6c81abbf7a73263d5827671dd2bd9e62b71986e5b3dbd8",
-    "revision": 4
+    "manifest": "sheet_sessions/sheet-20260916T163000-838a20be-94a2/attempts/layers/c9d21b46a897d4d3c627f080b6210d19241656faa3c513b9e7bcb809eea7a5ba/manifest.json",
+    "manifest_sha256": "99b112a70d779063f2436d2daf3dc7e2d5a0e5c511cbccc85a368478be1bff7e",
+    "revision": 6
   },
   "output_dir": "sheet_sessions/sheet-20260916T163000-838a20be-94a2",
   "schema_version": "1.0",
@@ -136,5 +136,5 @@
       "status": "passed"
     }
   },
-  "updated_at": "2026-09-16T17:52:03.844314+00:00"
+  "updated_at": "2026-09-18T00:02:13.586317+00:00"
 }

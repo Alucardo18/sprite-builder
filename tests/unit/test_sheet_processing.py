@@ -1169,6 +1169,123 @@ def test_manual_background_copy_and_rotate_operations_replay_pixel_exact() -> No
     assert set(np.asarray(freely_rotated.getchannel("A")).ravel().tolist()) <= {0, 255}
 
 
+def test_background_manual_studio_edits_apply_cleanly() -> None:
+    frame = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    # Draw a 4x4 red square in the center
+    for y in range(4, 8):
+        for x in range(4, 8):
+            frame.putpixel((x, y), (255, 0, 0, 255))
+    # Add an isolated pixel at (1, 1)
+    frame.putpixel((1, 1), (255, 0, 0, 255))
+
+    # 1. Paint brush at (0, 0)
+    painted = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "paint_brush",
+                    "point": [0, 0],
+                    "color": [0, 255, 0, 255],
+                    "radius": 1,
+                }
+            ]
+        },
+    )[0]
+    assert painted.getpixel((0, 0)) == (0, 255, 0, 255)
+
+    # 2. Fill at (4, 4) with blue
+    filled = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "fill",
+                    "point": [4, 4],
+                    "color": [0, 0, 255, 255],
+                    "tolerance": 0,
+                    "contiguous": True,
+                }
+            ]
+        },
+    )[0]
+    assert filled.getpixel((4, 4)) == (0, 0, 255, 255)
+    assert filled.getpixel((7, 7)) == (0, 0, 255, 255)
+    # The isolated pixel should remain red
+    assert filled.getpixel((1, 1)) == (255, 0, 0, 255)
+
+    # 3. Replace color red -> yellow
+    replaced = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "replace_color",
+                    "point": [4, 4],
+                    "color": [255, 255, 0, 255],
+                    "tolerance": 0,
+                }
+            ]
+        },
+    )[0]
+    assert replaced.getpixel((4, 4)) == (255, 255, 0, 255)
+    assert replaced.getpixel((1, 1)) == (255, 255, 0, 255)
+
+    # 4. Outline
+    outlined = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "outline",
+                    "color": [255, 255, 255, 255],
+                    "radius": 1,
+                }
+            ]
+        },
+    )[0]
+    # Adjacent to (4, 4) should be white outline
+    assert outlined.getpixel((3, 4)) == (255, 255, 255, 255)
+
+    # 5. Cleanup isolated pixels
+    cleaned = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "cleanup_isolated",
+                    "minimum_neighbors": 2,
+                }
+            ]
+        },
+    )[0]
+    # The isolated pixel at (1, 1) has 0 neighbors -> cleared
+    assert cleaned.getpixel((1, 1))[3] == 0
+    # The 4x4 square should remain intact
+    assert cleaned.getpixel((5, 5)) == (255, 0, 0, 255)
+
+    # 6. Transform pixels (flip-horizontal)
+    mask = np.zeros((16, 16), dtype=bool)
+    mask[4:8, 4:8] = True
+    # Make the red square non-symmetric by adding a pixel at (4, 4) with green
+    asym_frame = frame.copy()
+    asym_frame.putpixel((4, 4), (0, 255, 0, 255))
+    flipped = apply_manual_background_edits(
+        (asym_frame,),
+        {
+            0: [
+                {
+                    "kind": "transform_pixels",
+                    "action": "flip-horizontal",
+                    **encode_mask(mask),
+                }
+            ]
+        },
+    )[0]
+    # Flipped horizontally within the 4x4 region (cols 4..7): col 4 maps to col 7
+    assert flipped.getpixel((7, 4)) == (0, 255, 0, 255)
+
+
 def test_center_drag_adds_delta_to_the_existing_manual_offset() -> None:
     from streamlit import session_state as ss
 

@@ -37,11 +37,9 @@ def test_streamlit_app_opens_with_all_workflow_tabs(
     assert not test_app.exception
     assert test_app.title[0].value == "sprite-builder"
     assert [tab.label for tab in test_app.tabs] == [
-        "1. Fondo",
-        "2. Preparar poses",
-        "3. Alineación & anchors",
-        "4. Cortes finales",
-        "5. Export",
+        "1. Fondo & Estudio",
+        "2. Preparar & Alinear",
+        "3. Exportación",
     ]
 
 
@@ -99,31 +97,58 @@ def test_studio_keeps_the_canvas_dominant_and_separates_publication() -> None:
     assert 'f"{prefix}:layers:{document.document_id}:{document.revision}:"' not in source
 
 
-def test_final_cuts_own_geometry_and_export_only_packages_layout() -> None:
+def test_final_cuts_and_export_unified_step() -> None:
     source = Path(app.__file__).read_text(encoding="utf-8")
-    cuts_source, export_source = source.split("    with export_tab:", maxsplit=1)
-    cuts_source = cuts_source.rsplit("    with cuts_tab:", maxsplit=1)[1]
+    final_source = source.split("    with final_tab:", maxsplit=1)[1]
 
     assert "_alignment_export_readiness(" in source
-    assert '"Orientación / layout final"' in cuts_source
-    assert '"Columnas"' in cuts_source
-    assert '"Recorte inteligente"' in cuts_source
-    assert '"Padding crop"' in cuts_source
-    assert '"Umbral alpha"' in cuts_source
-    assert '"Orientación / layout final"' not in export_source
-    assert '"Recorte inteligente"' not in export_source
-    assert '"Padding crop"' not in export_source
-    assert '"Umbral alpha"' not in export_source
-    assert '"Exportar con advertencias"' not in export_source
-    assert "allow_manual_review=True" in export_source
-    assert "Layout alineado guardado" in export_source
-    assert '"Exportación aún no disponible:' in export_source
+    assert '"Orientación / layout final"' in final_source
+    assert '"Columnas"' in final_source
+    assert '"Recorte inteligente"' in final_source
+    assert '"Padding crop"' in final_source
+    assert '"Umbral alpha"' in final_source
+    assert '"Exportar con advertencias"' not in source
+    assert "allow_manual_review=True" in final_source
     assert '"Anchor revisado y aprobado"' in source
-    assert "if manifest:" in source
-    assert "export_sheet_png=not include_frames" in source
-    assert '"Exportar PNG por frame"' in source
-    assert '"Exportar sprite-sheet PNG"' in source
-    assert 'f"Descargar {len(frame_paths)} frames PNG (.zip)"' in source
+    assert "if manifest:" in final_source
+    assert "export_sheet_png=not include_frames" in final_source
+    assert '"Exportar PNG por frame"' in final_source
+    assert '"Exportar sprite-sheet PNG"' in final_source
+    assert 'f"Descargar {len(frame_paths)} frames PNG (.zip)"' in final_source
+    assert "_generate_preview_gif(" in source
+    assert '"#### Vista previa animada (GIF en bucle)"' in final_source
+    assert '"FPS de animación y GIF"' in final_source
+
+
+def test_generate_preview_gif_creates_valid_animated_gif() -> None:
+    frame1 = Image.new("RGBA", (16, 16), (255, 0, 0, 255))
+    frame2 = Image.new("RGBA", (16, 16), (0, 255, 0, 255))
+    gif_data = app._generate_preview_gif([frame1, frame2], fps=10.0, scale=4)
+    assert gif_data is not None
+    assert len(gif_data) > 0
+    img = Image.open(io.BytesIO(gif_data))
+    assert img.format == "GIF"
+    assert img.is_animated
+    assert img.n_frames == 2
+    assert img.size == (64, 64)
+
+
+def test_pixel_gif_html_renders_crisp_pixel_stage_with_representative_size() -> None:
+    from sprite_builder.ui.components import pixel_gif_html
+
+    frame1 = Image.new("RGBA", (16, 16), (255, 0, 0, 255))
+    frame2 = Image.new("RGBA", (16, 16), (0, 255, 0, 255))
+    gif_data = app._generate_preview_gif([frame1, frame2], fps=10.0, scale=4)
+    assert gif_data is not None
+
+    for fn in (pixel_gif_html, app._pixel_gif_html):
+        html_out = fn(gif_data, caption="Bucle 64px", size=64)
+        assert 'class="pixel-figure"' in html_out
+        assert 'class="pixel-stage"' in html_out
+        assert 'class="pixel-image"' in html_out
+        assert 'style="width: 64px;' in html_out
+        assert "data:image/gif;base64," in html_out
+        assert "<figcaption>Bucle 64px</figcaption>" in html_out
 
 
 def test_studio_component_events_select_and_reorder_the_layer_matrix() -> None:

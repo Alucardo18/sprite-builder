@@ -78,6 +78,27 @@ def pixel_image_html(
     """
 
 
+def pixel_gif_html(
+    gif_bytes: bytes,
+    *,
+    caption: str = "",
+    size: int = 64,
+) -> str:
+    b64 = base64.b64encode(gif_bytes).decode("ascii")
+    uri = f"data:image/gif;base64,{b64}"
+    label = html.escape(caption)
+    caption_html = f"<figcaption>{label}</figcaption>" if label else ""
+    return f"""
+    <figure class="pixel-figure">
+      <div class="pixel-stage" style="min-height: auto; padding: 16px;">
+        <img class="pixel-image" src="{uri}" alt="{label}"
+             style="width: {size}px; height: auto; max-width: 100%;" />
+      </div>
+      {caption_html}
+    </figure>
+    """
+
+
 def status_badge(label: str, tone: str = "pending") -> str:
     return f'<span class="status-badge {html.escape(tone)}">{html.escape(label)}</span>'
 

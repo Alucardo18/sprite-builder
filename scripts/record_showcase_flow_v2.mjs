@@ -111,8 +111,8 @@ async function recordSpritePoses(browser) {
   await smoothMoveTo(page, 650, 600, 20);
   await sleep(1000);
 
-  // Tab 2. Preparar poses
-  const tab2 = page.getByRole('tab', { name: /2\. Preparar poses/i });
+  // Tab 2. Preparar & Alinear
+  const tab2 = page.getByRole('tab', { name: /2\. Preparar/i });
   await smoothMoveToLocator(page, tab2, 25);
   await tab2.click();
   await sleep(1000);

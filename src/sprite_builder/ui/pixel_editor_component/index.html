@@ -2151,7 +2151,13 @@
       }
 
       function normalizeTool(tool) {
-        return tool === "brush" ? "eraser" : tool;
+        if (tool === "brush") {
+          return "eraser";
+        }
+        if (tool === "drag") {
+          return "move";
+        }
+        return tool;
       }
 
       function normalizeMode(mode) {
@@ -2243,16 +2249,18 @@
         const poseMode = state.mode === "pose-layout";
         const cutMode = state.mode === "segmentation-cut";
         const layerMode = state.mode === "layer-edit";
-        const backgroundFloating = state.mode === "background" && !!state.floatingSelection;
+        const backgroundMode = state.mode === "background";
+        const backgroundFloating = backgroundMode && !!state.floatingSelection;
+        const studioToolsVisible = layerMode || backgroundMode;
         if (!centerMode) {
           hideFrameContextMenu();
         }
         document.body.dataset.mode = state.mode;
-        if (state.mode !== "background") {
+        if (state.mode !== "background" && state.mode !== "layer-edit") {
           setWandCardOpen(false);
           setRotateCardOpen(false);
         }
-        modePill.textContent = poseMode ? "Preparar pose" : centerMode ? "Movimiento libre" : cutMode ? "Cortes" : layerMode ? "Capas" : "Fondo";
+        modePill.textContent = poseMode ? "Preparar pose" : centerMode ? "Movimiento libre" : cutMode ? "Cortes" : layerMode ? "Capas" : "Fondo & Estudio";
         if (cutModePill) {
           setPillValue(cutModePill, cutMode ? "Cortes" : "Bloqueado");
         }
@@ -2268,26 +2276,26 @@
         toggleGuidesButton.title = state.showGuides
           ? "Ocultar guías (G)"
           : "Mostrar guías (G)";
-        toolWand.hidden = layerMode || poseMode;
-        toolPencil.hidden = !layerMode;
-        toolEyedropper.hidden = poseMode;
-        toolEraser.hidden = poseMode;
-        toolMove.hidden = !(layerMode || poseMode);
-        toolCropLasso.hidden = !(layerMode || poseMode);
-        toolCropRect.hidden = !(layerMode || poseMode);
-        toolCropEllipse.hidden = !(layerMode || poseMode);
-        rotateControl.hidden = centerMode || cutMode || layerMode;
-        toolSelectLasso.hidden = !layerMode;
-        toolSelectRect.hidden = !layerMode;
-        toolSelectEllipse.hidden = !layerMode;
-        toolFill.hidden = !layerMode;
-        toolReplaceColor.hidden = !layerMode;
-        pixelActionsGroup.hidden = !layerMode;
+        toolWand.hidden = centerMode || cutMode || poseMode || layerMode;
+        toolPencil.hidden = !studioToolsVisible;
+        toolEyedropper.hidden = poseMode || cutMode;
+        toolEraser.hidden = poseMode || cutMode;
+        toolMove.hidden = !(layerMode || poseMode || backgroundMode);
+        toolCropLasso.hidden = !(layerMode || poseMode || backgroundMode);
+        toolCropRect.hidden = !(layerMode || poseMode || backgroundMode);
+        toolCropEllipse.hidden = !(layerMode || poseMode || backgroundMode);
+        rotateControl.hidden = centerMode || cutMode;
+        toolSelectLasso.hidden = !studioToolsVisible;
+        toolSelectRect.hidden = !studioToolsVisible;
+        toolSelectEllipse.hidden = !studioToolsVisible;
+        toolFill.hidden = !studioToolsVisible;
+        toolReplaceColor.hidden = !studioToolsVisible;
+        pixelActionsGroup.hidden = !studioToolsVisible;
         toolWand.disabled = centerMode || cutMode || backgroundFloating;
-        toolPencil.disabled = !layerMode;
+        toolPencil.disabled = centerMode || cutMode || backgroundFloating;
         toolEyedropper.disabled = centerMode || cutMode || backgroundFloating;
         toolEraser.disabled = centerMode || cutMode || backgroundFloating;
-        toolMove.disabled = !(layerMode || poseMode);
+        toolMove.disabled = !(layerMode || poseMode || backgroundMode);
         toolMove.title = layerMode
           ? "Mover cel (M)"
           : backgroundFloating
@@ -2297,14 +2305,14 @@
           "aria-label",
           layerMode ? "Mover cel, atajo M" : "Mover selección, atajo M",
         );
-        toolCropLasso.disabled = !(layerMode || poseMode);
-        toolCropRect.disabled = !(layerMode || poseMode);
-        toolCropEllipse.disabled = !(layerMode || poseMode);
-        toolSelectLasso.disabled = !layerMode;
-        toolSelectRect.disabled = !layerMode;
-        toolSelectEllipse.disabled = !layerMode;
-        toolFill.disabled = !layerMode;
-        toolReplaceColor.disabled = !layerMode;
+        toolCropLasso.disabled = !(layerMode || poseMode || backgroundMode);
+        toolCropRect.disabled = !(layerMode || poseMode || backgroundMode);
+        toolCropEllipse.disabled = !(layerMode || poseMode || backgroundMode);
+        toolSelectLasso.disabled = !studioToolsVisible;
+        toolSelectRect.disabled = !studioToolsVisible;
+        toolSelectEllipse.disabled = !studioToolsVisible;
+        toolFill.disabled = !studioToolsVisible;
+        toolReplaceColor.disabled = !studioToolsVisible;
         commitGroup.hidden = centerMode || cutMode || poseMode;
         zoomOutButton.hidden = centerMode;
         zoomInButton.hidden = centerMode;
@@ -2361,7 +2369,7 @@
         }
         if (overlayNote) {
           overlayNote.innerHTML = poseMode
-            ? "<code>M</code> mueve libremente la pose · <code>L/R/O</code> delimita la pose sin cortar píxeles. El corte se materializa sólo en Cortes finales."
+            ? "<code>M</code> mueve libremente la pose · <code>L/R/O</code> delimita la pose sin cortar píxeles. El corte se materializa sólo en Cortes finales y Export."
             : centerMode
             ? "Pasa sobre una celda y haz clic para seleccionar; después arrastra el frame activo. Clic derecho abre acciones rápidas. <code>[</code>/<code>]</code> cambia de frame, <code>A</code> centra y <code>Shift+A</code> autoalinea toda la hoja."
             : cutMode
@@ -3877,6 +3885,9 @@
         if (state.mode !== "segmentation-center" || !state.allowDrag) {
           return false;
         }
+        if (frameIndexAtPoint(point) === state.activeFrame) {
+          return true;
+        }
         const overlayWidth = state.overlay?.width || state.width;
         const overlayHeight = state.overlay?.height || state.height;
         return (
@@ -4117,7 +4128,7 @@
           event.preventDefault();
           return;
         }
-        if (state.tool === "eraser" || (state.mode === "layer-edit" && state.tool === "pencil")) {
+        if (state.tool === "eraser" || ((state.mode === "layer-edit" || state.mode === "background") && state.tool === "pencil")) {
           const lineStart = event.shiftKey && state.lastStrokePoint
             ? state.lastStrokePoint
             : point;
@@ -4141,7 +4152,7 @@
       canvas.addEventListener("pointermove", (event) => {
         state.pointerVisible = true;
         const point = pointerToPixel(event);
-        if ((state.mode === "segmentation-center" || state.mode === "pose-layout") && !state.dragging && state.tool === "move") {
+        if ((state.mode === "segmentation-center" || state.mode === "pose-layout") && !state.dragging && (state.mode === "segmentation-center" || state.tool === "move")) {
           updateFrameHover(
             pointHitsOverlay(point) ? state.activeFrame : frameIndexAtPoint(point),
           );
@@ -4169,7 +4180,7 @@
           event.preventDefault();
           return;
         }
-        if ((state.mode === "segmentation-center" || state.mode === "pose-layout") && state.allowDrag && state.tool === "move" && state.dragging && (event.buttons & 1)) {
+        if ((state.mode === "segmentation-center" || state.mode === "pose-layout") && state.allowDrag && (state.mode === "segmentation-center" || state.tool === "move") && state.dragging && (event.buttons & 1)) {
           const nextX = state.dragOriginX + (point.x - state.dragStartX);
           const nextY = state.dragOriginY + (point.y - state.dragStartY);
           state.pointerPixelX = point.x;
@@ -4209,7 +4220,7 @@
           scheduleCursorUpdate();
         } else if (
           state.dragging
-          && (state.tool === "eraser" || (state.mode === "layer-edit" && state.tool === "pencil"))
+          && (state.tool === "eraser" || ((state.mode === "layer-edit" || state.mode === "background") && state.tool === "pencil"))
           && (event.buttons & 1)
         ) {
           const last = state.strokePath[state.strokePath.length - 1];
@@ -4249,7 +4260,7 @@
           event.preventDefault();
           return;
         }
-        if (state.tool === "eraser" || (state.mode === "layer-edit" && state.tool === "pencil")) {
+        if (state.tool === "eraser" || ((state.mode === "layer-edit" || state.mode === "background") && state.tool === "pencil")) {
           const last = state.strokePath[state.strokePath.length - 1];
           if (!last || last.x !== point.x || last.y !== point.y) {
             state.strokePath.push(point);
@@ -4258,7 +4269,7 @@
           emitStroke(event);
           state.lastStrokePoint = point;
           state.strokePath = [];
-        } else if ((state.mode === "segmentation-center" || state.mode === "pose-layout") && state.allowDrag && state.tool === "move" && state.dragging) {
+        } else if ((state.mode === "segmentation-center" || state.mode === "pose-layout") && state.allowDrag && (state.mode === "segmentation-center" || state.tool === "move") && state.dragging) {
           emitDrag(event, "end", point);
         } else if (
           state.tool === "move"
@@ -4392,7 +4403,7 @@
           event.preventDefault();
           return;
         }
-        if (state.mode === "layer-edit" && (event.metaKey || event.ctrlKey) && key === "a") {
+        if ((state.mode === "layer-edit" || state.mode === "background") && (event.metaKey || event.ctrlKey) && key === "a") {
           emitValue({
             eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
             type: "selection-command",
@@ -4401,7 +4412,7 @@
           event.preventDefault();
           return;
         }
-        if (state.mode === "layer-edit" && (event.metaKey || event.ctrlKey) && key === "d") {
+        if ((state.mode === "layer-edit" || state.mode === "background") && (event.metaKey || event.ctrlKey) && key === "d") {
           emitValue({
             eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
             type: "selection-command",
@@ -4439,27 +4450,27 @@
           event.preventDefault();
           return;
         }
-        if ((key === "p" || key === "b") && state.mode === "layer-edit") {
+        if ((key === "p" || key === "b") && (state.mode === "layer-edit" || state.mode === "background")) {
           setActiveTool("pencil");
           event.preventDefault();
           return;
         }
-        if (key === "m" && (state.mode === "layer-edit" || state.mode === "pose-layout")) {
+        if (key === "m" && (state.mode === "layer-edit" || state.mode === "pose-layout" || state.mode === "background")) {
           setActiveTool("move");
           event.preventDefault();
           return;
         }
-        if (key === "l" && (state.mode === "layer-edit" || state.mode === "pose-layout")) {
+        if (key === "l" && (state.mode === "layer-edit" || state.mode === "pose-layout" || state.mode === "background")) {
           setActiveTool("crop_lasso");
           event.preventDefault();
           return;
         }
-        if (key === "r" && (state.mode === "layer-edit" || state.mode === "pose-layout")) {
+        if (key === "r" && (state.mode === "layer-edit" || state.mode === "pose-layout" || state.mode === "background")) {
           setActiveTool("crop_rect");
           event.preventDefault();
           return;
         }
-        if (key === "o" && (state.mode === "layer-edit" || state.mode === "pose-layout")) {
+        if (key === "o" && (state.mode === "layer-edit" || state.mode === "pose-layout" || state.mode === "background")) {
           setActiveTool("crop_ellipse");
           event.preventDefault();
           return;

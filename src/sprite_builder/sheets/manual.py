@@ -9,6 +9,15 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
+from .layers import (
+    fill_cel_selection,
+    outline_cel_pixels,
+    paint_cel_stroke,
+    remove_isolated_pixels,
+    replace_cel_color,
+    transform_cel_selection,
+)
+
 ManualEditKind = Literal[
     "erase_similar",
     "erase_brush",
@@ -16,6 +25,12 @@ ManualEditKind = Literal[
     "move_mask",
     "copy_mask",
     "rotate_mask",
+    "paint_brush",
+    "fill",
+    "replace_color",
+    "outline",
+    "cleanup_isolated",
+    "transform_pixels",
 ]
 
 
@@ -425,6 +440,98 @@ def apply_manual_background_edits(
                         else None
                     ),
                 )
+            elif kind == "paint_brush":
+                raw_color = operation.get("color", (255, 255, 255, 255))
+                color = (
+                    tuple(int(c) for c in raw_color)
+                    if isinstance(raw_color, (list, tuple))
+                    else (255, 255, 255, 255)
+                )
+                stroke = operation.get("path")
+                points: list[tuple[int, int]] = []
+                if isinstance(stroke, (list, tuple)) and stroke:
+                    for p in stroke:
+                        if isinstance(p, (list, tuple)) and len(p) == 2:
+                            points.append((int(p[0]), int(p[1])))
+                if not points:
+                    pt = operation.get("point", (0, 0))
+                    points = [(int(pt[0]), int(pt[1]))]
+                radius = max(0, int(operation.get("radius", 1)) - 1)
+                edited = paint_cel_stroke(
+                    edited,
+                    points,
+                    color=color,  # type: ignore[arg-type]
+                    radius=radius,
+                    erase=False,
+                )
+            elif kind == "fill":
+                raw_color = operation.get("color", (255, 255, 255, 255))
+                color = (
+                    tuple(int(c) for c in raw_color)
+                    if isinstance(raw_color, (list, tuple))
+                    else (255, 255, 255, 255)
+                )
+                seed_point = tuple(map(int, operation.get("point", (0, 0))))
+                tolerance = float(operation.get("tolerance", 0))
+                mask = None
+                if "bbox" in operation or "mask" in operation:
+                    mask = decode_mask(operation, edited.size)
+                if mask is None:
+                    mask = select_similar_pixels(
+                        edited,
+                        seed_point=seed_point,
+                        tolerance=tolerance,
+                        contiguous=bool(operation.get("contiguous", True)),
+                    )
+                edited = fill_cel_selection(edited, mask, color)  # type: ignore[arg-type]
+            elif kind == "replace_color":
+                raw_color = operation.get("color", (255, 255, 255, 255))
+                target_color = (
+                    tuple(int(c) for c in raw_color)
+                    if isinstance(raw_color, (list, tuple))
+                    else (255, 255, 255, 255)
+                )
+                seed_point = tuple(map(int, operation.get("point", (0, 0))))
+                source_color = sample_pixel(edited, seed_point)
+                tolerance = float(operation.get("tolerance", 0))
+                mask = None
+                if "bbox" in operation or "mask" in operation:
+                    mask = decode_mask(operation, edited.size)
+                edited = replace_cel_color(
+                    edited,
+                    source_color,
+                    target_color,  # type: ignore[arg-type]
+                    tolerance=tolerance,
+                    mask=mask,
+                )
+            elif kind == "outline":
+                raw_color = operation.get("color", (255, 255, 255, 255))
+                color = (
+                    tuple(int(c) for c in raw_color)
+                    if isinstance(raw_color, (list, tuple))
+                    else (255, 255, 255, 255)
+                )
+                radius = max(1, int(operation.get("radius", 1)))
+                mask = None
+                if "bbox" in operation or "mask" in operation:
+                    mask = decode_mask(operation, edited.size)
+                edited = outline_cel_pixels(edited, color, radius=radius, mask=mask)  # type: ignore[arg-type]
+            elif kind == "cleanup_isolated":
+                minimum_neighbors = max(0, int(operation.get("minimum_neighbors", 2)))
+                mask = None
+                if "bbox" in operation or "mask" in operation:
+                    mask = decode_mask(operation, edited.size)
+                edited = remove_isolated_pixels(
+                    edited, minimum_neighbors=minimum_neighbors, mask=mask
+                )
+            elif kind == "transform_pixels":
+                action = str(operation.get("action", "flip-horizontal"))
+                mask = None
+                if "bbox" in operation or "mask" in operation:
+                    mask = decode_mask(operation, edited.size)
+                if mask is None or not mask.any():
+                    mask = np.ones((edited.height, edited.width), dtype=bool)
+                edited, _ = transform_cel_selection(edited, mask, action)
             else:
                 raise ValueError(f"Unsupported manual background edit: {kind}")
         output.append(edited)

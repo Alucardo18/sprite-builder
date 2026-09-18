@@ -31,8 +31,8 @@ La UI queda disponible en [http://127.0.0.1:8501/](http://127.0.0.1:8501/).
 
 ## Contrato de interacción vigente
 
-- El editor de fondo ofrece `wand`, `eyedropper` y `eraser`. El borrador usa radio, cursor
-  personalizado y replay de trazo para registrar un drag como una sola edición `erase_brush`.
+- El editor de **Fondo & Estudio** (Tab 1) ofrece la suite completa de herramientas de retoque pixel-art directamente sobre el sprite sheet: varita (`wand`), borrador (`eraser`), lápiz (`pencil`), cuentagotas (`eyedropper`), cubeta/relleno (`fill`), reemplazar color (`replace_color`), recorte (`crop_lasso`, `crop_rect`, `crop_ellipse`), selección (`select_lasso`, `select_rect`, `select_ellipse`), mover selección flotante (`move`), rotación libre y acciones de píxeles (voltear H/V, rotar 90°/180°, escalar 2×/½, contorno de 1 px y limpieza de píxeles aislados), además de paleta y selector de color.
+- La tab de **Preparar & Alinear** (Tab 2) unifica la alineación multi-anchor de poses con perfiles de movimiento y el corte y grilla de poses.
 - El cuentagotas muestra el RGBA muestreado del frame activo. Las máscaras son locales al frame y
   se normalizan cuando cambia la geometría; no basta validar solo el número de frames.
 - Mantén separadas las keys de widgets Streamlit y el estado lógico. El modo ancho amplía el
@@ -151,18 +151,14 @@ sprite-builder sheet-export --session <id> --layout horizontal
 3. Limpie y guarde la hoja completa en **Fondo**.
    Puede activar una capa de grid visual de 16, 32, 64 o 128 px; la guía no altera
    los píxeles ni aparece en el archivo exportado.
-4. En **Preparar poses**, indique el número conocido de frames y un grid aproximado.
-   Lazo/Rectángulo/Elipse delimitan una pose y Mover guarda offsets reversibles;
-   nada se corta físicamente todavía.
-5. Guarde ese mapa provisional.
-6. En **Alineación & anchors**, corrija opcionalmente anatomía o capas desde
-   **Estudio**; después elija `idle`, `walk` o `attack` y revise la traslación entera.
-7. Corrija offsets por drag o inputs; bloquear un caso revisado es opcional.
-8. Defina orientación, columnas y crop en **Cortes finales**; el preview materializa
-   exactamente los píxeles, celda y dimensiones que se exportarán.
-9. En **Export**, elija sólo el empaquetado del layout bloqueado (hoja, frames,
-   contact sheet o GIF), o use **Hoja nativa completa** para conservar la
-   fuente transparente sin crop ni resampling.
+4. En **Preparar & Alinear**, el lienzo unificado inicia con cortes automáticos calculados
+   y guías anatómicas simultáneas (cian estabiliza, ámbar valida y magenta muestra el anchor fusionado):
+   - **Modo Anchors (por defecto)**: ajuste fino de la posición de cada frame arrastrándolo directamente o mediante offsets X/Y con guías anatómicas.
+   - **Modo Cortes**: ajuste interactivo de las líneas divisorias de la grilla sobre la hoja completa.
+   - **Modo Pintar capas**: retoque de pixel-art y capas de anatomía.
+   - Debajo del lienzo, use la **Tira de frames extraídos** con deltas y el **Mini-reproductor en vivo** a FPS ajustable para verificar la estabilidad de la animación en tiempo real.
+5. Pulse **Guardar poses y alineación** para confirmar de forma atómica ambas etapas y avanzar a exportación.
+6. En **Exportación**, defina layout (horizontal, vertical o grid), columnas, recorte inteligente y opciones de empaquetado (hoja PNG, frames .zip, contact sheet o GIF en bucle).
 
 La sesión queda bajo `sheet_sessions/<session_id>/` y puede reabrirse desde la
 barra lateral. El PNG fuente, los intentos, overrides y exports conservan
@@ -254,7 +250,7 @@ No copie archivos `.import`; Godot los administra.
 - **Mal corte**: verifique cell size, offsets y spacing.
 - **Frame vacío**: revise las líneas de corte y el color chroma.
 - **Canvas insuficiente**: aumente ancho/alto para toda la secuencia.
-- **Export bloqueado**: guarde fondo, mapa provisional, alineación y cortes finales;
+- **Export bloqueado**: guarde fondo, mapa provisional y alineación;
   revise además los anchors marcados `manual_review`.
 
 ## Limitaciones actuales

@@ -136,23 +136,7 @@ export const SpriteIntroCard: React.FC = () => {
             gap: 10,
           }}
         >
-          <span>📐</span> 2. Preparar poses
-        </div>
-        <div
-          style={{
-            backgroundColor: 'rgba(15, 23, 42, 0.75)',
-            border: '1px solid rgba(255, 104, 152, 0.3)',
-            borderRadius: 12,
-            padding: '12px 20px',
-            color: '#e2e8f0',
-            fontSize: 18,
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <span>🎯</span> 3. Multi-anchor
+          <span>📐</span> 2. Preparar & Alinear
         </div>
         <div
           style={{
@@ -168,7 +152,7 @@ export const SpriteIntroCard: React.FC = () => {
             gap: 10,
           }}
         >
-          <span>📦</span> 4. Cortes y Export
+          <span>📦</span> 3. Exportación
         </div>
       </div>
     </div>

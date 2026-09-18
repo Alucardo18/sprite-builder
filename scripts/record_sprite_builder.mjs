@@ -158,13 +158,12 @@ async function recordScene3(browser) {
   await page.goto('http://localhost:8501/?page=sprites', { waitUntil: 'networkidle' });
   await sleep(2500);
 
-  // Click Tab 2. Preparar poses
-  const tab2 = page.locator('[role="tab"]:has-text("2. Preparar poses")').first();
+  // Click Tab 2. Preparar & Alinear
+  const tab2 = page.locator('[role="tab"]:has-text("2. Preparar")').first();
   if (await tab2.count() > 0) {
-    await smoothMoveToLocator(page, tab2, 30);
-    await sleep(800);
     await tab2.click();
-    console.log('Switched to Tab 2. Preparar poses');
+    await page.waitForTimeout(1000);
+    console.log('Switched to Tab 2. Preparar & Alinear');
     await sleep(2000);
   }
 
