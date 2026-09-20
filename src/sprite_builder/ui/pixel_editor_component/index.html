@@ -1910,6 +1910,7 @@
         animationDurations: [],
         playbackIndex: 0,
         playbackTimer: 0,
+        pendingAnimationAction: "",
         nudgeTimer: 0,
       };
       const frameStateByToken = new Map();
@@ -1979,9 +1980,11 @@
       function togglePlayback() {
         if (state.playbackTimer) {
           stopPlayback();
+          emitAnimationControl("release");
           return;
         }
         if (!state.animationFrames.length) {
+          requestAnimationFrames("play");
           return;
         }
         state.playbackIndex = Math.max(0, Math.min(state.animationFrames.length - 1, state.activeFrame));
@@ -2019,6 +2022,7 @@
 
       function stepPlayback(direction) {
         if (!state.animationFrames.length) {
+          requestAnimationFrames(direction < 0 ? "step-prev" : "step-next");
           return;
         }
         if (state.playbackTimer) {
@@ -2091,6 +2095,26 @@
           ? { ...value, zoom: state.zoom }
           : value;
         send(SET_COMPONENT_VALUE, { value: nextValue });
+      }
+
+      function emitAnimationControl(action, request = "") {
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "animation",
+          action,
+          ...(request ? { request } : {}),
+        });
+      }
+
+      function requestAnimationFrames(action = "play") {
+        if (state.pendingAnimationAction) {
+          return;
+        }
+        const request = ["play", "step-prev", "step-next"].includes(action)
+          ? action
+          : "play";
+        state.pendingAnimationAction = request;
+        emitAnimationControl("request", request);
       }
 
       function emitHistory(action) {
@@ -5346,6 +5370,7 @@
           const animationFrameUrls = Array.isArray(args.animationFrames)
             ? args.animationFrames.filter((value) => typeof value === "string" && value)
             : [];
+          const pendingAnimationAction = state.pendingAnimationAction;
           const sameAnimationFrames = JSON.stringify(animationFrameUrls) === JSON.stringify(state.animationFrameUrls);
           const [image, overlay, moveBase, floatingSelection, floatingHighlight, animationFrames] = await Promise.all([
             imageUrl === state.imageUrl ? state.image : loadImage(imageUrl),
@@ -5381,9 +5406,19 @@
           state.animationDurations = Array.isArray(args.animationDurations)
             ? args.animationDurations.map((value) => Math.max(16, Math.round(finiteNumber(value, 125))))
             : [];
-          timelinePlayButton.disabled = state.animationFrames.length === 0;
+          timelinePlayButton.disabled = state.frameCount <= 1 && state.animationFrames.length === 0;
           if (!state.animationFrames.length && state.playbackTimer) {
             stopPlayback();
+          }
+          if (state.animationFrames.length && pendingAnimationAction) {
+            state.pendingAnimationAction = "";
+            if (pendingAnimationAction === "play") {
+              togglePlayback();
+            } else if (pendingAnimationAction === "step-prev") {
+              stepPlayback(-1);
+            } else if (pendingAnimationAction === "step-next") {
+              stepPlayback(1);
+            }
           }
           const incomingFloatingX = Math.round(Number(args.floatingSelectionX || 0));
           const incomingFloatingY = Math.round(Number(args.floatingSelectionY || 0));

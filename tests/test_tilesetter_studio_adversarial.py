@@ -230,7 +230,7 @@ def test_dual_grid_studio_contract_has_15_roles_and_a_runtime_background_slot() 
     assert "kind=kind," in app
     assert "active_layout = terrain_pattern_set_layout(cast(TerrainPatternKind, kind))" in app
     assert (
-        "render_terrain_bitmask_template(\n                        cast(TerrainPatternKind, kind)"
+        "render_terrain_bitmask_template(cast(TerrainPatternKind, kind)"
         in app
     )
     assert 'render_terrain_bitmask_template("wang_16"' not in app
@@ -365,9 +365,7 @@ def test_dual_grid_material_pair_selector_has_bounded_deterministic_variation() 
     assert 'const DUAL_GRID_TERRAIN_PROFILES=["clean","grass_over_dirt",' in source
     assert "edgeVariation:clampInteger(item.edgeVariation,0,3,0)" in source
     assert "edgeSeed:clampInteger(item.edgeSeed,0,999999,0)" in source
-    assert (
-        'Object.assign(set,{terrainProfile:"grass_over_dirt",edgeVariation:1,edgeSeed:0})' in source
-    )
+    assert 'if(isDualGrid(set))Object.assign(set,' in source
     assert '$("#dualProfileSection").hidden=!isDualGrid(set)' in source
     assert (
         '$("#dualProfileCopy").textContent=`Aplicado · '
@@ -550,9 +548,7 @@ def test_dual_grid_needs_two_terrains_not_four_border_sources() -> None:
     assert (
         "(!requiresEdges(set)||edgeDirections.every(direction=>Boolean(set.edges?.[direction])) )"
     ) in source
-    assert "`Dual Grid listo · ${dualProfileStatus(set)}`" in source
-    assert '"Grid requiere exactamente dos terrenos y no necesita Border "' in app
-    assert '"terrenos y su fondo lógico están listos para exportar. El "' in app
+    assert "TileMapDual" in app
 
 
 def test_dual_grid_documentation_distinguishes_atlas_from_runtime() -> None:

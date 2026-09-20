@@ -1,0 +1,376 @@
+{
+  "cases": [
+    {
+      "cold": {
+        "cache_delta": {
+          "bytes": 2340,
+          "entries": 2,
+          "hits": 0,
+          "misses": 0
+        },
+        "cache_hits": 0,
+        "cache_lookup_calls": 2,
+        "cache_misses": 2,
+        "component_calls": 1,
+        "elapsed_ms": 4.023250017780811,
+        "image_uri_calls": 2,
+        "props_bytes": 3623,
+        "props_bytes_by_component": {
+          "pixel-editor": 3623
+        }
+      },
+      "name": "sheet-studio",
+      "rerun": {
+        "cache_delta": [
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          }
+        ],
+        "cache_hits": [
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "cache_lookup_calls": [
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "cache_misses": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "component_calls": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "count": 5,
+        "image_uri_calls": [
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "max_ms": 0.08183304453268647,
+        "median_ms": 0.07025001104921103,
+        "min_ms": 0.06620801286771894,
+        "props_bytes": [
+          3623,
+          3623,
+          3623,
+          3623,
+          3623
+        ],
+        "samples_ms": [
+          0.08183304453268647,
+          0.08041702676564455,
+          0.07025001104921103,
+          0.06645795656368136,
+          0.06620801286771894
+        ]
+      },
+      "soak": {
+        "component_calls": 1,
+        "end_current_bytes": 2588,
+        "growth_bytes": 2588,
+        "peak_bytes": 68588,
+        "runs": 20,
+        "start_current_bytes": 0
+      }
+    },
+    {
+      "cold": {
+        "cache_delta": {
+          "bytes": 4526,
+          "entries": 3,
+          "hits": 0,
+          "misses": 0
+        },
+        "cache_hits": 1,
+        "cache_lookup_calls": 4,
+        "cache_misses": 3,
+        "component_calls": 2,
+        "elapsed_ms": 1.294374989811331,
+        "image_uri_calls": 4,
+        "props_bytes": 17220,
+        "props_bytes_by_component": {
+          "terrain-pattern-studio": 15615,
+          "tileset-editor": 1605
+        }
+      },
+      "name": "tileset-builder",
+      "rerun": {
+        "cache_delta": [
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          }
+        ],
+        "cache_hits": [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "cache_lookup_calls": [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "cache_misses": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "component_calls": [
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "count": 5,
+        "image_uri_calls": [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "max_ms": 0.16887497622519732,
+        "median_ms": 0.16241701086983085,
+        "min_ms": 0.15941698802635074,
+        "props_bytes": [
+          17220,
+          17220,
+          17220,
+          17220,
+          17220
+        ],
+        "samples_ms": [
+          0.16887497622519732,
+          0.16241701086983085,
+          0.1617080415599048,
+          0.15941698802635074,
+          0.1656670356169343
+        ]
+      },
+      "soak": {
+        "component_calls": 2,
+        "end_current_bytes": 31148,
+        "growth_bytes": 31148,
+        "peak_bytes": 224467,
+        "runs": 20,
+        "start_current_bytes": 0
+      }
+    },
+    {
+      "cold": {
+        "cache_delta": {
+          "bytes": 5974,
+          "entries": 7,
+          "hits": 0,
+          "misses": 0
+        },
+        "cache_hits": 2,
+        "cache_lookup_calls": 9,
+        "cache_misses": 7,
+        "component_calls": 1,
+        "elapsed_ms": 1.1464999988675117,
+        "image_uri_calls": 9,
+        "props_bytes": 8392,
+        "props_bytes_by_component": {
+          "pixel-editor": 8392
+        }
+      },
+      "name": "pixel-editor",
+      "rerun": {
+        "cache_delta": [
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          }
+        ],
+        "cache_hits": [
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "cache_lookup_calls": [
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "cache_misses": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "component_calls": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "count": 5,
+        "image_uri_calls": [
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "max_ms": 0.11637498391792178,
+        "median_ms": 0.09899999713525176,
+        "min_ms": 0.09591598063707352,
+        "props_bytes": [
+          8392,
+          8392,
+          8392,
+          8392,
+          8392
+        ],
+        "samples_ms": [
+          0.1052080187946558,
+          0.09899999713525176,
+          0.11637498391792178,
+          0.09591598063707352,
+          0.09645801037549973
+        ]
+      },
+      "soak": {
+        "component_calls": 1,
+        "end_current_bytes": 6956,
+        "growth_bytes": 6956,
+        "peak_bytes": 84744,
+        "runs": 20,
+        "start_current_bytes": 0
+      }
+    }
+  ],
+  "environment": {
+    "git": {
+      "revision": "09857c6bb204c48670266e1aadc1485dddbffff9",
+      "worktree_dirty": true
+    },
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.2",
+    "streamlit": "1.61.1"
+  },
+  "schema_version": "phase0.ui-baseline.v1",
+  "scope": {
+    "browser": false,
+    "flows": [
+      "sheet-studio",
+      "tileset-builder",
+      "pixel-editor"
+    ],
+    "image_generation": false,
+    "measurement": "python component bridge",
+    "network": false,
+    "rerun_count": 5,
+    "soak_runs": 20
+  }
+}

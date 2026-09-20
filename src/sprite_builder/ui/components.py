@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import html
 import io
+import threading
+from collections import OrderedDict
 from collections.abc import Mapping, Sequence
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
@@ -34,28 +36,94 @@ _HEADER_NAV = components.declare_component(
 )
 
 
-@lru_cache(maxsize=384)
+_IMAGE_DATA_URI_CACHE_MAX_BYTES = 16 * 1024 * 1024
+
+
+class _ByteBudgetImageUriCache:
+    """Deterministic LRU for encoded image URIs with a hard byte budget.
+
+    The old ``lru_cache`` used raw pixel bytes as part of every key and kept a
+    second copy of each encoded URI as its value.  This cache keys entries by a
+    content digest instead, so raw pixels are released after encoding, and
+    accounts for the retained digest and URI when evicting.
+    """
+
+    def __init__(self, max_bytes: int) -> None:
+        self.max_bytes = max(0, int(max_bytes))
+        self._entries: OrderedDict[tuple[Any, ...], tuple[str, int]] = OrderedDict()
+        self._bytes = 0
+        self._lock = threading.RLock()
+
+    @staticmethod
+    def _entry_bytes(key: tuple[Any, ...], value: str) -> int:
+        digest = key[-1]
+        digest_bytes = len(digest) if isinstance(digest, bytes) else 0
+        # Include a small fixed allowance for the tuple/metadata retained by
+        # the entry.  The exact object overhead is interpreter-specific; this
+        # conservative deterministic weight keeps the budget bounded.
+        return len(value.encode("ascii")) + digest_bytes + 64
+
+    def get(self, key: tuple[Any, ...]) -> str | None:
+        with self._lock:
+            entry = self._entries.get(key)
+            if entry is None:
+                return None
+            self._entries.move_to_end(key)
+            return entry[0]
+
+    def put(self, key: tuple[Any, ...], value: str) -> None:
+        entry_bytes = self._entry_bytes(key, value)
+        if entry_bytes > self.max_bytes:
+            return
+        with self._lock:
+            previous = self._entries.pop(key, None)
+            if previous is not None:
+                self._bytes -= previous[1]
+            while self._entries and self._bytes + entry_bytes > self.max_bytes:
+                _, (_, removed_bytes) = self._entries.popitem(last=False)
+                self._bytes -= removed_bytes
+            self._entries[key] = (value, entry_bytes)
+            self._bytes += entry_bytes
+
+    def clear(self) -> None:
+        with self._lock:
+            self._entries.clear()
+            self._bytes = 0
+
+    def info(self) -> dict[str, int]:
+        with self._lock:
+            return {
+                "entries": len(self._entries),
+                "bytes": self._bytes,
+                "max_bytes": self.max_bytes,
+            }
+
+
+_IMAGE_DATA_URI_CACHE = _ByteBudgetImageUriCache(_IMAGE_DATA_URI_CACHE_MAX_BYTES)
+
+
 def _image_data_uri_cached(
     mode: str,
     size: tuple[int, int],
     pixels: bytes,
 ) -> str:
+    # A digest key preserves deterministic reuse without retaining the raw
+    # pixel buffer in the cache's key tuple.
+    key = (mode, size, len(pixels), hashlib.sha256(pixels).digest())
+    cached = _IMAGE_DATA_URI_CACHE.get(key)
+    if cached is not None:
+        return cached
     image = Image.frombytes(mode, size, pixels)
     buffer = io.BytesIO()
     image.save(buffer, format="PNG", optimize=False)
-    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+    uri = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+    _IMAGE_DATA_URI_CACHE.put(key, uri)
+    return uri
 
 
 def image_data_uri(image: Image.Image) -> str:
-    cached = getattr(image, "_cached_data_uri", None)
-    if isinstance(cached, str):
-        return cached
     stable = image if image.mode in {"1", "L", "LA", "RGB", "RGBA"} else image.convert("RGBA")
     uri = _image_data_uri_cached(stable.mode, stable.size, stable.tobytes())
-    try:
-        image._cached_data_uri = uri
-    except Exception:
-        pass
     return uri
 
 
@@ -253,6 +321,7 @@ def pixel_editor(
     image_uri = image_data_uri(image)
     overlay_uri = image_data_uri(overlay) if overlay is not None else None
     move_base_uri = image_data_uri(move_base) if move_base is not None else None
+    animation_payload = tuple(animation_frames or ())
     result = _PIXEL_EDITOR(
         image=image_uri,
         overlay=overlay_uri,
@@ -296,8 +365,12 @@ def pixel_editor(
         fitToken=str(fit_token),
         frameToken=str(frame_token),
         cutPositions=None if cut_positions is None else [int(value) for value in cut_positions],
-        cutPositionsX=None if cut_positions_x is None else [int(value) for value in cut_positions_x],
-        cutPositionsY=None if cut_positions_y is None else [int(value) for value in cut_positions_y],
+        cutPositionsX=(
+            None if cut_positions_x is None else [int(value) for value in cut_positions_x]
+        ),
+        cutPositionsY=(
+            None if cut_positions_y is None else [int(value) for value in cut_positions_y]
+        ),
         allowCutDrag=bool(allow_cut_drag),
         studioLayers=None if studio_layers is None else [dict(layer) for layer in studio_layers],
         activeLayerId=None if active_layer_id is None else str(active_layer_id),
@@ -327,13 +400,13 @@ def pixel_editor(
         redoLabel=str(redo_label),
         animationFrames=(
             []
-            if not animation_frames
-            else [image_data_uri(frame) for frame in animation_frames]
+            if not animation_payload
+            else [image_data_uri(frame) for frame in animation_payload]
         ),
         animationFps=max(1, min(60, int(animation_fps))),
         animationDurations=(
             []
-            if animation_durations is None
+            if not animation_payload or animation_durations is None
             else [max(16, int(value)) for value in animation_durations]
         ),
         paletteColors=[str(c) for c in palette_colors] if palette_colors else [],

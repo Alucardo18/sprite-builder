@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import inspect
+import json
 import re
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from PIL import Image
 
-from sprite_builder.ui import components
+from sprite_builder.ui import app, components
 
 COMPONENT_HTML = (
     Path(components.__file__).parent / "pixel_editor_component" / "index.html"
@@ -29,6 +31,10 @@ def _component_source() -> str:
 
 def _ui_app_source() -> str:
     return UI_APP.read_text(encoding="utf-8")
+
+
+def _json_payload_bytes(payload: dict[str, Any]) -> int:
+    return len(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8"))
 
 
 def test_tileset_editor_forwards_grid_contract(monkeypatch) -> None:
@@ -442,6 +448,101 @@ def test_pixel_editor_forwards_the_layer_frame_matrix(monkeypatch) -> None:
     assert captured["frameCount"] == 3
 
 
+def test_pixel_editor_omits_animation_payload_until_frames_are_requested(monkeypatch) -> None:
+    payloads: list[dict[str, Any]] = []
+
+    def fake_component(**kwargs: Any) -> None:
+        payloads.append(kwargs)
+        return None
+
+    monkeypatch.setattr(components, "_PIXEL_EDITOR", fake_component)
+    base = Image.new("RGBA", (16, 16), (12, 34, 56, 255))
+    components.pixel_editor(
+        base,
+        tool="pencil",
+        mode="layer-edit",
+        frame_count=4,
+        animation_durations=(125, 125, 125, 125),
+        key="animation-idle",
+    )
+    components.pixel_editor(
+        base,
+        tool="pencil",
+        mode="layer-edit",
+        frame_count=4,
+        animation_frames=(
+            base,
+            Image.new("RGBA", base.size, (90, 80, 70, 255)),
+            Image.new("RGBA", base.size, (70, 80, 90, 255)),
+            Image.new("RGBA", base.size, (30, 40, 50, 255)),
+        ),
+        animation_durations=(125, 125, 125, 125),
+        key="animation-requested",
+    )
+
+    idle, requested = payloads
+    assert idle["animationFrames"] == []
+    assert idle["animationDurations"] == []
+    assert len(requested["animationFrames"]) == 4
+    assert len(requested["animationDurations"]) == 4
+    assert _json_payload_bytes(requested) - _json_payload_bytes(idle) > 100
+
+
+def test_animation_payload_request_and_release_are_component_scoped(monkeypatch) -> None:
+    session_state: dict[str, Any] = {}
+    monkeypatch.setattr(app.st, "session_state", session_state)
+    session = SimpleNamespace(session_id="session-a")
+    document = SimpleNamespace(document_id="document-a")
+    payload_key = "session-a:layer_editor_animation_payload:document-a"
+    common = {
+        "store": None,
+        "session": session,
+        "document": document,
+        "images": {},
+        "active_layer_id": "layer-a",
+        "active_frame": 0,
+        "target_frames": (0,),
+        "composite": Image.new("RGBA", (2, 2)),
+    }
+
+    request = {
+        "eventId": "animation-1",
+        "type": "animation",
+        "action": "request",
+        "request": "play",
+    }
+    release = {"eventId": "animation-2", "type": "animation", "action": "release"}
+    assert app._handle_layer_editor_event(event=request, **common) is True
+    assert session_state[payload_key] is True
+    assert app._handle_layer_editor_event(event=request, **common) is False
+    assert app._handle_layer_editor_event(event=release, **common) is True
+    assert session_state[payload_key] is False
+
+
+def test_image_uri_cache_uses_digest_keys_and_deterministic_byte_eviction() -> None:
+    cache = components._ByteBudgetImageUriCache(max_bytes=220)
+    key_a = ("RGBA", (8, 8), 256, b"a" * 32)
+    key_b = ("RGBA", (8, 8), 256, b"b" * 32)
+    cache.put(key_a, "a" * 120)
+    cache.put(key_b, "b" * 120)
+
+    assert cache.info()["bytes"] <= 220
+    assert cache.get(key_a) is None
+    assert cache.get(key_b) == "b" * 120
+
+    components._IMAGE_DATA_URI_CACHE.clear()
+    image = Image.new("RGBA", (8, 8), (1, 2, 3, 255))
+    components.image_data_uri(image)
+    cache_keys = list(components._IMAGE_DATA_URI_CACHE._entries)
+    assert len(cache_keys) == 1
+    assert cache_keys[0][2] == len(image.tobytes())
+    assert cache_keys[0][-1] != image.tobytes()
+    assert (
+        components._IMAGE_DATA_URI_CACHE.info()["bytes"]
+        <= components._IMAGE_DATA_URI_CACHE_MAX_BYTES
+    )
+
+
 def test_pixel_editor_guide_defaults_are_backward_compatible() -> None:
     signature = inspect.signature(components.pixel_editor)
 
@@ -488,10 +589,7 @@ def test_component_receives_every_manual_guide_prop() -> None:
 def test_center_canvas_uses_a_stable_component_key() -> None:
     source = _ui_app_source()
 
-    assert (
-        'if st.button(\n                "Guardar alineación",' in source
-        or 'if st.button(\n                    "Guardar alineación",' in source
-    )
+    assert re.search(r'if st\.button\(\s*"Guardar alineación",', source)
     assert 'key=f"{prefix}:center_pixel_editor"' in source
     assert 'key=f"{prefix}:center_pixel_editor:{selected}"' not in source
     assert "frame_token=(" in source
@@ -539,9 +637,7 @@ def test_sheet_cut_commit_immediately_reruns_with_confirmed_state() -> None:
     source = _ui_app_source()
 
     handler = source[source.index("changed = _handle_segmentation_cut_event(") :]
-    delims = ("else:\n                with st.container", "else:\n            with st.container")
-    delim = next(d for d in delims if d in handler)
-    handler = handler[: handler.index(delim, 1)]
+    handler = handler[: handler.index('st.markdown("#### Frames extraídos")')]
     assert 'event.get("type") == "cut"' in handler
     assert 'event.get("action") == "end"' in handler
     assert "st.rerun()" in handler
@@ -973,10 +1069,14 @@ def test_component_exposes_selection_clipboard_pixel_tools_and_local_playback() 
     assert "}, 80);" in source
     assert "function togglePlayback()" in source
     assert "state.animationFrames" in source
+    assert 'type: "animation"' in source
+    assert 'requestAnimationFrames("play")' in source
+    assert 'emitAnimationControl("release")' in source
+    assert "pendingAnimationAction" in source
     assert "composite_document_frame(" in app_source
-    assert 'f"{prefix}:studio_playback": False' not in app_source
-    assert "if playback_enabled" not in app_source
-    assert "animation_frames = tuple(" in app_source
+    assert "animation_payload_requested" in app_source
+    assert "if animation_payload_requested" in app_source
+    assert "animation_frames = (" in app_source
     assert "clearTimeout(state.playbackTimer)" in source
     assert "if playback_fps != previous_fps:" in app_source
     assert "round(1000 / playback_fps)" in app_source
@@ -1041,10 +1141,7 @@ def test_fit_and_zoom_support_fractional_scale_for_large_images() -> None:
 
 
 def test_pixel_editor_component_wrapper_accepts_float_zoom() -> None:
-    import inspect
-    from sprite_builder.ui.components import pixel_editor
-
-    sig = inspect.signature(pixel_editor)
+    sig = inspect.signature(components.pixel_editor)
     assert sig.parameters["zoom"].default == 12.0
 
 

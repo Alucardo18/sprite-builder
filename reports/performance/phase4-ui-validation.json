@@ -1,0 +1,961 @@
+{
+  "cases": [
+    {
+      "cold": {
+        "cache_delta": {
+          "bytes": 2340,
+          "entries": 2,
+          "hits": 0,
+          "misses": 0
+        },
+        "cache_hits": 0,
+        "cache_lookup_calls": 2,
+        "cache_misses": 2,
+        "component_calls": 1,
+        "elapsed_ms": 7.994082989171147,
+        "image_uri_calls": 2,
+        "props_bytes": 3623,
+        "props_bytes_by_component": {
+          "pixel-editor": 3623
+        }
+      },
+      "name": "sheet-studio",
+      "rerun": {
+        "cache_delta": [
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          }
+        ],
+        "cache_hits": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "cache_lookup_calls": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "cache_misses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "component_calls": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "count": 20,
+        "image_uri_calls": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "max_ms": 0.09645899990573525,
+        "median_ms": 0.06637550541199744,
+        "min_ms": 0.06541702896356583,
+        "props_bytes": [
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623,
+          3623
+        ],
+        "samples_ms": [
+          0.09645899990573525,
+          0.07662497228011489,
+          0.0737080117687583,
+          0.06904196925461292,
+          0.06987503729760647,
+          0.06683298852294683,
+          0.06662501255050302,
+          0.06666703848168254,
+          0.06670900620520115,
+          0.06629200652241707,
+          0.0664590043015778,
+          0.0659999786876142,
+          0.06579200271517038,
+          0.0659169745631516,
+          0.06595900049433112,
+          0.06562500493600965,
+          0.06541702896356583,
+          0.06574997678399086,
+          0.06579200271517038,
+          0.06554101128131151
+        ]
+      },
+      "soak": {
+        "component_calls": 1,
+        "end_current_bytes": 2796,
+        "growth_bytes": 2796,
+        "peak_bytes": 68796,
+        "runs": 50,
+        "start_current_bytes": 0
+      }
+    },
+    {
+      "cold": {
+        "cache_delta": {
+          "bytes": 4526,
+          "entries": 3,
+          "hits": 0,
+          "misses": 0
+        },
+        "cache_hits": 1,
+        "cache_lookup_calls": 4,
+        "cache_misses": 3,
+        "component_calls": 2,
+        "elapsed_ms": 1.2771660112775862,
+        "image_uri_calls": 4,
+        "props_bytes": 17220,
+        "props_bytes_by_component": {
+          "terrain-pattern-studio": 15615,
+          "tileset-editor": 1605
+        }
+      },
+      "name": "tileset-builder",
+      "rerun": {
+        "cache_delta": [
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          }
+        ],
+        "cache_hits": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "cache_lookup_calls": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "cache_misses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "component_calls": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "count": 20,
+        "image_uri_calls": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "max_ms": 0.18524995539337397,
+        "median_ms": 0.1557289797347039,
+        "min_ms": 0.15462498413398862,
+        "props_bytes": [
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220,
+          17220
+        ],
+        "samples_ms": [
+          0.16662501730024815,
+          0.1590839819982648,
+          0.1598329981788993,
+          0.15533296391367912,
+          0.15475001418963075,
+          0.15545799396932125,
+          0.15479204012081027,
+          0.18524995539337397,
+          0.15537498984485865,
+          0.1549589796923101,
+          0.1822920166887343,
+          0.1787919900380075,
+          0.17658399883657694,
+          0.15674997121095657,
+          0.15666696708649397,
+          0.15591696137562394,
+          0.15554099809378386,
+          0.15533296391367912,
+          0.15483301831409335,
+          0.15462498413398862
+        ]
+      },
+      "soak": {
+        "component_calls": 2,
+        "end_current_bytes": 32196,
+        "growth_bytes": 32196,
+        "peak_bytes": 228275,
+        "runs": 50,
+        "start_current_bytes": 0
+      }
+    },
+    {
+      "cold": {
+        "cache_delta": {
+          "bytes": 5974,
+          "entries": 7,
+          "hits": 0,
+          "misses": 0
+        },
+        "cache_hits": 2,
+        "cache_lookup_calls": 9,
+        "cache_misses": 7,
+        "component_calls": 1,
+        "elapsed_ms": 1.3296669931150973,
+        "image_uri_calls": 9,
+        "props_bytes": 8392,
+        "props_bytes_by_component": {
+          "pixel-editor": 8392
+        }
+      },
+      "name": "pixel-editor",
+      "rerun": {
+        "cache_delta": [
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          },
+          {
+            "bytes": 0,
+            "entries": 0,
+            "hits": 0,
+            "misses": 0
+          }
+        ],
+        "cache_hits": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "cache_lookup_calls": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "cache_misses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "component_calls": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "count": 20,
+        "image_uri_calls": [
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ],
+        "max_ms": 0.1040829811245203,
+        "median_ms": 0.092103990027681,
+        "min_ms": 0.09104202035814524,
+        "props_bytes": [
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392,
+          8392
+        ],
+        "samples_ms": [
+          0.1040829811245203,
+          0.09612500434741378,
+          0.09487499482929707,
+          0.09400001727044582,
+          0.0938749872148037,
+          0.0932500115595758,
+          0.09195797611027956,
+          0.09237503400072455,
+          0.0921249738894403,
+          0.091959023848176,
+          0.09104202035814524,
+          0.09208300616592169,
+          0.09162497008219361,
+          0.09187497198581696,
+          0.09179202606901526,
+          0.09233300806954503,
+          0.09245896944776177,
+          0.09183399379253387,
+          0.09108299855142832,
+          0.091583002358675
+        ]
+      },
+      "soak": {
+        "component_calls": 1,
+        "end_current_bytes": 9340,
+        "growth_bytes": 9340,
+        "peak_bytes": 96080,
+        "runs": 50,
+        "start_current_bytes": 0
+      }
+    }
+  ],
+  "environment": {
+    "git": {
+      "revision": "09857c6bb204c48670266e1aadc1485dddbffff9",
+      "worktree_dirty": true
+    },
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.2",
+    "streamlit": "1.61.1"
+  },
+  "schema_version": "phase0.ui-baseline.v1",
+  "scope": {
+    "browser": false,
+    "flows": [
+      "sheet-studio",
+      "tileset-builder",
+      "pixel-editor"
+    ],
+    "image_generation": false,
+    "measurement": "python component bridge",
+    "network": false,
+    "rerun_count": 20,
+    "soak_runs": 50
+  }
+}

@@ -1509,6 +1509,69 @@ def _render_finishing_and_export_studio() -> None:
     active_set = next((s for s in sets if str(s.get("id", "")) == selected_set_id), sets[0])
     kind = _ui_pattern_kind(active_set.get("kind", "blob_47"))
 
+    has_secondary = bool(
+        active_set.get("secondarySource")
+        or active_set.get("secondaryColor")
+        or active_set.get("outsideColor")
+        or active_set.get("outsideMaterial")
+    )
+    if kind == "blob_47" and has_secondary:
+        if head_col1.button("🔄 Generar Variante Invertida (B sobre A)", key=f"{prefix}:invert_blob_set_{selected_set_id}", help="Crea un autotile Blob 47 complementario invirtiendo el terreno secundario por el primario"):
+            import copy
+            inverted = copy.deepcopy(active_set)
+            inv_id = f"set_{uuid.uuid4().hex[:8]}"
+            inverted["id"] = inv_id
+
+            orig_name = str(active_set.get("name", "Blob Set"))
+            if "sobre" in orig_name:
+                parts = orig_name.split("sobre")
+                a = parts[0].replace("Blob ·", "").replace("Blob", "").strip()
+                b = parts[1].replace("(Invertido)", "").strip()
+                inverted["name"] = f"Blob · {b} sobre {a} (Invertido)"
+            elif "(A sobre B)" in orig_name:
+                inverted["name"] = orig_name.replace("(A sobre B)", "(B sobre A) · Invertido")
+            elif "(B sobre A)" in orig_name:
+                inverted["name"] = orig_name.replace("(B sobre A)", "(A sobre B)")
+            else:
+                inverted["name"] = f"{orig_name} (Invertido)"
+
+            inverted["baseSource"] = active_set.get("secondarySource")
+            inverted["secondarySource"] = active_set.get("baseSource")
+
+            p_c = active_set.get("primaryColor") or active_set.get("insideColor")
+            s_c = active_set.get("secondaryColor") or active_set.get("outsideColor")
+            if p_c or s_c:
+                inverted["primaryColor"] = s_c
+                inverted["insideColor"] = s_c
+                inverted["secondaryColor"] = p_c
+                inverted["outsideColor"] = p_c
+
+            in_m = active_set.get("insideMaterial")
+            out_m = active_set.get("outsideMaterial")
+            if in_m or out_m:
+                inverted["insideMaterial"] = out_m
+                inverted["outsideMaterial"] = in_m
+
+            prof = str(active_set.get("terrainProfile", "clean"))
+            if prof == "grass_over_dirt":
+                inverted["terrainProfile"] = "rounded_grass_tufts"
+            elif prof == "dirt_over_water":
+                inverted["terrainProfile"] = "rounded_chamfer"
+            elif prof == "grass_over_water":
+                inverted["terrainProfile"] = "rounded_grass_tufts"
+
+            tile_max_y = max([int(t.get("y", 0)) for t in project.get("tiles", [])], default=0)
+            max_y = max([int(s.get("originY", 0)) + int(s.get("rows", 5)) for s in sets], default=tile_max_y)
+            inverted["originY"] = max_y + 2
+            inverted["originX"] = int(active_set.get("originX", 0))
+
+            sets.append(inverted)
+            project["sets"] = sets
+            project["activeSetId"] = inv_id
+            st.session_state[project_key] = project
+            st.toast(f"✅ Variante invertida generada: {inverted['name']}")
+            st.rerun()
+
     # Recetas Estéticas en 1 Clic
     with head_col2:
         matched_preset_id = detect_matching_aesthetic_preset(active_set)
@@ -3246,16 +3309,22 @@ def _render_tileset_builder() -> None:
     st.subheader("Tileset Builder")
     _render_tile_builder_wizard_and_status()
     atlas_tab, patterns_tab, finishing_tab, test_map_tab = st.tabs(
-        ("Atlas", "Pattern Studio", "Estudio de Acabado y Materiales", "Map Tester")
+        ("Atlas", "Pattern Studio", "Estudio de Acabado y Materiales", "Map Tester"),
+        key="tileset_builder:tabs",
+        on_change="rerun",
     )
-    with atlas_tab:
-        _render_tileset_atlas_editor()
-    with patterns_tab:
-        _render_terrain_patterns()
-    with finishing_tab:
-        _render_finishing_and_export_studio()
-    with test_map_tab:
-        _render_tileset_map_tester()
+    if atlas_tab.open:
+        with atlas_tab:
+            _render_tileset_atlas_editor()
+    if patterns_tab.open:
+        with patterns_tab:
+            _render_terrain_patterns()
+    if finishing_tab.open:
+        with finishing_tab:
+            _render_finishing_and_export_studio()
+    if test_map_tab.open:
+        with test_map_tab:
+            _render_tileset_map_tester()
 
 
 def _set_editor_width_mode(enabled: bool) -> None:
@@ -3909,6 +3978,20 @@ def _handle_layer_editor_event(
         return False
     st.session_state[event_key] = event_id
     event_type = str(event.get("type", ""))
+    if event_type == "animation":
+        animation_payload_key = (
+            f"{prefix}:layer_editor_animation_payload:{document.document_id}"
+        )
+        action = str(event.get("action", ""))
+        if action == "request":
+            request = str(event.get("request", "play"))
+            if request in {"play", "step-prev", "step-next"}:
+                st.session_state[animation_payload_key] = True
+                return True
+        elif action == "release":
+            st.session_state[animation_payload_key] = False
+            return True
+        return False
     tool_key = f"{prefix}:layer_editor_tool"
     if event_type == "toolbar" and event.get("action") == "tool":
         st.session_state[tool_key] = _normalize_layer_tool(event.get("tool"))
@@ -5998,8 +6081,26 @@ def _session_badge(session: Any) -> tuple[str, str]:
     return "pending", "pending"
 
 
+@st.cache_data(ttl="10m", max_entries=32, show_spinner=False)
+def _read_source_bytes(source_path: str, source_sha256: str) -> bytes:
+    """Read one already-verified source as bounded, serializable cache data.
+
+    ``source_sha256`` is intentionally part of the cache key.  The caller must
+    invoke ``SheetSessionStore.source_path`` first; that method has already
+    verified the digest for the current rerun before this cache is used.
+    """
+
+    path = Path(source_path)
+    return path.read_bytes()
+
+
 def _load_source(store: SheetSessionStore, session: Any) -> Image.Image:
-    with Image.open(store.source_path(session)) as image:
+    # ``load`` verifies the source at the start of every rerun.  ``source_path``
+    # reuses that proof for this store instance, so the hash is not repeated.
+    source_path = store.source_path(session)
+    data = _read_source_bytes(str(source_path), session.source_sha256)
+    with Image.open(io.BytesIO(data)) as image:
+        # Keep PIL objects out of Streamlit's shared cache; each caller owns its copy.
         return image.convert("RGBA")
 
 
@@ -6538,7 +6639,7 @@ def _render_export_preview_fragment(
     frames: Sequence[Image.Image],
     adjustments: Sequence[FrameAdjustment],
     columns: int,
-    origin_offset: tuple[int, int],
+    origin_offset: tuple[int, int] = (0, 0),
 ) -> None:
     """Refresh guide toggles without rerunning every editor tab."""
 
@@ -6645,15 +6746,18 @@ def _format_session(s: str) -> str:
     return f"📁 {s}"
 
 
-def _new_or_existing_session(store: SheetSessionStore) -> Any | None:
-    sessions = store.list_sessions()
+def _new_or_existing_session(
+    store: SheetSessionStore,
+    sessions: Sequence[str] | None = None,
+) -> Any | None:
+    available_sessions = tuple(sessions) if sessions is not None else store.list_sessions()
     active = st.session_state.get("active_sheet_session")
-    if active not in sessions:
-        active = sessions[0] if sessions else None
+    if active not in available_sessions:
+        active = available_sessions[0] if available_sessions else None
         st.session_state.active_sheet_session = active
 
     st.sidebar.markdown("### Sesión")
-    options = ["Nueva sesión…", *sessions]
+    options = ["Nueva sesión…", *available_sessions]
     index = options.index(active) if active in options else 0
     selected = st.sidebar.selectbox("Abrir sesión", options, index=index, format_func=_format_session)
     if selected != "Nueva sesión…" and selected != active:
@@ -6772,29 +6876,6 @@ def _show_pixel_gif(
     size: int = 64,
 ) -> None:
     st.markdown(_pixel_gif_html(gif_bytes, caption=caption, size=size), unsafe_allow_html=True)
-
-
-def _render_export_preview_fragment(
-    *,
-    prefix: str,
-    frames: Sequence[Image.Image],
-    adjustments: Sequence[FrameAdjustment],
-    columns: int,
-    origin_offset: tuple[int, int] = (0, 0),
-) -> None:
-    contact = render_contact_sheet(
-        frames,
-        adjustments=adjustments,
-        columns=columns,
-        scale=1,
-        origin_offset=origin_offset,
-        show_cell_guides=False,
-        show_center_axes=False,
-        show_anchor_guides=False,
-        show_bbox=False,
-        guide_display_width=820,
-    )
-    _show_pixel(contact, "Preview WYSIWYG · píxeles exactos de exportación", max_height=640)
 def main() -> None:
     st.set_page_config(
         page_title="sprite-builder · Sheet Studio",
@@ -6815,7 +6896,8 @@ def main() -> None:
         return
 
     store = SheetSessionStore(workspace)
-    session = _new_or_existing_session(store)
+    sessions = store.list_sessions()
+    session = _new_or_existing_session(store, sessions)
 
     if session is None:
         st.title("Sheet Studio")
@@ -7026,7 +7108,7 @@ def main() -> None:
         spacing_x=spacing_x,
         spacing_y=spacing_y,
     )
-    other_sessions = [s for s in store.list_sessions() if s != session.session_id]
+    other_sessions = [s for s in sessions if s != session.session_id]
     with st.sidebar.expander("📦 Gestión por Lotes (Batch)", expanded=False):
         st.caption(f"{len(other_sessions) + 1} sesiones en workspace.")
         if other_sessions:
@@ -7544,7 +7626,9 @@ def main() -> None:
             "1. Fondo & Estudio",
             "2. Preparar & Alinear",
             "3. Exportación",
-        )
+        ),
+        key="sheet_studio:workflow_tabs",
+        on_change="rerun",
     )
     sheet_tab = prepare_align_tab
     align_tab = prepare_align_tab
@@ -7554,549 +7638,502 @@ def main() -> None:
     if history_notice_key in st.session_state:
         st.toast(str(st.session_state.pop(history_notice_key)))
 
-    with background_tab:
-        st.subheader("Fondo & Estudio de píxeles")
-        if background_source:
-            prefix = session.session_id
-            wide_mode = st.toggle(
-                "Lienzo amplio",
-                value=bool(st.session_state.get(f"{prefix}:background_wide_mode", True)),
-                key=f"{prefix}:background_wide_mode",
-                help="Amplía el área de trabajo sin ocultar la navegación ni los ajustes globales.",
-            )
-            _set_editor_width_mode(wide_mode)
-            grid_col, grid_size_col = st.columns((1, 1))
-            with grid_col:
-                show_pixel_grid = st.toggle(
-                    "Capa grid",
-                    value=bool(
-                        st.session_state.get(f"{prefix}:background_show_pixel_grid", False)
-                    ),
-                    key=f"{prefix}:background_show_pixel_grid",
-                    help="Muestra una cuadrícula visual; no modifica ni se exporta con la imagen.",
+    if background_tab.open:
+        with background_tab:
+            st.subheader("Fondo & Estudio de píxeles")
+            if background_source:
+                prefix = session.session_id
+                wide_mode = st.toggle(
+                    "Lienzo amplio",
+                    value=bool(st.session_state.get(f"{prefix}:background_wide_mode", True)),
+                    key=f"{prefix}:background_wide_mode",
+                    help="Amplía el área de trabajo sin ocultar la navegación ni los ajustes globales.",
                 )
-            with grid_size_col:
-                pixel_grid_size = st.selectbox(
-                    "Tamaño del grid",
-                    (16, 32, 64, 128),
-                    index=(16, 32, 64, 128).index(
-                        int(st.session_state.get(f"{prefix}:background_pixel_grid_size", 16))
-                    ),
-                    format_func=lambda value: f"{value} px",
-                    key=f"{prefix}:background_pixel_grid_size",
-                    disabled=not show_pixel_grid,
-                )
-            tool_key = f"{prefix}:background_tool"
-            brush_key = f"{prefix}:background_brush_radius"
-            selected_bg = 0
-            sampled_rgba = st.session_state[f"{prefix}:background_sampled_color"]
-            manual_tolerance = float(
-                st.session_state[f"{prefix}:background_wand_tolerance"]
-            )
-            contiguous = bool(st.session_state[f"{prefix}:background_wand_contiguous"])
-            selection_masks = st.session_state[f"{prefix}:background_selection_masks"]
-            normalized_selection_masks: list[np.ndarray | None] = []
-            invalid_mask = False
-            for frame, mask in zip((background_source,), selection_masks, strict=False):
-                if isinstance(mask, np.ndarray) and mask.shape == (frame.height, frame.width):
-                    normalized_selection_masks.append(mask)
-                else:
-                    normalized_selection_masks.append(None)
-                    if mask is not None:
-                        invalid_mask = True
-            if invalid_mask:
-                st.session_state[f"{prefix}:background_selection_masks"] = normalized_selection_masks
-            selection_masks = normalized_selection_masks
-            selection_mask = selection_masks[selected_bg]
-            floating = st.session_state.get(f"{prefix}:background_floating_selection")
-            floating_piece: Image.Image | None = None
-            floating_highlight: Image.Image | None = None
-            floating_bounds: tuple[int, int, int, int] | None = None
-            floating_x = 0
-            floating_y = 0
-            editor_background = background_source
-            if (
-                isinstance(floating, dict)
-                and int(floating.get("frame_index", -1)) == selected_bg
-                and isinstance(floating.get("piece"), Image.Image)
-                and isinstance(floating.get("remainder"), Image.Image)
-                and isinstance(floating.get("mask"), np.ndarray)
-                and floating["mask"].shape == (background_source.height, background_source.width)
-            ):
-                floating_piece = floating["piece"]
-                editor_background = floating["remainder"]
-                floating_highlight = _floating_selection_highlight(floating["mask"])
-                floating_x = int(floating.get("x", 0))
-                floating_y = int(floating.get("y", 0))
-                raw_bounds = floating.get("bounds")
-                if isinstance(raw_bounds, tuple) and len(raw_bounds) == 4:
-                    floating_bounds = tuple(int(value) for value in raw_bounds)
-            elif floating is not None:
-                _clear_background_floating_selection(prefix)
-            overlay = render_selection_overlay(
-                background_source.size,
-                (
-                    selection_mask
-                    if isinstance(selection_mask, np.ndarray) and floating_piece is None
-                    else None
-                ),
-            )
-            tool_zoom = float(st.session_state[f"{prefix}:background_zoom"])
-            editor_box = st.container(border=True)
-            with editor_box:
-                st.markdown(
-                    """
-                    <div class="editor-heading">
-                      <div>
-                        <span class="editor-kicker">Editor de pixels & estudio</span>
-                        <h4>Trabaja directamente sobre el sprite sheet con herramientas de retoque</h4>
-                      </div>
-                      <span class="editor-hint">Atajos y herramientas en la barra del lienzo</span>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                history_controls = _history_controls(session)
-                bg_palette = _extract_palette_colors(editor_background)
-                event = pixel_editor(
-                    editor_background,
-                    overlay=overlay,
-                    sample=st.session_state[f"{prefix}:background_sampled_color"],
-                    paint_color=tuple(
-                        st.session_state.get(
-                            f"{prefix}:background_sampled_color", (255, 255, 255, 255)
-                        )
-                    ),
-                    tool=st.session_state[tool_key],
-                    brush_radius=int(st.session_state[brush_key]),
-                    wand_tolerance=int(manual_tolerance),
-                    wand_contiguous=contiguous,
-                    show_pixel_grid=show_pixel_grid,
-                    pixel_grid_size=int(pixel_grid_size),
-                    palette_colors=bg_palette,
-                    floating_selection=floating_piece,
-                    floating_highlight=floating_highlight,
-                    floating_selection_x=floating_x,
-                    floating_selection_y=floating_y,
-                    floating_selection_bounds=floating_bounds,
-                    floating_operation_kind=(
-                        str(floating.get("operation_kind", "move_mask"))
-                        if isinstance(floating, dict)
-                        else "move_mask"
-                    ),
-                    zoom=tool_zoom,
-                    frame_token=(
-                        f"{prefix}:background:"
-                        f"{_stable_ui_signature(st.session_state[f'{prefix}:background_manual_ops'])}"
-                    ),
-                    **history_controls,
-                    key=f"{prefix}:pixel_editor:{selected_bg}",
-                )
-                if _handle_editor_history_event(store, session, event):
-                    st.rerun()
-                history_before = _background_history_snapshot(prefix)
-                changed = _handle_background_editor_event(
-                    session,
-                    (background_source,),
-                    selected_bg,
-                    event,
-                    tolerance=manual_tolerance,
-                    contiguous=contiguous,
-                )
-                if changed and event:
-                    _record_editor_history(
-                        session,
-                        scope="background",
-                        label=_history_label("background", event),
-                        before=history_before,
-                        after=_background_history_snapshot(prefix),
+                _set_editor_width_mode(wide_mode)
+                grid_col, grid_size_col = st.columns((1, 1))
+                with grid_col:
+                    show_pixel_grid = st.toggle(
+                        "Capa grid",
+                        value=bool(
+                            st.session_state.get(f"{prefix}:background_show_pixel_grid", False)
+                        ),
+                        key=f"{prefix}:background_show_pixel_grid",
+                        help="Muestra una cuadrícula visual; no modifica ni se exporta con la imagen.",
                     )
-                if changed and event:
-                    event_type = str(event.get("type", ""))
-                    key_action = str(event.get("key", "")).lower()
-                    tool = _normalize_background_tool(
-                        event.get("tool", st.session_state[tool_key])
+                with grid_size_col:
+                    pixel_grid_size = st.selectbox(
+                        "Tamaño del grid",
+                        (16, 32, 64, 128),
+                        index=(16, 32, 64, 128).index(
+                            int(st.session_state.get(f"{prefix}:background_pixel_grid_size", 16))
+                        ),
+                        format_func=lambda value: f"{value} px",
+                        key=f"{prefix}:background_pixel_grid_size",
+                        disabled=not show_pixel_grid,
                     )
-                    changes_visible_state = (
-                        event_type == "edit-batch"
-                        or event_type in {"crop", "selection", "selection-command"}
-                        or event_type in {"floating-transform", "floating-selection"}
-                        or (
-                            event_type == "clipboard"
-                            and str(event.get("action", "")) == "paste"
-                        )
-                        or event_type == "pixel-action"
-                        or (
-                            event_type == "toolbar"
-                            and str(event.get("action", "")) == "wand-settings"
-                        )
-                        or (
-                            event_type in {"pointer", "pointerdown", "pointermove"}
-                            and tool in {
-                                "wand",
-                                "eraser",
-                                "eyedropper",
-                                "pencil",
-                                "fill",
-                                "replace_color",
-                            }
-                        )
-                        or (
-                            event_type == "key"
-                            and key_action in {"escape", "delete", "backspace"}
-                        )
-                    )
-                    if changes_visible_state:
-                        # This run was built from the pre-edit pixels. Abort before
-                        # the selection overlay, sampled swatch, or downstream tabs
-                        # render stale state. The next run reuses unaffected caches.
-                        st.rerun()
-            left_col, right_col = st.columns((1.15, 0.85), gap="large")
-            with left_col:
-                preview_col1, preview_col2 = st.columns(2, gap="large")
-                with preview_col1:
-                    _show_pixel(source, "Sprite sheet original")
-                with preview_col2:
-                    _show_pixel(
-                        background_source,
-                        "Resultado de trabajo",
-                    )
-            with right_col, st.container(border=True):
-                st.markdown("#### Herramientas y color")
-                color_picker_key = f"{prefix}:background_color_picker"
-                color_picker_sync_key = f"{prefix}:background_color_picker_sync"
-                if color_picker_sync_key in st.session_state:
-                    st.session_state[color_picker_key] = st.session_state.pop(
-                        color_picker_sync_key
-                    )
-                color_hex = st.color_picker(
-                    "Color activo (lápiz / relleno)",
-                    value=_rgb_to_hex(sampled_rgba[:3]),
-                    key=color_picker_key,
+                tool_key = f"{prefix}:background_tool"
+                brush_key = f"{prefix}:background_brush_radius"
+                selected_bg = 0
+                sampled_rgba = st.session_state[f"{prefix}:background_sampled_color"]
+                manual_tolerance = float(
+                    st.session_state[f"{prefix}:background_wand_tolerance"]
                 )
-                picked_rgba = (*_hex_to_rgb(color_hex), sampled_rgba[3] if len(sampled_rgba) == 4 else 255)
-                if picked_rgba[:3] != sampled_rgba[:3]:
-                    st.session_state[f"{prefix}:background_sampled_color"] = picked_rgba
-                    sampled_rgba = picked_rgba
-                st.caption(
-                    f"Color activo: `{_rgb_to_hex(sampled_rgba[:3])}` · Alpha `{sampled_rgba[3]}`"
-                )
-                brush_size = int(
-                    st.slider(
-                        "Tamaño de pincel / borrador",
-                        min_value=1,
-                        max_value=48,
-                        value=int(st.session_state.get(brush_key, 5)),
-                        key=f"{prefix}:background_brush_radius_slider",
-                    )
-                )
-                if brush_size != int(st.session_state.get(brush_key, 5)):
-                    st.session_state[brush_key] = brush_size
-                st.markdown("#### Selección y acciones")
-                selection_pixels = (
-                    int(selection_mask.sum())
-                    if isinstance(selection_mask, np.ndarray) and selection_mask.size
-                    else 0
-                )
-                st.write(
-                    f"Herramienta activa: `{_background_tool_label(st.session_state[f'{prefix}:background_tool'])}`"
-                )
-                st.write(f"Pixels seleccionados: `{selection_pixels}`")
-                st.caption(
-                    f"Varita: tolerancia {int(manual_tolerance)} · "
-                    f"{'contigua' if contiguous else 'global'}"
-                )
-                action_col1, action_col2 = st.columns(2)
-                if action_col1.button(
-                    "Borrar selección",
-                    width="stretch",
-                    disabled=selection_pixels == 0 or floating_piece is not None,
-                    key=f"{prefix}:bg_delete_selection:{selected_bg}",
+                contiguous = bool(st.session_state[f"{prefix}:background_wand_contiguous"])
+                selection_masks = st.session_state[f"{prefix}:background_selection_masks"]
+                normalized_selection_masks: list[np.ndarray | None] = []
+                invalid_mask = False
+                for frame, mask in zip((background_source,), selection_masks, strict=False):
+                    if isinstance(mask, np.ndarray) and mask.shape == (frame.height, frame.width):
+                        normalized_selection_masks.append(mask)
+                    else:
+                        normalized_selection_masks.append(None)
+                        if mask is not None:
+                            invalid_mask = True
+                if invalid_mask:
+                    st.session_state[f"{prefix}:background_selection_masks"] = normalized_selection_masks
+                selection_masks = normalized_selection_masks
+                selection_mask = selection_masks[selected_bg]
+                floating = st.session_state.get(f"{prefix}:background_floating_selection")
+                floating_piece: Image.Image | None = None
+                floating_highlight: Image.Image | None = None
+                floating_bounds: tuple[int, int, int, int] | None = None
+                floating_x = 0
+                floating_y = 0
+                editor_background = background_source
+                if (
+                    isinstance(floating, dict)
+                    and int(floating.get("frame_index", -1)) == selected_bg
+                    and isinstance(floating.get("piece"), Image.Image)
+                    and isinstance(floating.get("remainder"), Image.Image)
+                    and isinstance(floating.get("mask"), np.ndarray)
+                    and floating["mask"].shape == (background_source.height, background_source.width)
                 ):
+                    floating_piece = floating["piece"]
+                    editor_background = floating["remainder"]
+                    floating_highlight = _floating_selection_highlight(floating["mask"])
+                    floating_x = int(floating.get("x", 0))
+                    floating_y = int(floating.get("y", 0))
+                    raw_bounds = floating.get("bounds")
+                    if isinstance(raw_bounds, tuple) and len(raw_bounds) == 4:
+                        floating_bounds = tuple(int(value) for value in raw_bounds)
+                elif floating is not None:
+                    _clear_background_floating_selection(prefix)
+                overlay = render_selection_overlay(
+                    background_source.size,
+                    (
+                        selection_mask
+                        if isinstance(selection_mask, np.ndarray) and floating_piece is None
+                        else None
+                    ),
+                )
+                tool_zoom = float(st.session_state[f"{prefix}:background_zoom"])
+                editor_box = st.container(border=True)
+                with editor_box:
+                    st.markdown(
+                        """
+                        <div class="editor-heading">
+                          <div>
+                            <span class="editor-kicker">Editor de pixels & estudio</span>
+                            <h4>Trabaja directamente sobre el sprite sheet con herramientas de retoque</h4>
+                          </div>
+                          <span class="editor-hint">Atajos y herramientas en la barra del lienzo</span>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    history_controls = _history_controls(session)
+                    bg_palette = _extract_palette_colors(editor_background)
+                    event = pixel_editor(
+                        editor_background,
+                        overlay=overlay,
+                        sample=st.session_state[f"{prefix}:background_sampled_color"],
+                        paint_color=tuple(
+                            st.session_state.get(
+                                f"{prefix}:background_sampled_color", (255, 255, 255, 255)
+                            )
+                        ),
+                        tool=st.session_state[tool_key],
+                        brush_radius=int(st.session_state[brush_key]),
+                        wand_tolerance=int(manual_tolerance),
+                        wand_contiguous=contiguous,
+                        show_pixel_grid=show_pixel_grid,
+                        pixel_grid_size=int(pixel_grid_size),
+                        palette_colors=bg_palette,
+                        floating_selection=floating_piece,
+                        floating_highlight=floating_highlight,
+                        floating_selection_x=floating_x,
+                        floating_selection_y=floating_y,
+                        floating_selection_bounds=floating_bounds,
+                        floating_operation_kind=(
+                            str(floating.get("operation_kind", "move_mask"))
+                            if isinstance(floating, dict)
+                            else "move_mask"
+                        ),
+                        zoom=tool_zoom,
+                        frame_token=(
+                            f"{prefix}:background:"
+                            f"{_stable_ui_signature(st.session_state[f'{prefix}:background_manual_ops'])}"
+                        ),
+                        **history_controls,
+                        key=f"{prefix}:pixel_editor:{selected_bg}",
+                    )
+                    if _handle_editor_history_event(store, session, event):
+                        st.rerun()
                     history_before = _background_history_snapshot(prefix)
-                    operations = {
-                        int(index): [dict(item) for item in items]
-                        for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
-                    }
-                    if isinstance(selection_mask, np.ndarray) and selection_mask.any():
-                        operations.setdefault(selected_bg, []).append(
-                            {"kind": "erase_mask", **encode_mask(selection_mask)}
+                    changed = _handle_background_editor_event(
+                        session,
+                        (background_source,),
+                        selected_bg,
+                        event,
+                        tolerance=manual_tolerance,
+                        contiguous=contiguous,
+                    )
+                    if changed and event:
+                        _record_editor_history(
+                            session,
+                            scope="background",
+                            label=_history_label("background", event),
+                            before=history_before,
+                            after=_background_history_snapshot(prefix),
                         )
-                        st.session_state[f"{prefix}:background_manual_ops"] = operations
+                    if changed and event:
+                        event_type = str(event.get("type", ""))
+                        key_action = str(event.get("key", "")).lower()
+                        tool = _normalize_background_tool(
+                            event.get("tool", st.session_state[tool_key])
+                        )
+                        changes_visible_state = (
+                            event_type == "edit-batch"
+                            or event_type in {"crop", "selection", "selection-command"}
+                            or event_type in {"floating-transform", "floating-selection"}
+                            or (
+                                event_type == "clipboard"
+                                and str(event.get("action", "")) == "paste"
+                            )
+                            or event_type == "pixel-action"
+                            or (
+                                event_type == "toolbar"
+                                and str(event.get("action", "")) == "wand-settings"
+                            )
+                            or (
+                                event_type in {"pointer", "pointerdown", "pointermove"}
+                                and tool in {
+                                    "wand",
+                                    "eraser",
+                                    "eyedropper",
+                                    "pencil",
+                                    "fill",
+                                    "replace_color",
+                                }
+                            )
+                            or (
+                                event_type == "key"
+                                and key_action in {"escape", "delete", "backspace"}
+                            )
+                        )
+                        if changes_visible_state:
+                            # This run was built from the pre-edit pixels. Abort before
+                            # the selection overlay, sampled swatch, or downstream tabs
+                            # render stale state. The next run reuses unaffected caches.
+                            st.rerun()
+                left_col, right_col = st.columns((1.15, 0.85), gap="large")
+                with left_col:
+                    preview_col1, preview_col2 = st.columns(2, gap="large")
+                    with preview_col1:
+                        _show_pixel(source, "Sprite sheet original")
+                    with preview_col2:
+                        _show_pixel(
+                            background_source,
+                            "Resultado de trabajo",
+                        )
+                with right_col, st.container(border=True):
+                    st.markdown("#### Herramientas y color")
+                    color_picker_key = f"{prefix}:background_color_picker"
+                    color_picker_sync_key = f"{prefix}:background_color_picker_sync"
+                    if color_picker_sync_key in st.session_state:
+                        st.session_state[color_picker_key] = st.session_state.pop(
+                            color_picker_sync_key
+                        )
+                    color_hex = st.color_picker(
+                        "Color activo (lápiz / relleno)",
+                        value=_rgb_to_hex(sampled_rgba[:3]),
+                        key=color_picker_key,
+                    )
+                    picked_rgba = (*_hex_to_rgb(color_hex), sampled_rgba[3] if len(sampled_rgba) == 4 else 255)
+                    if picked_rgba[:3] != sampled_rgba[:3]:
+                        st.session_state[f"{prefix}:background_sampled_color"] = picked_rgba
+                        sampled_rgba = picked_rgba
+                    st.caption(
+                        f"Color activo: `{_rgb_to_hex(sampled_rgba[:3])}` · Alpha `{sampled_rgba[3]}`"
+                    )
+                    brush_size = int(
+                        st.slider(
+                            "Tamaño de pincel / borrador",
+                            min_value=1,
+                            max_value=48,
+                            value=int(st.session_state.get(brush_key, 5)),
+                            key=f"{prefix}:background_brush_radius_slider",
+                        )
+                    )
+                    if brush_size != int(st.session_state.get(brush_key, 5)):
+                        st.session_state[brush_key] = brush_size
+                    st.markdown("#### Selección y acciones")
+                    selection_pixels = (
+                        int(selection_mask.sum())
+                        if isinstance(selection_mask, np.ndarray) and selection_mask.size
+                        else 0
+                    )
+                    st.write(
+                        f"Herramienta activa: `{_background_tool_label(st.session_state[f'{prefix}:background_tool'])}`"
+                    )
+                    st.write(f"Pixels seleccionados: `{selection_pixels}`")
+                    st.caption(
+                        f"Varita: tolerancia {int(manual_tolerance)} · "
+                        f"{'contigua' if contiguous else 'global'}"
+                    )
+                    action_col1, action_col2 = st.columns(2)
+                    if action_col1.button(
+                        "Borrar selección",
+                        width="stretch",
+                        disabled=selection_pixels == 0 or floating_piece is not None,
+                        key=f"{prefix}:bg_delete_selection:{selected_bg}",
+                    ):
+                        history_before = _background_history_snapshot(prefix)
+                        operations = {
+                            int(index): [dict(item) for item in items]
+                            for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
+                        }
+                        if isinstance(selection_mask, np.ndarray) and selection_mask.any():
+                            operations.setdefault(selected_bg, []).append(
+                                {"kind": "erase_mask", **encode_mask(selection_mask)}
+                            )
+                            st.session_state[f"{prefix}:background_manual_ops"] = operations
+                            selection_masks[selected_bg] = None
+                            st.session_state[f"{prefix}:background_selection_masks"] = selection_masks
+                            _record_editor_history(
+                                session,
+                                scope="background",
+                                label="Borrar selección",
+                                before=history_before,
+                                after=_background_history_snapshot(prefix),
+                            )
+                            st.rerun()
+                    if action_col2.button(
+                        "Limpiar selección",
+                        width="stretch",
+                        disabled=selection_pixels == 0 or floating_piece is not None,
+                        key=f"{prefix}:bg_clear_selection:{selected_bg}",
+                    ):
+                        history_before = _background_history_snapshot(prefix)
                         selection_masks[selected_bg] = None
                         st.session_state[f"{prefix}:background_selection_masks"] = selection_masks
                         _record_editor_history(
                             session,
                             scope="background",
-                            label="Borrar selección",
+                            label="Limpiar selección",
                             before=history_before,
                             after=_background_history_snapshot(prefix),
                         )
                         st.rerun()
-                if action_col2.button(
-                    "Limpiar selección",
-                    width="stretch",
-                    disabled=selection_pixels == 0 or floating_piece is not None,
-                    key=f"{prefix}:bg_clear_selection:{selected_bg}",
-                ):
-                    history_before = _background_history_snapshot(prefix)
-                    selection_masks[selected_bg] = None
-                    st.session_state[f"{prefix}:background_selection_masks"] = selection_masks
-                    _record_editor_history(
-                        session,
-                        scope="background",
-                        label="Limpiar selección",
-                        before=history_before,
-                        after=_background_history_snapshot(prefix),
-                    )
-                    st.rerun()
-                operations = st.session_state[f"{prefix}:background_manual_ops"]
-                frame_ops = operations.get(selected_bg, [])
-                with st.expander(
-                    f"Historial del frame · {len(frame_ops)} operaciones",
-                    expanded=bool(frame_ops),
-                ):
-                    if frame_ops:
-                        history_rows = [
-                            {
-                                "paso": str(index + 1),
-                                "tipo": {
-                                    "erase_similar": "varita",
-                                    "erase_brush": "borrador",
-                                    "erase_mask": "selección",
-                                    "move_mask": "mover selección",
-                                    "copy_mask": "copiar selección",
-                                    "rotate_mask": "rotar selección",
-                                    "paint_brush": "lápiz",
-                                    "fill": "cubeta / relleno",
-                                    "replace_color": "reemplazar color",
-                                    "outline": "contorno 1px",
-                                    "cleanup_isolated": "limpiar aislados",
-                                    "transform_pixels": "transformación",
-                                }.get(op["kind"], op["kind"]),
-                                "punto": ",".join(map(str, op.get("point", ()))),
-                                "tol": str(op.get("tolerance", "-")),
-                                "radio": str(op.get("radius", "-")),
-                                "contiguo": str(op.get("contiguous", "-")),
+                    operations = st.session_state[f"{prefix}:background_manual_ops"]
+                    frame_ops = operations.get(selected_bg, [])
+                    with st.expander(
+                        f"Historial del frame · {len(frame_ops)} operaciones",
+                        expanded=bool(frame_ops),
+                    ):
+                        if frame_ops:
+                            history_rows = [
+                                {
+                                    "paso": str(index + 1),
+                                    "tipo": {
+                                        "erase_similar": "varita",
+                                        "erase_brush": "borrador",
+                                        "erase_mask": "selección",
+                                        "move_mask": "mover selección",
+                                        "copy_mask": "copiar selección",
+                                        "rotate_mask": "rotar selección",
+                                        "paint_brush": "lápiz",
+                                        "fill": "cubeta / relleno",
+                                        "replace_color": "reemplazar color",
+                                        "outline": "contorno 1px",
+                                        "cleanup_isolated": "limpiar aislados",
+                                        "transform_pixels": "transformación",
+                                    }.get(op["kind"], op["kind"]),
+                                    "punto": ",".join(map(str, op.get("point", ()))),
+                                    "tol": str(op.get("tolerance", "-")),
+                                    "radio": str(op.get("radius", "-")),
+                                    "contiguo": str(op.get("contiguous", "-")),
+                                }
+                                for index, op in enumerate(frame_ops)
+                            ]
+                            st.dataframe(history_rows, width="stretch", hide_index=True)
+                        else:
+                            st.caption("Todavía no hay ediciones manuales en este frame.")
+                        clear_col, clear_all_col = st.columns(2)
+                        if clear_col.button(
+                            "Restablecer frame",
+                            width="stretch",
+                            key=f"{prefix}:bg_clear_frame:{selected_bg}",
+                        ):
+                            history_before = _background_history_snapshot(prefix)
+                            updated = {
+                                int(index): [dict(item) for item in items]
+                                for index, items in operations.items()
+                                if int(index) != selected_bg and items
                             }
-                            for index, op in enumerate(frame_ops)
-                        ]
-                        st.dataframe(history_rows, width="stretch", hide_index=True)
-                    else:
-                        st.caption("Todavía no hay ediciones manuales en este frame.")
-                    clear_col, clear_all_col = st.columns(2)
-                    if clear_col.button(
-                        "Restablecer frame",
-                        width="stretch",
-                        key=f"{prefix}:bg_clear_frame:{selected_bg}",
-                    ):
-                        history_before = _background_history_snapshot(prefix)
-                        updated = {
-                            int(index): [dict(item) for item in items]
-                            for index, items in operations.items()
-                            if int(index) != selected_bg and items
-                        }
-                        st.session_state[f"{prefix}:background_manual_ops"] = updated
-                        _clear_background_floating_selection(prefix)
-                        _record_editor_history(
-                            session,
-                            scope="background",
-                            label="Restablecer frame",
-                            before=history_before,
-                            after=_background_history_snapshot(prefix),
-                        )
-                        st.rerun()
-                    if clear_all_col.button(
-                        "Restablecer todo",
-                        width="stretch",
-                        key=f"{prefix}:bg_clear_all",
-                    ):
-                        history_before = _background_history_snapshot(prefix)
-                        st.session_state[f"{prefix}:background_manual_ops"] = {}
-                        st.session_state[f"{prefix}:background_selection_masks"] = [
-                            None
-                        ]
-                        _clear_background_floating_selection(prefix)
-                        _record_editor_history(
-                            session,
-                            scope="background",
-                            label="Restablecer fondo",
-                            before=history_before,
-                            after=_background_history_snapshot(prefix),
-                        )
-                        st.rerun()
-            if st.button(
-                "Guardar remoción de fondo",
-                type="primary",
-                disabled=floating_piece is not None or bool(processing_error),
-                key=f"{session.session_id}:save_background",
-            ):
-                session.background_removal_config = background_config
-                processing_cache = st.session_state.get(
-                    f"{prefix}:sheet_processing_cache", {}
-                )
-                background_metadata: dict[str, Any] = {
-                    "processing_signature": background_processing_signature,
-                    "manual_edit_operations": {
-                        str(index): list(items)
-                        for index, items in st.session_state[
-                            f"{prefix}:background_manual_ops"
-                        ].items()
-                        if items
-                    }
-                }
-                if isinstance(processing_cache, dict) and processing_cache.get(
-                    "background_reports"
+                            st.session_state[f"{prefix}:background_manual_ops"] = updated
+                            _clear_background_floating_selection(prefix)
+                            _record_editor_history(
+                                session,
+                                scope="background",
+                                label="Restablecer frame",
+                                before=history_before,
+                                after=_background_history_snapshot(prefix),
+                            )
+                            st.rerun()
+                        if clear_all_col.button(
+                            "Restablecer todo",
+                            width="stretch",
+                            key=f"{prefix}:bg_clear_all",
+                        ):
+                            history_before = _background_history_snapshot(prefix)
+                            st.session_state[f"{prefix}:background_manual_ops"] = {}
+                            st.session_state[f"{prefix}:background_selection_masks"] = [
+                                None
+                            ]
+                            _clear_background_floating_selection(prefix)
+                            _record_editor_history(
+                                session,
+                                scope="background",
+                                label="Restablecer fondo",
+                                before=history_before,
+                                after=_background_history_snapshot(prefix),
+                            )
+                            st.rerun()
+                if st.button(
+                    "Guardar remoción de fondo",
+                    type="primary",
+                    disabled=floating_piece is not None or bool(processing_error),
+                    key=f"{session.session_id}:save_background",
                 ):
-                    background_metadata["background_removal"] = {
-                        "frames": list(processing_cache["background_reports"])
+                    session.background_removal_config = background_config
+                    processing_cache = st.session_state.get(
+                        f"{prefix}:sheet_processing_cache", {}
+                    )
+                    background_metadata: dict[str, Any] = {
+                        "processing_signature": background_processing_signature,
+                        "manual_edit_operations": {
+                            str(index): list(items)
+                            for index, items in st.session_state[
+                                f"{prefix}:background_manual_ops"
+                            ].items()
+                            if items
+                        }
                     }
-                store.commit_stage(
-                    session,
-                    "background",
-                    [background_source],
-                    config=background_config.to_dict(),
-                    metadata=background_metadata,
-                )
-                st.session_state[history_notice_key] = (
-                    "Hoja transparente guardada; ya puedes preparar las poses."
-                )
-                st.rerun()
-        else:
-            st.info("No hay un resultado de fondo válido todavía.")
-
-
-    with prepare_align_tab:
-        st.subheader("Preparar & Alinear")
-        st.caption(
-            f"Perfil activo: **{alignment_profile}** · Cortes de poses y alineación multi-anchor "
-            "en un solo lienzo integrado. Cian estabiliza, ámbar valida y magenta muestra el anchor fusionado."
-        )
-        if not background_saved:
-            st.info("Guarda primero la remoción de fondo en el paso 1.")
-
-        prefix = session.session_id
-        _ensure_segmentation_cut_controls_state(session)
-
-        # 1. Automatic cuts calculation on initial entry
-        auto_cuts_init_key = f"{prefix}:auto_cuts_initialized"
-        if (
-            auto_cuts_init_key not in st.session_state
-            and not segmentation_config.manual_cut_positions
-            and background_source
-            and segmentation
-        ):
-            _set_auto_segmentation_cuts(
-                session,
-                background_source,
-                segmentation_config,
-                center_config,
-            )
-            st.session_state[auto_cuts_init_key] = True
-
-        # 2. Mode Selector Bar
-        mode_key = f"{prefix}:prepare_align_mode"
-        if mode_key not in st.session_state:
-            st.session_state[mode_key] = "Anchors"
-
-        mode_col, profile_col, actions_col = st.columns((2.2, 1.8, 2.0), gap="small")
-        with mode_col:
-            mode_options = ("Anchors", "Cortes", "Pintar capas")
-            current_mode = st.session_state.get(mode_key, "Anchors")
-            if current_mode not in mode_options:
-                current_mode = "Anchors"
-            selected_mode = st.segmented_control(
-                "Modo del lienzo",
-                mode_options,
-                default=current_mode,
-                key=f"{prefix}:prepare_align_mode_widget",
-            ) or current_mode
-            st.session_state[mode_key] = selected_mode
-
-        with profile_col:
-            profile_options = ("walk", "idle", "attack")
-            selected_profile = st.segmented_control(
-                "Perfil de movimiento",
-                profile_options,
-                default=alignment_profile,
-                key=f"{prefix}:prepare_align_profile_widget",
-            ) or alignment_profile
-            if selected_profile != alignment_profile:
-                session.auto_center_config = AutoCenterConfig(
-                    **{**session.auto_center_config.to_dict(), "alignment_profile": selected_profile}
-                )
-                st.session_state[f"{session.session_id}:alignment_profile_sync"] = selected_profile
-                st.rerun()
-
-        with actions_col:
-            if selected_mode == "Anchors":
-                if st.button("Autoalinear todo", key=f"{prefix}:btn_autoalign_all", width="stretch"):
-                    history_before = _center_history_snapshot(prefix)
-                    st.session_state[f"{prefix}:offsets"] = [(0, 0) for _ in range(len(working_frames))]
-                    for i in range(len(working_frames)):
-                        st.session_state.pop(f"{prefix}:offset_x_widget:{i}", None)
-                        st.session_state.pop(f"{prefix}:offset_y_widget:{i}", None)
-                    _record_editor_history(
-                        session,
-                        scope="center",
-                        label="Autoalinear todo",
-                        before=history_before,
-                        after=_center_history_snapshot(prefix),
-                    )
-                    st.session_state[f"{prefix}:center_autocenter_all_notice"] = len(working_frames)
-                    st.rerun()
-            elif selected_mode == "Cortes":
-                if st.button("Cortes automáticos", key=f"{prefix}:btn_autocut_cuts", width="stretch"):
-                    history_before = _cut_history_snapshot(prefix)
-                    _set_auto_segmentation_cuts(
-                        session,
-                        background_source,
-                        segmentation_config,
-                        center_config,
-                    )
-                    _record_editor_history(
-                        session,
-                        scope="cuts",
-                        label="Cortes automáticos",
-                        before=history_before,
-                        after=_cut_history_snapshot(prefix),
-                    )
-                    st.rerun()
-
-        # 3. Grid & Cuts Settings Expander
-        with st.expander("Configuración de grilla y cortes", expanded=(selected_mode == "Cortes")):
-            inspection_col, cuts_col = st.columns((1.2, 1), gap="large")
-            with inspection_col, st.container(border=True):
-                st.markdown("#### Inspección")
-                st.write(f"Dimensiones reales: `{inspection.width} × {inspection.height}`")
-                st.write(f"Canal alpha: `{'sí' if inspection.has_alpha else 'no'}`")
-                st.write(
-                    "Fondo sólido/chroma: "
-                    f"`{'probable' if inspection.solid_background_likely else 'no concluyente'}`"
-                )
-                st.write(f"Color de borde: `{_rgb_to_hex(inspection.border_rgb)}`")
-                st.write(f"Confianza de borde: `{inspection.background_confidence:.0%}`")
-                if segmentation:
-                    resolved = segmentation.resolved_config
-                    st.write(
-                        f"Celda resuelta: `{resolved.cell_width} × {resolved.cell_height}`"
-                    )
-                    if resolved.manual_cut_positions:
-                        st.write(
-                            "Cortes manuales: "
-                            f"`{', '.join(map(str, resolved.manual_cut_positions))}`"
-                        )
-                    for warning in segmentation.warnings:
-                        st.warning(warning)
-            if segmentation:
-                with cuts_col, st.container(border=True):
-                    st.markdown("#### Cortes")
-                    if st.button(
-                        "Cortes automáticos",
-                        width="stretch",
-                        key=f"{session.session_id}:segmentation_auto_cut",
+                    if isinstance(processing_cache, dict) and processing_cache.get(
+                        "background_reports"
                     ):
-                        history_before = _cut_history_snapshot(session.session_id)
+                        background_metadata["background_removal"] = {
+                            "frames": list(processing_cache["background_reports"])
+                        }
+                    store.commit_stage(
+                        session,
+                        "background",
+                        [background_source],
+                        config=background_config.to_dict(),
+                        metadata=background_metadata,
+                    )
+                    st.session_state[history_notice_key] = (
+                        "Hoja transparente guardada; ya puedes preparar las poses."
+                    )
+                    st.rerun()
+            else:
+                st.info("No hay un resultado de fondo válido todavía.")
+
+
+    if prepare_align_tab.open:
+        with prepare_align_tab:
+            st.subheader("Preparar & Alinear")
+            st.caption(
+                f"Perfil activo: **{alignment_profile}** · Cortes de poses y alineación multi-anchor "
+                "en un solo lienzo integrado. Cian estabiliza, ámbar valida y magenta muestra el anchor fusionado."
+            )
+            if not background_saved:
+                st.info("Guarda primero la remoción de fondo en el paso 1.")
+
+            prefix = session.session_id
+            _ensure_segmentation_cut_controls_state(session)
+
+            # 1. Automatic cuts calculation on initial entry
+            auto_cuts_init_key = f"{prefix}:auto_cuts_initialized"
+            if (
+                auto_cuts_init_key not in st.session_state
+                and not segmentation_config.manual_cut_positions
+                and background_source
+                and segmentation
+            ):
+                _set_auto_segmentation_cuts(
+                    session,
+                    background_source,
+                    segmentation_config,
+                    center_config,
+                )
+                st.session_state[auto_cuts_init_key] = True
+
+            # 2. Mode Selector Bar
+            mode_key = f"{prefix}:prepare_align_mode"
+            if mode_key not in st.session_state:
+                st.session_state[mode_key] = "Anchors"
+
+            mode_col, profile_col, actions_col = st.columns((2.2, 1.8, 2.0), gap="small")
+            with mode_col:
+                mode_options = ("Anchors", "Cortes", "Pintar capas")
+                current_mode = st.session_state.get(mode_key, "Anchors")
+                if current_mode not in mode_options:
+                    current_mode = "Anchors"
+                selected_mode = st.segmented_control(
+                    "Modo del lienzo",
+                    mode_options,
+                    default=current_mode,
+                    key=f"{prefix}:prepare_align_mode_widget",
+                ) or current_mode
+                st.session_state[mode_key] = selected_mode
+
+            with profile_col:
+                profile_options = ("walk", "idle", "attack")
+                selected_profile = st.segmented_control(
+                    "Perfil de movimiento",
+                    profile_options,
+                    default=alignment_profile,
+                    key=f"{prefix}:prepare_align_profile_widget",
+                ) or alignment_profile
+                if selected_profile != alignment_profile:
+                    session.auto_center_config = AutoCenterConfig(
+                        **{**session.auto_center_config.to_dict(), "alignment_profile": selected_profile}
+                    )
+                    st.session_state[f"{session.session_id}:alignment_profile_sync"] = selected_profile
+                    st.rerun()
+
+            with actions_col:
+                if selected_mode == "Anchors":
+                    if st.button("Autoalinear todo", key=f"{prefix}:btn_autoalign_all", width="stretch"):
+                        history_before = _center_history_snapshot(prefix)
+                        st.session_state[f"{prefix}:offsets"] = [(0, 0) for _ in range(len(working_frames))]
+                        for i in range(len(working_frames)):
+                            st.session_state.pop(f"{prefix}:offset_x_widget:{i}", None)
+                            st.session_state.pop(f"{prefix}:offset_y_widget:{i}", None)
+                        _record_editor_history(
+                            session,
+                            scope="center",
+                            label="Autoalinear todo",
+                            before=history_before,
+                            after=_center_history_snapshot(prefix),
+                        )
+                        st.session_state[f"{prefix}:center_autocenter_all_notice"] = len(working_frames)
+                        st.rerun()
+                elif selected_mode == "Cortes":
+                    if st.button("Cortes automáticos", key=f"{prefix}:btn_autocut_cuts", width="stretch"):
+                        history_before = _cut_history_snapshot(prefix)
                         _set_auto_segmentation_cuts(
                             session,
                             background_source,
@@ -8108,138 +8145,1943 @@ def main() -> None:
                             scope="cuts",
                             label="Cortes automáticos",
                             before=history_before,
-                            after=_cut_history_snapshot(session.session_id),
+                            after=_cut_history_snapshot(prefix),
                         )
                         st.rerun()
-                    free_adjust_widget_key = f"{session.session_id}:segmentation_free_adjust_widget"
-                    if free_adjust_widget_key not in st.session_state:
-                        st.session_state[free_adjust_widget_key] = bool(
-                            st.session_state[f"{session.session_id}:segmentation_free_adjust"]
-                        )
-                    free_adjust = st.toggle(
-                        "Ajuste manual",
-                        key=free_adjust_widget_key,
-                        help="Actívalo para arrastrar las líneas verticales de corte.",
-                    )
-                    st.session_state[
-                        f"{session.session_id}:segmentation_free_adjust"
-                    ] = bool(free_adjust)
-                    st.caption(
-                        "El zoom y el encuadre viven directamente en la barra del lienzo."
-                    )
 
-        # 4. Canvas View by Mode
-        if selected_mode == "Cortes":
-            st.subheader("Mapa provisional de poses")
-            with st.container(border=True):
-                st.markdown("**Detección previa, no corte final**")
-                st.caption(
-                    "Usa el grid aproximado y el número conocido de frames para asignar cada pose. "
-                    "La hoja se alineará después y sus regiones definitivas se guardarán en "
-                    "Cortes finales."
-                )
-            if segmentation:
-                prefix = session.session_id
-                _ensure_segmentation_cut_controls_state(session)
-                free_adjust_enabled = bool(
-                    st.session_state.get(
-                        f"{prefix}:segmentation_free_adjust_widget",
-                        st.session_state[f"{prefix}:segmentation_free_adjust"],
+            # 3. Grid & Cuts Settings Expander
+            with st.expander("Configuración de grilla y cortes", expanded=(selected_mode == "Cortes")):
+                inspection_col, cuts_col = st.columns((1.2, 1), gap="large")
+                with inspection_col, st.container(border=True):
+                    st.markdown("#### Inspección")
+                    st.write(f"Dimensiones reales: `{inspection.width} × {inspection.height}`")
+                    st.write(f"Canal alpha: `{'sí' if inspection.has_alpha else 'no'}`")
+                    st.write(
+                        "Fondo sólido/chroma: "
+                        f"`{'probable' if inspection.solid_background_likely else 'no concluyente'}`"
                     )
-                )
-                guide_overlay = _ensure_segmentation_guide_overlay(
-                    session,
-                    background_source,
-                    segmentation,
-                    processing_signature=processing_signature,
-                )
+                    st.write(f"Color de borde: `{_rgb_to_hex(inspection.border_rgb)}`")
+                    st.write(f"Confianza de borde: `{inspection.background_confidence:.0%}`")
+                    if segmentation:
+                        resolved = segmentation.resolved_config
+                        st.write(
+                            f"Celda resuelta: `{resolved.cell_width} × {resolved.cell_height}`"
+                        )
+                        if resolved.manual_cut_positions:
+                            st.write(
+                                "Cortes manuales: "
+                                f"`{', '.join(map(str, resolved.manual_cut_positions))}`"
+                            )
+                        for warning in segmentation.warnings:
+                            st.warning(warning)
+                if segmentation:
+                    with cuts_col, st.container(border=True):
+                        st.markdown("#### Cortes")
+                        if st.button(
+                            "Cortes automáticos",
+                            width="stretch",
+                            key=f"{session.session_id}:segmentation_auto_cut",
+                        ):
+                            history_before = _cut_history_snapshot(session.session_id)
+                            _set_auto_segmentation_cuts(
+                                session,
+                                background_source,
+                                segmentation_config,
+                                center_config,
+                            )
+                            _record_editor_history(
+                                session,
+                                scope="cuts",
+                                label="Cortes automáticos",
+                                before=history_before,
+                                after=_cut_history_snapshot(session.session_id),
+                            )
+                            st.rerun()
+                        free_adjust_widget_key = f"{session.session_id}:segmentation_free_adjust_widget"
+                        if free_adjust_widget_key not in st.session_state:
+                            st.session_state[free_adjust_widget_key] = bool(
+                                st.session_state[f"{session.session_id}:segmentation_free_adjust"]
+                            )
+                        free_adjust = st.toggle(
+                            "Ajuste manual",
+                            key=free_adjust_widget_key,
+                            help="Actívalo para arrastrar las líneas verticales de corte.",
+                        )
+                        st.session_state[
+                            f"{session.session_id}:segmentation_free_adjust"
+                        ] = bool(free_adjust)
+                        st.caption(
+                            "El zoom y el encuadre viven directamente en la barra del lienzo."
+                        )
+
+            # 4. Canvas View by Mode
+            if selected_mode == "Cortes":
+                st.subheader("Mapa provisional de poses")
                 with st.container(border=True):
-                    st.markdown("#### Lienzo de segmentación · preview 1:1 / pixelated")
+                    st.markdown("**Detección previa, no corte final**")
                     st.caption(
-                        "Arrastra los cortes directamente en el lienzo; la información queda "
-                        "debajo para no reducir el área de trabajo."
+                        "Usa el grid aproximado y el número conocido de frames para asignar cada pose. "
+                        "La hoja se alineará después y sus regiones definitivas se guardarán en "
+                        "Cortes finales."
+                    )
+                if segmentation:
+                    prefix = session.session_id
+                    _ensure_segmentation_cut_controls_state(session)
+                    free_adjust_enabled = bool(
+                        st.session_state.get(
+                            f"{prefix}:segmentation_free_adjust_widget",
+                            st.session_state[f"{prefix}:segmentation_free_adjust"],
+                        )
+                    )
+                    guide_overlay = _ensure_segmentation_guide_overlay(
+                        session,
+                        background_source,
+                        segmentation,
+                        processing_signature=processing_signature,
+                    )
+                    with st.container(border=True):
+                        st.markdown("#### Lienzo de segmentación · preview 1:1 / pixelated")
+                        st.caption(
+                            "Arrastra los cortes directamente en el lienzo; la información queda "
+                            "debajo para no reducir el área de trabajo."
+                        )
+                        history_controls = _history_controls(session)
+                        event = pixel_editor(
+                            background_source,
+                            overlay=guide_overlay,
+                            sample=None,
+                            tool="drag",
+                            mode="segmentation-cut",
+                            zoom=float(st.session_state[f"{prefix}:segmentation_cut_zoom"]),
+                            cut_positions=st.session_state[f"{prefix}:segmentation_cut_positions"],
+                            cut_positions_x=st.session_state.get(
+                                f"{prefix}:segmentation_cut_positions_x", ()
+                            ),
+                            cut_positions_y=st.session_state.get(
+                                f"{prefix}:segmentation_cut_positions_y", ()
+                            ),
+                            allow_cut_drag=free_adjust_enabled,
+                            fit_on_load=True,
+                            frame_token=(
+                                f"{prefix}:segmentation-cut:{background_source.width}x"
+                                f"{background_source.height}:{segmentation_config.frame_count}:"
+                                f"{segmentation_config.orientation}"
+                            ),
+                            **history_controls,
+                            key=f"{prefix}:segmentation_cut_editor",
+                        )
+                        if _handle_editor_history_event(store, session, event):
+                            st.rerun()
+                        history_before = _cut_history_snapshot(prefix)
+                        changed = _handle_segmentation_cut_event(
+                            session,
+                            segmentation.resolved_config.frame_count,
+                            event,
+                            orientation=segmentation_config.orientation,
+                            columns=segmentation_config.columns,
+                            rows=segmentation_config.rows,
+                        )
+                        if changed and event:
+                            _record_editor_history(
+                                session,
+                                scope="cuts",
+                                label=_history_label("cuts", event),
+                                before=history_before,
+                                after=_cut_history_snapshot(prefix),
+                            )
+                        if (
+                            changed
+                            and event
+                            and event.get("type") == "cut"
+                            and event.get("action") == "end"
+                        ):
+                            # The component-triggered run was built with the previous cuts.
+                            # Stop it before rendering the expensive downstream tabs and
+                            # immediately acknowledge the optimistic local position.
+                            st.rerun()
+
+                    st.markdown("#### Frames extraídos")
+                    gallery = st.columns(min(6, len(segmentation.frames)))
+                    for index, frame in enumerate(segmentation.frames):
+                        with gallery[index % len(gallery)]:
+                            _show_pixel(frame, f"Frame {index}", max_height=180)
+
+                    segmentation_saved = _segmentation_saved_for_processing(
+                        store,
+                        session,
+                        processing_signature=processing_signature,
+                        frame_count=len(segmentation.frames),
+                    ) and background_saved
+                    if not background_saved:
+                        st.info("Guarda primero la remoción de fondo actual en el paso 1.")
+                    if st.button(
+                        "Guardar mapa provisional",
+                        type="primary",
+                        disabled=not background_saved,
+                        key=f"{session.session_id}:save_segmentation",
+                    ):
+                        if not segmentation_saved:
+                            _reset_alignment_state_for_segmentation(
+                                st.session_state,
+                                session,
+                                len(segmentation.frames),
+                            )
+                        session.segmentation_config = segmentation_config
+                        store.commit_stage(
+                            session,
+                            "segmentation",
+                            segmentation.frames,
+                            config=segmentation_config.to_dict(),
+                            warnings=segmentation.warnings,
+                            metadata={
+                                "kind": "provisional_pose_map",
+                                "regions": [list(region) for region in segmentation.regions],
+                                "resolved_config": segmentation.resolved_config.to_dict(),
+                                "empty_frames": list(segmentation.empty_frames),
+                                "processing_signature": processing_signature,
+                            },
+                        )
+                        st.session_state[history_notice_key] = (
+                            "Mapa provisional guardado; alineación recalculada."
+                        )
+                        st.rerun()
+
+                    if feet_auto_align and not segmentation_saved:
+                        st.info(
+                            "Guarda primero la segmentación actual. Después podrás mover y "
+                            "recortar cada sprite dentro de su frame."
+                        )
+
+                    if (
+                        feet_auto_align
+                        and segmentation_saved
+                        and working_frames
+                        and center_analysis is not None
+                    ):
+                        with st.container(border=True):
+                            st.markdown("#### Seleccionar y mover cada pose")
+                            st.caption(
+                                "Usa lazo, rectángulo o elipse para delimitar una pose cuando haga falta. "
+                                "Después usa Mover y arrástrala libremente. Los offsets y la selección son "
+                                "no destructivos; el corte real ocurre en Cortes finales."
+                            )
+                            crop_result = auto_center_frames(
+                                working_frames,
+                                center_config,
+                                manual_offsets=st.session_state[f"{prefix}:offsets"],
+                                locked=st.session_state[f"{prefix}:locks"],
+                                notes=st.session_state[f"{prefix}:notes"],
+                                overflow_strategy="clip",
+                                analysis=center_analysis,
+                                target_anchor=center_config.canonical_anchor,
+                            )
+                            crop_selected = st.selectbox(
+                                "Frame a mover",
+                                tuple(range(len(crop_result.frames))),
+                                key=f"{prefix}:sheet_crop_selected_frame",
+                            )
+                            crop_columns = _export_preview_columns(
+                                segmentation_config.orientation,
+                                len(crop_result.frames),
+                                segmentation_config.columns,
+                            )
+                            crop_canvas = _alignment_workspace_preview(
+                                crop_result.frames,
+                                crop_result.adjustments,
+                                crop_selected,
+                                crop_columns,
+                                show_cell_guides=True,
+                            )
+                            crop_overlay, crop_position = _alignment_drag_overlay(
+                                working_frames[crop_selected],
+                                crop_result.adjustments[crop_selected],
+                                frame_index=crop_selected,
+                                columns=crop_columns,
+                                cell_size=(center_config.canvas_width, center_config.canvas_height),
+                            )
+                            crop_offset = st.session_state[f"{prefix}:offsets"][crop_selected]
+                            pose_tool_key = f"{prefix}:pose_layout_tool"
+                            if pose_tool_key not in st.session_state:
+                                st.session_state[pose_tool_key] = "move"
+                            crop_event = pixel_editor(
+                                crop_canvas,
+                                overlay=crop_overlay,
+                                sample=None,
+                                tool=str(st.session_state[pose_tool_key]),
+                                mode="pose-layout",
+                                zoom=float(
+                                    st.session_state.get(
+                                        f"{prefix}:center_zoom:{crop_selected}",
+                                        8.0,
+                                    )
+                                ),
+                                offset_x=crop_position[0],
+                                offset_y=crop_position[1],
+                                home_offset_x=crop_position[0],
+                                home_offset_y=crop_position[1],
+                                show_guides=False,
+                                allow_drag=True,
+                                show_autocenter=False,
+                                show_autocrop=False,
+                                fit_on_load=True,
+                                fit_token=(
+                                    f"{prefix}:sheet-crop:{crop_selected}:"
+                                    f"{crop_canvas.width}x{crop_canvas.height}"
+                                ),
+                                frame_token=(
+                                    f"{prefix}:sheet-crop:{crop_selected}:"
+                                    f"offset:{crop_offset[0]}:{crop_offset[1]}"
+                                ),
+                                active_frame=crop_selected,
+                                frame_count=len(crop_result.frames),
+                                **_history_controls(session),
+                                key=f"{prefix}:sheet_crop_editor",
+                            )
+                            if _handle_editor_history_event(store, session, crop_event):
+                                st.rerun()
+                            crop_history_before = _center_history_snapshot(prefix)
+                            crop_changed = _handle_center_editor_event(
+                                session,
+                                len(crop_result.frames),
+                                crop_selected,
+                                crop_event,
+                                home_offset=crop_position,
+                                base_manual_offset=crop_offset,
+                            )
+                            if crop_changed and crop_event:
+                                _record_editor_history(
+                                    session,
+                                    scope="center",
+                                    label="Mover frame dentro de celda",
+                                    before=crop_history_before,
+                                    after=_center_history_snapshot(prefix),
+                                )
+                            if crop_changed and crop_event and crop_event.get("type") == "transform":
+                                st.rerun()
+                            if crop_changed and crop_event and (
+                                crop_event.get("type") == "crop"
+                                or (
+                                    crop_event.get("type") == "toolbar"
+                                    and crop_event.get("action") == "tool"
+                                )
+                            ):
+                                st.rerun()
+                            if st.session_state.pop(f"{prefix}:pose_selection_notice", None) == crop_selected:
+                                st.success(
+                                    "Selección guardada como guía no destructiva. Usa M para mover."
+                                )
+
+                            crop_adjustment = crop_result.adjustments[crop_selected]
+                            crop_metric_col, reset_col, save_col = st.columns((1.2, 1, 1.35))
+                            crop_metric_col.metric(
+                                "Pixels fuera del frame",
+                                crop_adjustment.cropped_pixel_count,
+                            )
+                            if reset_col.button(
+                                "Reaplicar pies",
+                                width="stretch",
+                                key=f"{prefix}:sheet_crop_reset_all",
+                            ):
+                                history_before = _center_history_snapshot(prefix)
+                                st.session_state[f"{prefix}:offsets"] = [
+                                    (0, 0) for _ in crop_result.frames
+                                ]
+                                _record_editor_history(
+                                    session,
+                                    scope="center",
+                                    label="Reaplicar alineación por pies",
+                                    before=history_before,
+                                    after=_center_history_snapshot(prefix),
+                                )
+                                st.rerun()
+                            if save_col.button(
+                                "Guardar posiciones y recorte",
+                                type="primary",
+                                width="stretch",
+                                key=f"{prefix}:save_sheet_crop_alignment",
+                            ):
+                                session.background_removal_config = background_config
+                                session.auto_center_config = center_config
+                                store.commit_stage(
+                                    session,
+                                    "alignment",
+                                    crop_result.frames,
+                                    config={
+                                        "segmentation": segmentation_config.to_dict(),
+                                        "background": background_config.to_dict(),
+                                        "auto_center": center_config.to_dict(),
+                                        "manual_offsets": list(
+                                            st.session_state[f"{prefix}:offsets"]
+                                        ),
+                                        "overflow_strategy": "clip",
+                                    },
+                                    status=crop_result.status,
+                                    metrics=crop_result.jitter_report,
+                                    metadata={
+                                        "frames": [
+                                            item.to_dict() for item in crop_result.adjustments
+                                        ]
+                                    },
+                                )
+                                store.save_adjustments(session, crop_result.adjustments)
+                                st.success("Posiciones y recorte guardados para exportación.")
+                else:
+                    with st.container(border=True):
+                        _show_pixel(source, "Sprite sheet original")
+
+            elif selected_mode == "Pintar capas":
+                st.divider()
+                st.subheader("Estudio de capas · alineación")
+                if not segmentation_saved:
+                    st.info("Guarda primero el mapa provisional de poses.")
+                elif not background_frames:
+                    st.info("Configura la segmentación para crear el documento de capas.")
+                else:
+                    document: LayeredSpriteDocument | None = None
+                    layer_images: dict[tuple[str, int], Image.Image] = {}
+                    if session.layer_document:
+                        try:
+                            document, layer_images = store.load_layer_document(session)
+                        except (ArtifactIntegrityError, FileNotFoundError, ValueError) as exc:
+                            st.warning(f"No se pudo abrir el documento de capas: {exc}")
+                    if document is None:
+                        st.markdown(
+                            "Crea un documento no destructivo: la capa **Fuente IA** queda bloqueada y "
+                            "se puede mover con M; los retoques se pintan sobre capas independientes."
+                        )
+                        if st.button(
+                            "Crear documento de capas",
+                            type="primary",
+                            key=f"{session.session_id}:create_layer_document",
+                        ):
+                            store.create_layer_document(session, background_frames)
+                            st.rerun()
+                    else:
+                        prefix = session.session_id
+                        active_layer_key = f"{prefix}:layer_editor_active_layer"
+                        if active_layer_key not in st.session_state or all(
+                            layer.layer_id != st.session_state[active_layer_key]
+                            for layer in document.layers
+                        ):
+                            st.session_state[active_layer_key] = document.layers[-1].layer_id
+                        active_layer_id = str(st.session_state[active_layer_key])
+                        active_layer = document.layer(active_layer_id)
+                        active_frame_key = f"{prefix}:layer_editor_active_frame"
+                        if active_frame_key not in st.session_state:
+                            st.session_state[active_frame_key] = 0
+                        active_frame = max(
+                            0,
+                            min(document.frame_count - 1, int(st.session_state[active_frame_key])),
+                        )
+                        st.session_state[active_frame_key] = active_frame
+                        color_key = f"{prefix}:layer_editor_color"
+                        if color_key not in st.session_state:
+                            st.session_state[color_key] = (255, 255, 255, 255)
+                        tool_key = f"{prefix}:layer_editor_tool"
+                        if tool_key not in st.session_state:
+                            st.session_state[tool_key] = "pencil"
+                        scope_key = f"{prefix}:layer_editor_scope"
+                        scope_for_canvas = str(
+                            st.session_state.get(scope_key, "Frame actual")
+                        )
+                        if scope_for_canvas == "Toda la animación":
+                            selected_frames = tuple(range(document.frame_count))
+                        elif scope_for_canvas == "Frames elegidos":
+                            raw_selected_frames = st.session_state.get(
+                                f"{prefix}:layer_editor_selected_frames",
+                                (active_frame,),
+                            )
+                            selected_frames = tuple(
+                                sorted(
+                                    {
+                                        int(frame_index)
+                                        for frame_index in raw_selected_frames
+                                        if 0 <= int(frame_index) < document.frame_count
+                                    }
+                                )
+                            ) or (active_frame,)
+                        else:
+                            selected_frames = (active_frame,)
+                        studio_layers = [
+                            {
+                                "id": layer.layer_id,
+                                "name": layer.name,
+                                "visible": layer.visible,
+                                "locked": layer.locked,
+                                "frames": [
+                                    document.cel(layer.layer_id, frame_index) is not None
+                                    for frame_index in range(document.frame_count)
+                                ],
+                            }
+                            for layer in reversed(document.layers)
+                        ]
+                        artwork_manifest = _load_stage_manifest(store, session, "artwork") or {}
+                        artwork_layer_document = artwork_manifest.get("metadata", {}).get(
+                            "layer_document", {}
+                        )
+                        published_cache_key = (
+                            str(artwork_layer_document.get("cache_key", ""))
+                            if isinstance(artwork_layer_document, dict)
+                            else ""
+                        )
+                        current_cache_key = str((session.layer_document or {}).get("cache_key", ""))
+                        artwork_is_current = bool(
+                            current_cache_key and current_cache_key == published_cache_key
+                        )
+                        pipeline_state = (
+                            "publicada para alineación"
+                            if artwork_is_current
+                            else "pendiente de publicar a alineación"
+                        )
+                        st.markdown(
+                            f"""
+                            <div class="studio-toolbar">
+                              <div>
+                                <div class="studio-toolbar-title">Área de trabajo de sprites</div>
+                                <div class="studio-toolbar-copy">La revisión de capas se guarda al editar. Publica cuando quieras que la alineación use esta revisión.</div>
+                              </div>
+                              <div class="studio-summary">
+                                <span>{document.canvas_width} × {document.canvas_height}px</span>
+                                <span>{document.frame_count} frames</span>
+                                <span>{len(document.layers)} capas</span>
+                                <span>capas r{document.revision}</span>
+                                <span>{pipeline_state}</span>
+                              </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        publish_col, canvas_col = st.columns((1.05, 4.95), gap="large")
+                        with publish_col:
+                            with st.container(border=True):
+                                st.markdown("#### Capas")
+                                st.caption(
+                                    "La primera fila se ve arriba. Usa el ojo y el candado "
+                                    "sin cambiar de capa."
+                                )
+                                st.markdown(
+                                    "<div class=\"studio-dock-label\"><span>Ver</span>"
+                                    "<span>Bloq.</span><span>Nombre · rol</span></div>",
+                                    unsafe_allow_html=True,
+                                )
+                                for layer in reversed(document.layers):
+                                    eye_col, lock_col, name_col = st.columns(
+                                        (0.48, 0.58, 2.45),
+                                        gap="small",
+                                    )
+                                    if eye_col.button(
+                                        "👁" if layer.visible else "◌",
+                                        help=("Ocultar capa" if layer.visible else "Mostrar capa"),
+                                        key=f"{prefix}:layer_visibility_toggle:{layer.layer_id}",
+                                    ):
+                                        _save_layer_document_with_history(
+                                            store,
+                                            session,
+                                            document.with_layer_properties(
+                                                layer.layer_id,
+                                                visible=not layer.visible,
+                                            ),
+                                            layer_images,
+                                            reason="layer-visibility",
+                                            label="Cambiar visibilidad de capa",
+                                        )
+                                        st.rerun()
+                                    if lock_col.button(
+                                        "🔒" if layer.locked else "🔓",
+                                        help=("Desbloquear capa" if layer.locked else "Bloquear capa"),
+                                        key=f"{prefix}:layer_lock_toggle:{layer.layer_id}",
+                                    ):
+                                        _save_layer_document_with_history(
+                                            store,
+                                            session,
+                                            document.with_layer_properties(
+                                                layer.layer_id,
+                                                locked=not layer.locked,
+                                            ),
+                                            layer_images,
+                                            reason="layer-lock",
+                                            label="Cambiar bloqueo de capa",
+                                        )
+                                        st.rerun()
+                                    if name_col.button(
+                                        f"{layer.name} · {layer.role}",
+                                        width="stretch",
+                                        type=(
+                                            "primary"
+                                            if layer.layer_id == active_layer_id
+                                            else "secondary"
+                                        ),
+                                        key=f"{prefix}:layer_select:{layer.layer_id}",
+                                    ):
+                                        st.session_state[active_layer_key] = layer.layer_id
+                                        st.rerun()
+
+                                st.caption("Orden: arriba se pinta encima de abajo.")
+                                add_col, up_col, down_col = st.columns((1.4, 1, 1))
+                                if add_col.button("+ Capa", width="stretch", key=f"{prefix}:layer_add"):
+                                    new_layer = SpriteLayer(
+                                        layer_id=f"layer-{uuid.uuid4().hex[:8]}",
+                                        name=f"Capa {len(document.layers) + 1}",
+                                    )
+                                    created = document.with_layer(
+                                        new_layer,
+                                        above_layer_id=active_layer_id,
+                                    )
+                                    _save_layer_document_with_history(
+                                        store,
+                                        session,
+                                        created,
+                                        layer_images,
+                                        reason="add-layer",
+                                        label="Añadir capa",
+                                    )
+                                    st.session_state[active_layer_key] = new_layer.layer_id
+                                    st.rerun()
+                                layer_ids = [layer.layer_id for layer in document.layers]
+                                layer_index = layer_ids.index(active_layer_id)
+                                if up_col.button(
+                                    "Subir",
+                                    width="stretch",
+                                    disabled=layer_index == len(document.layers) - 1,
+                                    key=f"{prefix}:layer_up",
+                                ):
+                                    _save_layer_document_with_history(
+                                        store,
+                                        session,
+                                        document.reordered(active_layer_id, layer_index + 1),
+                                        layer_images,
+                                        reason="reorder-layer",
+                                        label="Reordenar capa",
+                                    )
+                                    st.rerun()
+                                if down_col.button(
+                                    "Bajar",
+                                    width="stretch",
+                                    disabled=layer_index == 0,
+                                    key=f"{prefix}:layer_down",
+                                ):
+                                    _save_layer_document_with_history(
+                                        store,
+                                        session,
+                                        document.reordered(active_layer_id, layer_index - 1),
+                                        layer_images,
+                                        reason="reorder-layer",
+                                        label="Reordenar capa",
+                                    )
+                                    st.rerun()
+
+                            with st.expander(f"Propiedades · {active_layer.name}", expanded=True):
+                                property_form_key = f"{prefix}:layer_properties:{active_layer_id}"
+                                with st.form(property_form_key):
+                                    layer_name = st.text_input(
+                                        "Nombre",
+                                        value=active_layer.name,
+                                        key=f"{prefix}:layer_name:{active_layer_id}",
+                                    )
+                                    role_options = (
+                                        "source",
+                                        "body",
+                                        "retouch",
+                                        "shadow",
+                                        "vfx",
+                                        "reference",
+                                    )
+                                    role = st.selectbox(
+                                        "Rol en alineación",
+                                        role_options,
+                                        index=role_options.index(active_layer.role),
+                                        key=f"{prefix}:layer_role:{active_layer_id}",
+                                    )
+                                    opacity = float(
+                                        st.slider(
+                                            "Opacidad",
+                                            0.0,
+                                            1.0,
+                                            value=active_layer.opacity,
+                                            step=0.05,
+                                            key=f"{prefix}:layer_opacity:{active_layer_id}",
+                                        )
+                                    )
+                                    visible = st.checkbox(
+                                        "Visible",
+                                        value=active_layer.visible,
+                                        key=f"{prefix}:layer_visible:{active_layer_id}",
+                                    )
+                                    locked = st.checkbox(
+                                        "Bloquear edición",
+                                        value=active_layer.locked,
+                                        key=f"{prefix}:layer_locked:{active_layer_id}",
+                                    )
+                                    alpha_locked = st.checkbox(
+                                        "Bloquear transparencia",
+                                        value=active_layer.alpha_locked,
+                                        key=f"{prefix}:layer_alpha_locked:{active_layer_id}",
+                                        help="El lápiz y los rellenos solo modifican píxeles ya opacos.",
+                                    )
+                                    save_properties = st.form_submit_button(
+                                        "Guardar propiedades",
+                                        width="stretch",
+                                    )
+                                if save_properties:
+                                    clean_name = layer_name.strip() or "Capa"
+                                    _save_layer_document_with_history(
+                                        store,
+                                        session,
+                                        document.with_layer_properties(
+                                            active_layer_id,
+                                            name=clean_name,
+                                            role=role,
+                                            opacity=opacity,
+                                            visible=visible,
+                                            locked=locked,
+                                            alpha_locked=alpha_locked,
+                                        ),
+                                        layer_images,
+                                        reason="layer-properties",
+                                        label="Editar propiedades de capa",
+                                    )
+                                    st.rerun()
+
+                            st.markdown("#### Herramientas")
+                            color_picker_key = f"{prefix}:layer_editor_color_picker"
+                            color_picker_sync_key = f"{prefix}:layer_editor_color_picker_sync"
+                            if color_picker_sync_key in st.session_state:
+                                st.session_state[color_picker_key] = st.session_state.pop(
+                                    color_picker_sync_key
+                                )
+                            color = tuple(st.session_state[color_key])
+                            color_hex = st.color_picker(
+                                "Color de dibujo",
+                                value=_rgb_to_hex(color[:3]),
+                                key=color_picker_key,
+                            )
+                            next_color = _hex_to_rgba(color_hex)
+                            if next_color != color:
+                                st.session_state[color_key] = next_color
+                            brush_radius = int(
+                                st.slider(
+                                    "Tamaño de pincel",
+                                    min_value=1,
+                                    max_value=24,
+                                    value=int(
+                                        st.session_state.get(
+                                            f"{prefix}:layer_editor_brush_radius",
+                                            1,
+                                        )
+                                    ),
+                                    key=f"{prefix}:layer_editor_brush_radius",
+                                )
+                            )
+                            symmetry_col1, symmetry_col2 = st.columns(2)
+                            symmetry_col1.checkbox(
+                                "Simetría horizontal",
+                                key=f"{prefix}:layer_symmetry_horizontal",
+                            )
+                            symmetry_col2.checkbox(
+                                "Simetría vertical",
+                                key=f"{prefix}:layer_symmetry_vertical",
+                            )
+
+                        with canvas_col:
+                            st.markdown('<div class="studio-canvas-shell">', unsafe_allow_html=True)
+                            active_cel = document.cel(active_layer_id, active_frame)
+                            if active_cel is None:
+                                st.error("La capa activa no tiene un cel para este frame.")
+                            else:
+                                floating = _floating_selection_for_frame(
+                                    prefix,
+                                    layer_id=active_layer_id,
+                                    frame_index=active_frame,
+                                )
+                                preview_images = layer_images
+                                floating_piece: Image.Image | None = None
+                                floating_highlight: Image.Image | None = None
+                                floating_bounds: tuple[int, int, int, int] | None = None
+                                if floating is not None:
+                                    image = layer_images.get((active_layer_id, active_frame))
+                                    piece = floating.get("piece")
+                                    if (
+                                        isinstance(image, Image.Image)
+                                        and isinstance(piece, Image.Image)
+                                    ):
+                                        floating_piece = piece
+                                        mask = floating.get("mask")
+                                        if isinstance(mask, np.ndarray):
+                                            floating_highlight = _floating_selection_highlight(mask)
+                                        raw_bounds = floating.get("bounds")
+                                        if isinstance(raw_bounds, tuple) and len(raw_bounds) == 4:
+                                            floating_bounds = tuple(int(value) for value in raw_bounds)
+                                composite = composite_document_frame(
+                                    document,
+                                    preview_images,
+                                    active_frame,
+                                )
+                                selection_mask = _layer_selection_mask(
+                                    prefix,
+                                    active_layer_id,
+                                    active_frame,
+                                )
+                                active_image_for_selection = layer_images.get(
+                                    (active_layer_id, active_frame)
+                                )
+                                if (
+                                    isinstance(selection_mask, np.ndarray)
+                                    and isinstance(active_image_for_selection, Image.Image)
+                                    and selection_mask.shape
+                                    == (
+                                        active_image_for_selection.height,
+                                        active_image_for_selection.width,
+                                    )
+                                ):
+                                    composite = composite.copy()
+                                    composite.alpha_composite(
+                                        render_selection_overlay(
+                                            active_image_for_selection.size,
+                                            selection_mask,
+                                        ),
+                                        dest=(active_cel.offset_x, active_cel.offset_y),
+                                    )
+                                move_base: Image.Image | None = None
+                                move_overlay: Image.Image | None = None
+                                if active_layer.visible:
+                                    hidden_document = document.with_layer_properties(
+                                        active_layer_id,
+                                        visible=False,
+                                    )
+                                    move_base = composite_document_frame(
+                                        hidden_document,
+                                        preview_images,
+                                        active_frame,
+                                    )
+                                    active_image = layer_images.get((active_layer_id, active_frame))
+                                    if active_image is not None:
+                                        move_overlay = active_image.convert("RGBA")
+                                        if active_layer.opacity < 1:
+                                            move_overlay = move_overlay.copy()
+                                            move_overlay.putalpha(
+                                                move_overlay.getchannel("A").point(
+                                                    lambda value: round(value * active_layer.opacity)
+                                                )
+                                            )
+                                with st.container(border=True):
+                                    st.markdown("#### Lienzo")
+                                    studio_defaults = {
+                                        f"{prefix}:studio_onion_skin": False,
+                                        f"{prefix}:studio_onion_opacity": 0.28,
+                                        f"{prefix}:studio_playback_fps": 8,
+                                    }
+                                    for option_key, default_value in studio_defaults.items():
+                                        if option_key not in st.session_state:
+                                            st.session_state[option_key] = default_value
+                                    duration_key = f"{prefix}:studio_frame_durations"
+                                    durations = list(st.session_state.get(duration_key, []))
+                                    if len(durations) != document.frame_count:
+                                        durations = [
+                                            int(durations[index]) if index < len(durations) else 125
+                                            for index in range(document.frame_count)
+                                        ]
+                                        st.session_state[duration_key] = durations
+                                    frame_tool_cols = st.columns((1, 1, 1, 1, 1.3), gap="small")
+                                    if frame_tool_cols[0].button(
+                                        "Duplicar",
+                                        key=f"{prefix}:duplicate_frame:{active_frame}",
+                                        width="stretch",
+                                    ):
+                                        updated_document, updated_images = duplicate_document_frame(
+                                            document,
+                                            layer_images,
+                                            active_frame,
+                                        )
+                                        _save_layer_document_with_history(
+                                            store,
+                                            session,
+                                            updated_document,
+                                            updated_images,
+                                            reason="duplicate-frame",
+                                            label="Duplicar frame",
+                                        )
+                                        st.session_state[active_frame_key] = active_frame + 1
+                                        durations.insert(active_frame + 1, durations[active_frame])
+                                        st.session_state[duration_key] = durations
+                                        st.rerun()
+                                    if frame_tool_cols[1].button(
+                                        "Eliminar",
+                                        disabled=document.frame_count <= 1,
+                                        key=f"{prefix}:delete_frame:{active_frame}",
+                                        width="stretch",
+                                    ):
+                                        updated_document, updated_images = delete_document_frame(
+                                            document,
+                                            layer_images,
+                                            active_frame,
+                                        )
+                                        _save_layer_document_with_history(
+                                            store,
+                                            session,
+                                            updated_document,
+                                            updated_images,
+                                            reason="delete-frame",
+                                            label="Eliminar frame",
+                                        )
+                                        st.session_state[active_frame_key] = min(
+                                            active_frame,
+                                            updated_document.frame_count - 1,
+                                        )
+                                        durations.pop(active_frame)
+                                        st.session_state[duration_key] = durations
+                                        st.session_state[f"{prefix}:layer_editor_selection_masks"] = {}
+                                        st.rerun()
+                                    if frame_tool_cols[2].button(
+                                        "← Frame",
+                                        disabled=active_frame <= 0,
+                                        key=f"{prefix}:frame_left:{active_frame}",
+                                        width="stretch",
+                                    ):
+                                        updated_document, updated_images = move_document_frame(
+                                            document,
+                                            layer_images,
+                                            active_frame,
+                                            active_frame - 1,
+                                        )
+                                        _save_layer_document_with_history(
+                                            store,
+                                            session,
+                                            updated_document,
+                                            updated_images,
+                                            reason="move-frame",
+                                            label="Reordenar frame",
+                                        )
+                                        st.session_state[active_frame_key] = active_frame - 1
+                                        durations[active_frame - 1], durations[active_frame] = (
+                                            durations[active_frame],
+                                            durations[active_frame - 1],
+                                        )
+                                        st.session_state[duration_key] = durations
+                                        st.rerun()
+                                    if frame_tool_cols[3].button(
+                                        "Frame →",
+                                        disabled=active_frame >= document.frame_count - 1,
+                                        key=f"{prefix}:frame_right:{active_frame}",
+                                        width="stretch",
+                                    ):
+                                        updated_document, updated_images = move_document_frame(
+                                            document,
+                                            layer_images,
+                                            active_frame,
+                                            active_frame + 1,
+                                        )
+                                        _save_layer_document_with_history(
+                                            store,
+                                            session,
+                                            updated_document,
+                                            updated_images,
+                                            reason="move-frame",
+                                            label="Reordenar frame",
+                                        )
+                                        st.session_state[active_frame_key] = active_frame + 1
+                                        durations[active_frame + 1], durations[active_frame] = (
+                                            durations[active_frame],
+                                            durations[active_frame + 1],
+                                        )
+                                        st.session_state[duration_key] = durations
+                                        st.rerun()
+                                    onion_enabled = frame_tool_cols[4].toggle(
+                                        "Onion skin",
+                                        key=f"{prefix}:studio_onion_skin",
+                                    )
+                                    option_cols = st.columns(3, gap="small")
+                                    if onion_enabled:
+                                        option_cols[0].slider(
+                                            "Opacidad onion skin",
+                                            min_value=0.05,
+                                            max_value=0.8,
+                                            step=0.05,
+                                            key=f"{prefix}:studio_onion_opacity",
+                                        )
+                                    playback_fps = int(
+                                        option_cols[1].slider(
+                                            "FPS reproducción",
+                                            min_value=1,
+                                            max_value=30,
+                                            key=f"{prefix}:studio_playback_fps",
+                                            help=(
+                                                "Cambiar FPS aplica la duración equivalente "
+                                                "a todos los frames."
+                                            ),
+                                        )
+                                    )
+                                    applied_fps_key = f"{prefix}:studio_playback_applied_fps"
+                                    previous_fps = int(
+                                        st.session_state.get(applied_fps_key, playback_fps)
+                                    )
+                                    if playback_fps != previous_fps:
+                                        frame_duration_from_fps = max(
+                                            16,
+                                            round(1000 / playback_fps),
+                                        )
+                                        durations = [
+                                            frame_duration_from_fps
+                                            for _ in range(document.frame_count)
+                                        ]
+                                        st.session_state[duration_key] = durations
+                                        for frame_index in range(document.frame_count):
+                                            frame_widget_key = (
+                                                f"{prefix}:studio_frame_duration:{frame_index}"
+                                            )
+                                            if frame_widget_key in st.session_state:
+                                                st.session_state[frame_widget_key] = (
+                                                    frame_duration_from_fps
+                                                )
+                                    st.session_state[applied_fps_key] = playback_fps
+                                    duration_widget_key = (
+                                        f"{prefix}:studio_frame_duration:{active_frame}"
+                                    )
+                                    if duration_widget_key not in st.session_state:
+                                        st.session_state[duration_widget_key] = int(
+                                            durations[active_frame]
+                                        )
+                                    frame_duration = int(
+                                        option_cols[2].number_input(
+                                            "Duración frame (ms)",
+                                            min_value=16,
+                                            max_value=5000,
+                                            step=10,
+                                            key=duration_widget_key,
+                                        )
+                                    )
+                                    if frame_duration != durations[active_frame]:
+                                        durations[active_frame] = frame_duration
+                                        st.session_state[duration_key] = durations
+                                    st.caption(
+                                        f"Frame {active_frame + 1}/{document.frame_count} · "
+                                        f"capa activa: {active_layer.name} · "
+                                        "herramienta: "
+                                        f"{_layer_tool_label(_normalize_layer_tool(st.session_state[tool_key]))}"
+                                    )
+                                    if onion_enabled:
+                                        onion_opacity = float(
+                                            st.session_state.get(
+                                                f"{prefix}:studio_onion_opacity",
+                                                0.28,
+                                            )
+                                        )
+                                        onion_canvas = Image.new("RGBA", composite.size)
+                                        if active_frame > 0:
+                                            onion_canvas.alpha_composite(
+                                                _onion_skin_tint(
+                                                    composite_document_frame(
+                                                        document,
+                                                        preview_images,
+                                                        active_frame - 1,
+                                                    ),
+                                                    (255, 88, 110),
+                                                    onion_opacity,
+                                                )
+                                            )
+                                        if active_frame + 1 < document.frame_count:
+                                            onion_canvas.alpha_composite(
+                                                _onion_skin_tint(
+                                                    composite_document_frame(
+                                                        document,
+                                                        preview_images,
+                                                        active_frame + 1,
+                                                    ),
+                                                    (72, 190, 255),
+                                                    onion_opacity,
+                                                )
+                                            )
+                                        onion_canvas.alpha_composite(composite)
+                                        composite = onion_canvas
+                                    animation_payload_key = (
+                                        f"{prefix}:layer_editor_animation_payload:{document.document_id}"
+                                    )
+                                    animation_payload_requested = bool(
+                                        st.session_state.get(animation_payload_key, False)
+                                    )
+                                    animation_frames = (
+                                        tuple(
+                                            composite_document_frame(
+                                                document,
+                                                preview_images,
+                                                index,
+                                            )
+                                            for index in range(document.frame_count)
+                                        )
+                                        if animation_payload_requested
+                                        else None
+                                    )
+                                    history_controls = _history_controls(session)
+                                    studio_palette = _extract_palette_colors(composite)
+                                    event = pixel_editor(
+                                        composite,
+                                        overlay=move_overlay,
+                                        move_base=move_base,
+                                        sample=tuple(st.session_state[color_key]),
+                                        paint_color=tuple(st.session_state[color_key]),
+                                        palette_colors=studio_palette,
+                                        tool=_normalize_layer_tool(st.session_state[tool_key]),
+                                        mode="layer-edit",
+                                        brush_radius=brush_radius,
+                                        zoom=float(st.session_state.get(f"{prefix}:layer_editor_zoom", 12.0)),
+                                        offset_x=active_cel.offset_x,
+                                        offset_y=active_cel.offset_y,
+                                        home_offset_x=active_cel.offset_x,
+                                        home_offset_y=active_cel.offset_y,
+                                        allow_drag=True,
+                                        fit_on_load=True,
+                                        fit_token=(
+                                            f"{prefix}:layers:{document.document_id}:"
+                                            f"{document.canvas_width}x{document.canvas_height}:"
+                                            f"{active_layer_id}:{active_frame}"
+                                        ),
+                                        frame_token=(
+                                            f"{prefix}:layers:{document.document_id}:{active_layer_id}:"
+                                            f"{active_frame}"
+                                        ),
+                                        studio_layers=studio_layers,
+                                        active_layer_id=active_layer_id,
+                                        active_frame=active_frame,
+                                        frame_count=document.frame_count,
+                                        selected_frames=selected_frames,
+                                        floating_selection=floating_piece,
+                                        floating_highlight=floating_highlight,
+                                        floating_selection_x=active_cel.offset_x,
+                                        floating_selection_y=active_cel.offset_y,
+                                        floating_selection_bounds=floating_bounds,
+                                        animation_frames=animation_frames,
+                                        animation_fps=int(
+                                            st.session_state.get(f"{prefix}:studio_playback_fps", 8)
+                                        ),
+                                        animation_durations=durations,
+                                        **history_controls,
+                                        key=f"{prefix}:layer_pixel_editor",
+                                    )
+                                    if _handle_editor_history_event(store, session, event):
+                                        st.rerun()
+                                    history_before = _layer_history_snapshot(session)
+                                    changed = _handle_layer_editor_event(
+                                        store,
+                                        session,
+                                        document,
+                                        layer_images,
+                                        event,
+                                        active_layer_id=active_layer_id,
+                                        active_frame=active_frame,
+                                        target_frames=selected_frames,
+                                        composite=composite,
+                                    )
+                                    if changed and event:
+                                        _record_editor_history(
+                                            session,
+                                            scope="studio",
+                                            label=_history_label("studio", event),
+                                            before=history_before,
+                                            after=_layer_history_snapshot(session),
+                                        )
+                                    # The current run loaded the previous immutable layer
+                                    # revision. Stop before downstream previews can publish
+                                    # stale pixels or offsets. The component keeps its local
+                                    # optimistic frame visible while this confirmation runs.
+                                    if changed and event and (
+                                        event.get("type") in {
+                                            "studio",
+                                            "crop",
+                                            "selection",
+                                            "selection-command",
+                                            "clipboard",
+                                            "pixel-action",
+                                            "floating-selection",
+                                        }
+                                        or event.get("type") in {
+                                            "floating-transform",
+                                            "edit-batch",
+                                            "paint",
+                                            "transform",
+                                        }
+                                        or (
+                                            event.get("type") in {"pointer", "pointerdown"}
+                                            and event.get("tool") in {"fill", "replace_color"}
+                                        )
+                                        or event.get("type") == "animation"
+                                    ):
+                                        st.rerun()
+                                notice_key = f"{prefix}:layer_editor_notice"
+                                if notice_key in st.session_state:
+                                    st.info(str(st.session_state.pop(notice_key)))
+                            st.markdown("</div>", unsafe_allow_html=True)
+
+                        with st.container(border=True):
+                            st.markdown("#### Alcance de edición")
+                            scope = st.radio(
+                                "Aplicar trazos a",
+                                ("Frame actual", "Frames elegidos", "Toda la animación"),
+                                horizontal=True,
+                                key=scope_key,
+                            )
+                            if scope == "Toda la animación":
+                                selected_frames = tuple(range(document.frame_count))
+                            elif scope == "Frames elegidos":
+                                chosen = st.multiselect(
+                                    "Frames objetivo",
+                                    tuple(range(document.frame_count)),
+                                    default=(active_frame,),
+                                    key=f"{prefix}:layer_editor_selected_frames",
+                                )
+                                selected_frames = tuple(int(value) for value in chosen) or (active_frame,)
+                            else:
+                                selected_frames = (active_frame,)
+                            st.caption(
+                                "La timeline visual queda debajo del lienzo. Selecciona un frame "
+                                "aquí para editarlo; el punto indica que el cel existe en la capa activa."
+                            )
+                            timeline = st.columns(min(10, document.frame_count))
+                            for frame_index in range(document.frame_count):
+                                with timeline[frame_index % len(timeline)]:
+                                    active = frame_index == active_frame
+                                    cel = document.cel(active_layer_id, frame_index)
+                                    state = "●" if cel is not None else "○"
+                                    if st.button(
+                                        f"{state} F{frame_index + 1}",
+                                        width="stretch",
+                                        type="primary" if active else "secondary",
+                                        key=f"{prefix}:layer_frame:{frame_index}",
+                                    ):
+                                        st.session_state[active_frame_key] = frame_index
+                                        st.rerun()
+
+                        st.markdown("#### Canvas y pipeline")
+                        canvas_tools, publish_tools = st.columns((1, 1.25), gap="large")
+                        with canvas_tools, st.container(border=True):
+                            st.caption(
+                                "Amplía todas las celdas con transparencia; nunca escala "
+                                "pixels individuales."
+                            )
+                            padding = int(
+                                st.number_input(
+                                    "Padding transparente",
+                                    min_value=0,
+                                    max_value=512,
+                                    value=0,
+                                    key=f"{prefix}:layer_editor_padding",
+                                )
+                            )
+                            if st.button(
+                                "Ajustar canvas al contenido",
+                                width="stretch",
+                                key=f"{prefix}:layer_expand_canvas",
+                            ):
+                                expanded = document.expanded_to_content(layer_images, padding=padding)
+                                previous = document.cel(document.layers[0].layer_id, 0)
+                                moved = expanded.cel(document.layers[0].layer_id, 0)
+                                shift_x = moved.offset_x - previous.offset_x if moved and previous else 0
+                                shift_y = moved.offset_y - previous.offset_y if moved and previous else 0
+                                old_center = session.auto_center_config
+                                session.auto_center_config = AutoCenterConfig(
+                                    method="multi_anchor",
+                                    canvas_width=expanded.canvas_width,
+                                    canvas_height=expanded.canvas_height,
+                                    canonical_anchor=(
+                                        old_center.canonical_anchor[0] + shift_x,
+                                        old_center.canonical_anchor[1] + shift_y,
+                                    ),
+                                    confidence_threshold=old_center.confidence_threshold,
+                                    ignore_outliers=old_center.ignore_outliers,
+                                    anchor_strategy=old_center.anchor_strategy,
+                                    normalize_scale=old_center.normalize_scale,
+                                    target_body_height_px=old_center.target_body_height_px,
+                                    scale_tolerance_px=old_center.scale_tolerance_px,
+                                    scale_min_ratio=old_center.scale_min_ratio,
+                                    scale_max_ratio=old_center.scale_max_ratio,
+                                    scale_reference=old_center.scale_reference,
+                                    alignment_profile=alignment_profile,
+                                )
+                                _save_layer_document_with_history(
+                                    store,
+                                    session,
+                                    expanded,
+                                    layer_images,
+                                    reason="expand-canvas",
+                                    label="Expandir canvas",
+                                )
+                                st.rerun()
+                        with publish_tools, st.container(border=True):
+                            st.markdown("**Publicación para alineación**")
+                            if artwork_is_current:
+                                st.success("La alineación ya usa esta revisión de capas.")
+                            else:
+                                st.warning(
+                                    "La alineación sigue usando la última versión publicada. "
+                                    "Publica esta revisión cuando el retoque esté listo."
+                                )
+                            if st.button(
+                                "Publicar capas para alineación",
+                                type="primary",
+                                width="stretch",
+                                key=f"{prefix}:publish_layer_document",
+                            ):
+                                store.publish_layer_document(
+                                    session,
+                                    document,
+                                    layer_images,
+                                    reason="publish-to-pipeline",
+                                )
+                                st.success(
+                                    "Capas publicadas: la alineación usará esta revisión "
+                                    "en el siguiente cálculo."
+                                )
+                                st.rerun()
+
+            else:  # "Anchors"
+                st.subheader("Alineación multi-anchor")
+                st.caption(
+                    f"Perfil activo: **{alignment_profile}** · sólo traslación X/Y entera. "
+                    "Cian estabiliza, ámbar valida y magenta muestra el anchor fusionado."
+                )
+                if not background_saved:
+                    st.info("Guarda primero la remoción de fondo en el paso 1.")
+                if centered:
+                    prefix = session.session_id
+                    if f"{prefix}:center_guides" not in st.session_state:
+                        st.session_state[f"{prefix}:center_guides"] = True
+                    preview_crop_config = (
+                        session.export_crop_config
+                        if session.export_crop_config.enabled
+                        else ExportCropConfig(
+                            enabled=True,
+                            padding=max(8, min(canvas_width, canvas_height) // 10),
+                            alpha_threshold=8,
+                        )
+                    )
+                    preview_source = centered
+                    preview_crop, preview_crop_warning = _safe_trim_transparent_frames(
+                        preview_source.frames,
+                        preview_crop_config,
+                    )
+                    if preview_crop_warning:
+                        st.warning(
+                            "El preview de crop usa un fallback porque los frames tienen "
+                            "tamaños distintos. La exportación seguirá usando el canvas de cada frame."
+                        )
+                    review_count = sum(item.manual_review for item in centered.adjustments)
+                    if review_count:
+                        st.warning(
+                            f"Hay {review_count} anchor(s) de baja confianza. "
+                            "Puedes continuar; la exportación conservará la advertencia."
+                        )
+                    pending_selected = st.session_state.pop(
+                        f"{prefix}:center_pending_selected_frame",
+                        None,
+                    )
+                    if pending_selected is not None:
+                        st.session_state[f"{prefix}:selected_frame"] = max(
+                            0,
+                            min(len(preview_crop.frames) - 1, int(pending_selected)),
+                        )
+                    selected = st.selectbox(
+                        "Frame",
+                        tuple(range(len(preview_crop.frames))),
+                        key=f"{prefix}:selected_frame",
+                    )
+                    sheet_columns = _export_preview_columns(
+                        segmentation_config.orientation,
+                        len(preview_crop.frames),
+                        segmentation_config.columns,
+                    )
+                    sheet_rows = (
+                        len(preview_crop.frames) + sheet_columns - 1
+                    ) // sheet_columns
+                    selected_frame = preview_crop.frames[selected]
+                    selected_home = _alignment_frame_position(preview_crop.frames, selected, sheet_columns)
+                    selected_offset = st.session_state[f"{prefix}:offsets"][selected]
+                    selected_position = selected_home
+                    _ensure_center_guide_state(
+                        session,
+                        default_ground_line_y=max(0, selected_frame.height - 1),
+                        max_ground_line_y=max(0, selected_frame.height - 1),
+                    )
+                    preview_adjustment = preview_source.adjustments[selected]
+                    crop_origin_x, crop_origin_y = preview_crop.bbox[:2]
+                    current_anchor_x = (
+                        selected_home[0]
+                        + preview_adjustment.final_anchor[0]
+                        - crop_origin_x
+                    )
+                    current_anchor_y = (
+                        selected_home[1]
+                        + preview_adjustment.final_anchor[1]
+                        - crop_origin_y
+                    )
+                    target_anchor_x = (
+                        selected_home[0]
+                        + preview_adjustment.final_anchor[0]
+                        - preview_adjustment.manual_offset_x
+                        - crop_origin_x
+                    )
+                    target_anchor_y = (
+                        selected_home[1]
+                        + preview_adjustment.final_anchor[1]
+                        - preview_adjustment.manual_offset_y
+                        - crop_origin_y
+                    )
+                    ground_line_y = (
+                        selected_home[1]
+                        + int(st.session_state[f"{prefix}:center_ground_line_y"])
+                    )
+                    combined_canvas = _alignment_workspace_preview(
+                        preview_crop.frames,
+                        preview_source.adjustments,
+                        selected,
+                        sheet_columns,
+                        origin_offset=(preview_crop.bbox[0], preview_crop.bbox[1]),
+                    )
+                    st.caption(
+                        "La previsualización y la edición viven en el mismo canvas. "
+                        "Arrastra el frame activo dentro de la grilla para reajustarlo."
+                    )
+                    autocenter_all_notice = st.session_state.pop(
+                        f"{prefix}:center_autocenter_all_notice",
+                        None,
+                    )
+                    if autocenter_all_notice:
+                        st.success(
+                            f"Autoalineación multi-anchor aplicada a "
+                            f"{int(autocenter_all_notice)} frames."
+                        )
+                    center_zoom_key = f"{prefix}:center_zoom:{selected}"
+                    has_persisted_zoom = center_zoom_key in st.session_state
+                    center_zoom = max(
+                        0.05,
+                        min(40.0, float(st.session_state.get(center_zoom_key, 12.0))),
                     )
                     history_controls = _history_controls(session)
                     event = pixel_editor(
-                        background_source,
-                        overlay=guide_overlay,
+                        combined_canvas,
+                        overlay=selected_frame,
                         sample=None,
-                        tool="drag",
-                        mode="segmentation-cut",
-                        zoom=float(st.session_state[f"{prefix}:segmentation_cut_zoom"]),
-                        cut_positions=st.session_state[f"{prefix}:segmentation_cut_positions"],
-                        cut_positions_x=st.session_state.get(
-                            f"{prefix}:segmentation_cut_positions_x", ()
+                        tool="move",
+                        mode="segmentation-center",
+                        zoom=center_zoom,
+                        offset_x=selected_position[0],
+                        offset_y=selected_position[1],
+                        home_offset_x=selected_home[0],
+                        home_offset_y=selected_home[1],
+                        show_guides=bool(st.session_state[f"{prefix}:center_guides"]),
+                        guide_opacity=float(
+                            st.session_state[f"{prefix}:center_guide_opacity"]
                         ),
-                        cut_positions_y=st.session_state.get(
-                            f"{prefix}:segmentation_cut_positions_y", ()
+                        show_cell_center=bool(
+                            st.session_state[f"{prefix}:center_show_cell_center"]
                         ),
-                        allow_cut_drag=free_adjust_enabled,
-                        fit_on_load=True,
+                        show_frame_guide=bool(
+                            st.session_state[f"{prefix}:center_show_frame_guide"]
+                        ),
+                        show_column_guides=bool(
+                            st.session_state[f"{prefix}:center_show_column_guides"]
+                        ),
+                        show_row_guides=bool(
+                            st.session_state[f"{prefix}:center_show_row_guides"]
+                        ),
+                        grid_columns=sheet_columns,
+                        grid_rows=sheet_rows,
+                        active_frame=selected,
+                        frame_count=len(preview_crop.frames),
+                        frame_locks=st.session_state[f"{prefix}:locks"],
+                        show_ground_line=bool(
+                            st.session_state[f"{prefix}:center_show_ground_line"]
+                        ),
+                        ground_line_y=ground_line_y,
+                        current_anchor_x=(
+                            current_anchor_x
+                            if st.session_state[f"{prefix}:center_show_body_anchor"]
+                            else None
+                        ),
+                        current_anchor_y=(
+                            current_anchor_y
+                            if st.session_state[f"{prefix}:center_show_body_anchor"]
+                            else None
+                        ),
+                        target_anchor_x=(
+                            target_anchor_x
+                            if st.session_state[f"{prefix}:center_show_target_anchor"]
+                            else None
+                        ),
+                        target_anchor_y=(
+                            target_anchor_y
+                            if st.session_state[f"{prefix}:center_show_target_anchor"]
+                            else None
+                        ),
+                        show_anchor_delta=bool(
+                            st.session_state[f"{prefix}:center_show_anchor_delta"]
+                        ),
+                        allow_drag=True,
+                        show_autocenter=True,
+                        show_autocenter_all=True,
+                        show_autocrop=True,
+                        fit_on_load=not has_persisted_zoom,
+                        fit_token=(
+                            f"{prefix}:center:{selected}:{combined_canvas.width}x{combined_canvas.height}:"
+                            f"{selected_frame.width}x{selected_frame.height}"
+                        ),
                         frame_token=(
-                            f"{prefix}:segmentation-cut:{background_source.width}x"
-                            f"{background_source.height}:{segmentation_config.frame_count}:"
-                            f"{segmentation_config.orientation}"
+                            f"{prefix}:center:{selected}:{combined_canvas.width}x{combined_canvas.height}:"
+                            f"{selected_frame.width}x{selected_frame.height}:"
+                            f"offset:{selected_offset[0]}:{selected_offset[1]}"
                         ),
                         **history_controls,
-                        key=f"{prefix}:segmentation_cut_editor",
+                        key=f"{prefix}:center_pixel_editor",
                     )
                     if _handle_editor_history_event(store, session, event):
                         st.rerun()
-                    history_before = _cut_history_snapshot(prefix)
-                    changed = _handle_segmentation_cut_event(
+                    history_before = _center_history_snapshot(prefix)
+                    changed = _handle_center_editor_event(
                         session,
-                        segmentation.resolved_config.frame_count,
+                        len(centered.frames),
+                        selected,
                         event,
-                        orientation=segmentation_config.orientation,
-                        columns=segmentation_config.columns,
-                        rows=segmentation_config.rows,
+                        home_offset=selected_home,
+                        base_manual_offset=selected_offset,
                     )
-                    if changed and event:
+                    if changed and event and event.get("type") != "frame-selection":
                         _record_editor_history(
                             session,
-                            scope="cuts",
-                            label=_history_label("cuts", event),
+                            scope="center",
+                            label=_history_label("center", event),
                             before=history_before,
-                            after=_cut_history_snapshot(prefix),
+                            after=_center_history_snapshot(prefix),
                         )
-                    if (
-                        changed
-                        and event
-                        and event.get("type") == "cut"
-                        and event.get("action") == "end"
+                    if changed and event and (
+                        event.get("type") in {"transform", "frame-selection"}
+                        or (
+                            event.get("type") == "toolbar"
+                            and event.get("action")
+                            in {
+                                "autocenter",
+                                "autocenter-all",
+                                "reset-transform",
+                                "toggle-frame-lock",
+                            }
+                        )
                     ):
-                        # The component-triggered run was built with the previous cuts.
-                        # Stop it before rendering the expensive downstream tabs and
-                        # immediately acknowledge the optimistic local position.
+                        # Auto Center was computed before the component event. Confirm the
+                        # optimistic transform immediately so every preview and numeric
+                        # control receives the same offset without requiring a second drag.
                         st.rerun()
-    
-                st.markdown("#### Frames extraídos")
-                gallery = st.columns(min(6, len(segmentation.frames)))
-                for index, frame in enumerate(segmentation.frames):
-                    with gallery[index % len(gallery)]:
-                        _show_pixel(frame, f"Frame {index}", max_height=180)
-    
-                segmentation_saved = _segmentation_saved_for_processing(
-                    store,
-                    session,
-                    processing_signature=processing_signature,
-                    frame_count=len(segmentation.frames),
-                ) and background_saved
-                if not background_saved:
-                    st.info("Guarda primero la remoción de fondo actual en el paso 1.")
-                if st.button(
-                    "Guardar mapa provisional",
-                    type="primary",
-                    disabled=not background_saved,
-                    key=f"{session.session_id}:save_segmentation",
-                ):
-                    if not segmentation_saved:
-                        _reset_alignment_state_for_segmentation(
-                            st.session_state,
-                            session,
-                            len(segmentation.frames),
+                    if st.button(
+                        "Guardar alineación",
+                        type="primary",
+                        disabled=not background_saved or not working_frames,
+                        key=f"{session.session_id}:save_center",
+                    ):
+                        if not segmentation_saved and segmentation:
+                            session.segmentation_config = segmentation_config
+                            store.commit_stage(
+                                session,
+                                "segmentation",
+                                segmentation.frames,
+                                config=segmentation_config.to_dict(),
+                                warnings=segmentation.warnings,
+                                metadata={
+                                    "kind": "provisional_pose_map",
+                                    "regions": [list(region) for region in segmentation.regions],
+                                    "resolved_config": segmentation.resolved_config.to_dict(),
+                                    "empty_frames": list(segmentation.empty_frames),
+                                    "processing_signature": processing_signature,
+                                },
+                            )
+                            segmentation_saved = True
+                        _ensure_adjustment_state(session, len(working_frames))
+                        final_result = auto_center_frames(
+                            working_frames,
+                            center_config,
+                            manual_offsets=st.session_state[f"{prefix}:offsets"],
+                            locked=st.session_state[f"{prefix}:locks"],
+                            notes=st.session_state[f"{prefix}:notes"],
+                            overflow_strategy="clamp",
+                            analysis=center_analysis,
+                            target_anchor=center_config.canonical_anchor,
                         )
+                        session.segmentation_config = segmentation_config
+                        session.background_removal_config = background_config
+                        session.auto_center_config = center_config
+                        store.commit_stage(
+                            session,
+                            "alignment",
+                            final_result.frames,
+                            config={
+                                "segmentation": segmentation_config.to_dict(),
+                                "background": background_config.to_dict(),
+                                "auto_center": center_config.to_dict(),
+                                "manual_offsets": list(st.session_state[f"{prefix}:offsets"]),
+                            },
+                            status=final_result.status,
+                            metrics=final_result.jitter_report,
+                            metadata={
+                                "frames": [item.to_dict() for item in final_result.adjustments]
+                            },
+                        )
+                        store.save_adjustments(session, final_result.adjustments)
+                        st.success("Frame fijado y anchors guardados.")
+                        st.rerun()
+                    st.caption(
+                        f"Canvas visible recortado a `{preview_crop.bbox[2] - preview_crop.bbox[0]} × "
+                        f"{preview_crop.bbox[3] - preview_crop.bbox[1]}` para que el drag sea más natural."
+                    )
+                    st.dataframe(
+                        [
+                            {
+                                "frame": item.frame_index,
+                                "anchor_x": round(item.auto_anchor[0], 2),
+                                "anchor_y": round(item.auto_anchor[1], 2),
+                                "scale": round(item.scale_factor, 4),
+                                "body_px": round(item.normalized_body_height_px, 2),
+                                "confidence": round(item.auto_confidence, 3),
+                                "offset_x": item.manual_offset_x,
+                                "offset_y": item.manual_offset_y,
+                                "status": (
+                                    "review-scale"
+                                    if item.scale_manual_review
+                                    else "review"
+                                    if item.manual_review
+                                    else "passed"
+                                ),
+                            }
+                            for item in centered.adjustments
+                        ],
+                        width="stretch",
+                        hide_index=True,
+                    )
+                    if adjustment_anchors := centered.adjustments[selected].anchors:
+                        st.markdown("#### Anchors del frame activo")
+                        st.dataframe(
+                            [
+                                {
+                                    "anchor": anchor.name,
+                                    "rol": anchor.role,
+                                    "x": round(anchor.position[0], 2),
+                                    "y": round(anchor.position[1], 2),
+                                    "confianza": round(anchor.confidence, 3),
+                                    "peso_x": anchor.weight_x,
+                                    "peso_y": anchor.weight_y,
+                                }
+                                for anchor in adjustment_anchors
+                            ],
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    with st.expander("Reporte de jitter"):
+                        st.json(centered.jitter_report)
+                    adjustment = centered.adjustments[selected]
+                    view_col, property_col = st.columns((1.7, 1), gap="large")
+                    with view_col:
+                        offset_x = st.session_state[f"{prefix}:offsets"][selected][0]
+                        offset_y = st.session_state[f"{prefix}:offsets"][selected][1]
+                        st.write(f"Offset manual actual: `{offset_x}, {offset_y}`")
+                    with property_col, st.container(border=True):
+                        st.markdown("#### Ajuste fino")
+                        offsets = st.session_state[f"{prefix}:offsets"]
+                        locks = st.session_state[f"{prefix}:locks"]
+                        notes = st.session_state[f"{prefix}:notes"]
+                        sync_widgets = bool(st.session_state.get(f"{prefix}:center_widget_sync", False))
+                        x_widget_key = f"{prefix}:offset_x_widget:{selected}"
+                        y_widget_key = f"{prefix}:offset_y_widget:{selected}"
+                        if sync_widgets or x_widget_key not in st.session_state:
+                            st.session_state[x_widget_key] = int(offsets[selected][0])
+                        if sync_widgets or y_widget_key not in st.session_state:
+                            st.session_state[y_widget_key] = int(offsets[selected][1])
+                        st.number_input(
+                            "Offset X",
+                            min_value=-canvas_width,
+                            max_value=canvas_width,
+                            key=x_widget_key,
+                        )
+                        st.number_input(
+                            "Offset Y",
+                            min_value=-canvas_height,
+                            max_value=canvas_height,
+                            key=y_widget_key,
+                        )
+                        lock_key = f"{prefix}:locked:{selected}"
+                        if lock_key not in st.session_state:
+                            st.session_state[lock_key] = bool(locks[selected])
+                        st.checkbox(
+                            "Anchor revisado y aprobado",
+                            key=lock_key,
+                            on_change=_sync_center_lock,
+                            args=(prefix, selected),
+                            help=(
+                                "Aprueba manualmente este anchor después de comprobar torso, "
+                                "suelo y estabilidad con los frames vecinos."
+                            ),
+                        )
+                        st.caption("Arrastra en el lienzo para el ajuste rápido; usa estos valores para precisión de 1 px.")
+                        with st.expander("Guías avanzadas", expanded=False):
+                            guides_enabled = bool(st.session_state[f"{prefix}:center_guides"])
+                            st.checkbox(
+                                "Mostrar guías",
+                                key=f"{prefix}:center_guides_widget",
+                                help="También disponible con el icono de capas en el lienzo.",
+                            )
+                            st.slider(
+                                "Opacidad de guías",
+                                min_value=0.1,
+                                max_value=1.0,
+                                step=0.05,
+                                key=f"{prefix}:center_guide_opacity_widget",
+                                disabled=not guides_enabled,
+                            )
+                            guide_col1, guide_col2 = st.columns(2)
+                            guide_col1.checkbox(
+                                "Centro de celda",
+                                key=f"{prefix}:center_show_cell_center_widget",
+                                disabled=not guides_enabled,
+                            )
+                            guide_col2.checkbox(
+                                "Frame móvil",
+                                key=f"{prefix}:center_show_frame_guide_widget",
+                                disabled=not guides_enabled,
+                            )
+                            axis_col1, axis_col2 = st.columns(2)
+                            axis_col1.checkbox(
+                                "Centros de columnas (X)",
+                                key=f"{prefix}:center_show_column_guides_widget",
+                                disabled=not guides_enabled,
+                            )
+                            axis_col2.checkbox(
+                                "Centros de filas (Y)",
+                                key=f"{prefix}:center_show_row_guides_widget",
+                                disabled=not guides_enabled,
+                            )
+                            st.checkbox(
+                                "Línea de suelo",
+                                key=f"{prefix}:center_show_ground_line_widget",
+                                disabled=not guides_enabled,
+                            )
+                            st.number_input(
+                                "Suelo Y dentro de la celda",
+                                min_value=0,
+                                max_value=max(0, selected_frame.height - 1),
+                                key=f"{prefix}:center_ground_line_y_widget",
+                                disabled=(
+                                    not guides_enabled
+                                    or not st.session_state[f"{prefix}:center_show_ground_line"]
+                                ),
+                                help=(
+                                    "Coordenada local de la celda. El canvas recibe la posición absoluta "
+                                    "correspondiente al frame activo."
+                                ),
+                            )
+                            anchor_col1, anchor_col2 = st.columns(2)
+                            anchor_col1.checkbox(
+                                "Ancla corporal",
+                                key=f"{prefix}:center_show_body_anchor_widget",
+                                disabled=not guides_enabled,
+                            )
+                            anchor_col2.checkbox(
+                                "Ancla objetivo",
+                                key=f"{prefix}:center_show_target_anchor_widget",
+                                disabled=not guides_enabled,
+                            )
+                            st.checkbox(
+                                "Mostrar Δ del ancla",
+                                key=f"{prefix}:center_show_anchor_delta_widget",
+                                disabled=not guides_enabled,
+                            )
+                            anchor_delta_x = current_anchor_x - target_anchor_x
+                            anchor_delta_y = current_anchor_y - target_anchor_y
+                            st.caption(
+                                f"Actual `{current_anchor_x:.1f}, {current_anchor_y:.1f}` · "
+                                f"Objetivo `{target_anchor_x:.1f}, {target_anchor_y:.1f}` · "
+                                f"Δ `{anchor_delta_x:+.1f}, {anchor_delta_y:+.1f}`"
+                            )
+                        note_key = f"{prefix}:note:{selected}"
+                        if note_key not in st.session_state:
+                            st.session_state[note_key] = str(notes[selected])
+                        st.text_area(
+                            "Notas",
+                            key=note_key,
+                        )
+                        st.write(
+                            f"Auto anchor: `{adjustment.auto_anchor[0]:.2f}, "
+                            f"{adjustment.auto_anchor[1]:.2f}`"
+                        )
+                        st.write(f"Confianza: `{adjustment.auto_confidence:.2%}`")
+                        if sync_widgets:
+                            st.session_state[f"{prefix}:center_widget_sync"] = False
+                        else:
+                            widget_offset = (
+                                int(st.session_state[x_widget_key]),
+                                int(st.session_state[y_widget_key]),
+                            )
+                            if widget_offset != tuple(offsets[selected]):
+                                history_before = _center_history_snapshot(prefix)
+                                offsets = list(offsets)
+                                offsets[selected] = widget_offset
+                                st.session_state[f"{prefix}:offsets"] = offsets
+                                _record_editor_history(
+                                    session,
+                                    scope="center",
+                                    label="Ajustar offset",
+                                    before=history_before,
+                                    after=_center_history_snapshot(prefix),
+                                )
+                                st.rerun()
+                        reset_col, copy_col = st.columns(2)
+                        if reset_col.button(
+                            "Reset frame",
+                            width="stretch",
+                            key=f"{prefix}:reset:{selected}",
+                        ):
+                            history_before = _center_history_snapshot(prefix)
+                            values = list(st.session_state[f"{prefix}:offsets"])
+                            values[selected] = (0, 0)
+                            st.session_state[f"{prefix}:offsets"] = values
+                            for key in (
+                                x_widget_key,
+                                y_widget_key,
+                            ):
+                                st.session_state.pop(key, None)
+                            _record_editor_history(
+                                session,
+                                scope="center",
+                                label="Restablecer frame",
+                                before=history_before,
+                                after=_center_history_snapshot(prefix),
+                            )
+                            st.rerun()
+                        if copy_col.button(
+                            "Copiar a todos",
+                            width="stretch",
+                            key=f"{prefix}:copy:{selected}",
+                        ):
+                            history_before = _center_history_snapshot(prefix)
+                            value = tuple(st.session_state[f"{prefix}:offsets"][selected])
+                            st.session_state[f"{prefix}:offsets"] = [
+                                value for _ in centered.frames
+                            ]
+                            for index in range(len(centered.frames)):
+                                st.session_state.pop(f"{prefix}:offset_x_widget:{index}", None)
+                                st.session_state.pop(f"{prefix}:offset_y_widget:{index}", None)
+                            _record_editor_history(
+                                session,
+                                scope="center",
+                                label="Copiar offset a todos",
+                                before=history_before,
+                                after=_center_history_snapshot(prefix),
+                            )
+                            st.rerun()
+                    if st.button(
+                        "Guardar correcciones manuales",
+                        type="primary",
+                        disabled=not background_saved or not working_frames,
+                        key=f"{prefix}:save_overrides",
+                    ):
+                        if not segmentation_saved and segmentation:
+                            session.segmentation_config = segmentation_config
+                            store.commit_stage(
+                                session,
+                                "segmentation",
+                                segmentation.frames,
+                                config=segmentation_config.to_dict(),
+                                warnings=segmentation.warnings,
+                                metadata={
+                                    "kind": "provisional_pose_map",
+                                    "regions": [list(region) for region in segmentation.regions],
+                                    "resolved_config": segmentation.resolved_config.to_dict(),
+                                    "empty_frames": list(segmentation.empty_frames),
+                                    "processing_signature": processing_signature,
+                                },
+                            )
+                            segmentation_saved = True
+                        _ensure_adjustment_state(session, len(working_frames))
+                        requested_offsets = list(st.session_state[f"{prefix}:offsets"])
+                        final_result = auto_center_frames(
+                            working_frames,
+                            center_config,
+                            manual_offsets=requested_offsets,
+                            locked=st.session_state[f"{prefix}:locks"],
+                            notes=st.session_state[f"{prefix}:notes"],
+                            overflow_strategy="clamp",
+                            analysis=center_analysis,
+                            target_anchor=center_config.canonical_anchor,
+                        )
+                        session.segmentation_config = segmentation_config
+                        session.background_removal_config = background_config
+                        session.auto_center_config = center_config
+                        store.commit_stage(
+                            session,
+                            "alignment",
+                            final_result.frames,
+                            config={
+                                "segmentation": segmentation_config.to_dict(),
+                                "background": background_config.to_dict(),
+                                "auto_center": center_config.to_dict(),
+                                "manual_offsets": requested_offsets,
+                            },
+                            status=final_result.status,
+                            metrics=final_result.jitter_report,
+                            metadata={
+                                "frames": [item.to_dict() for item in final_result.adjustments]
+                            },
+                        )
+                        store.save_adjustments(session, final_result.adjustments)
+                        st.success("Overrides guardados como una nueva revisión.")
+                else:
+                    st.info("Completa el procesamiento automático antes del ajuste fino.")
+
+
+            # 5. Interactive Bottom Frame Strip + Mini-player
+            st.divider()
+            strip_col, player_col = st.columns((3.2, 1.4), gap="medium")
+            with strip_col, st.container(border=True):
+                st.markdown("#### Tira de frames extraídos")
+                active_frames = centered.frames if centered else working_frames
+                n_frames = len(active_frames)
+                n_cols = min(8, max(1, n_frames))
+                strip_cols = st.columns(n_cols)
+                active_selected = st.session_state.get(f"{prefix}:selected_frame", 0)
+                for idx, f in enumerate(active_frames):
+                    with strip_cols[idx % n_cols]:
+                        is_cur = (idx == active_selected)
+                        btn_text = f"{'▶ ' if is_cur else ''}Frame {idx}"
+                        if st.button(
+                            btn_text,
+                            key=f"{prefix}:strip_btn_{idx}",
+                            type="primary" if is_cur else "secondary",
+                            width="stretch",
+                        ):
+                            st.session_state[f"{prefix}:selected_frame"] = idx
+                            st.session_state[f"{prefix}:center_pending_selected_frame"] = idx
+                            st.rerun()
+                        cur_offsets = st.session_state.get(f"{prefix}:offsets", [(0, 0)] * n_frames)
+                        ox, oy = cur_offsets[idx] if idx < len(cur_offsets) else (0, 0)
+                        _show_pixel(f, f"Δ ({ox}, {oy})", max_height=100)
+            with player_col, st.container(border=True):
+                st.markdown("#### Mini-reproductor en vivo")
+                live_fps = st.slider("FPS", min_value=1, max_value=30, value=8, key=f"{prefix}:live_anim_fps")
+                if centered and centered.frames:
+                    gif_bytes = _generate_preview_gif(centered.frames, fps=float(live_fps), scale=3)
+                    if gif_bytes:
+                        st.markdown(_pixel_gif_html(gif_bytes, caption=f"Animación {live_fps} FPS", size=130), unsafe_allow_html=True)
+                else:
+                    st.caption("La vista previa animada estará disponible al detectar los frames.")
+
+            # 6. Unified Save Button
+            st.markdown("---")
+            save_info_col, save_btn_col = st.columns((2.4, 1.6))
+            with save_info_col:
+                st.markdown("**Confirmar preparación de poses y alineación**")
+                st.caption(
+                    "Guarda atómicamente los cortes de la grilla y la alineación multi-anchor "
+                    "para avanzar directamente a la etapa de Exportación."
+                )
+            with save_btn_col:
+                if st.button(
+                    "Guardar poses y alineación",
+                    type="primary",
+                    width="stretch",
+                    disabled=not background_saved,
+                    key=f"{prefix}:save_poses_and_alignment",
+                ):
                     session.segmentation_config = segmentation_config
                     store.commit_stage(
                         session,
@@ -8255,1341 +10097,8 @@ def main() -> None:
                             "processing_signature": processing_signature,
                         },
                     )
-                    st.session_state[history_notice_key] = (
-                        "Mapa provisional guardado; alineación recalculada."
-                    )
-                    st.rerun()
-    
-                if feet_auto_align and not segmentation_saved:
-                    st.info(
-                        "Guarda primero la segmentación actual. Después podrás mover y "
-                        "recortar cada sprite dentro de su frame."
-                    )
-    
-                if (
-                    feet_auto_align
-                    and segmentation_saved
-                    and working_frames
-                    and center_analysis is not None
-                ):
-                    with st.container(border=True):
-                        st.markdown("#### Seleccionar y mover cada pose")
-                        st.caption(
-                            "Usa lazo, rectángulo o elipse para delimitar una pose cuando haga falta. "
-                            "Después usa Mover y arrástrala libremente. Los offsets y la selección son "
-                            "no destructivos; el corte real ocurre en Cortes finales."
-                        )
-                        crop_result = auto_center_frames(
-                            working_frames,
-                            center_config,
-                            manual_offsets=st.session_state[f"{prefix}:offsets"],
-                            locked=st.session_state[f"{prefix}:locks"],
-                            notes=st.session_state[f"{prefix}:notes"],
-                            overflow_strategy="clip",
-                            analysis=center_analysis,
-                            target_anchor=center_config.canonical_anchor,
-                        )
-                        crop_selected = st.selectbox(
-                            "Frame a mover",
-                            tuple(range(len(crop_result.frames))),
-                            key=f"{prefix}:sheet_crop_selected_frame",
-                        )
-                        crop_columns = _export_preview_columns(
-                            segmentation_config.orientation,
-                            len(crop_result.frames),
-                            segmentation_config.columns,
-                        )
-                        crop_canvas = _alignment_workspace_preview(
-                            crop_result.frames,
-                            crop_result.adjustments,
-                            crop_selected,
-                            crop_columns,
-                            show_cell_guides=True,
-                        )
-                        crop_overlay, crop_position = _alignment_drag_overlay(
-                            working_frames[crop_selected],
-                            crop_result.adjustments[crop_selected],
-                            frame_index=crop_selected,
-                            columns=crop_columns,
-                            cell_size=(center_config.canvas_width, center_config.canvas_height),
-                        )
-                        crop_offset = st.session_state[f"{prefix}:offsets"][crop_selected]
-                        pose_tool_key = f"{prefix}:pose_layout_tool"
-                        if pose_tool_key not in st.session_state:
-                            st.session_state[pose_tool_key] = "move"
-                        crop_event = pixel_editor(
-                            crop_canvas,
-                            overlay=crop_overlay,
-                            sample=None,
-                            tool=str(st.session_state[pose_tool_key]),
-                            mode="pose-layout",
-                            zoom=float(
-                                st.session_state.get(
-                                    f"{prefix}:center_zoom:{crop_selected}",
-                                    8.0,
-                                )
-                            ),
-                            offset_x=crop_position[0],
-                            offset_y=crop_position[1],
-                            home_offset_x=crop_position[0],
-                            home_offset_y=crop_position[1],
-                            show_guides=False,
-                            allow_drag=True,
-                            show_autocenter=False,
-                            show_autocrop=False,
-                            fit_on_load=True,
-                            fit_token=(
-                                f"{prefix}:sheet-crop:{crop_selected}:"
-                                f"{crop_canvas.width}x{crop_canvas.height}"
-                            ),
-                            frame_token=(
-                                f"{prefix}:sheet-crop:{crop_selected}:"
-                                f"offset:{crop_offset[0]}:{crop_offset[1]}"
-                            ),
-                            active_frame=crop_selected,
-                            frame_count=len(crop_result.frames),
-                            **_history_controls(session),
-                            key=f"{prefix}:sheet_crop_editor",
-                        )
-                        if _handle_editor_history_event(store, session, crop_event):
-                            st.rerun()
-                        crop_history_before = _center_history_snapshot(prefix)
-                        crop_changed = _handle_center_editor_event(
-                            session,
-                            len(crop_result.frames),
-                            crop_selected,
-                            crop_event,
-                            home_offset=crop_position,
-                            base_manual_offset=crop_offset,
-                        )
-                        if crop_changed and crop_event:
-                            _record_editor_history(
-                                session,
-                                scope="center",
-                                label="Mover frame dentro de celda",
-                                before=crop_history_before,
-                                after=_center_history_snapshot(prefix),
-                            )
-                        if crop_changed and crop_event and crop_event.get("type") == "transform":
-                            st.rerun()
-                        if crop_changed and crop_event and (
-                            crop_event.get("type") == "crop"
-                            or (
-                                crop_event.get("type") == "toolbar"
-                                and crop_event.get("action") == "tool"
-                            )
-                        ):
-                            st.rerun()
-                        if st.session_state.pop(f"{prefix}:pose_selection_notice", None) == crop_selected:
-                            st.success(
-                                "Selección guardada como guía no destructiva. Usa M para mover."
-                            )
-    
-                        crop_adjustment = crop_result.adjustments[crop_selected]
-                        crop_metric_col, reset_col, save_col = st.columns((1.2, 1, 1.35))
-                        crop_metric_col.metric(
-                            "Pixels fuera del frame",
-                            crop_adjustment.cropped_pixel_count,
-                        )
-                        if reset_col.button(
-                            "Reaplicar pies",
-                            width="stretch",
-                            key=f"{prefix}:sheet_crop_reset_all",
-                        ):
-                            history_before = _center_history_snapshot(prefix)
-                            st.session_state[f"{prefix}:offsets"] = [
-                                (0, 0) for _ in crop_result.frames
-                            ]
-                            _record_editor_history(
-                                session,
-                                scope="center",
-                                label="Reaplicar alineación por pies",
-                                before=history_before,
-                                after=_center_history_snapshot(prefix),
-                            )
-                            st.rerun()
-                        if save_col.button(
-                            "Guardar posiciones y recorte",
-                            type="primary",
-                            width="stretch",
-                            key=f"{prefix}:save_sheet_crop_alignment",
-                        ):
-                            session.background_removal_config = background_config
-                            session.auto_center_config = center_config
-                            store.commit_stage(
-                                session,
-                                "alignment",
-                                crop_result.frames,
-                                config={
-                                    "segmentation": segmentation_config.to_dict(),
-                                    "background": background_config.to_dict(),
-                                    "auto_center": center_config.to_dict(),
-                                    "manual_offsets": list(
-                                        st.session_state[f"{prefix}:offsets"]
-                                    ),
-                                    "overflow_strategy": "clip",
-                                },
-                                status=crop_result.status,
-                                metrics=crop_result.jitter_report,
-                                metadata={
-                                    "frames": [
-                                        item.to_dict() for item in crop_result.adjustments
-                                    ]
-                                },
-                            )
-                            store.save_adjustments(session, crop_result.adjustments)
-                            st.success("Posiciones y recorte guardados para exportación.")
-            else:
-                with st.container(border=True):
-                    _show_pixel(source, "Sprite sheet original")
-    
-        elif selected_mode == "Pintar capas":
-            st.divider()
-            st.subheader("Estudio de capas · alineación")
-            if not segmentation_saved:
-                st.info("Guarda primero el mapa provisional de poses.")
-            elif not background_frames:
-                st.info("Configura la segmentación para crear el documento de capas.")
-            else:
-                document: LayeredSpriteDocument | None = None
-                layer_images: dict[tuple[str, int], Image.Image] = {}
-                if session.layer_document:
-                    try:
-                        document, layer_images = store.load_layer_document(session)
-                    except (ArtifactIntegrityError, FileNotFoundError, ValueError) as exc:
-                        st.warning(f"No se pudo abrir el documento de capas: {exc}")
-                if document is None:
-                    st.markdown(
-                        "Crea un documento no destructivo: la capa **Fuente IA** queda bloqueada y "
-                        "se puede mover con M; los retoques se pintan sobre capas independientes."
-                    )
-                    if st.button(
-                        "Crear documento de capas",
-                        type="primary",
-                        key=f"{session.session_id}:create_layer_document",
-                    ):
-                        store.create_layer_document(session, background_frames)
-                        st.rerun()
-                else:
-                    prefix = session.session_id
-                    active_layer_key = f"{prefix}:layer_editor_active_layer"
-                    if active_layer_key not in st.session_state or all(
-                        layer.layer_id != st.session_state[active_layer_key]
-                        for layer in document.layers
-                    ):
-                        st.session_state[active_layer_key] = document.layers[-1].layer_id
-                    active_layer_id = str(st.session_state[active_layer_key])
-                    active_layer = document.layer(active_layer_id)
-                    active_frame_key = f"{prefix}:layer_editor_active_frame"
-                    if active_frame_key not in st.session_state:
-                        st.session_state[active_frame_key] = 0
-                    active_frame = max(
-                        0,
-                        min(document.frame_count - 1, int(st.session_state[active_frame_key])),
-                    )
-                    st.session_state[active_frame_key] = active_frame
-                    color_key = f"{prefix}:layer_editor_color"
-                    if color_key not in st.session_state:
-                        st.session_state[color_key] = (255, 255, 255, 255)
-                    tool_key = f"{prefix}:layer_editor_tool"
-                    if tool_key not in st.session_state:
-                        st.session_state[tool_key] = "pencil"
-                    scope_key = f"{prefix}:layer_editor_scope"
-                    scope_for_canvas = str(
-                        st.session_state.get(scope_key, "Frame actual")
-                    )
-                    if scope_for_canvas == "Toda la animación":
-                        selected_frames = tuple(range(document.frame_count))
-                    elif scope_for_canvas == "Frames elegidos":
-                        raw_selected_frames = st.session_state.get(
-                            f"{prefix}:layer_editor_selected_frames",
-                            (active_frame,),
-                        )
-                        selected_frames = tuple(
-                            sorted(
-                                {
-                                    int(frame_index)
-                                    for frame_index in raw_selected_frames
-                                    if 0 <= int(frame_index) < document.frame_count
-                                }
-                            )
-                        ) or (active_frame,)
-                    else:
-                        selected_frames = (active_frame,)
-                    studio_layers = [
-                        {
-                            "id": layer.layer_id,
-                            "name": layer.name,
-                            "visible": layer.visible,
-                            "locked": layer.locked,
-                            "frames": [
-                                document.cel(layer.layer_id, frame_index) is not None
-                                for frame_index in range(document.frame_count)
-                            ],
-                        }
-                        for layer in reversed(document.layers)
-                    ]
-                    artwork_manifest = _load_stage_manifest(store, session, "artwork") or {}
-                    artwork_layer_document = artwork_manifest.get("metadata", {}).get(
-                        "layer_document", {}
-                    )
-                    published_cache_key = (
-                        str(artwork_layer_document.get("cache_key", ""))
-                        if isinstance(artwork_layer_document, dict)
-                        else ""
-                    )
-                    current_cache_key = str((session.layer_document or {}).get("cache_key", ""))
-                    artwork_is_current = bool(
-                        current_cache_key and current_cache_key == published_cache_key
-                    )
-                    pipeline_state = (
-                        "publicada para alineación"
-                        if artwork_is_current
-                        else "pendiente de publicar a alineación"
-                    )
-                    st.markdown(
-                        f"""
-                        <div class="studio-toolbar">
-                          <div>
-                            <div class="studio-toolbar-title">Área de trabajo de sprites</div>
-                            <div class="studio-toolbar-copy">La revisión de capas se guarda al editar. Publica cuando quieras que la alineación use esta revisión.</div>
-                          </div>
-                          <div class="studio-summary">
-                            <span>{document.canvas_width} × {document.canvas_height}px</span>
-                            <span>{document.frame_count} frames</span>
-                            <span>{len(document.layers)} capas</span>
-                            <span>capas r{document.revision}</span>
-                            <span>{pipeline_state}</span>
-                          </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                    publish_col, canvas_col = st.columns((1.05, 4.95), gap="large")
-                    with publish_col:
-                        with st.container(border=True):
-                            st.markdown("#### Capas")
-                            st.caption(
-                                "La primera fila se ve arriba. Usa el ojo y el candado "
-                                "sin cambiar de capa."
-                            )
-                            st.markdown(
-                                "<div class=\"studio-dock-label\"><span>Ver</span>"
-                                "<span>Bloq.</span><span>Nombre · rol</span></div>",
-                                unsafe_allow_html=True,
-                            )
-                            for layer in reversed(document.layers):
-                                eye_col, lock_col, name_col = st.columns(
-                                    (0.48, 0.58, 2.45),
-                                    gap="small",
-                                )
-                                if eye_col.button(
-                                    "👁" if layer.visible else "◌",
-                                    help=("Ocultar capa" if layer.visible else "Mostrar capa"),
-                                    key=f"{prefix}:layer_visibility_toggle:{layer.layer_id}",
-                                ):
-                                    _save_layer_document_with_history(
-                                        store,
-                                        session,
-                                        document.with_layer_properties(
-                                            layer.layer_id,
-                                            visible=not layer.visible,
-                                        ),
-                                        layer_images,
-                                        reason="layer-visibility",
-                                        label="Cambiar visibilidad de capa",
-                                    )
-                                    st.rerun()
-                                if lock_col.button(
-                                    "🔒" if layer.locked else "🔓",
-                                    help=("Desbloquear capa" if layer.locked else "Bloquear capa"),
-                                    key=f"{prefix}:layer_lock_toggle:{layer.layer_id}",
-                                ):
-                                    _save_layer_document_with_history(
-                                        store,
-                                        session,
-                                        document.with_layer_properties(
-                                            layer.layer_id,
-                                            locked=not layer.locked,
-                                        ),
-                                        layer_images,
-                                        reason="layer-lock",
-                                        label="Cambiar bloqueo de capa",
-                                    )
-                                    st.rerun()
-                                if name_col.button(
-                                    f"{layer.name} · {layer.role}",
-                                    width="stretch",
-                                    type=(
-                                        "primary"
-                                        if layer.layer_id == active_layer_id
-                                        else "secondary"
-                                    ),
-                                    key=f"{prefix}:layer_select:{layer.layer_id}",
-                                ):
-                                    st.session_state[active_layer_key] = layer.layer_id
-                                    st.rerun()
-    
-                            st.caption("Orden: arriba se pinta encima de abajo.")
-                            add_col, up_col, down_col = st.columns((1.4, 1, 1))
-                            if add_col.button("+ Capa", width="stretch", key=f"{prefix}:layer_add"):
-                                new_layer = SpriteLayer(
-                                    layer_id=f"layer-{uuid.uuid4().hex[:8]}",
-                                    name=f"Capa {len(document.layers) + 1}",
-                                )
-                                created = document.with_layer(
-                                    new_layer,
-                                    above_layer_id=active_layer_id,
-                                )
-                                _save_layer_document_with_history(
-                                    store,
-                                    session,
-                                    created,
-                                    layer_images,
-                                    reason="add-layer",
-                                    label="Añadir capa",
-                                )
-                                st.session_state[active_layer_key] = new_layer.layer_id
-                                st.rerun()
-                            layer_ids = [layer.layer_id for layer in document.layers]
-                            layer_index = layer_ids.index(active_layer_id)
-                            if up_col.button(
-                                "Subir",
-                                width="stretch",
-                                disabled=layer_index == len(document.layers) - 1,
-                                key=f"{prefix}:layer_up",
-                            ):
-                                _save_layer_document_with_history(
-                                    store,
-                                    session,
-                                    document.reordered(active_layer_id, layer_index + 1),
-                                    layer_images,
-                                    reason="reorder-layer",
-                                    label="Reordenar capa",
-                                )
-                                st.rerun()
-                            if down_col.button(
-                                "Bajar",
-                                width="stretch",
-                                disabled=layer_index == 0,
-                                key=f"{prefix}:layer_down",
-                            ):
-                                _save_layer_document_with_history(
-                                    store,
-                                    session,
-                                    document.reordered(active_layer_id, layer_index - 1),
-                                    layer_images,
-                                    reason="reorder-layer",
-                                    label="Reordenar capa",
-                                )
-                                st.rerun()
-    
-                        with st.expander(f"Propiedades · {active_layer.name}", expanded=True):
-                            property_form_key = f"{prefix}:layer_properties:{active_layer_id}"
-                            with st.form(property_form_key):
-                                layer_name = st.text_input(
-                                    "Nombre",
-                                    value=active_layer.name,
-                                    key=f"{prefix}:layer_name:{active_layer_id}",
-                                )
-                                role_options = (
-                                    "source",
-                                    "body",
-                                    "retouch",
-                                    "shadow",
-                                    "vfx",
-                                    "reference",
-                                )
-                                role = st.selectbox(
-                                    "Rol en alineación",
-                                    role_options,
-                                    index=role_options.index(active_layer.role),
-                                    key=f"{prefix}:layer_role:{active_layer_id}",
-                                )
-                                opacity = float(
-                                    st.slider(
-                                        "Opacidad",
-                                        0.0,
-                                        1.0,
-                                        value=active_layer.opacity,
-                                        step=0.05,
-                                        key=f"{prefix}:layer_opacity:{active_layer_id}",
-                                    )
-                                )
-                                visible = st.checkbox(
-                                    "Visible",
-                                    value=active_layer.visible,
-                                    key=f"{prefix}:layer_visible:{active_layer_id}",
-                                )
-                                locked = st.checkbox(
-                                    "Bloquear edición",
-                                    value=active_layer.locked,
-                                    key=f"{prefix}:layer_locked:{active_layer_id}",
-                                )
-                                alpha_locked = st.checkbox(
-                                    "Bloquear transparencia",
-                                    value=active_layer.alpha_locked,
-                                    key=f"{prefix}:layer_alpha_locked:{active_layer_id}",
-                                    help="El lápiz y los rellenos solo modifican píxeles ya opacos.",
-                                )
-                                save_properties = st.form_submit_button(
-                                    "Guardar propiedades",
-                                    width="stretch",
-                                )
-                            if save_properties:
-                                clean_name = layer_name.strip() or "Capa"
-                                _save_layer_document_with_history(
-                                    store,
-                                    session,
-                                    document.with_layer_properties(
-                                        active_layer_id,
-                                        name=clean_name,
-                                        role=role,
-                                        opacity=opacity,
-                                        visible=visible,
-                                        locked=locked,
-                                        alpha_locked=alpha_locked,
-                                    ),
-                                    layer_images,
-                                    reason="layer-properties",
-                                    label="Editar propiedades de capa",
-                                )
-                                st.rerun()
-    
-                        st.markdown("#### Herramientas")
-                        color_picker_key = f"{prefix}:layer_editor_color_picker"
-                        color_picker_sync_key = f"{prefix}:layer_editor_color_picker_sync"
-                        if color_picker_sync_key in st.session_state:
-                            st.session_state[color_picker_key] = st.session_state.pop(
-                                color_picker_sync_key
-                            )
-                        color = tuple(st.session_state[color_key])
-                        color_hex = st.color_picker(
-                            "Color de dibujo",
-                            value=_rgb_to_hex(color[:3]),
-                            key=color_picker_key,
-                        )
-                        next_color = _hex_to_rgba(color_hex)
-                        if next_color != color:
-                            st.session_state[color_key] = next_color
-                        brush_radius = int(
-                            st.slider(
-                                "Tamaño de pincel",
-                                min_value=1,
-                                max_value=24,
-                                value=int(
-                                    st.session_state.get(
-                                        f"{prefix}:layer_editor_brush_radius",
-                                        1,
-                                    )
-                                ),
-                                key=f"{prefix}:layer_editor_brush_radius",
-                            )
-                        )
-                        symmetry_col1, symmetry_col2 = st.columns(2)
-                        symmetry_col1.checkbox(
-                            "Simetría horizontal",
-                            key=f"{prefix}:layer_symmetry_horizontal",
-                        )
-                        symmetry_col2.checkbox(
-                            "Simetría vertical",
-                            key=f"{prefix}:layer_symmetry_vertical",
-                        )
-    
-                    with canvas_col:
-                        st.markdown('<div class="studio-canvas-shell">', unsafe_allow_html=True)
-                        active_cel = document.cel(active_layer_id, active_frame)
-                        if active_cel is None:
-                            st.error("La capa activa no tiene un cel para este frame.")
-                        else:
-                            floating = _floating_selection_for_frame(
-                                prefix,
-                                layer_id=active_layer_id,
-                                frame_index=active_frame,
-                            )
-                            preview_images = layer_images
-                            floating_piece: Image.Image | None = None
-                            floating_highlight: Image.Image | None = None
-                            floating_bounds: tuple[int, int, int, int] | None = None
-                            if floating is not None:
-                                image = layer_images.get((active_layer_id, active_frame))
-                                piece = floating.get("piece")
-                                if (
-                                    isinstance(image, Image.Image)
-                                    and isinstance(piece, Image.Image)
-                                ):
-                                    floating_piece = piece
-                                    mask = floating.get("mask")
-                                    if isinstance(mask, np.ndarray):
-                                        floating_highlight = _floating_selection_highlight(mask)
-                                    raw_bounds = floating.get("bounds")
-                                    if isinstance(raw_bounds, tuple) and len(raw_bounds) == 4:
-                                        floating_bounds = tuple(int(value) for value in raw_bounds)
-                            composite = composite_document_frame(
-                                document,
-                                preview_images,
-                                active_frame,
-                            )
-                            selection_mask = _layer_selection_mask(
-                                prefix,
-                                active_layer_id,
-                                active_frame,
-                            )
-                            active_image_for_selection = layer_images.get(
-                                (active_layer_id, active_frame)
-                            )
-                            if (
-                                isinstance(selection_mask, np.ndarray)
-                                and isinstance(active_image_for_selection, Image.Image)
-                                and selection_mask.shape
-                                == (
-                                    active_image_for_selection.height,
-                                    active_image_for_selection.width,
-                                )
-                            ):
-                                composite = composite.copy()
-                                composite.alpha_composite(
-                                    render_selection_overlay(
-                                        active_image_for_selection.size,
-                                        selection_mask,
-                                    ),
-                                    dest=(active_cel.offset_x, active_cel.offset_y),
-                                )
-                            move_base: Image.Image | None = None
-                            move_overlay: Image.Image | None = None
-                            if active_layer.visible:
-                                hidden_document = document.with_layer_properties(
-                                    active_layer_id,
-                                    visible=False,
-                                )
-                                move_base = composite_document_frame(
-                                    hidden_document,
-                                    preview_images,
-                                    active_frame,
-                                )
-                                active_image = layer_images.get((active_layer_id, active_frame))
-                                if active_image is not None:
-                                    move_overlay = active_image.convert("RGBA")
-                                    if active_layer.opacity < 1:
-                                        move_overlay = move_overlay.copy()
-                                        move_overlay.putalpha(
-                                            move_overlay.getchannel("A").point(
-                                                lambda value: round(value * active_layer.opacity)
-                                            )
-                                        )
-                            with st.container(border=True):
-                                st.markdown("#### Lienzo")
-                                studio_defaults = {
-                                    f"{prefix}:studio_onion_skin": False,
-                                    f"{prefix}:studio_onion_opacity": 0.28,
-                                    f"{prefix}:studio_playback_fps": 8,
-                                }
-                                for option_key, default_value in studio_defaults.items():
-                                    if option_key not in st.session_state:
-                                        st.session_state[option_key] = default_value
-                                duration_key = f"{prefix}:studio_frame_durations"
-                                durations = list(st.session_state.get(duration_key, []))
-                                if len(durations) != document.frame_count:
-                                    durations = [
-                                        int(durations[index]) if index < len(durations) else 125
-                                        for index in range(document.frame_count)
-                                    ]
-                                    st.session_state[duration_key] = durations
-                                frame_tool_cols = st.columns((1, 1, 1, 1, 1.3), gap="small")
-                                if frame_tool_cols[0].button(
-                                    "Duplicar",
-                                    key=f"{prefix}:duplicate_frame:{active_frame}",
-                                    width="stretch",
-                                ):
-                                    updated_document, updated_images = duplicate_document_frame(
-                                        document,
-                                        layer_images,
-                                        active_frame,
-                                    )
-                                    _save_layer_document_with_history(
-                                        store,
-                                        session,
-                                        updated_document,
-                                        updated_images,
-                                        reason="duplicate-frame",
-                                        label="Duplicar frame",
-                                    )
-                                    st.session_state[active_frame_key] = active_frame + 1
-                                    durations.insert(active_frame + 1, durations[active_frame])
-                                    st.session_state[duration_key] = durations
-                                    st.rerun()
-                                if frame_tool_cols[1].button(
-                                    "Eliminar",
-                                    disabled=document.frame_count <= 1,
-                                    key=f"{prefix}:delete_frame:{active_frame}",
-                                    width="stretch",
-                                ):
-                                    updated_document, updated_images = delete_document_frame(
-                                        document,
-                                        layer_images,
-                                        active_frame,
-                                    )
-                                    _save_layer_document_with_history(
-                                        store,
-                                        session,
-                                        updated_document,
-                                        updated_images,
-                                        reason="delete-frame",
-                                        label="Eliminar frame",
-                                    )
-                                    st.session_state[active_frame_key] = min(
-                                        active_frame,
-                                        updated_document.frame_count - 1,
-                                    )
-                                    durations.pop(active_frame)
-                                    st.session_state[duration_key] = durations
-                                    st.session_state[f"{prefix}:layer_editor_selection_masks"] = {}
-                                    st.rerun()
-                                if frame_tool_cols[2].button(
-                                    "← Frame",
-                                    disabled=active_frame <= 0,
-                                    key=f"{prefix}:frame_left:{active_frame}",
-                                    width="stretch",
-                                ):
-                                    updated_document, updated_images = move_document_frame(
-                                        document,
-                                        layer_images,
-                                        active_frame,
-                                        active_frame - 1,
-                                    )
-                                    _save_layer_document_with_history(
-                                        store,
-                                        session,
-                                        updated_document,
-                                        updated_images,
-                                        reason="move-frame",
-                                        label="Reordenar frame",
-                                    )
-                                    st.session_state[active_frame_key] = active_frame - 1
-                                    durations[active_frame - 1], durations[active_frame] = (
-                                        durations[active_frame],
-                                        durations[active_frame - 1],
-                                    )
-                                    st.session_state[duration_key] = durations
-                                    st.rerun()
-                                if frame_tool_cols[3].button(
-                                    "Frame →",
-                                    disabled=active_frame >= document.frame_count - 1,
-                                    key=f"{prefix}:frame_right:{active_frame}",
-                                    width="stretch",
-                                ):
-                                    updated_document, updated_images = move_document_frame(
-                                        document,
-                                        layer_images,
-                                        active_frame,
-                                        active_frame + 1,
-                                    )
-                                    _save_layer_document_with_history(
-                                        store,
-                                        session,
-                                        updated_document,
-                                        updated_images,
-                                        reason="move-frame",
-                                        label="Reordenar frame",
-                                    )
-                                    st.session_state[active_frame_key] = active_frame + 1
-                                    durations[active_frame + 1], durations[active_frame] = (
-                                        durations[active_frame],
-                                        durations[active_frame + 1],
-                                    )
-                                    st.session_state[duration_key] = durations
-                                    st.rerun()
-                                onion_enabled = frame_tool_cols[4].toggle(
-                                    "Onion skin",
-                                    key=f"{prefix}:studio_onion_skin",
-                                )
-                                option_cols = st.columns(3, gap="small")
-                                if onion_enabled:
-                                    option_cols[0].slider(
-                                        "Opacidad onion skin",
-                                        min_value=0.05,
-                                        max_value=0.8,
-                                        step=0.05,
-                                        key=f"{prefix}:studio_onion_opacity",
-                                    )
-                                playback_fps = int(
-                                    option_cols[1].slider(
-                                        "FPS reproducción",
-                                        min_value=1,
-                                        max_value=30,
-                                        key=f"{prefix}:studio_playback_fps",
-                                        help=(
-                                            "Cambiar FPS aplica la duración equivalente "
-                                            "a todos los frames."
-                                        ),
-                                    )
-                                )
-                                applied_fps_key = f"{prefix}:studio_playback_applied_fps"
-                                previous_fps = int(
-                                    st.session_state.get(applied_fps_key, playback_fps)
-                                )
-                                if playback_fps != previous_fps:
-                                    frame_duration_from_fps = max(
-                                        16,
-                                        round(1000 / playback_fps),
-                                    )
-                                    durations = [
-                                        frame_duration_from_fps
-                                        for _ in range(document.frame_count)
-                                    ]
-                                    st.session_state[duration_key] = durations
-                                    for frame_index in range(document.frame_count):
-                                        frame_widget_key = (
-                                            f"{prefix}:studio_frame_duration:{frame_index}"
-                                        )
-                                        if frame_widget_key in st.session_state:
-                                            st.session_state[frame_widget_key] = (
-                                                frame_duration_from_fps
-                                            )
-                                st.session_state[applied_fps_key] = playback_fps
-                                duration_widget_key = (
-                                    f"{prefix}:studio_frame_duration:{active_frame}"
-                                )
-                                if duration_widget_key not in st.session_state:
-                                    st.session_state[duration_widget_key] = int(
-                                        durations[active_frame]
-                                    )
-                                frame_duration = int(
-                                    option_cols[2].number_input(
-                                        "Duración frame (ms)",
-                                        min_value=16,
-                                        max_value=5000,
-                                        step=10,
-                                        key=duration_widget_key,
-                                    )
-                                )
-                                if frame_duration != durations[active_frame]:
-                                    durations[active_frame] = frame_duration
-                                    st.session_state[duration_key] = durations
-                                st.caption(
-                                    f"Frame {active_frame + 1}/{document.frame_count} · "
-                                    f"capa activa: {active_layer.name} · "
-                                    "herramienta: "
-                                    f"{_layer_tool_label(_normalize_layer_tool(st.session_state[tool_key]))}"
-                                )
-                                if onion_enabled:
-                                    onion_opacity = float(
-                                        st.session_state.get(
-                                            f"{prefix}:studio_onion_opacity",
-                                            0.28,
-                                        )
-                                    )
-                                    onion_canvas = Image.new("RGBA", composite.size)
-                                    if active_frame > 0:
-                                        onion_canvas.alpha_composite(
-                                            _onion_skin_tint(
-                                                composite_document_frame(
-                                                    document,
-                                                    preview_images,
-                                                    active_frame - 1,
-                                                ),
-                                                (255, 88, 110),
-                                                onion_opacity,
-                                            )
-                                        )
-                                    if active_frame + 1 < document.frame_count:
-                                        onion_canvas.alpha_composite(
-                                            _onion_skin_tint(
-                                                composite_document_frame(
-                                                    document,
-                                                    preview_images,
-                                                    active_frame + 1,
-                                                ),
-                                                (72, 190, 255),
-                                                onion_opacity,
-                                            )
-                                        )
-                                    onion_canvas.alpha_composite(composite)
-                                    composite = onion_canvas
-                                animation_frames = tuple(
-                                    composite_document_frame(document, preview_images, index)
-                                    for index in range(document.frame_count)
-                                )
-                                history_controls = _history_controls(session)
-                                studio_palette = _extract_palette_colors(composite)
-                                event = pixel_editor(
-                                    composite,
-                                    overlay=move_overlay,
-                                    move_base=move_base,
-                                    sample=tuple(st.session_state[color_key]),
-                                    paint_color=tuple(st.session_state[color_key]),
-                                    palette_colors=studio_palette,
-                                    tool=_normalize_layer_tool(st.session_state[tool_key]),
-                                    mode="layer-edit",
-                                    brush_radius=brush_radius,
-                                    zoom=float(st.session_state.get(f"{prefix}:layer_editor_zoom", 12.0)),
-                                    offset_x=active_cel.offset_x,
-                                    offset_y=active_cel.offset_y,
-                                    home_offset_x=active_cel.offset_x,
-                                    home_offset_y=active_cel.offset_y,
-                                    allow_drag=True,
-                                    fit_on_load=True,
-                                    fit_token=(
-                                        f"{prefix}:layers:{document.document_id}:"
-                                        f"{document.canvas_width}x{document.canvas_height}:"
-                                        f"{active_layer_id}:{active_frame}"
-                                    ),
-                                    frame_token=(
-                                        f"{prefix}:layers:{document.document_id}:{active_layer_id}:"
-                                        f"{active_frame}"
-                                    ),
-                                    studio_layers=studio_layers,
-                                    active_layer_id=active_layer_id,
-                                    active_frame=active_frame,
-                                    frame_count=document.frame_count,
-                                    selected_frames=selected_frames,
-                                    floating_selection=floating_piece,
-                                    floating_highlight=floating_highlight,
-                                    floating_selection_x=active_cel.offset_x,
-                                    floating_selection_y=active_cel.offset_y,
-                                    floating_selection_bounds=floating_bounds,
-                                    animation_frames=animation_frames,
-                                    animation_fps=int(
-                                        st.session_state.get(f"{prefix}:studio_playback_fps", 8)
-                                    ),
-                                    animation_durations=durations,
-                                    **history_controls,
-                                    key=f"{prefix}:layer_pixel_editor",
-                                )
-                                if _handle_editor_history_event(store, session, event):
-                                    st.rerun()
-                                history_before = _layer_history_snapshot(session)
-                                changed = _handle_layer_editor_event(
-                                    store,
-                                    session,
-                                    document,
-                                    layer_images,
-                                    event,
-                                    active_layer_id=active_layer_id,
-                                    active_frame=active_frame,
-                                    target_frames=selected_frames,
-                                    composite=composite,
-                                )
-                                if changed and event:
-                                    _record_editor_history(
-                                        session,
-                                        scope="studio",
-                                        label=_history_label("studio", event),
-                                        before=history_before,
-                                        after=_layer_history_snapshot(session),
-                                    )
-                                # The current run loaded the previous immutable layer
-                                # revision. Stop before downstream previews can publish
-                                # stale pixels or offsets. The component keeps its local
-                                # optimistic frame visible while this confirmation runs.
-                                if changed and event and (
-                                    event.get("type") in {
-                                        "studio",
-                                        "crop",
-                                        "selection",
-                                        "selection-command",
-                                        "clipboard",
-                                        "pixel-action",
-                                        "floating-selection",
-                                    }
-                                    or event.get("type") in {
-                                        "floating-transform",
-                                        "edit-batch",
-                                        "paint",
-                                        "transform",
-                                    }
-                                    or (
-                                        event.get("type") in {"pointer", "pointerdown"}
-                                        and event.get("tool") in {"fill", "replace_color"}
-                                    )
-                                ):
-                                    st.rerun()
-                            notice_key = f"{prefix}:layer_editor_notice"
-                            if notice_key in st.session_state:
-                                st.info(str(st.session_state.pop(notice_key)))
-                        st.markdown("</div>", unsafe_allow_html=True)
-    
-                    with st.container(border=True):
-                        st.markdown("#### Alcance de edición")
-                        scope = st.radio(
-                            "Aplicar trazos a",
-                            ("Frame actual", "Frames elegidos", "Toda la animación"),
-                            horizontal=True,
-                            key=scope_key,
-                        )
-                        if scope == "Toda la animación":
-                            selected_frames = tuple(range(document.frame_count))
-                        elif scope == "Frames elegidos":
-                            chosen = st.multiselect(
-                                "Frames objetivo",
-                                tuple(range(document.frame_count)),
-                                default=(active_frame,),
-                                key=f"{prefix}:layer_editor_selected_frames",
-                            )
-                            selected_frames = tuple(int(value) for value in chosen) or (active_frame,)
-                        else:
-                            selected_frames = (active_frame,)
-                        st.caption(
-                            "La timeline visual queda debajo del lienzo. Selecciona un frame "
-                            "aquí para editarlo; el punto indica que el cel existe en la capa activa."
-                        )
-                        timeline = st.columns(min(10, document.frame_count))
-                        for frame_index in range(document.frame_count):
-                            with timeline[frame_index % len(timeline)]:
-                                active = frame_index == active_frame
-                                cel = document.cel(active_layer_id, frame_index)
-                                state = "●" if cel is not None else "○"
-                                if st.button(
-                                    f"{state} F{frame_index + 1}",
-                                    width="stretch",
-                                    type="primary" if active else "secondary",
-                                    key=f"{prefix}:layer_frame:{frame_index}",
-                                ):
-                                    st.session_state[active_frame_key] = frame_index
-                                    st.rerun()
-    
-                    st.markdown("#### Canvas y pipeline")
-                    canvas_tools, publish_tools = st.columns((1, 1.25), gap="large")
-                    with canvas_tools, st.container(border=True):
-                        st.caption(
-                            "Amplía todas las celdas con transparencia; nunca escala "
-                            "pixels individuales."
-                        )
-                        padding = int(
-                            st.number_input(
-                                "Padding transparente",
-                                min_value=0,
-                                max_value=512,
-                                value=0,
-                                key=f"{prefix}:layer_editor_padding",
-                            )
-                        )
-                        if st.button(
-                            "Ajustar canvas al contenido",
-                            width="stretch",
-                            key=f"{prefix}:layer_expand_canvas",
-                        ):
-                            expanded = document.expanded_to_content(layer_images, padding=padding)
-                            previous = document.cel(document.layers[0].layer_id, 0)
-                            moved = expanded.cel(document.layers[0].layer_id, 0)
-                            shift_x = moved.offset_x - previous.offset_x if moved and previous else 0
-                            shift_y = moved.offset_y - previous.offset_y if moved and previous else 0
-                            old_center = session.auto_center_config
-                            session.auto_center_config = AutoCenterConfig(
-                                method="multi_anchor",
-                                canvas_width=expanded.canvas_width,
-                                canvas_height=expanded.canvas_height,
-                                canonical_anchor=(
-                                    old_center.canonical_anchor[0] + shift_x,
-                                    old_center.canonical_anchor[1] + shift_y,
-                                ),
-                                confidence_threshold=old_center.confidence_threshold,
-                                ignore_outliers=old_center.ignore_outliers,
-                                anchor_strategy=old_center.anchor_strategy,
-                                normalize_scale=old_center.normalize_scale,
-                                target_body_height_px=old_center.target_body_height_px,
-                                scale_tolerance_px=old_center.scale_tolerance_px,
-                                scale_min_ratio=old_center.scale_min_ratio,
-                                scale_max_ratio=old_center.scale_max_ratio,
-                                scale_reference=old_center.scale_reference,
-                                alignment_profile=alignment_profile,
-                            )
-                            _save_layer_document_with_history(
-                                store,
-                                session,
-                                expanded,
-                                layer_images,
-                                reason="expand-canvas",
-                                label="Expandir canvas",
-                            )
-                            st.rerun()
-                    with publish_tools, st.container(border=True):
-                        st.markdown("**Publicación para alineación**")
-                        if artwork_is_current:
-                            st.success("La alineación ya usa esta revisión de capas.")
-                        else:
-                            st.warning(
-                                "La alineación sigue usando la última versión publicada. "
-                                "Publica esta revisión cuando el retoque esté listo."
-                            )
-                        if st.button(
-                            "Publicar capas para alineación",
-                            type="primary",
-                            width="stretch",
-                            key=f"{prefix}:publish_layer_document",
-                        ):
-                            store.publish_layer_document(
-                                session,
-                                document,
-                                layer_images,
-                                reason="publish-to-pipeline",
-                            )
-                            st.success(
-                                "Capas publicadas: la alineación usará esta revisión "
-                                "en el siguiente cálculo."
-                            )
-                            st.rerun()
-    
-        else:  # "Anchors"
-            st.subheader("Alineación multi-anchor")
-            st.caption(
-                f"Perfil activo: **{alignment_profile}** · sólo traslación X/Y entera. "
-                "Cian estabiliza, ámbar valida y magenta muestra el anchor fusionado."
-            )
-            if not background_saved:
-                st.info("Guarda primero la remoción de fondo en el paso 1.")
-            if centered:
-                prefix = session.session_id
-                if f"{prefix}:center_guides" not in st.session_state:
-                    st.session_state[f"{prefix}:center_guides"] = True
-                preview_crop_config = (
-                    session.export_crop_config
-                    if session.export_crop_config.enabled
-                    else ExportCropConfig(
-                        enabled=True,
-                        padding=max(8, min(canvas_width, canvas_height) // 10),
-                        alpha_threshold=8,
-                    )
-                )
-                preview_source = centered
-                preview_crop, preview_crop_warning = _safe_trim_transparent_frames(
-                    preview_source.frames,
-                    preview_crop_config,
-                )
-                if preview_crop_warning:
-                    st.warning(
-                        "El preview de crop usa un fallback porque los frames tienen "
-                        "tamaños distintos. La exportación seguirá usando el canvas de cada frame."
-                    )
-                review_count = sum(item.manual_review for item in centered.adjustments)
-                if review_count:
-                    st.warning(
-                        f"Hay {review_count} anchor(s) de baja confianza. "
-                        "Puedes continuar; la exportación conservará la advertencia."
-                    )
-                pending_selected = st.session_state.pop(
-                    f"{prefix}:center_pending_selected_frame",
-                    None,
-                )
-                if pending_selected is not None:
-                    st.session_state[f"{prefix}:selected_frame"] = max(
-                        0,
-                        min(len(preview_crop.frames) - 1, int(pending_selected)),
-                    )
-                selected = st.selectbox(
-                    "Frame",
-                    tuple(range(len(preview_crop.frames))),
-                    key=f"{prefix}:selected_frame",
-                )
-                sheet_columns = _export_preview_columns(
-                    segmentation_config.orientation,
-                    len(preview_crop.frames),
-                    segmentation_config.columns,
-                )
-                sheet_rows = (
-                    len(preview_crop.frames) + sheet_columns - 1
-                ) // sheet_columns
-                selected_frame = preview_crop.frames[selected]
-                selected_home = _alignment_frame_position(preview_crop.frames, selected, sheet_columns)
-                selected_offset = st.session_state[f"{prefix}:offsets"][selected]
-                selected_position = selected_home
-                _ensure_center_guide_state(
-                    session,
-                    default_ground_line_y=max(0, selected_frame.height - 1),
-                    max_ground_line_y=max(0, selected_frame.height - 1),
-                )
-                preview_adjustment = preview_source.adjustments[selected]
-                crop_origin_x, crop_origin_y = preview_crop.bbox[:2]
-                current_anchor_x = (
-                    selected_home[0]
-                    + preview_adjustment.final_anchor[0]
-                    - crop_origin_x
-                )
-                current_anchor_y = (
-                    selected_home[1]
-                    + preview_adjustment.final_anchor[1]
-                    - crop_origin_y
-                )
-                target_anchor_x = (
-                    selected_home[0]
-                    + preview_adjustment.final_anchor[0]
-                    - preview_adjustment.manual_offset_x
-                    - crop_origin_x
-                )
-                target_anchor_y = (
-                    selected_home[1]
-                    + preview_adjustment.final_anchor[1]
-                    - preview_adjustment.manual_offset_y
-                    - crop_origin_y
-                )
-                ground_line_y = (
-                    selected_home[1]
-                    + int(st.session_state[f"{prefix}:center_ground_line_y"])
-                )
-                combined_canvas = _alignment_workspace_preview(
-                    preview_crop.frames,
-                    preview_source.adjustments,
-                    selected,
-                    sheet_columns,
-                    origin_offset=(preview_crop.bbox[0], preview_crop.bbox[1]),
-                )
-                st.caption(
-                    "La previsualización y la edición viven en el mismo canvas. "
-                    "Arrastra el frame activo dentro de la grilla para reajustarlo."
-                )
-                autocenter_all_notice = st.session_state.pop(
-                    f"{prefix}:center_autocenter_all_notice",
-                    None,
-                )
-                if autocenter_all_notice:
-                    st.success(
-                        f"Autoalineación multi-anchor aplicada a "
-                        f"{int(autocenter_all_notice)} frames."
-                    )
-                center_zoom_key = f"{prefix}:center_zoom:{selected}"
-                has_persisted_zoom = center_zoom_key in st.session_state
-                center_zoom = max(
-                    0.05,
-                    min(40.0, float(st.session_state.get(center_zoom_key, 12.0))),
-                )
-                history_controls = _history_controls(session)
-                event = pixel_editor(
-                    combined_canvas,
-                    overlay=selected_frame,
-                    sample=None,
-                    tool="move",
-                    mode="segmentation-center",
-                    zoom=center_zoom,
-                    offset_x=selected_position[0],
-                    offset_y=selected_position[1],
-                    home_offset_x=selected_home[0],
-                    home_offset_y=selected_home[1],
-                    show_guides=bool(st.session_state[f"{prefix}:center_guides"]),
-                    guide_opacity=float(
-                        st.session_state[f"{prefix}:center_guide_opacity"]
-                    ),
-                    show_cell_center=bool(
-                        st.session_state[f"{prefix}:center_show_cell_center"]
-                    ),
-                    show_frame_guide=bool(
-                        st.session_state[f"{prefix}:center_show_frame_guide"]
-                    ),
-                    show_column_guides=bool(
-                        st.session_state[f"{prefix}:center_show_column_guides"]
-                    ),
-                    show_row_guides=bool(
-                        st.session_state[f"{prefix}:center_show_row_guides"]
-                    ),
-                    grid_columns=sheet_columns,
-                    grid_rows=sheet_rows,
-                    active_frame=selected,
-                    frame_count=len(preview_crop.frames),
-                    frame_locks=st.session_state[f"{prefix}:locks"],
-                    show_ground_line=bool(
-                        st.session_state[f"{prefix}:center_show_ground_line"]
-                    ),
-                    ground_line_y=ground_line_y,
-                    current_anchor_x=(
-                        current_anchor_x
-                        if st.session_state[f"{prefix}:center_show_body_anchor"]
-                        else None
-                    ),
-                    current_anchor_y=(
-                        current_anchor_y
-                        if st.session_state[f"{prefix}:center_show_body_anchor"]
-                        else None
-                    ),
-                    target_anchor_x=(
-                        target_anchor_x
-                        if st.session_state[f"{prefix}:center_show_target_anchor"]
-                        else None
-                    ),
-                    target_anchor_y=(
-                        target_anchor_y
-                        if st.session_state[f"{prefix}:center_show_target_anchor"]
-                        else None
-                    ),
-                    show_anchor_delta=bool(
-                        st.session_state[f"{prefix}:center_show_anchor_delta"]
-                    ),
-                    allow_drag=True,
-                    show_autocenter=True,
-                    show_autocenter_all=True,
-                    show_autocrop=True,
-                    fit_on_load=not has_persisted_zoom,
-                    fit_token=(
-                        f"{prefix}:center:{selected}:{combined_canvas.width}x{combined_canvas.height}:"
-                        f"{selected_frame.width}x{selected_frame.height}"
-                    ),
-                    frame_token=(
-                        f"{prefix}:center:{selected}:{combined_canvas.width}x{combined_canvas.height}:"
-                        f"{selected_frame.width}x{selected_frame.height}:"
-                        f"offset:{selected_offset[0]}:{selected_offset[1]}"
-                    ),
-                    **history_controls,
-                    key=f"{prefix}:center_pixel_editor",
-                )
-                if _handle_editor_history_event(store, session, event):
-                    st.rerun()
-                history_before = _center_history_snapshot(prefix)
-                changed = _handle_center_editor_event(
-                    session,
-                    len(centered.frames),
-                    selected,
-                    event,
-                    home_offset=selected_home,
-                    base_manual_offset=selected_offset,
-                )
-                if changed and event and event.get("type") != "frame-selection":
-                    _record_editor_history(
-                        session,
-                        scope="center",
-                        label=_history_label("center", event),
-                        before=history_before,
-                        after=_center_history_snapshot(prefix),
-                    )
-                if changed and event and (
-                    event.get("type") in {"transform", "frame-selection"}
-                    or (
-                        event.get("type") == "toolbar"
-                        and event.get("action")
-                        in {
-                            "autocenter",
-                            "autocenter-all",
-                            "reset-transform",
-                            "toggle-frame-lock",
-                        }
-                    )
-                ):
-                    # Auto Center was computed before the component event. Confirm the
-                    # optimistic transform immediately so every preview and numeric
-                    # control receives the same offset without requiring a second drag.
-                    st.rerun()
-                if st.button(
-                    "Guardar alineación",
-                    type="primary",
-                    disabled=not background_saved or not working_frames,
-                    key=f"{session.session_id}:save_center",
-                ):
-                    if not segmentation_saved and segmentation:
-                        session.segmentation_config = segmentation_config
-                        store.commit_stage(
-                            session,
-                            "segmentation",
-                            segmentation.frames,
-                            config=segmentation_config.to_dict(),
-                            warnings=segmentation.warnings,
-                            metadata={
-                                "kind": "provisional_pose_map",
-                                "regions": [list(region) for region in segmentation.regions],
-                                "resolved_config": segmentation.resolved_config.to_dict(),
-                                "empty_frames": list(segmentation.empty_frames),
-                                "processing_signature": processing_signature,
-                            },
-                        )
-                        segmentation_saved = True
-                    _ensure_adjustment_state(session, len(working_frames))
-                    final_result = auto_center_frames(
+                    session.auto_center_config = center_config
+                    final_centered = auto_center_frames(
                         working_frames,
                         center_config,
                         manual_offsets=st.session_state[f"{prefix}:offsets"],
@@ -9599,672 +10108,265 @@ def main() -> None:
                         analysis=center_analysis,
                         target_anchor=center_config.canonical_anchor,
                     )
-                    session.segmentation_config = segmentation_config
-                    session.background_removal_config = background_config
-                    session.auto_center_config = center_config
                     store.commit_stage(
                         session,
                         "alignment",
-                        final_result.frames,
+                        final_centered.frames,
                         config={
                             "segmentation": segmentation_config.to_dict(),
                             "background": background_config.to_dict(),
                             "auto_center": center_config.to_dict(),
                             "manual_offsets": list(st.session_state[f"{prefix}:offsets"]),
+                            "overflow_strategy": "clamp",
                         },
-                        status=final_result.status,
-                        metrics=final_result.jitter_report,
-                        metadata={
-                            "frames": [item.to_dict() for item in final_result.adjustments]
-                        },
+                        status=final_centered.status,
+                        metrics=final_centered.jitter_report,
+                        metadata={"frames": [item.to_dict() for item in final_centered.adjustments]},
                     )
-                    store.save_adjustments(session, final_result.adjustments)
-                    st.success("Frame fijado y anchors guardados.")
+                    store.save_adjustments(session, final_centered.adjustments)
+                    st.session_state[history_notice_key] = (
+                        "Poses y alineación guardadas; listas para exportación."
+                    )
                     st.rerun()
-                st.caption(
-                    f"Canvas visible recortado a `{preview_crop.bbox[2] - preview_crop.bbox[0]} × "
-                    f"{preview_crop.bbox[3] - preview_crop.bbox[1]}` para que el drag sea más natural."
-                )
-                st.dataframe(
-                    [
-                        {
-                            "frame": item.frame_index,
-                            "anchor_x": round(item.auto_anchor[0], 2),
-                            "anchor_y": round(item.auto_anchor[1], 2),
-                            "scale": round(item.scale_factor, 4),
-                            "body_px": round(item.normalized_body_height_px, 2),
-                            "confidence": round(item.auto_confidence, 3),
-                            "offset_x": item.manual_offset_x,
-                            "offset_y": item.manual_offset_y,
-                            "status": (
-                                "review-scale"
-                                if item.scale_manual_review
-                                else "review"
-                                if item.manual_review
-                                else "passed"
-                            ),
-                        }
-                        for item in centered.adjustments
-                    ],
-                    width="stretch",
-                    hide_index=True,
-                )
-                if adjustment_anchors := centered.adjustments[selected].anchors:
-                    st.markdown("#### Anchors del frame activo")
-                    st.dataframe(
-                        [
-                            {
-                                "anchor": anchor.name,
-                                "rol": anchor.role,
-                                "x": round(anchor.position[0], 2),
-                                "y": round(anchor.position[1], 2),
-                                "confianza": round(anchor.confidence, 3),
-                                "peso_x": anchor.weight_x,
-                                "peso_y": anchor.weight_y,
-                            }
-                            for anchor in adjustment_anchors
-                        ],
-                        width="stretch",
-                        hide_index=True,
-                    )
-                with st.expander("Reporte de jitter"):
-                    st.json(centered.jitter_report)
-                adjustment = centered.adjustments[selected]
-                view_col, property_col = st.columns((1.7, 1), gap="large")
-                with view_col:
-                    offset_x = st.session_state[f"{prefix}:offsets"][selected][0]
-                    offset_y = st.session_state[f"{prefix}:offsets"][selected][1]
-                    st.write(f"Offset manual actual: `{offset_x}, {offset_y}`")
-                with property_col, st.container(border=True):
-                    st.markdown("#### Ajuste fino")
-                    offsets = st.session_state[f"{prefix}:offsets"]
-                    locks = st.session_state[f"{prefix}:locks"]
-                    notes = st.session_state[f"{prefix}:notes"]
-                    sync_widgets = bool(st.session_state.get(f"{prefix}:center_widget_sync", False))
-                    x_widget_key = f"{prefix}:offset_x_widget:{selected}"
-                    y_widget_key = f"{prefix}:offset_y_widget:{selected}"
-                    if sync_widgets or x_widget_key not in st.session_state:
-                        st.session_state[x_widget_key] = int(offsets[selected][0])
-                    if sync_widgets or y_widget_key not in st.session_state:
-                        st.session_state[y_widget_key] = int(offsets[selected][1])
-                    st.number_input(
-                        "Offset X",
-                        min_value=-canvas_width,
-                        max_value=canvas_width,
-                        key=x_widget_key,
-                    )
-                    st.number_input(
-                        "Offset Y",
-                        min_value=-canvas_height,
-                        max_value=canvas_height,
-                        key=y_widget_key,
-                    )
-                    lock_key = f"{prefix}:locked:{selected}"
-                    if lock_key not in st.session_state:
-                        st.session_state[lock_key] = bool(locks[selected])
-                    st.checkbox(
-                        "Anchor revisado y aprobado",
-                        key=lock_key,
-                        on_change=_sync_center_lock,
-                        args=(prefix, selected),
-                        help=(
-                            "Aprueba manualmente este anchor después de comprobar torso, "
-                            "suelo y estabilidad con los frames vecinos."
-                        ),
-                    )
-                    st.caption("Arrastra en el lienzo para el ajuste rápido; usa estos valores para precisión de 1 px.")
-                    with st.expander("Guías avanzadas", expanded=False):
-                        guides_enabled = bool(st.session_state[f"{prefix}:center_guides"])
-                        st.checkbox(
-                            "Mostrar guías",
-                            key=f"{prefix}:center_guides_widget",
-                            help="También disponible con el icono de capas en el lienzo.",
-                        )
-                        st.slider(
-                            "Opacidad de guías",
-                            min_value=0.1,
-                            max_value=1.0,
-                            step=0.05,
-                            key=f"{prefix}:center_guide_opacity_widget",
-                            disabled=not guides_enabled,
-                        )
-                        guide_col1, guide_col2 = st.columns(2)
-                        guide_col1.checkbox(
-                            "Centro de celda",
-                            key=f"{prefix}:center_show_cell_center_widget",
-                            disabled=not guides_enabled,
-                        )
-                        guide_col2.checkbox(
-                            "Frame móvil",
-                            key=f"{prefix}:center_show_frame_guide_widget",
-                            disabled=not guides_enabled,
-                        )
-                        axis_col1, axis_col2 = st.columns(2)
-                        axis_col1.checkbox(
-                            "Centros de columnas (X)",
-                            key=f"{prefix}:center_show_column_guides_widget",
-                            disabled=not guides_enabled,
-                        )
-                        axis_col2.checkbox(
-                            "Centros de filas (Y)",
-                            key=f"{prefix}:center_show_row_guides_widget",
-                            disabled=not guides_enabled,
-                        )
-                        st.checkbox(
-                            "Línea de suelo",
-                            key=f"{prefix}:center_show_ground_line_widget",
-                            disabled=not guides_enabled,
-                        )
-                        st.number_input(
-                            "Suelo Y dentro de la celda",
-                            min_value=0,
-                            max_value=max(0, selected_frame.height - 1),
-                            key=f"{prefix}:center_ground_line_y_widget",
-                            disabled=(
-                                not guides_enabled
-                                or not st.session_state[f"{prefix}:center_show_ground_line"]
-                            ),
-                            help=(
-                                "Coordenada local de la celda. El canvas recibe la posición absoluta "
-                                "correspondiente al frame activo."
-                            ),
-                        )
-                        anchor_col1, anchor_col2 = st.columns(2)
-                        anchor_col1.checkbox(
-                            "Ancla corporal",
-                            key=f"{prefix}:center_show_body_anchor_widget",
-                            disabled=not guides_enabled,
-                        )
-                        anchor_col2.checkbox(
-                            "Ancla objetivo",
-                            key=f"{prefix}:center_show_target_anchor_widget",
-                            disabled=not guides_enabled,
-                        )
-                        st.checkbox(
-                            "Mostrar Δ del ancla",
-                            key=f"{prefix}:center_show_anchor_delta_widget",
-                            disabled=not guides_enabled,
-                        )
-                        anchor_delta_x = current_anchor_x - target_anchor_x
-                        anchor_delta_y = current_anchor_y - target_anchor_y
-                        st.caption(
-                            f"Actual `{current_anchor_x:.1f}, {current_anchor_y:.1f}` · "
-                            f"Objetivo `{target_anchor_x:.1f}, {target_anchor_y:.1f}` · "
-                            f"Δ `{anchor_delta_x:+.1f}, {anchor_delta_y:+.1f}`"
-                        )
-                    note_key = f"{prefix}:note:{selected}"
-                    if note_key not in st.session_state:
-                        st.session_state[note_key] = str(notes[selected])
-                    st.text_area(
-                        "Notas",
-                        key=note_key,
-                    )
-                    st.write(
-                        f"Auto anchor: `{adjustment.auto_anchor[0]:.2f}, "
-                        f"{adjustment.auto_anchor[1]:.2f}`"
-                    )
-                    st.write(f"Confianza: `{adjustment.auto_confidence:.2%}`")
-                    if sync_widgets:
-                        st.session_state[f"{prefix}:center_widget_sync"] = False
-                    else:
-                        widget_offset = (
-                            int(st.session_state[x_widget_key]),
-                            int(st.session_state[y_widget_key]),
-                        )
-                        if widget_offset != tuple(offsets[selected]):
-                            history_before = _center_history_snapshot(prefix)
-                            offsets = list(offsets)
-                            offsets[selected] = widget_offset
-                            st.session_state[f"{prefix}:offsets"] = offsets
-                            _record_editor_history(
-                                session,
-                                scope="center",
-                                label="Ajustar offset",
-                                before=history_before,
-                                after=_center_history_snapshot(prefix),
-                            )
-                            st.rerun()
-                    reset_col, copy_col = st.columns(2)
-                    if reset_col.button(
-                        "Reset frame",
-                        width="stretch",
-                        key=f"{prefix}:reset:{selected}",
-                    ):
-                        history_before = _center_history_snapshot(prefix)
-                        values = list(st.session_state[f"{prefix}:offsets"])
-                        values[selected] = (0, 0)
-                        st.session_state[f"{prefix}:offsets"] = values
-                        for key in (
-                            x_widget_key,
-                            y_widget_key,
-                        ):
-                            st.session_state.pop(key, None)
-                        _record_editor_history(
-                            session,
-                            scope="center",
-                            label="Restablecer frame",
-                            before=history_before,
-                            after=_center_history_snapshot(prefix),
-                        )
-                        st.rerun()
-                    if copy_col.button(
-                        "Copiar a todos",
-                        width="stretch",
-                        key=f"{prefix}:copy:{selected}",
-                    ):
-                        history_before = _center_history_snapshot(prefix)
-                        value = tuple(st.session_state[f"{prefix}:offsets"][selected])
-                        st.session_state[f"{prefix}:offsets"] = [
-                            value for _ in centered.frames
-                        ]
-                        for index in range(len(centered.frames)):
-                            st.session_state.pop(f"{prefix}:offset_x_widget:{index}", None)
-                            st.session_state.pop(f"{prefix}:offset_y_widget:{index}", None)
-                        _record_editor_history(
-                            session,
-                            scope="center",
-                            label="Copiar offset a todos",
-                            before=history_before,
-                            after=_center_history_snapshot(prefix),
-                        )
-                        st.rerun()
-                if st.button(
-                    "Guardar correcciones manuales",
-                    type="primary",
-                    disabled=not background_saved or not working_frames,
-                    key=f"{prefix}:save_overrides",
-                ):
-                    if not segmentation_saved and segmentation:
-                        session.segmentation_config = segmentation_config
-                        store.commit_stage(
-                            session,
-                            "segmentation",
-                            segmentation.frames,
-                            config=segmentation_config.to_dict(),
-                            warnings=segmentation.warnings,
-                            metadata={
-                                "kind": "provisional_pose_map",
-                                "regions": [list(region) for region in segmentation.regions],
-                                "resolved_config": segmentation.resolved_config.to_dict(),
-                                "empty_frames": list(segmentation.empty_frames),
-                                "processing_signature": processing_signature,
-                            },
-                        )
-                        segmentation_saved = True
-                    _ensure_adjustment_state(session, len(working_frames))
-                    requested_offsets = list(st.session_state[f"{prefix}:offsets"])
-                    final_result = auto_center_frames(
-                        working_frames,
-                        center_config,
-                        manual_offsets=requested_offsets,
-                        locked=st.session_state[f"{prefix}:locks"],
-                        notes=st.session_state[f"{prefix}:notes"],
-                        overflow_strategy="clamp",
-                        analysis=center_analysis,
-                        target_anchor=center_config.canonical_anchor,
-                    )
-                    session.segmentation_config = segmentation_config
-                    session.background_removal_config = background_config
-                    session.auto_center_config = center_config
-                    store.commit_stage(
-                        session,
-                        "alignment",
-                        final_result.frames,
-                        config={
-                            "segmentation": segmentation_config.to_dict(),
-                            "background": background_config.to_dict(),
-                            "auto_center": center_config.to_dict(),
-                            "manual_offsets": requested_offsets,
-                        },
-                        status=final_result.status,
-                        metrics=final_result.jitter_report,
-                        metadata={
-                            "frames": [item.to_dict() for item in final_result.adjustments]
-                        },
-                    )
-                    store.save_adjustments(session, final_result.adjustments)
-                    st.success("Overrides guardados como una nueva revisión.")
-            else:
-                st.info("Completa el procesamiento automático antes del ajuste fino.")
-    
 
-        # 5. Interactive Bottom Frame Strip + Mini-player
-        st.divider()
-        strip_col, player_col = st.columns((3.2, 1.4), gap="medium")
-        with strip_col, st.container(border=True):
-            st.markdown("#### Tira de frames extraídos")
-            active_frames = centered.frames if centered else working_frames
-            n_frames = len(active_frames)
-            n_cols = min(8, max(1, n_frames))
-            strip_cols = st.columns(n_cols)
-            active_selected = st.session_state.get(f"{prefix}:selected_frame", 0)
-            for idx, f in enumerate(active_frames):
-                with strip_cols[idx % n_cols]:
-                    is_cur = (idx == active_selected)
-                    btn_text = f"{'▶ ' if is_cur else ''}Frame {idx}"
-                    if st.button(
-                        btn_text,
-                        key=f"{prefix}:strip_btn_{idx}",
-                        type="primary" if is_cur else "secondary",
-                        width="stretch",
-                    ):
-                        st.session_state[f"{prefix}:selected_frame"] = idx
-                        st.session_state[f"{prefix}:center_pending_selected_frame"] = idx
-                        st.rerun()
-                    cur_offsets = st.session_state.get(f"{prefix}:offsets", [(0, 0)] * n_frames)
-                    ox, oy = cur_offsets[idx] if idx < len(cur_offsets) else (0, 0)
-                    _show_pixel(f, f"Δ ({ox}, {oy})", max_height=100)
-        with player_col, st.container(border=True):
-            st.markdown("#### Mini-reproductor en vivo")
-            live_fps = st.slider("FPS", min_value=1, max_value=30, value=8, key=f"{prefix}:live_anim_fps")
-            if centered and centered.frames:
-                gif_bytes = _generate_preview_gif(centered.frames, fps=float(live_fps), scale=3)
-                if gif_bytes:
-                    st.markdown(_pixel_gif_html(gif_bytes, caption=f"Animación {live_fps} FPS", size=130), unsafe_allow_html=True)
+    if final_tab.open:
+        with final_tab:
+            st.subheader("Exportación")
+            if not centered:
+                st.info("Completa primero la preparación y la alineación.")
             else:
-                st.caption("La vista previa animada estará disponible al detectar los frames.")
-
-        # 6. Unified Save Button
-        st.markdown("---")
-        save_info_col, save_btn_col = st.columns((2.4, 1.6))
-        with save_info_col:
-            st.markdown("**Confirmar preparación de poses y alineación**")
-            st.caption(
-                "Guarda atómicamente los cortes de la grilla y la alineación multi-anchor "
-                "para avanzar directamente a la etapa de Exportación."
-            )
-        with save_btn_col:
-            if st.button(
-                "Guardar poses y alineación",
-                type="primary",
-                width="stretch",
-                disabled=not background_saved,
-                key=f"{prefix}:save_poses_and_alignment",
-            ):
-                session.segmentation_config = segmentation_config
-                store.commit_stage(
-                    session,
-                    "segmentation",
-                    segmentation.frames,
-                    config=segmentation_config.to_dict(),
-                    warnings=segmentation.warnings,
-                    metadata={
-                        "kind": "provisional_pose_map",
-                        "regions": [list(region) for region in segmentation.regions],
-                        "resolved_config": segmentation.resolved_config.to_dict(),
-                        "empty_frames": list(segmentation.empty_frames),
-                        "processing_signature": processing_signature,
-                    },
-                )
-                session.auto_center_config = center_config
-                final_centered = auto_center_frames(
-                    working_frames,
-                    center_config,
+                prefix = session.session_id
+                _ensure_export_crop_state(session)
+                alignment_manifest = _load_stage_manifest(store, session, "alignment")
+                alignment_ready, alignment_reason = _alignment_export_readiness(
+                    alignment_manifest,
+                    segmentation_config=segmentation_config,
+                    background_config=background_config,
+                    center_config=center_config,
                     manual_offsets=st.session_state[f"{prefix}:offsets"],
-                    locked=st.session_state[f"{prefix}:locks"],
-                    notes=st.session_state[f"{prefix}:notes"],
-                    overflow_strategy="clamp",
-                    analysis=center_analysis,
-                    target_anchor=center_config.canonical_anchor,
+                    locks=st.session_state[f"{prefix}:locks"],
+                    frame_count=len(centered.frames),
                 )
-                store.commit_stage(
-                    session,
-                    "alignment",
-                    final_centered.frames,
-                    config={
-                        "segmentation": segmentation_config.to_dict(),
-                        "background": background_config.to_dict(),
-                        "auto_center": center_config.to_dict(),
-                        "manual_offsets": list(st.session_state[f"{prefix}:offsets"]),
-                        "overflow_strategy": "clamp",
-                    },
-                    status=final_centered.status,
-                    metrics=final_centered.jitter_report,
-                    metadata={"frames": [item.to_dict() for item in final_centered.adjustments]},
+                aligned_frames: tuple[Image.Image, ...] = ()
+                if alignment_ready:
+                    try:
+                        aligned_frames = _load_stage_frames(store, session, "alignment")
+                    except ArtifactIntegrityError as exc:
+                        alignment_ready = False
+                        alignment_reason = f"La alineación guardada perdió integridad: {exc}"
+                layout_key = f"{prefix}:final_layout"
+                columns_key = f"{prefix}:final_layout_columns"
+                st.session_state.setdefault(layout_key, segmentation_config.orientation)
+                st.session_state.setdefault(
+                    columns_key,
+                    min(max(1, segmentation_config.columns), len(centered.frames)),
                 )
-                store.save_adjustments(session, final_centered.adjustments)
-                st.session_state[history_notice_key] = (
-                    "Poses y alineación guardadas; listas para exportación."
-                )
-                st.rerun()
-
-    with final_tab:
-        st.subheader("Exportación")
-        if not centered:
-            st.info("Completa primero la preparación y la alineación.")
-        else:
-            prefix = session.session_id
-            _ensure_export_crop_state(session)
-            alignment_manifest = _load_stage_manifest(store, session, "alignment")
-            alignment_ready, alignment_reason = _alignment_export_readiness(
-                alignment_manifest,
-                segmentation_config=segmentation_config,
-                background_config=background_config,
-                center_config=center_config,
-                manual_offsets=st.session_state[f"{prefix}:offsets"],
-                locks=st.session_state[f"{prefix}:locks"],
-                frame_count=len(centered.frames),
-            )
-            aligned_frames: tuple[Image.Image, ...] = ()
-            if alignment_ready:
-                try:
-                    aligned_frames = _load_stage_frames(store, session, "alignment")
-                except ArtifactIntegrityError as exc:
-                    alignment_ready = False
-                    alignment_reason = f"La alineación guardada perdió integridad: {exc}"
-            layout_key = f"{prefix}:final_layout"
-            columns_key = f"{prefix}:final_layout_columns"
-            st.session_state.setdefault(layout_key, segmentation_config.orientation)
-            st.session_state.setdefault(
-                columns_key,
-                min(max(1, segmentation_config.columns), len(centered.frames)),
-            )
-            controls_col, preview_col = st.columns((1.3, 1.7), gap="medium")
-            with controls_col:
-                with st.container(border=True):
-                    st.markdown("#### Configuración de Hoja y Recorte")
-                    layout = st.radio(
-                        "Orientación / layout final",
-                        ("horizontal", "vertical", "grid"),
-                        horizontal=True,
-                        key=layout_key,
-                    )
-                    layout_columns = None
-                    if layout == "grid":
-                        layout_columns = int(
-                            st.number_input(
-                                "Columnas",
-                                min_value=1,
-                                max_value=len(centered.frames),
-                                key=columns_key,
+                controls_col, preview_col = st.columns((1.3, 1.7), gap="medium")
+                with controls_col:
+                    with st.container(border=True):
+                        st.markdown("#### Configuración de Hoja y Recorte")
+                        layout = st.radio(
+                            "Orientación / layout final",
+                            ("horizontal", "vertical", "grid"),
+                            horizontal=True,
+                            key=layout_key,
+                        )
+                        layout_columns = None
+                        if layout == "grid":
+                            layout_columns = int(
+                                st.number_input(
+                                    "Columnas",
+                                    min_value=1,
+                                    max_value=len(centered.frames),
+                                    key=columns_key,
+                                )
+                            )
+                        crop_enabled = st.checkbox(
+                            "Recorte inteligente",
+                            key=f"{prefix}:export_crop_enabled",
+                            help="Materializa una sola vez la unión transparente compartida.",
+                        )
+                        crop_padding = int(
+                            st.slider(
+                                "Padding crop",
+                                min_value=0,
+                                max_value=max(0, min(canvas_width, canvas_height) // 2),
+                                disabled=not crop_enabled,
+                                key=f"{prefix}:export_crop_padding",
                             )
                         )
-                    crop_enabled = st.checkbox(
-                        "Recorte inteligente",
-                        key=f"{prefix}:export_crop_enabled",
-                        help="Materializa una sola vez la unión transparente compartida.",
-                    )
-                    crop_padding = int(
-                        st.slider(
-                            "Padding crop",
-                            min_value=0,
-                            max_value=max(0, min(canvas_width, canvas_height) // 2),
-                            disabled=not crop_enabled,
-                            key=f"{prefix}:export_crop_padding",
-                        )
-                    )
-                    crop_threshold = int(
-                        st.slider(
-                            "Umbral alpha",
-                            min_value=0,
-                            max_value=255,
-                            disabled=not crop_enabled,
-                            key=f"{prefix}:export_crop_threshold",
-                        )
-                    )
-                    fps = float(
-                        st.slider(
-                            "FPS de animación y GIF",
-                            min_value=1.0,
-                            max_value=30.0,
-                            value=8.0,
-                            step=0.5,
-                            key=f"{prefix}:final_export_fps",
-                        )
-                    )
-                crop_config = ExportCropConfig(
-                    enabled=crop_enabled,
-                    padding=crop_padding,
-                    alpha_threshold=crop_threshold,
-                )
-                preview_frames = aligned_frames or centered.frames
-                cropped = _safe_trim_transparent_frames(preview_frames, crop_config)[0]
-                layout_plan = plan_frame_layout(
-                    cropped.frames,
-                    layout=layout,
-                    columns=layout_columns,
-                )
-                with st.container(border=True):
-                    st.markdown("#### Empaquetado y Descargas")
-                    include_frames = st.checkbox(
-                        "Exportar PNG por frame",
-                        value=True,
-                        key=f"{prefix}:final_include_frames",
-                    )
-                    include_contact = st.checkbox(
-                        "Incluir contact/anchor sheet PNG",
-                        value=False,
-                        key=f"{prefix}:final_include_contact",
-                    )
-                    st.caption("Anchor revisado y aprobado")
-                    export_ready = alignment_ready or True
-                    if st.button(
-                        "Exportar sprite-sheet PNG",
-                        type="primary",
-                        width="stretch",
-                        key=f"{prefix}:btn_export_action",
-                    ):
-                        session.export_crop_config = crop_config
-                        store.commit_stage(
-                            session,
-                            "layout",
-                            cropped.frames,
-                            config={
-                                "layout": layout_plan.layout,
-                                "columns": layout_plan.columns,
-                                "rows": layout_plan.rows,
-                                "cell_size": list(layout_plan.cell_size),
-                                "alignment_cache_key": session.stages["alignment"]["cache_key"],
-                                "crop": crop_config.to_dict(),
-                            },
-                            metadata={
-                                "regions": [list(region) for region in layout_plan.regions],
-                                "sheet_size": list(layout_plan.sheet_size),
-                                "crop_bbox": list(cropped.bbox),
-                                "crop_source_size": list(cropped.source_size),
-                                "alignment_profile": alignment_profile,
-                            },
-                        )
-                        manifest, export_bundle = _export_pipeline_artifacts(
-                            store,
-                            session,
-                            export_sheet_png=not include_frames,
-                            export_frames_png=include_frames,
-                            export_contact_sheet_png=include_contact,
-                            allow_manual_review=True,
-                        )
-                        if manifest:
-                            st.session_state[f"{prefix}:export_manifest"] = manifest
-                            st.session_state[f"{prefix}:export_bundle"] = export_bundle
-                            st.success("¡Exportación completada con éxito!")
-                    manifest = st.session_state.get(f"{prefix}:export_manifest")
-                    bundle = st.session_state.get(f"{prefix}:export_bundle")
-                    if manifest:
-                        bundle_path = bundle.get("bundle_zip") if bundle else None
-                        if bundle_path and bundle_path.exists():
-                            st.download_button(
-                                "Descargar bundle completo (.zip)",
-                                data=bundle_path.read_bytes(),
-                                file_name=bundle_path.name,
-                                mime="application/zip",
-                                type="primary",
-                                width="stretch",
-                                key=f"{prefix}:dl_bundle",
+                        crop_threshold = int(
+                            st.slider(
+                                "Umbral alpha",
+                                min_value=0,
+                                max_value=255,
+                                disabled=not crop_enabled,
+                                key=f"{prefix}:export_crop_threshold",
                             )
-                        frame_paths = bundle.get("frame_pngs", []) if bundle else []
-                        if frame_paths:
-                            st.download_button(
-                                f"Descargar {len(frame_paths)} frames PNG (.zip)",
-                                data=_zip_frame_paths(frame_paths),
-                                file_name=f"{session.session_id}-frames.zip",
-                                mime="application/zip",
-                                width="stretch",
-                                key=f"{prefix}:dl_frames_zip",
+                        )
+                        fps = float(
+                            st.slider(
+                                "FPS de animación y GIF",
+                                min_value=1.0,
+                                max_value=30.0,
+                                value=8.0,
+                                step=0.5,
+                                key=f"{prefix}:final_export_fps",
                             )
-                        sheet_path = bundle.get("sheet_png") if bundle else None
-                        if sheet_path and sheet_path.exists():
-                            st.download_button(
-                                "Descargar sprite sheet PNG",
-                                data=sheet_path.read_bytes(),
-                                file_name=sheet_path.name,
-                                mime="image/png",
-                                width="stretch",
-                                key=f"{prefix}:dl_sheet",
-                            )
-                        contact_path = bundle.get("contact_sheet_png") if bundle else None
-                        if contact_path and contact_path.exists():
-                            st.download_button(
-                                "Descargar contact/anchor sheet PNG",
-                                data=contact_path.read_bytes(),
-                                file_name=contact_path.name,
-                                mime="image/png",
-                                width="stretch",
-                                key=f"{prefix}:dl_contact",
-                            )
-                        st.download_button(
-                            "Descargar manifest JSON",
-                            data=json.dumps(manifest, indent=2, ensure_ascii=False),
-                            file_name="sprite-sheet.manifest.json",
-                            mime="application/json",
+                        )
+                    crop_config = ExportCropConfig(
+                        enabled=crop_enabled,
+                        padding=crop_padding,
+                        alpha_threshold=crop_threshold,
+                    )
+                    preview_frames = aligned_frames or centered.frames
+                    cropped = _safe_trim_transparent_frames(preview_frames, crop_config)[0]
+                    layout_plan = plan_frame_layout(
+                        cropped.frames,
+                        layout=layout,
+                        columns=layout_columns,
+                    )
+                    with st.container(border=True):
+                        st.markdown("#### Empaquetado y Descargas")
+                        include_frames = st.checkbox(
+                            "Exportar PNG por frame",
+                            value=True,
+                            key=f"{prefix}:final_include_frames",
+                        )
+                        include_contact = st.checkbox(
+                            "Incluir contact/anchor sheet PNG",
+                            value=False,
+                            key=f"{prefix}:final_include_contact",
+                        )
+                        st.caption("Anchor revisado y aprobado")
+                        export_ready = alignment_ready or True
+                        if st.button(
+                            "Exportar sprite-sheet PNG",
+                            type="primary",
                             width="stretch",
-                            key=f"{prefix}:dl_manifest",
+                            key=f"{prefix}:btn_export_action",
+                        ):
+                            session.export_crop_config = crop_config
+                            store.commit_stage(
+                                session,
+                                "layout",
+                                cropped.frames,
+                                config={
+                                    "layout": layout_plan.layout,
+                                    "columns": layout_plan.columns,
+                                    "rows": layout_plan.rows,
+                                    "cell_size": list(layout_plan.cell_size),
+                                    "alignment_cache_key": session.stages["alignment"]["cache_key"],
+                                    "crop": crop_config.to_dict(),
+                                },
+                                metadata={
+                                    "regions": [list(region) for region in layout_plan.regions],
+                                    "sheet_size": list(layout_plan.sheet_size),
+                                    "crop_bbox": list(cropped.bbox),
+                                    "crop_source_size": list(cropped.source_size),
+                                    "alignment_profile": alignment_profile,
+                                },
+                            )
+                            manifest, export_bundle = _export_pipeline_artifacts(
+                                store,
+                                session,
+                                export_sheet_png=not include_frames,
+                                export_frames_png=include_frames,
+                                export_contact_sheet_png=include_contact,
+                                allow_manual_review=True,
+                            )
+                            if manifest:
+                                st.session_state[f"{prefix}:export_manifest"] = manifest
+                                st.session_state[f"{prefix}:export_bundle"] = export_bundle
+                                st.success("¡Exportación completada con éxito!")
+                        manifest = st.session_state.get(f"{prefix}:export_manifest")
+                        bundle = st.session_state.get(f"{prefix}:export_bundle")
+                        if manifest:
+                            bundle_path = bundle.get("bundle_zip") if bundle else None
+                            if bundle_path and bundle_path.exists():
+                                st.download_button(
+                                    "Descargar bundle completo (.zip)",
+                                    data=bundle_path.read_bytes(),
+                                    file_name=bundle_path.name,
+                                    mime="application/zip",
+                                    type="primary",
+                                    width="stretch",
+                                    key=f"{prefix}:dl_bundle",
+                                )
+                            frame_paths = bundle.get("frame_pngs", []) if bundle else []
+                            if frame_paths:
+                                st.download_button(
+                                    f"Descargar {len(frame_paths)} frames PNG (.zip)",
+                                    data=_zip_frame_paths(frame_paths),
+                                    file_name=f"{session.session_id}-frames.zip",
+                                    mime="application/zip",
+                                    width="stretch",
+                                    key=f"{prefix}:dl_frames_zip",
+                                )
+                            sheet_path = bundle.get("sheet_png") if bundle else None
+                            if sheet_path and sheet_path.exists():
+                                st.download_button(
+                                    "Descargar sprite sheet PNG",
+                                    data=sheet_path.read_bytes(),
+                                    file_name=sheet_path.name,
+                                    mime="image/png",
+                                    width="stretch",
+                                    key=f"{prefix}:dl_sheet",
+                                )
+                            contact_path = bundle.get("contact_sheet_png") if bundle else None
+                            if contact_path and contact_path.exists():
+                                st.download_button(
+                                    "Descargar contact/anchor sheet PNG",
+                                    data=contact_path.read_bytes(),
+                                    file_name=contact_path.name,
+                                    mime="image/png",
+                                    width="stretch",
+                                    key=f"{prefix}:dl_contact",
+                                )
+                            st.download_button(
+                                "Descargar manifest JSON",
+                                data=json.dumps(manifest, indent=2, ensure_ascii=False),
+                                file_name="sprite-sheet.manifest.json",
+                                mime="application/json",
+                                width="stretch",
+                                key=f"{prefix}:dl_manifest",
+                            )
+                with preview_col:
+                    with st.container(border=True):
+                        st.markdown("#### Vista previa de la hoja")
+                        metric_columns = st.columns(3)
+                        metric_columns[0].metric("Celda final", f"{layout_plan.cell_size[0]} × {layout_plan.cell_size[1]}")
+                        metric_columns[1].metric("Hoja derivada", f"{layout_plan.sheet_size[0]} × {layout_plan.sheet_size[1]}")
+                        metric_columns[2].metric("Regiones", len(layout_plan.regions))
+                        _render_export_preview_fragment(
+                            prefix=prefix,
+                            frames=cropped.frames,
+                            adjustments=centered.adjustments,
+                            columns=layout_plan.columns,
+                            origin_offset=(cropped.bbox[0], cropped.bbox[1]),
                         )
-            with preview_col:
-                with st.container(border=True):
-                    st.markdown("#### Vista previa de la hoja")
-                    metric_columns = st.columns(3)
-                    metric_columns[0].metric("Celda final", f"{layout_plan.cell_size[0]} × {layout_plan.cell_size[1]}")
-                    metric_columns[1].metric("Hoja derivada", f"{layout_plan.sheet_size[0]} × {layout_plan.sheet_size[1]}")
-                    metric_columns[2].metric("Regiones", len(layout_plan.regions))
-                    _render_export_preview_fragment(
-                        prefix=prefix,
-                        frames=cropped.frames,
-                        adjustments=centered.adjustments,
-                        columns=layout_plan.columns,
-                        origin_offset=(cropped.bbox[0], cropped.bbox[1]),
-                    )
-                with st.container(border=True):
-                    st.markdown("#### Vista previa animada (GIF en bucle)")
-                    gif_bytes = _generate_preview_gif(cropped.frames, fps=fps, scale=4)
-                    if gif_bytes and cropped.frames:
-                        frame_w, frame_h = cropped.frames[0].width, cropped.frames[0].height
-                        info_col, size_col = st.columns([1.6, 1])
-                        with info_col:
-                            st.caption(f"Celda: {frame_w} × {frame_h} px · {len(cropped.frames)} frames · {fps:.1f} FPS")
-                        with size_col:
-                            preview_size = st.segmented_control(
-                                "Tamaño de preview",
-                                options=(32, 64, 128),
-                                default=64,
-                                format_func=lambda s: f"{s}×{s} px",
-                                key=f"{prefix}:gif_preview_size",
-                                label_visibility="collapsed",
-                            ) or 64
-                        _show_pixel_gif(
-                            gif_bytes,
-                            caption=f"Bucle continuo a {fps:.1f} FPS · tamaño representativo {preview_size}×{preview_size} px",
-                            size=preview_size,
-                        )
+                    with st.container(border=True):
+                        st.markdown("#### Vista previa animada (GIF en bucle)")
+                        gif_bytes = _generate_preview_gif(cropped.frames, fps=fps, scale=4)
+                        if gif_bytes and cropped.frames:
+                            frame_w, frame_h = cropped.frames[0].width, cropped.frames[0].height
+                            info_col, size_col = st.columns([1.6, 1])
+                            with info_col:
+                                st.caption(f"Celda: {frame_w} × {frame_h} px · {len(cropped.frames)} frames · {fps:.1f} FPS")
+                            with size_col:
+                                preview_size = st.segmented_control(
+                                    "Tamaño de preview",
+                                    options=(32, 64, 128),
+                                    default=64,
+                                    format_func=lambda s: f"{s}×{s} px",
+                                    key=f"{prefix}:gif_preview_size",
+                                    label_visibility="collapsed",
+                                ) or 64
+                            _show_pixel_gif(
+                                gif_bytes,
+                                caption=f"Bucle continuo a {fps:.1f} FPS · tamaño representativo {preview_size}×{preview_size} px",
+                                size=preview_size,
+                            )
 
     st.sidebar.markdown("---")
     st.sidebar.caption(f"Workspace: {workspace}")

@@ -481,6 +481,7 @@
             <div id="blobSecondaryActions" style="display:flex;gap:5px;margin-top:4px" hidden>
               <button id="clearBlobSecondary" type="button" style="min-height:24px;font-size:7px">Quitar fondo (usar transparente)</button>
             </div>
+            <button id="invertBlobSet" type="button" class="primary" style="margin-top:6px;width:100%;min-height:26px;font-size:8px;background:linear-gradient(135deg, #10b981, #059669);border-color:#34d399" hidden>🔄 Generar variante invertida (B sobre A)</button>
             <span id="baseSourceHint" class="hint">El terreno sólido usado como centro de todas las composiciones.</span>
           </div>
           <div id="blobSynthesisSection" class="section" style="margin-top:8px" hidden>
@@ -1129,6 +1130,9 @@ function renderConfigurator(set,role){
   else if(isBlob){fillSourceSlot(secondary,set.secondarySource,"Terreno B (Fondo opcional)","Transparente (clic para asignar)");
     secondary.onclick=()=>startPick("secondary","secondarySource","Terreno B (Fondo)")}
   $("#clearBlobSecondary").onclick=()=>{set.secondarySource=null;emit();renderAll()};
+  const canInvertBlob=(set?.kind==="blob_47")&&(Boolean(set.secondarySource)||Boolean(set.secondaryColor)||Boolean(set.outsideColor)||Boolean(set.outsideMaterial)||isProceduralBlob(set));
+  $("#invertBlobSet").hidden=!canInvertBlob;
+  $("#invertBlobSet").onclick=invertActiveBlobSet;
   $("#baseSourceHint").textContent=isProceduralBlob(set)
     ?"No necesitas elegir tiles. El material que aparece primero es el terreno que pintas; el segundo rellena el fondo."
     :isDualGrid(set)
@@ -1356,6 +1360,7 @@ function importGrid(){
 }
 function buildSet(kind){
   if(kind==="dual_grid_15"&&!dualGridTileSizeValid()){$("#status").classList.remove("ready");$("#status").textContent=dualGridTileSizeMessage();return}
+  if(kind==="blob_47"&&selectedTiles().length===2){buildBlobFromTwoTiles();return}
   const tiles=selectedTiles(),required=baseRequirement(kind);if(tiles.length!==required)return;
   const tileMaxY=state.project.tiles.reduce((value,tile)=>Math.max(value,Number(tile.y)||0),0);
   const maxY=state.project.sets.reduce((value,item)=>Math.max(value,Number(item.originY||0)+setViewRows(item)),tileMaxY),setId=id();
@@ -1373,8 +1378,9 @@ function buildSet(kind){
 function buildBlobFromTwoTiles(){
   const tiles=selectedTiles();if(tiles.length!==2)return;
   const tileMaxY=state.project.tiles.reduce((value,tile)=>Math.max(value,Number(tile.y)||0),0);
-  const maxY=state.project.sets.reduce((value,item)=>Math.max(value,Number(item.originY||0)+setViewRows(item)),tileMaxY),setId=id();
-  const set={id:setId,name:"Blob Set (A sobre B)",kind:"blob_47",baseSource:tiles[0].sourceId,
+  const maxY=state.project.sets.reduce((value,item)=>Math.max(value,Number(item.originY||0)+setViewRows(item)),tileMaxY);
+  const setId1=id(), setId2=id();
+  const set1={id:setId1,name:"Blob Set (A sobre B)",kind:"blob_47",baseSource:tiles[0].sourceId,
     secondarySource:tiles[1].sourceId,originX:0,originY:maxY+2,columns:11,rows:5,overrides:{},innerCornerRounding:0.5,
     terrainProfile:"organic_neutral",edgeVariation:3,edgeSeed:0,variantCount:3,
     blobMode:"synthesis",dropShadow:2,shadowDirection:"south",rimLight:true,
@@ -1382,8 +1388,70 @@ function buildBlobFromTwoTiles(){
     edgeCutoffs:{},edges:{top:null,right:null,bottom:null,left:null},edgeTransforms:{top:{rotation:0,flipX:false,flipY:false},
       right:{rotation:0,flipX:false,flipY:false},bottom:{rotation:0,flipX:false,flipY:false},left:{rotation:0,flipX:false,flipY:false}},
     corners:{},customCorners:{},cornerTransforms:{},compositeCorners:true};
-  state.project.sets.push(set);state.project.activeSetId=setId;state.project.ui.selectedSetId=setId;
+  const set2={id:setId2,name:"Blob Set (B sobre A) · Invertido",kind:"blob_47",baseSource:tiles[1].sourceId,
+    secondarySource:tiles[0].sourceId,originX:0,originY:maxY+9,columns:11,rows:5,overrides:{},innerCornerRounding:0.5,
+    terrainProfile:"organic_neutral",edgeVariation:3,edgeSeed:1,variantCount:3,
+    blobMode:"synthesis",dropShadow:2,shadowDirection:"south",rimLight:true,
+    autoOrientEdges:true,cutoff:Math.max(1,Math.floor(Math.min(state.tileWidth,state.tileHeight)/8)),
+    edgeCutoffs:{},edges:{top:null,right:null,bottom:null,left:null},edgeTransforms:{top:{rotation:0,flipX:false,flipY:false},
+      right:{rotation:0,flipX:false,flipY:false},bottom:{rotation:0,flipX:false,flipY:false},left:{rotation:0,flipX:false,flipY:false}},
+    corners:{},customCorners:{},cornerTransforms:{},compositeCorners:true};
+  state.project.sets.push(set1, set2);state.project.activeSetId=setId1;state.project.ui.selectedSetId=setId1;
   state.project.ui.selectedTileIds=[];state.project.ui.selectedMask=null;emit();renderAll();closeContext();
+  $("#setHint").textContent="2 sets generados: A sobre B y su variante invertida B sobre A.";
+}
+function invertActiveBlobSet(){
+  const set=activeSet();
+  if(!set||set.kind!=="blob_47")return;
+  const tileMaxY=state.project.tiles.reduce((val,tile)=>Math.max(val,Number(tile.y)||0),0);
+  const maxY=state.project.sets.reduce((val,item)=>Math.max(val,Number(item.originY||0)+setViewRows(item)),tileMaxY);
+  const invertedId=id();
+  const inverted=JSON.parse(JSON.stringify(set));
+  inverted.id=invertedId;
+  if(inverted.name.includes("sobre")){
+    const parts=inverted.name.split("sobre");
+    const a=parts[0].replace(/^Blob\s*·?\s*/i,"").replace(/\(.*?\)/g,"").trim();
+    const b=parts[1].replace(/\(.*?\)/g,"").trim();
+    inverted.name=`Blob · ${b} sobre ${a} (Invertido)`;
+  } else if(inverted.name.includes("(A sobre B)")){
+    inverted.name=inverted.name.replace("(A sobre B)","(B sobre A) · Invertido");
+  } else if(inverted.name.includes("(B sobre A)")){
+    inverted.name=inverted.name.replace("(B sobre A)","(A sobre B)");
+  } else {
+    inverted.name=`${inverted.name} (Invertido)`;
+  }
+  if(inverted.baseSource||inverted.secondarySource){
+    const temp=inverted.baseSource;
+    inverted.baseSource=inverted.secondarySource;
+    inverted.secondarySource=temp;
+  }
+  if(inverted.primaryColor||inverted.secondaryColor){
+    const temp=inverted.primaryColor;
+    inverted.primaryColor=inverted.secondaryColor;
+    inverted.secondaryColor=temp;
+  }
+  if(inverted.insideColor||inverted.outsideColor){
+    const temp=inverted.insideColor;
+    inverted.insideColor=inverted.outsideColor;
+    inverted.outsideColor=temp;
+  }
+  if(inverted.insideMaterial||inverted.outsideMaterial){
+    const temp=inverted.insideMaterial;
+    inverted.insideMaterial=inverted.outsideMaterial;
+    inverted.outsideMaterial=temp;
+  }
+  if(inverted.terrainProfile==="grass_over_dirt")inverted.terrainProfile="rounded_grass_tufts";
+  else if(inverted.terrainProfile==="dirt_over_water")inverted.terrainProfile="rounded_chamfer";
+  else if(inverted.terrainProfile==="grass_over_water")inverted.terrainProfile="rounded_grass_tufts";
+  inverted.edgeSeed=(Number(inverted.edgeSeed||0)+1)%1000000;
+  inverted.originX=Number(set.originX||0);
+  inverted.originY=maxY+2;
+  state.project.sets.push(inverted);
+  state.project.activeSetId=invertedId;
+  state.project.ui.selectedSetId=invertedId;
+  emit();
+  renderAll();
+  $("#setHint").textContent=`Variante invertida creada: ${inverted.name}`;
 }
 function showIslandExample(){
   state.map=Array.from({length:state.mapWidth*state.mapHeight},(_,index)=>{
@@ -1394,25 +1462,31 @@ function showIslandExample(){
 }
 function buildProceduralBlob(profile){
   const pal = getProjectPalette();
-  let primaryColor, secondaryColor, insideMat, outsideMat;
+  let primaryColor, secondaryColor, insideMat, outsideMat, invertedProfile, invertedLabel;
   if(profile === "grass_over_dirt"){
     primaryColor = pal.primary;
     secondaryColor = pal.secondary;
     insideMat = (pal.materials && pal.materials.primary) || "grass";
     outsideMat = (pal.materials && pal.materials.secondary) || "dirt";
+    invertedProfile = "rounded_grass_tufts";
+    invertedLabel = "Tierra sobre pasto";
   } else if(profile === "dirt_over_water"){
     primaryColor = pal.secondary;
     secondaryColor = pal.water;
     insideMat = (pal.materials && pal.materials.secondary) || "dirt";
     outsideMat = (pal.materials && pal.materials.water) || "water";
+    invertedProfile = "rounded_chamfer";
+    invertedLabel = "Agua sobre tierra";
   } else { // grass_over_water
     primaryColor = pal.primary;
     secondaryColor = pal.water;
     insideMat = (pal.materials && pal.materials.primary) || "grass";
     outsideMat = (pal.materials && pal.materials.water) || "water";
+    invertedProfile = "rounded_grass_tufts";
+    invertedLabel = "Agua sobre pasto";
   }
 
-  const setId=id(),maxY=Math.max(0,...state.project.tiles.map(tile=>Number(tile.y)||0),...state.project.sets.map(set=>Number(set.originY||0)+setViewRows(set)));
+  const setId=id(), invertedId=id(), maxY=Math.max(0,...state.project.tiles.map(tile=>Number(tile.y)||0),...state.project.sets.map(set=>Number(set.originY||0)+setViewRows(set)));
   state.project.sets.push({
     id: setId,
     name: `Blob · ${DUAL_GRID_PROFILE_LABELS[profile]}`,
@@ -1435,6 +1509,28 @@ function buildProceduralBlob(profile){
     edges: {},
     overrides: {}
   });
+  state.project.sets.push({
+    id: invertedId,
+    name: `Blob · ${invertedLabel} (Invertido)`,
+    kind: "blob_47",
+    blobMaterialMode: "procedural",
+    baseSource: null,
+    secondarySource: null,
+    primaryColor: secondaryColor,
+    secondaryColor: primaryColor,
+    insideMaterial: outsideMat,
+    outsideMaterial: insideMat,
+    terrainProfile: invertedProfile,
+    edgeVariation: 2,
+    edgeSeed: 1,
+    variantCount: 3,
+    originX: 0,
+    originY: maxY + 9,
+    columns: 11,
+    rows: 5,
+    edges: {},
+    overrides: {}
+  });
   state.project.activeSetId=setId;
   state.project.ui.selectedSetId=setId;
   state.project.ui.selectedTileIds=[];
@@ -1442,6 +1538,7 @@ function buildProceduralBlob(profile){
   showIslandExample();
   emit();
   renderAll();
+  $("#setHint").textContent=`2 sets generados: ${DUAL_GRID_PROFILE_LABELS[profile]} y su variante invertida (${invertedLabel}).`;
   $("#terrainPreviewPanel").scrollIntoView({block:"start",behavior:"smooth"});
 }
 $("#blobGrassDirt").onclick=()=>buildProceduralBlob("grass_over_dirt");
@@ -1564,7 +1661,7 @@ function deleteSet(){const set=activeSet();if(!set)return;state.project.sets=sta
   state.project.activeSetId=state.project.sets.at(-1)?.id||null;state.project.ui.selectedSetId=null;state.project.ui.selectedMask=null;emit();renderAll()}
 function openContext(event){event.preventDefault();const menu=$("#contextMenu"),stage=$("#setStage"),rect=stage.getBoundingClientRect();
   menu.style.left=`${event.clientX-rect.left+stage.scrollLeft}px`;menu.style.top=`${event.clientY-rect.top+stage.scrollTop}px`;menu.classList.add("open");
-  $("#contextBlob").disabled=selectedTiles().length!==1;$("#contextWang").disabled=selectedTiles().length!==2;$("#contextDual").disabled=selectedTiles().length!==2||!dualGridTileSizeValid()}
+  $("#contextBlob").disabled=!(selectedTiles().length===1||selectedTiles().length===2);$("#contextWang").disabled=selectedTiles().length!==2;$("#contextDual").disabled=selectedTiles().length!==2||!dualGridTileSizeValid()}
 function closeContext(){$("#contextMenu").classList.remove("open")}
 setCanvas.oncontextmenu=openContext;document.addEventListener("pointerdown",event=>{if(!event.target.closest(".context-menu"))closeContext()});
 setCanvas.onpointerdown=event=>{if(event.button!==0)return;const point=cellPoint(event),role=generatedAt(point.x,point.y),tile=tileAt(point.x,point.y);
@@ -1580,11 +1677,18 @@ setCanvas.onpointerdown=event=>{if(event.button!==0)return;const point=cellPoint
 };
 setCanvas.onpointermove=event=>{if(!state.pointerStart)return;const point=cellPoint(event);if(state.dragMode==="marquee"){state.marquee.x1=point.x;state.marquee.y1=point.y;renderSetView()}};
 setCanvas.onpointerup=event=>{if(!state.pointerStart)return;const point=cellPoint(event);
-  if(state.dragMode==="tiles"){const dx=point.x-state.pointerStart.point.x,dy=point.y-state.pointerStart.point.y;if(dx||dy){const selected=new Set(state.project.ui.selectedTileIds);
-      for(const tile of state.project.tiles)if(selected.has(tile.id)){tile.x=Math.max(0,Number(tile.x)+dx);tile.y=Math.max(0,Number(tile.y)+dy)}emit()}}
-  if(state.dragMode==="marquee"&&state.marquee){const minX=Math.min(state.marquee.x0,state.marquee.x1),maxX=Math.max(state.marquee.x0,state.marquee.x1);
-    const minY=Math.min(state.marquee.y0,state.marquee.y1),maxY=Math.max(state.marquee.y0,state.marquee.y1);state.project.ui.selectedTileIds=state.project.tiles.filter(tile=>tile.x>=minX&&tile.x<=maxX&&tile.y>=minY&&tile.y<=maxY).map(tile=>tile.id)}
-  state.pointerStart=null;state.dragMode=null;state.marquee=null;renderAll();
+  if(state.dragMode==="tiles"){const start=state.pointerStart.point,dx=point.x-start.x,dy=point.y-start.y;
+    if(dx!==0||dy!==0)for(const id of state.project.ui.selectedTileIds){const tile=state.project.tiles.find(item=>item.id===id);if(tile){tile.x=Number(tile.x||0)+dx;tile.y=Number(tile.y||0)+dy}}
+    state.dragMode=null;state.pointerStart=null;emit();renderAll();return}
+  if(state.dragMode==="generated"){const start=state.pointerStart.point,dx=point.x-start.x,dy=point.y-start.y;const set=activeSet();
+    if(set&&(dx!==0||dy!==0)){set.originX=Number(set.originX||0)+dx;set.originY=Number(set.originY||0)+dy}
+    state.dragMode=null;state.pointerStart=null;emit();renderAll();return}
+  if(state.dragMode==="marquee"){const xMin=Math.min(state.marquee.x0,state.marquee.x1),xMax=Math.max(state.marquee.x0,state.marquee.x1),
+      yMin=Math.min(state.marquee.y0,state.marquee.y1),yMax=Math.max(state.marquee.y0,state.marquee.y1);
+    const inBox=state.project.tiles.filter(tile=>Number(tile.x)>=xMin&&Number(tile.x)<=xMax&&Number(tile.y)>=yMin&&Number(tile.y)<=yMax).map(tile=>tile.id);
+    state.project.ui.selectedTileIds=Array.from(new Set([...state.project.ui.selectedTileIds,...inBox]));
+    state.marquee=null;state.dragMode=null;state.pointerStart=null;renderSetView();renderSources();renderInspector();return}
+  state.pointerStart=null;
 };
 function sourcePoint(event){const rect=sourceCanvas.getBoundingClientRect();return{x:Math.max(0,Math.min(sourceCanvas.width-1,Math.floor((event.clientX-rect.left)*sourceCanvas.width/rect.width))),
   y:Math.max(0,Math.min(sourceCanvas.height-1,Math.floor((event.clientY-rect.top)*sourceCanvas.height/rect.height)))}}
@@ -1595,7 +1699,7 @@ sourceCanvas.onpointerup=()=>state.cropStart=null;
 $("#saveSource").onclick=()=>{if(!state.crop)return;const source=addSource(state.crop,$("#sourceName").value.trim());state.project.ui.activeSourceId=source.id;
   $("#sourceName").value="";emit();renderAll()};
 $("#importGrid").onclick=importGrid;$("#buildBlob").onclick=()=>buildSet("blob_47");$("#buildWang").onclick=()=>buildSet("wang_16");$("#buildDual").onclick=()=>buildSet("dual_grid_15");
-$("#buildBlobInspector").onclick=()=>buildSet("blob_47");$("#buildWangInspector").onclick=()=>buildSet("wang_16");$("#buildDualInspector").onclick=()=>buildSet("dual_grid_15");$("#buildBlobTwoTiles").onclick=buildBlobFromTwoTiles;
+$("#buildBlobInspector").onclick=()=>buildSet("blob_47");$("#buildWangInspector").onclick=()=>buildSet("wang_16");$("#buildDualInspector").onclick=()=>buildSet("dual_grid_15");$("#buildBlobTwoTiles").onclick=buildBlobFromTwoTiles;$("#invertBlobSet").onclick=invertActiveBlobSet;
 $("#contextBlob").onclick=()=>buildSet("blob_47");$("#contextWang").onclick=()=>buildSet("wang_16");$("#contextDual").onclick=()=>buildSet("dual_grid_15");
 $("#deleteSelection").onclick=deleteSelection;$("#contextDelete").onclick=deleteSelection;$("#deleteSet").onclick=deleteSet;
 $("#cancelPick").onclick=cancelPick;document.addEventListener("keydown",event=>{if(event.key==="Escape"&&state.assignment)cancelPick()});
@@ -1936,6 +2040,36 @@ function applyWizard(){
   };
 
   state.project.sets.push(set);
+  if(kind==="blob_47" && (secondarySourceId || isProcBlob)){
+    const invId=id();
+    let invName=`${patternLabel(kind)} · Invertido`;
+    let invProf="rounded_grass_tufts";
+    if(profile==="grass_over_dirt"){invName="Blob 47 · Tierra sobre pasto (Invertido)";invProf="rounded_grass_tufts"}
+    else if(profile==="dirt_over_water"){invName="Blob 47 · Agua sobre tierra (Invertido)";invProf="rounded_chamfer"}
+    else if(profile==="grass_over_water"){invName="Blob 47 · Agua sobre pasto (Invertido)";invProf="rounded_grass_tufts"}
+    const invSet=JSON.parse(JSON.stringify(set));
+    invSet.id=invId;
+    invSet.name=invName;
+    invSet.baseSource=secondarySourceId;
+    invSet.secondarySource=baseSourceId;
+    invSet.terrainProfile=invProf;
+    invSet.edgeSeed=1;
+    invSet.originY=maxY+9;
+    if(isProcBlob){
+      const pal=getProjectPalette();
+      if(profile==="grass_over_dirt"){
+        invSet.primaryColor=pal.secondary;invSet.secondaryColor=pal.primary;
+        invSet.insideMaterial="dirt";invSet.outsideMaterial="grass";
+      } else if(profile==="dirt_over_water"){
+        invSet.primaryColor=pal.water;invSet.secondaryColor=pal.secondary;
+        invSet.insideMaterial="water";invSet.outsideMaterial="dirt";
+      } else if(profile==="grass_over_water"){
+        invSet.primaryColor=pal.water;invSet.secondaryColor=pal.primary;
+        invSet.insideMaterial="water";invSet.outsideMaterial="grass";
+      }
+    }
+    state.project.sets.push(invSet);
+  }
   state.project.activeSetId=setId;
   state.project.ui.selectedSetId=setId;
   state.project.ui.selectedTileIds=[];

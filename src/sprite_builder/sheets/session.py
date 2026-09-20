@@ -46,6 +46,8 @@ from sprite_builder.sheets.models import (
     utc_now,
 )
 
+_SOURCE_VERIFICATION_CACHE_LIMIT = 32
+
 
 def _atomic_save_png(image: Image.Image, destination: Path) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -81,12 +83,31 @@ class SheetSessionStore:
         self.workspace = Path(workspace).expanduser().resolve()
         self.root = self.workspace / "sheet_sessions"
         self.root.mkdir(parents=True, exist_ok=True)
+        # These caches are scoped to one store instance (normally one UI rerun).
+        # Do not retain session objects or decoded PIL images here.
+        self._session_ids_cache: tuple[str, ...] | None = None
+        self._session_ids_cache_mtime_ns: int | None = None
+        self._verified_sources: dict[
+            str, tuple[Path, str, tuple[int, int, int, int, int]]
+        ] = {}
 
     def list_sessions(self) -> tuple[str, ...]:
-        return tuple(
-            path.parent.name
-            for path in sorted(self.root.glob("*/session.json"), reverse=True)
-        )
+        """List session IDs once per store instance, as an immutable tuple."""
+
+        try:
+            root_mtime_ns = int(self.root.stat().st_mtime_ns)
+        except OSError:
+            root_mtime_ns = None
+        if (
+            self._session_ids_cache is None
+            or root_mtime_ns != self._session_ids_cache_mtime_ns
+        ):
+            self._session_ids_cache = tuple(
+                path.parent.name
+                for path in sorted(self.root.glob("*/session.json"), reverse=True)
+            )
+            self._session_ids_cache_mtime_ns = root_mtime_ns
+        return self._session_ids_cache
 
     def session_path(self, session_id: str) -> Path:
         return self.root / session_id / "session.json"
@@ -175,6 +196,9 @@ class SheetSessionStore:
             },
         )
         self.save(session)
+        # A new directory changes the set returned by ``list_sessions``.
+        self._session_ids_cache = None
+        self._session_ids_cache_mtime_ns = None
         return session
 
     def create_blank_sprite(
@@ -217,11 +241,7 @@ class SheetSessionStore:
         session = SheetProcessingSession.from_dict(
             json.loads(path.read_text(encoding="utf-8"))
         )
-        source = self.workspace / session.source_image_path
-        if not source.is_file() or sha256_file(source) != session.source_sha256:
-            raise ArtifactIntegrityError(
-                f"Session source failed SHA-256 verification: {source}"
-            )
+        self._verify_source(session, error_prefix="Session source")
         return session
 
     def save(self, session: SheetProcessingSession) -> Path:
@@ -230,8 +250,55 @@ class SheetSessionStore:
 
     def source_path(self, session: SheetProcessingSession) -> Path:
         source = self.workspace / session.source_image_path
-        if sha256_file(source) != session.source_sha256:
-            raise ArtifactIntegrityError(f"Invalid session source: {source}")
+        cached = self._verified_sources.get(session.session_id)
+        if cached is not None:
+            cached_path, cached_sha256, cached_fingerprint = cached
+            if cached_path == source and cached_sha256 == session.source_sha256:
+                try:
+                    fingerprint = self._source_fingerprint(source)
+                except OSError:
+                    fingerprint = None
+                if fingerprint == cached_fingerprint:
+                    return source
+        return self._verify_source(session, error_prefix="Invalid session source")
+
+    @staticmethod
+    def _source_fingerprint(path: Path) -> tuple[int, int, int, int, int]:
+        stat = path.stat()
+        return (
+            int(stat.st_dev),
+            int(stat.st_ino),
+            int(stat.st_size),
+            int(stat.st_mtime_ns),
+            int(stat.st_ctime_ns),
+        )
+
+    def _remember_verified_source(self, session: SheetProcessingSession, source: Path) -> None:
+        if len(self._verified_sources) >= _SOURCE_VERIFICATION_CACHE_LIMIT:
+            self._verified_sources.pop(next(iter(self._verified_sources)))
+        self._verified_sources[session.session_id] = (
+            source,
+            session.source_sha256,
+            self._source_fingerprint(source),
+        )
+
+    def _verify_source(
+        self,
+        session: SheetProcessingSession,
+        *,
+        error_prefix: str,
+    ) -> Path:
+        """Verify a source once, then reuse that proof during this store lifetime.
+
+        ``SheetSessionStore`` is recreated for each Streamlit rerun.  The cached
+        proof therefore cannot cross reruns, and the stat fingerprint forces a
+        fresh SHA-256 if the source path is replaced or modified in this rerun.
+        """
+
+        source = self.workspace / session.source_image_path
+        if not source.is_file() or sha256_file(source) != session.source_sha256:
+            raise ArtifactIntegrityError(f"{error_prefix} failed SHA-256 verification: {source}")
+        self._remember_verified_source(session, source)
         return source
 
     def _workspace_artifact_path(self, value: object, *, label: str) -> Path:

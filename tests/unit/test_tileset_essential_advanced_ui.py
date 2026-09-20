@@ -63,6 +63,7 @@ def _setup_tileset_session(test_app: AppTest) -> str:
 
     test_app.session_state[project_key] = project
     test_app.session_state["tileset_builder:tile_size"] = 16
+    test_app.session_state["tileset_builder:tabs"] = "Estudio de Acabado y Materiales"
     return set_id
 
 
@@ -95,6 +96,7 @@ def _setup_multi_set_tileset_session(test_app: AppTest) -> list[str]:
     }
     test_app.session_state[project_key] = project
     test_app.session_state["tileset_builder:tile_size"] = 16
+    test_app.session_state["tileset_builder:tabs"] = "Estudio de Acabado y Materiales"
     return [str(s["id"]) for s in suite.project_sets]
 
 
@@ -701,6 +703,7 @@ def test_adversarial_starter_biome_creation_when_empty() -> None:
     # Start with empty sets
     test_app.session_state[project_key] = {"version": 3, "sets": [], "sources": []}
     test_app.session_state["tileset_builder:tile_size"] = 16
+    test_app.session_state["tileset_builder:tabs"] = "Estudio de Acabado y Materiales"
     test_app.run(timeout=30)
     assert not test_app.exception
 

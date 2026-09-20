@@ -10,6 +10,23 @@ from sprite_builder.sheets import SheetSessionStore
 from sprite_builder.ui import app
 
 
+def _run_tileset_tab(test_app: AppTest, label: str) -> None:
+    """Select a dynamic Tileset Builder tab for the next AppTest rerun."""
+
+    test_app.session_state["tileset_builder:tabs"] = label
+    test_app.run(timeout=30)
+
+
+def _click_tileset_button(test_app: AppTest, label: str) -> None:
+    button = next(button for button in test_app.button if label in button.label)
+    button.click()
+    # AppTest does not emit the browser's tab-change event. Re-apply the
+    # selected tab before the button event rerun so the callback is evaluated
+    # in the same visible tab as a real browser interaction.
+    test_app.session_state["tileset_builder:tabs"] = "Estudio de Acabado y Materiales"
+    test_app.run(timeout=30)
+
+
 def test_manual_alignment_instruction_is_not_duplicated() -> None:
     source = Path(app.__file__).read_text(encoding="utf-8")
 
@@ -78,7 +95,8 @@ def test_tileset_builder_is_a_page_not_a_sprite_workflow_tab() -> None:
     assert 'textContent.trim() === "Deploy"' in header_source
     assert "deployButton.parentElement.insertBefore(navigation, deployButton)" in header_source
     assert "with tileset_tab:" not in source
-    assert 'st.tabs(\n        ("Atlas", "Pattern Studio", "Estudio de Acabado y Materiales", "Map Tester")\n    )' in source
+    assert 'key="tileset_builder:tabs"' in source
+    assert 'on_change="rerun"' in source
     assert "Tile Size" in (
         Path(app.__file__).parent / "tileset_editor_component" / "index.html"
     ).read_text(encoding="utf-8")
@@ -181,12 +199,9 @@ def test_procedural_material_tile_generation_flow() -> None:
 
     test_app.run(timeout=30)
 
-    for b in test_app.button:
-        if "Generar y Asignar Muestra" in b.label:
-            b.click()
-            break
+    _run_tileset_tab(test_app, "Estudio de Acabado y Materiales")
 
-    test_app.run(timeout=30)
+    _click_tileset_button(test_app, "Generar y Asignar Muestra")
     assert not test_app.exception
 
     prefix = "tileset_builder:patterns"
@@ -245,18 +260,22 @@ def test_tileset_presets_up_to_128px_and_dual_source_assignment() -> None:
 
     prefix = "tileset_builder:patterns"
     # Ensure a starter set exists so Finishing & Export studio is active
-    create_biome_btn = next((b for b in test_app.button if "Crear Bioma de Prueba" in b.label), None)
+    _run_tileset_tab(test_app, "Estudio de Acabado y Materiales")
+    create_biome_btn = next(
+        (b for b in test_app.button if "Crear Bioma de Prueba" in b.label),
+        None,
+    )
     if create_biome_btn is not None:
-        create_biome_btn.click().run(timeout=30)
+        create_biome_btn.click()
+        test_app.session_state["tileset_builder:tabs"] = "Estudio de Acabado y Materiales"
+        test_app.run(timeout=30)
         assert not test_app.exception
 
     # Assign secondary tile via procedural generation
     test_app.session_state[f"{prefix}:ai_role_select"] = "Secundario (Suelo/Fondo)"
-    test_app.run(timeout=30)
+    _run_tileset_tab(test_app, "Estudio de Acabado y Materiales")
 
-    gen_btn = next((b for b in test_app.button if "Generar y Asignar Muestra" in b.label), None)
-    assert gen_btn is not None
-    gen_btn.click().run(timeout=30)
+    _click_tileset_button(test_app, "Generar y Asignar Muestra")
     assert not test_app.exception
 
     project = test_app.session_state[f"{prefix}:set_view_project"]
@@ -266,11 +285,9 @@ def test_tileset_presets_up_to_128px_and_dual_source_assignment() -> None:
 
     # Assign base tile
     test_app.session_state[f"{prefix}:ai_role_select"] = "Base (Relleno)"
-    test_app.run(timeout=30)
+    _run_tileset_tab(test_app, "Estudio de Acabado y Materiales")
 
-    gen_btn = next((b for b in test_app.button if "Generar y Asignar Muestra" in b.label), None)
-    assert gen_btn is not None
-    gen_btn.click().run(timeout=30)
+    _click_tileset_button(test_app, "Generar y Asignar Muestra")
     assert not test_app.exception
 
     project = test_app.session_state[f"{prefix}:set_view_project"]
@@ -327,11 +344,9 @@ def test_aesthetic_preset_application_to_active_set() -> None:
 
     # Select Retro 16-bit preset and apply
     test_app.session_state[f"{prefix}:select_aesthetic_preset:{active_id}"] = "retro_16bit"
-    test_app.run(timeout=30)
+    _run_tileset_tab(test_app, "Estudio de Acabado y Materiales")
 
-    apply_btn = next((b for b in test_app.button if "Aplicar Receta" in b.label), None)
-    assert apply_btn is not None
-    apply_btn.click().run(timeout=30)
+    _click_tileset_button(test_app, "Aplicar Receta")
     assert not test_app.exception
 
     project_after = test_app.session_state[f"{prefix}:set_view_project"]
@@ -422,6 +437,5 @@ def test_tileset_dual_grid_wizard_creation_and_map_tester_smoke() -> None:
     assert created_set["secondarySource"] == project["sources"][1]["id"]
     assert "tileset_builder:image" in test_app.session_state
     assert test_app.session_state["tileset_builder:image"] is not None
-
 
 
