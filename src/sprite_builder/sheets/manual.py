@@ -237,8 +237,12 @@ def transform_masked_pixels(
     offset_y: int = 0,
     quarter_turns: int = 0,
     angle_degrees: float | None = None,
+    scale_x: float = 1.0,
+    scale_y: float = 1.0,
+    resize_from_top_left: bool = False,
+    source_bounds: tuple[int, int, int, int] | Sequence[int] | None = None,
 ) -> tuple[Image.Image, np.ndarray]:
-    """Move, duplicate, or rotate a selection without resampling pixels."""
+    """Move, duplicate, rotate, or nearest-resize a pixel selection."""
 
     rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
     selection = np.asarray(mask, dtype=bool)
@@ -248,10 +252,37 @@ def transform_masked_pixels(
     if bbox is None:
         return Image.fromarray(rgba, "RGBA"), np.zeros_like(selection, dtype=bool)
 
-    x0, y0, x1, y1 = bbox
+    if source_bounds is None:
+        x0, y0, x1, y1 = bbox
+    else:
+        if len(source_bounds) != 4:
+            raise ValueError("source_bounds must contain four coordinates")
+        x0, y0, x1, y1 = (int(value) for value in source_bounds)
+        x0 = max(0, min(rgba.shape[1] - 1, x0))
+        y0 = max(0, min(rgba.shape[0] - 1, y0))
+        x1 = max(x0 + 1, min(rgba.shape[1], x1))
+        y1 = max(y0 + 1, min(rgba.shape[0], y1))
     crop = rgba[y0:y1, x0:x1].copy()
     crop_mask = selection[y0:y1, x0:x1].copy()
     crop[~crop_mask, 3] = 0
+    target_width = max(1, round(crop.shape[1] * max(0.01, float(scale_x))))
+    target_height = max(1, round(crop.shape[0] * max(0.01, float(scale_y))))
+    if (target_width, target_height) != (crop.shape[1], crop.shape[0]):
+        crop = np.asarray(
+            Image.fromarray(crop, "RGBA").resize(
+                (target_width, target_height),
+                Image.Resampling.NEAREST,
+            ),
+            dtype=np.uint8,
+        ).copy()
+        crop_mask = np.asarray(
+            Image.fromarray(crop_mask.astype(np.uint8) * 255, "L").resize(
+                (target_width, target_height),
+                Image.Resampling.NEAREST,
+            ),
+            dtype=np.uint8,
+        ) > 0
+        crop[~crop_mask, 3] = 0
     degrees = (
         float(angle_degrees)
         if angle_degrees is not None
@@ -283,8 +314,12 @@ def transform_masked_pixels(
     crop_height, crop_width = crop.shape[:2]
     center_x = (x0 + x1) / 2.0
     center_y = (y0 + y1) / 2.0
-    dest_x0 = int(round(center_x - crop_width / 2.0)) + int(offset_x)
-    dest_y0 = int(round(center_y - crop_height / 2.0)) + int(offset_y)
+    if resize_from_top_left:
+        dest_x0 = x0 + int(offset_x)
+        dest_y0 = y0 + int(offset_y)
+    else:
+        dest_x0 = int(round(center_x - crop_width / 2.0)) + int(offset_x)
+        dest_y0 = int(round(center_y - crop_height / 2.0)) + int(offset_y)
     if clear_source:
         rgba[selection, 3] = 0
 
@@ -437,6 +472,15 @@ def apply_manual_background_edits(
                     angle_degrees=(
                         float(operation["angle_degrees"])
                         if operation.get("angle_degrees") is not None
+                        else None
+                    ),
+                    scale_x=float(operation.get("scale_x", 1.0)),
+                    scale_y=float(operation.get("scale_y", 1.0)),
+                    resize_from_top_left=bool(operation.get("resize_from_top_left", False)),
+                    source_bounds=(
+                        tuple(int(value) for value in operation["source_bounds"])
+                        if isinstance(operation.get("source_bounds"), (list, tuple))
+                        and len(operation["source_bounds"]) == 4
                         else None
                     ),
                 )

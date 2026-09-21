@@ -36,6 +36,7 @@ from sprite_builder.sheets import (
     segment_sheet,
     select_similar_pixels,
     shift_mask,
+    transform_masked_pixels,
     trim_transparent_frames,
 )
 from sprite_builder.ui.app import (
@@ -43,6 +44,7 @@ from sprite_builder.ui.app import (
     _alignment_export_readiness,
     _center_history_snapshot,
     _clamp_manual_offsets_to_canvas,
+    _compose_direct_studio_export,
     _effective_segmentation_frame_count,
     _export_preview_columns,
     _handle_background_editor_event,
@@ -73,6 +75,58 @@ def _png_bytes(image: Image.Image) -> bytes:
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+def test_masked_resize_uses_visual_source_bounds_and_clears_sparse_selection_fringe() -> None:
+    image = Image.new("RGBA", (40, 40), (0, 0, 0, 0))
+    for y in range(4, 16):
+        for x in range(3, 17):
+            image.putpixel((x, y), (140, 170, 100, 255))
+    image.putpixel((9, 2), (140, 170, 100, 255))
+    image.putpixel((1, 9), (140, 170, 100, 255))
+    selection = np.asarray(image)[..., 3] > 0
+
+    result, next_mask = transform_masked_pixels(
+        image,
+        selection,
+        clear_source=True,
+        offset_x=13,
+        offset_y=12,
+        scale_x=16 / 14,
+        scale_y=16 / 12,
+        resize_from_top_left=True,
+        source_bounds=(3, 4, 17, 16),
+    )
+
+    assert result.getchannel("A").getbbox() == (16, 16, 32, 32)
+    rows, columns = np.where(next_mask)
+    assert (int(columns.min()), int(rows.min()), int(columns.max()) + 1, int(rows.max()) + 1) == (
+        16,
+        16,
+        32,
+        32,
+    )
+
+
+def test_direct_studio_export_composites_floating_selection_without_mutating_inputs() -> None:
+    background = Image.new("RGBA", (6, 5), (10, 20, 30, 255))
+    piece = Image.new("RGBA", (2, 2), (255, 0, 0, 255))
+    background_before = background.tobytes()
+    piece_before = piece.tobytes()
+
+    exported = _compose_direct_studio_export(
+        background,
+        floating_piece=piece,
+        floating_x=3,
+        floating_y=2,
+    )
+
+    assert exported.mode == "RGBA"
+    assert exported.size == background.size
+    assert exported.getpixel((3, 2)) == (255, 0, 0, 255)
+    assert exported.getpixel((0, 0)) == (10, 20, 30, 255)
+    assert background.tobytes() == background_before
+    assert piece.tobytes() == piece_before
 
 
 def test_export_preview_columns_match_the_output_layout() -> None:
@@ -1112,6 +1166,63 @@ def test_manual_background_move_mask_preserves_canvas_and_moves_pixels() -> None
     assert moved.getpixel((6, 4)) == (220, 80, 40, 255)
 
 
+def test_manual_background_resize_mask_uses_nearest_and_top_left_anchor() -> None:
+    frame = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+    pixels = frame.load()
+    pixels[2, 2] = (255, 0, 0, 255)
+    pixels[3, 2] = (0, 255, 0, 255)
+    mask = np.zeros((8, 8), dtype=bool)
+    mask[2, 2:4] = True
+
+    resized = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "move_mask",
+                    **encode_mask(mask),
+                    "scale_x": 0.5,
+                    "scale_y": 2.0,
+                    "resize_from_top_left": True,
+                }
+            ]
+        },
+    )[0]
+
+    assert resized.getpixel((2, 2))[3] == 255
+    assert resized.getpixel((2, 3))[3] == 255
+    assert resized.getpixel((3, 2))[3] == 0
+
+
+def test_manual_background_resize_replays_visual_source_bounds() -> None:
+    frame = Image.new("RGBA", (40, 40), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(frame)
+    draw.rectangle((3, 4, 16, 15), fill=(140, 170, 100, 255))
+    frame.putpixel((9, 2), (140, 170, 100, 255))
+    frame.putpixel((1, 9), (140, 170, 100, 255))
+    mask = np.asarray(frame)[..., 3] > 0
+
+    resized = apply_manual_background_edits(
+        (frame,),
+        {
+            0: [
+                {
+                    "kind": "move_mask",
+                    **encode_mask(mask),
+                    "offset_x": 13,
+                    "offset_y": 12,
+                    "scale_x": 16 / 14,
+                    "scale_y": 16 / 12,
+                    "resize_from_top_left": True,
+                    "source_bounds": [3, 4, 17, 16],
+                }
+            ]
+        },
+    )[0]
+
+    assert resized.getchannel("A").getbbox() == (16, 16, 32, 32)
+
+
 def test_manual_background_copy_and_rotate_operations_replay_pixel_exact() -> None:
     frame = Image.new("RGBA", (8, 6), (0, 0, 0, 0))
     draw = ImageDraw.Draw(frame)
@@ -1451,12 +1562,12 @@ def test_center_zoom_event_persists_per_frame_and_clamps() -> None:
             "eventId": "zoom-1",
             "type": "toolbar",
             "action": "zoom",
-            "zoom": 99,
+            "zoom": 999,
         },
     )
 
     assert changed is True
-    assert ss[f"{prefix}:center_zoom:1"] == 40
+    assert ss[f"{prefix}:center_zoom:1"] == 256
     assert f"{prefix}:center_zoom:0" not in ss
 
 

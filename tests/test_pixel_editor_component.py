@@ -327,7 +327,7 @@ def test_both_editors_refit_when_their_container_width_changes() -> None:
     tileset_source = TILESET_COMPONENT_HTML.read_text(encoding="utf-8")
 
     assert "responsiveFitObserver.observe(stage)" in pixel_source
-    assert "setZoom(computeFitZoom(), false)" in pixel_source
+    assert "setZoom(computeFitZoom(), true)" in pixel_source
     assert "stageResizeObserver.observe(stage)" in tileset_source
     assert "state.fitResponsive" in tileset_source
 
@@ -802,6 +802,126 @@ def test_pose_editor_owns_non_destructive_selection_and_move_tools() -> None:
     assert '"Mover selección (haz un recorte primero)"' in component_source
 
 
+def test_floating_selection_resize_has_corner_handles_presets_and_grid_snap() -> None:
+    component_source = _component_source()
+    app_source = _ui_app_source()
+
+    assert 'aria-label="Redimensionar selección"' in component_source
+    for scale in ("0.75", "0.5", "0.25"):
+        assert f'data-resize-scale="{scale}"' in component_source
+    assert "function floatingResizeHandles" in component_source
+    assert "function resizeHandleAtPoint" in component_source
+    assert "function snapResizeEdge" in component_source
+    assert "state.pixelGridSize" in component_source
+    assert 'type: "floating-resize"' in component_source
+    assert "scaleX:" in component_source
+    assert "scaleY:" in component_source
+    assert 'event_type == "floating-resize"' in app_source
+    assert "Image.Resampling.NEAREST" in app_source
+    assert 'layer_editor_floating_selection"] = selection' in app_source
+    assert 'background_floating_selection"] = {' in app_source
+    assert "Puedes moverla sin volver a seleccionarla" in app_source
+
+
+def test_floating_selection_can_fit_alpha_bounds_to_active_grid_from_context_menu() -> None:
+    component_source = _component_source()
+    app_source = _ui_app_source()
+
+    assert 'aria-label="Encajar selección al grid"' in component_source
+    assert 'data-selection-action="fit-grid"' in component_source
+    assert "function pointHitsFloatingSelection" in component_source
+    assert "showSelectionContextMenu(event)" in component_source
+    assert "function previewFitSelectionToGrid" in component_source
+    assert "state.pixelGridSize || 16" in component_source
+    assert "Math.ceil(requiredWidth / grid) * grid" in component_source
+    assert "Math.ceil(requiredHeight / grid) * grid" in component_source
+    assert "availableWidth / sourceWidth" in component_source
+    assert "availableHeight / sourceHeight" in component_source
+    assert 'fitGridAnchor.value || "top-left"' in component_source
+    assert 'anchor === "bottom-center"' in component_source
+    assert "state.fitGridTargetRect = targetRect" in component_source
+    assert "fitGrid: fitGridAction" in component_source
+    assert '"Encajar selección al grid"' in app_source
+
+
+def test_context_menu_adjusts_selection_to_fill_nearest_grid_block() -> None:
+    component_source = _component_source()
+    app_source = _ui_app_source()
+
+    assert 'data-selection-action="adjust-grid"' in component_source
+    assert "function adjustSelectionToNearestGridBlock" in component_source
+    assert "Math.round(sourceWidth / grid) * grid" in component_source
+    assert "Math.round(sourceHeight / grid) * grid" in component_source
+    assert "Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight)" not in component_source
+    assert "left: targetLeft," in component_source
+    assert "top: targetTop," in component_source
+    assert "right: targetLeft + targetWidth," in component_source
+    assert "bottom: targetTop + targetHeight," in component_source
+    assert 'state.resizeAction = "fit-grid-adjust"' in component_source
+    assert 'fitGridMode = state.resizeAction === "fit-grid-adjust" ? "adjust"' in component_source
+    assert "adjustSelectionToNearestGridBlock();" in component_source
+    assert 'str(event.get("fitGridMode", "")) == "adjust"' in app_source
+    assert '"Ajustar selección al grid"' in app_source
+
+
+def test_right_click_opens_selection_menu_without_committing_floating_transform() -> None:
+    component_source = _component_source()
+    pointerdown_handler = component_source.split(
+        'canvas.addEventListener("pointerdown", (event) => {', 1
+    )[1].split('canvas.addEventListener("pointermove", (event) => {', 1)[0]
+    pointerup_handler = component_source.split(
+        'canvas.addEventListener("pointerup", (event) => {', 1
+    )[1].split('canvas.addEventListener("pointercancel", () => {', 1)[0]
+
+    assert "state.dragging = event.button === 0;" in pointerdown_handler
+    assert "if (!state.dragging)" in pointerdown_handler
+    assert "if (event.button !== 0)" in pointerup_handler
+    assert pointerup_handler.index("if (event.button !== 0)") < pointerup_handler.index(
+        "emitFloatingTransform(event, point);"
+    )
+
+
+def test_adjust_resize_fills_both_target_grid_dimensions_without_alpha_padding() -> None:
+    piece = Image.new("RGBA", (96, 96), (0, 0, 0, 0))
+    for y in range(7, 42):
+        for x in range(5, 59):
+            piece.putpixel((x, y), (120, 160, 90, 255))
+
+    bounds = app._alpha_tight_bounds(piece)
+    assert bounds == (5, 7, 59, 42)
+    resized = app._resize_floating_piece(
+        piece,
+        bounds,
+        scale_x=48 / 54,
+        scale_y=32 / 35,
+    )
+    resized_bounds = app._alpha_tight_bounds(resized)
+
+    assert resized_bounds == (5, 7, 53, 39)
+    assert resized_bounds[2] - resized_bounds[0] == 48
+    assert resized_bounds[3] - resized_bounds[1] == 32
+
+
+def test_floating_resize_bounds_ignore_transparent_lasso_padding() -> None:
+    piece = Image.new("RGBA", (12, 10), (0, 0, 0, 0))
+    piece.putpixel((4, 3), (255, 255, 255, 255))
+    piece.putpixel((7, 6), (255, 255, 255, 255))
+
+    assert app._alpha_tight_bounds(piece) == (4, 3, 8, 7)
+
+
+def test_fit_bounds_ignore_sparse_edge_pixels_that_create_visual_padding() -> None:
+    piece = Image.new("RGBA", (20, 20), (0, 0, 0, 0))
+    for y in range(4, 16):
+        for x in range(3, 17):
+            piece.putpixel((x, y), (140, 170, 100, 255))
+    piece.putpixel((9, 2), (140, 170, 100, 255))
+    piece.putpixel((1, 9), (140, 170, 100, 255))
+
+    assert app._alpha_tight_bounds(piece) == (1, 2, 17, 16)
+    assert app._alpha_fit_bounds(piece) == (3, 4, 17, 16)
+
+
 def test_background_mode_exposes_full_studio_tools() -> None:
     component_source = _component_source()
     app_source = _ui_app_source()
@@ -977,11 +1097,32 @@ def test_component_guide_layer_changes_are_published_for_persistence() -> None:
     assert frame_listener and "toggle-frame-guide" in frame_listener.group(1)
 
 
-def test_canvas_zoom_is_local_and_does_not_trigger_a_rerun() -> None:
+def test_canvas_zoom_buttons_persist_their_value() -> None:
     source = _component_source()
 
-    assert source.count("setZoom(state.zoom + 1, false)") >= 1
-    assert source.count("setZoom(state.zoom - 1, false)") >= 1
+    assert source.count("setZoom(zoomInStep(state.zoom), true)") >= 1
+    assert source.count("setZoom(state.zoom - 1, true)") >= 1
+
+
+def test_toolbar_zoom_persists_and_tools_have_visible_hover_descriptions() -> None:
+    source = _component_source()
+    app_source = _ui_app_source()
+
+    assert 'class="tool-tooltip" id="tool-tooltip" role="tooltip"' in source
+    assert "function showToolTooltip" in source
+    assert 'toolbar.querySelectorAll("button, select, summary, .pill")' in source
+    assert 'element.addEventListener("pointerenter"' in source
+    assert 'action: "zoom"' in source
+    assert "setZoom(zoomInStep(state.zoom), true)" in source
+    assert "setZoom(zoomOutStep(state.zoom), true)" in source
+    assert "setZoom(computeFitZoom(), true)" in source
+    assert "const MAX_ZOOM = 256" in source
+    assert "state.autoFitZoom = false" in source
+    assert "!state.autoFitZoom" in source
+    assert "!event.ctrlKey && !event.metaKey" in source
+    assert "def _is_editor_zoom_event" in app_source
+    assert "or _is_editor_zoom_event(event)" in app_source
+    assert "not _is_editor_zoom_event(event)" in app_source
     emit_value = re.search(
         r"function\s+emitValue\(value\)\s*\{([\s\S]*?)\n\s{6}\}",
         source,
@@ -1143,6 +1284,23 @@ def test_fit_and_zoom_support_fractional_scale_for_large_images() -> None:
 def test_pixel_editor_component_wrapper_accepts_float_zoom() -> None:
     sig = inspect.signature(components.pixel_editor)
     assert sig.parameters["zoom"].default == 12.0
+
+
+def test_final_export_allows_sessions_without_saved_alignment_stage() -> None:
+    source = _ui_app_source()
+
+    assert 'session.stages.get("alignment") or {}' in source
+    assert 'session.stages["alignment"]["cache_key"]' not in source
+
+
+def test_background_studio_exposes_direct_png_download_without_pipeline_commit() -> None:
+    source = _ui_app_source()
+
+    assert '"Descargar PNG actual"' in source
+    assert 'key=f"{prefix}:download_studio_png"' in source
+    assert 'on_click="ignore"' in source
+    assert "_compose_direct_studio_export(" in source
+    assert "No guarda etapas ni avanza la pipeline." in source
 
 
 def test_center_mode_allows_dragging_frame_and_normalizes_tool() -> None:

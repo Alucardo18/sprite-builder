@@ -431,6 +431,24 @@ def _png_bytes(image: Image.Image) -> bytes:
     return data
 
 
+def _compose_direct_studio_export(
+    background: Image.Image,
+    *,
+    floating_piece: Image.Image | None = None,
+    floating_x: int = 0,
+    floating_y: int = 0,
+) -> Image.Image:
+    """Materialize the visible Studio canvas without touching pipeline state."""
+
+    result = background.convert("RGBA").copy()
+    if floating_piece is not None:
+        result.alpha_composite(
+            floating_piece.convert("RGBA"),
+            dest=(int(floating_x), int(floating_y)),
+        )
+    return result
+
+
 _PALETTE_CACHE: dict[tuple[int, int, bytes], list[str]] = {}
 
 
@@ -3704,7 +3722,15 @@ def _history_label(scope: str, event: Mapping[str, Any]) -> str:
         if event_type == "key":
             return "Cambiar selección"
         tool = _normalize_background_tool(event.get("tool"))
-        if event_type == "floating-transform":
+        if event_type in {"floating-transform", "floating-resize"}:
+            if event_type == "floating-resize":
+                return (
+                    "Ajustar selección al grid"
+                    if str(event.get("fitGridMode", "")) == "adjust"
+                    else "Encajar selección al grid"
+                    if bool(event.get("fitGrid"))
+                    else "Redimensionar selección"
+                )
             if str(event.get("operationKind", "")) == "copy_mask":
                 return "Pegar selección"
             return "Mover selección"
@@ -3712,18 +3738,33 @@ def _history_label(scope: str, event: Mapping[str, Any]) -> str:
             return _background_tool_label(tool)
         return "Borrador" if tool == "eraser" or event_type == "edit-batch" else "Varita"
     if scope == "studio":
+        if event_type == "floating-resize" and bool(event.get("fitGrid")):
+            return (
+                "Ajustar selección al grid"
+                if str(event.get("fitGridMode", "")) == "adjust"
+                else "Encajar selección al grid"
+            )
         return {
             "edit-batch": "Pintar",
             "paint": "Pintar",
             "transform": "Mover cel",
             "crop": "Cortar selección",
             "floating-transform": "Mover selección",
+            "floating-resize": "Redimensionar selección",
             "selection": "Cambiar selección",
             "selection-command": "Cambiar selección",
             "clipboard": "Portapapeles",
             "pixel-action": "Transformar píxeles",
         }.get(event_type, "Editar capas")
     return "Edición"
+
+
+def _is_editor_zoom_event(event: Mapping[str, Any] | None) -> bool:
+    return bool(
+        event
+        and event.get("type") == "toolbar"
+        and event.get("action") == "zoom"
+    )
 
 
 def _editor_event_points(
@@ -3849,6 +3890,58 @@ def _floating_selection_highlight(mask: np.ndarray) -> Image.Image:
     return Image.fromarray(highlight, "RGBA")
 
 
+def _alpha_tight_bounds(image: Image.Image) -> tuple[int, int, int, int] | None:
+    """Return bounds of visible pixels, excluding transparent lasso padding."""
+
+    bounds = image.convert("RGBA").getchannel("A").getbbox()
+    return tuple(int(value) for value in bounds) if bounds is not None else None
+
+
+def _alpha_fit_bounds(
+    image: Image.Image,
+    *,
+    alpha_threshold: int = 8,
+    minimum_axis_coverage: float = 0.10,
+) -> tuple[int, int, int, int] | None:
+    """Return visual content bounds without sparse alpha fringe at the edges."""
+
+    alpha = np.asarray(image.convert("RGBA"), dtype=np.uint8)[..., 3]
+    occupied = alpha > max(0, min(254, int(alpha_threshold)))
+    rows, columns = np.where(occupied)
+    if not len(columns):
+        return None
+    left = int(columns.min())
+    top = int(rows.min())
+    right = int(columns.max()) + 1
+    bottom = int(rows.max()) + 1
+    coverage = max(0.0, min(1.0, float(minimum_axis_coverage)))
+    for _ in range(2):
+        cropped = occupied[top:bottom, left:right]
+        row_counts = cropped.sum(axis=1)
+        row_minimum = max(1, int(np.ceil(float(row_counts.max()) * coverage)))
+        local_top = 0
+        local_bottom = len(row_counts)
+        while local_top < local_bottom - 1 and int(row_counts[local_top]) < row_minimum:
+            local_top += 1
+        while local_bottom > local_top + 1 and int(row_counts[local_bottom - 1]) < row_minimum:
+            local_bottom -= 1
+        top += local_top
+        bottom = top + (local_bottom - local_top)
+
+        cropped = occupied[top:bottom, left:right]
+        column_counts = cropped.sum(axis=0)
+        column_minimum = max(1, int(np.ceil(float(column_counts.max()) * coverage)))
+        local_left = 0
+        local_right = len(column_counts)
+        while local_left < local_right - 1 and int(column_counts[local_left]) < column_minimum:
+            local_left += 1
+        while local_right > local_left + 1 and int(column_counts[local_right - 1]) < column_minimum:
+            local_right -= 1
+        left += local_left
+        right = left + (local_right - local_left)
+    return left, top, right, bottom
+
+
 def _onion_skin_tint(
     image: Image.Image,
     color: tuple[int, int, int],
@@ -3915,6 +4008,27 @@ def _floating_selection_for_frame(
         return None
     frame = frames.get(frame_index)
     return frame if isinstance(frame, dict) else None
+
+
+def _resize_floating_piece(
+    piece: Image.Image,
+    bounds: tuple[int, int, int, int],
+    *,
+    scale_x: float,
+    scale_y: float,
+) -> Image.Image:
+    """Resize only a floating selection's occupied rectangle with nearest pixels."""
+
+    x0, y0, x1, y1 = bounds
+    source = piece.convert("RGBA").crop((x0, y0, x1, y1))
+    target_size = (
+        max(1, round(source.width * max(0.01, float(scale_x)))),
+        max(1, round(source.height * max(0.01, float(scale_y)))),
+    )
+    resized = source.resize(target_size, Image.Resampling.NEAREST)
+    canvas = Image.new("RGBA", piece.size, (0, 0, 0, 0))
+    canvas.alpha_composite(resized, dest=(x0, y0))
+    return canvas
 
 
 def _opaque_crop_mask(image: Image.Image, mask: np.ndarray) -> np.ndarray:
@@ -3999,7 +4113,7 @@ def _handle_layer_editor_event(
     if event_type == "toolbar" and event.get("action") == "zoom":
         st.session_state[f"{prefix}:layer_editor_zoom"] = max(
             0.05,
-            min(40.0, float(event.get("zoom", 12))),
+            min(256.0, float(event.get("zoom", 12))),
         )
         return True
     if event_type == "toolbar" and event.get("action") == "brush-radius":
@@ -4391,7 +4505,7 @@ def _handle_layer_editor_event(
 
     layer = document.layer(active_layer_id)
     can_move_locked_source = event_type == "transform" and tool == "move"
-    can_move_floating_selection = event_type == "floating-transform" and tool == "move"
+    can_move_floating_selection = event_type in {"floating-transform", "floating-resize"} and tool == "move"
     can_cancel_floating_selection = event_type == "floating-selection" and event.get("action") == "cancel"
     can_cut_locked_source = event_type == "crop" and tool in {
         "crop_lasso",
@@ -4531,6 +4645,49 @@ def _handle_layer_editor_event(
         if changed:
             store.save_layer_document(session, document.revised(), images, reason="place-floating-selection")
         _clear_floating_selection(prefix)
+        return changed
+    if event_type == "floating-resize" and tool == "move":
+        selection = st.session_state.get(f"{prefix}:layer_editor_floating_selection")
+        if not isinstance(selection, dict) or selection.get("layer_id") != active_layer_id:
+            return False
+        floating_frames = selection.get("frames")
+        if not isinstance(floating_frames, dict):
+            return False
+        scale_x = max(0.01, float(event.get("scaleX", 1.0)))
+        scale_y = max(0.01, float(event.get("scaleY", 1.0)))
+        delta_x = int(event.get("deltaX", 0))
+        delta_y = int(event.get("deltaY", 0))
+        changed = False
+        for frame_index in frames:
+            floating = floating_frames.get(frame_index)
+            image = images.get((active_layer_id, frame_index))
+            if not isinstance(floating, dict) or image is None:
+                continue
+            piece = floating.get("piece")
+            if not isinstance(piece, Image.Image):
+                continue
+            bounds = _alpha_fit_bounds(piece)
+            if bounds is None:
+                continue
+            resized = _resize_floating_piece(
+                piece,
+                bounds,
+                scale_x=scale_x,
+                scale_y=scale_y,
+            )
+            shifted = Image.new("RGBA", resized.size, (0, 0, 0, 0))
+            shifted.alpha_composite(resized, dest=(delta_x, delta_y))
+            next_bounds = _alpha_fit_bounds(shifted)
+            if next_bounds is None:
+                continue
+            floating["piece"] = shifted
+            floating["bounds"] = next_bounds
+            changed = True
+        if changed:
+            st.session_state[f"{prefix}:layer_editor_floating_selection"] = selection
+            st.session_state[f"{prefix}:layer_editor_notice"] = (
+                "Selección redimensionada. Puedes moverla sin volver a seleccionarla."
+            )
         return changed
     if event_type == "paint" and tool in {"pencil", "eraser"}:
         color = st.session_state.get(f"{prefix}:layer_editor_color", (255, 255, 255, 255))
@@ -5152,7 +5309,7 @@ def _handle_background_editor_event(
             return True
         if action == "zoom":
             zoom = float(event.get("zoom", st.session_state.get(f"{prefix}:background_zoom", 8)))
-            st.session_state[f"{prefix}:background_zoom"] = max(0.05, min(40.0, zoom))
+            st.session_state[f"{prefix}:background_zoom"] = max(0.05, min(256.0, zoom))
             return True
         return False
 
@@ -5600,6 +5757,83 @@ def _handle_background_editor_event(
         st.session_state[f"{prefix}:background_tool"] = next_tool
         st.session_state[f"{prefix}:background_tool_widget_sync"] = next_tool
         return True
+    if event_type == "floating-resize":
+        floating = st.session_state.get(f"{prefix}:background_floating_selection")
+        if not isinstance(floating, dict) or int(floating.get("frame_index", -1)) != selected_frame:
+            return False
+        mask = floating.get("mask")
+        if not isinstance(mask, np.ndarray) or mask.shape != (
+            frames[selected_frame].height,
+            frames[selected_frame].width,
+        ):
+            _clear_background_floating_selection(prefix)
+            return False
+        scale_x = max(0.01, float(event.get("scaleX", 1.0)))
+        scale_y = max(0.01, float(event.get("scaleY", 1.0)))
+        offset_x = int(floating.get("x", 0)) + int(event.get("deltaX", 0))
+        offset_y = int(floating.get("y", 0)) + int(event.get("deltaY", 0))
+        operation_kind = str(floating.get("operation_kind", "move_mask"))
+        operation_kind = operation_kind if operation_kind in {"move_mask", "copy_mask"} else "move_mask"
+        floating_piece = floating.get("piece")
+        if not isinstance(floating_piece, Image.Image):
+            _clear_background_floating_selection(prefix)
+            return False
+        source_bounds = _alpha_fit_bounds(floating_piece)
+        if source_bounds is None:
+            _clear_background_floating_selection(prefix)
+            return True
+        operation = {
+            "kind": operation_kind,
+            **encode_mask(mask),
+            "offset_x": offset_x,
+            "offset_y": offset_y,
+            "quarter_turns": int(floating.get("quarter_turns", 0)) % 4,
+            "scale_x": scale_x,
+            "scale_y": scale_y,
+            "resize_from_top_left": True,
+            "source_bounds": list(source_bounds),
+        }
+        operations = {
+            int(index): [dict(item) for item in items]
+            for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
+        }
+        operations.setdefault(selected_frame, []).append(operation)
+        st.session_state[f"{prefix}:background_manual_ops"] = operations
+        resized_frame, next_mask = transform_masked_pixels(
+            frames[selected_frame],
+            mask,
+            clear_source=operation_kind != "copy_mask",
+            offset_x=offset_x,
+            offset_y=offset_y,
+            quarter_turns=operation["quarter_turns"],
+            scale_x=scale_x,
+            scale_y=scale_y,
+            resize_from_top_left=True,
+            source_bounds=source_bounds,
+        )
+        selections = list(st.session_state[f"{prefix}:background_selection_masks"])
+        selections[selected_frame] = next_mask
+        st.session_state[f"{prefix}:background_selection_masks"] = selections
+        remainder, piece = _extract_layer_piece(resized_frame, next_mask)
+        next_bounds = _alpha_fit_bounds(piece)
+        if next_bounds is None:
+            _clear_background_floating_selection(prefix)
+            return True
+        st.session_state[f"{prefix}:background_floating_selection"] = {
+            "frame_index": selected_frame,
+            "mask": next_mask,
+            "piece": piece,
+            "remainder": remainder,
+            "tool": floating.get("tool", "wand"),
+            "bounds": next_bounds,
+            "operation_kind": "move_mask",
+            "quarter_turns": 0,
+            "x": 0,
+            "y": 0,
+        }
+        st.session_state[f"{prefix}:background_tool"] = "move"
+        st.session_state[f"{prefix}:background_tool_widget_sync"] = "move"
+        return True
     if event_type == "sample":
         raw_sample = event.get("sample")
         if isinstance(raw_sample, (list, tuple)) and len(raw_sample) == 4:
@@ -5818,7 +6052,7 @@ def _handle_center_editor_event(
         zoom = float(event["zoom"])
         st.session_state[f"{prefix}:center_zoom:{selected_frame}"] = max(
             0.05,
-            min(40.0, zoom),
+            min(256.0, zoom),
         )
     if event.get("type") == "frame-selection":
         frame_index = int(event.get("frameIndex", -1))
@@ -5910,7 +6144,7 @@ def _handle_center_editor_event(
     if action == "zoom":
         zoom_key = f"{prefix}:center_zoom:{selected_frame}"
         zoom = float(event.get("zoom", st.session_state.get(zoom_key, 12)))
-        st.session_state[zoom_key] = max(0.05, min(40.0, zoom))
+        st.session_state[zoom_key] = max(0.05, min(256.0, zoom))
         return True
     if action == "toggle-guides":
         key = f"{prefix}:center_guides"
@@ -6009,7 +6243,7 @@ def _handle_segmentation_cut_event(
     if event.get("type") != "cut":
         if event.get("type") == "toolbar" and str(event.get("action", "")) == "zoom":
             zoom = float(event.get("zoom", st.session_state.get(f"{prefix}:segmentation_cut_zoom", 8)))
-            st.session_state[f"{prefix}:segmentation_cut_zoom"] = max(0.05, min(40.0, zoom))
+            st.session_state[f"{prefix}:segmentation_cut_zoom"] = max(0.05, min(256.0, zoom))
             return True
         return False
     if orientation == "grid":
@@ -7713,9 +7947,7 @@ def main() -> None:
                     floating_highlight = _floating_selection_highlight(floating["mask"])
                     floating_x = int(floating.get("x", 0))
                     floating_y = int(floating.get("y", 0))
-                    raw_bounds = floating.get("bounds")
-                    if isinstance(raw_bounds, tuple) and len(raw_bounds) == 4:
-                        floating_bounds = tuple(int(value) for value in raw_bounds)
+                    floating_bounds = _alpha_fit_bounds(floating_piece)
                 elif floating is not None:
                     _clear_background_floating_selection(prefix)
                 overlay = render_selection_overlay(
@@ -7788,7 +8020,7 @@ def main() -> None:
                         tolerance=manual_tolerance,
                         contiguous=contiguous,
                     )
-                    if changed and event:
+                    if changed and event and not _is_editor_zoom_event(event):
                         _record_editor_history(
                             session,
                             scope="background",
@@ -7805,7 +8037,7 @@ def main() -> None:
                         changes_visible_state = (
                             event_type == "edit-batch"
                             or event_type in {"crop", "selection", "selection-command"}
-                            or event_type in {"floating-transform", "floating-selection"}
+                            or event_type in {"floating-transform", "floating-resize", "floating-selection"}
                             or (
                                 event_type == "clipboard"
                                 and str(event.get("action", "")) == "paste"
@@ -7814,6 +8046,10 @@ def main() -> None:
                             or (
                                 event_type == "toolbar"
                                 and str(event.get("action", "")) == "wand-settings"
+                            )
+                            or (
+                                event_type == "toolbar"
+                                and str(event.get("action", "")) == "zoom"
                             )
                             or (
                                 event_type in {"pointer", "pointerdown", "pointermove"}
@@ -7846,6 +8082,26 @@ def main() -> None:
                             background_source,
                             "Resultado de trabajo",
                         )
+                        direct_export_image = _compose_direct_studio_export(
+                            editor_background,
+                            floating_piece=floating_piece,
+                            floating_x=floating_x,
+                            floating_y=floating_y,
+                        )
+                        st.download_button(
+                            "Descargar PNG actual",
+                            data=_png_bytes(direct_export_image),
+                            file_name=f"{session.session_id}-studio.png",
+                            mime="image/png",
+                            width="stretch",
+                            key=f"{prefix}:download_studio_png",
+                            help=(
+                                "Descarga el resultado visible directamente. "
+                                "No guarda etapas ni avanza la pipeline."
+                            ),
+                            on_click="ignore",
+                        )
+                        st.caption("Descarga directa · sin guardar ni avanzar la pipeline")
                 with right_col, st.container(border=True):
                     st.markdown("#### Herramientas y color")
                     color_picker_key = f"{prefix}:background_color_picker"
@@ -8281,7 +8537,7 @@ def main() -> None:
                             columns=segmentation_config.columns,
                             rows=segmentation_config.rows,
                         )
-                        if changed and event:
+                        if changed and event and not _is_editor_zoom_event(event):
                             _record_editor_history(
                                 session,
                                 scope="cuts",
@@ -8292,8 +8548,10 @@ def main() -> None:
                         if (
                             changed
                             and event
-                            and event.get("type") == "cut"
-                            and event.get("action") == "end"
+                            and (
+                                (event.get("type") == "cut" and event.get("action") == "end")
+                                or _is_editor_zoom_event(event)
+                            )
                         ):
                             # The component-triggered run was built with the previous cuts.
                             # Stop it before rendering the expensive downstream tabs and
@@ -8448,7 +8706,7 @@ def main() -> None:
                                 home_offset=crop_position,
                                 base_manual_offset=crop_offset,
                             )
-                            if crop_changed and crop_event:
+                            if crop_changed and crop_event and not _is_editor_zoom_event(crop_event):
                                 _record_editor_history(
                                     session,
                                     scope="center",
@@ -8459,8 +8717,9 @@ def main() -> None:
                             if crop_changed and crop_event and crop_event.get("type") == "transform":
                                 st.rerun()
                             if crop_changed and crop_event and (
-                                crop_event.get("type") == "crop"
-                                or (
+                                    crop_event.get("type") == "crop"
+                                    or _is_editor_zoom_event(crop_event)
+                                    or (
                                     crop_event.get("type") == "toolbar"
                                     and crop_event.get("action") == "tool"
                                 )
@@ -8908,9 +9167,7 @@ def main() -> None:
                                         mask = floating.get("mask")
                                         if isinstance(mask, np.ndarray):
                                             floating_highlight = _floating_selection_highlight(mask)
-                                        raw_bounds = floating.get("bounds")
-                                        if isinstance(raw_bounds, tuple) and len(raw_bounds) == 4:
-                                            floating_bounds = tuple(int(value) for value in raw_bounds)
+                                        floating_bounds = _alpha_fit_bounds(floating_piece)
                                 composite = composite_document_frame(
                                     document,
                                     preview_images,
@@ -9270,7 +9527,7 @@ def main() -> None:
                                         target_frames=selected_frames,
                                         composite=composite,
                                     )
-                                    if changed and event:
+                                    if changed and event and not _is_editor_zoom_event(event):
                                         _record_editor_history(
                                             session,
                                             scope="studio",
@@ -9294,6 +9551,7 @@ def main() -> None:
                                         }
                                         or event.get("type") in {
                                             "floating-transform",
+                                            "floating-resize",
                                             "edit-batch",
                                             "paint",
                                             "transform",
@@ -9303,6 +9561,7 @@ def main() -> None:
                                             and event.get("tool") in {"fill", "replace_color"}
                                         )
                                         or event.get("type") == "animation"
+                                        or _is_editor_zoom_event(event)
                                     ):
                                         st.rerun()
                                 notice_key = f"{prefix}:layer_editor_notice"
@@ -9551,7 +9810,7 @@ def main() -> None:
                     has_persisted_zoom = center_zoom_key in st.session_state
                     center_zoom = max(
                         0.05,
-                        min(40.0, float(st.session_state.get(center_zoom_key, 12.0))),
+                        min(256.0, float(st.session_state.get(center_zoom_key, 12.0))),
                     )
                     history_controls = _history_controls(session)
                     event = pixel_editor(
@@ -9641,7 +9900,12 @@ def main() -> None:
                         home_offset=selected_home,
                         base_manual_offset=selected_offset,
                     )
-                    if changed and event and event.get("type") != "frame-selection":
+                    if (
+                        changed
+                        and event
+                        and event.get("type") != "frame-selection"
+                        and not _is_editor_zoom_event(event)
+                    ):
                         _record_editor_history(
                             session,
                             scope="center",
@@ -9651,6 +9915,7 @@ def main() -> None:
                         )
                     if changed and event and (
                         event.get("type") in {"transform", "frame-selection"}
+                        or _is_editor_zoom_event(event)
                         or (
                             event.get("type") == "toolbar"
                             and event.get("action")
@@ -10256,7 +10521,9 @@ def main() -> None:
                                     "columns": layout_plan.columns,
                                     "rows": layout_plan.rows,
                                     "cell_size": list(layout_plan.cell_size),
-                                    "alignment_cache_key": session.stages["alignment"]["cache_key"],
+                                    "alignment_cache_key": (
+                                        session.stages.get("alignment") or {}
+                                    ).get("cache_key"),
                                     "crop": crop_config.to_dict(),
                                 },
                                 metadata={

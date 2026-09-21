@@ -169,14 +169,40 @@
         outline-offset: 2px;
       }
 
+      .tool-tooltip {
+        position: fixed;
+        z-index: 1000;
+        max-width: 280px;
+        padding: 7px 10px;
+        border: 1px solid rgba(132, 225, 255, 0.28);
+        border-radius: 9px;
+        color: rgba(246, 250, 255, 0.96);
+        background: rgba(8, 14, 27, 0.97);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+        font: 700 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(-3px);
+        transition: opacity 90ms ease, transform 90ms ease;
+      }
+
+      .tool-tooltip.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
       .wand-control,
-      .rotate-control {
+      .rotate-control,
+      .resize-control,
+      .fit-control {
         position: relative;
         display: inline-flex;
       }
 
       .wand-card,
-      .rotate-card {
+      .rotate-card,
+      .resize-card,
+      .fit-card {
         position: absolute;
         z-index: 12;
         top: calc(100% + 10px);
@@ -192,12 +218,16 @@
       }
 
       .wand-card[hidden],
-      .rotate-card[hidden] {
+      .rotate-card[hidden],
+      .resize-card[hidden],
+      .fit-card[hidden] {
         display: none;
       }
 
       .wand-card::before,
-      .rotate-card::before {
+      .rotate-card::before,
+      .resize-card::before,
+      .fit-card::before {
         content: "";
         position: absolute;
         top: -6px;
@@ -212,6 +242,8 @@
 
       .wand-card-heading,
       .rotate-card-heading,
+      .resize-card-heading,
+      .fit-card-heading,
       .wand-value-row,
       .rotate-value-row,
       .wand-contiguous-row {
@@ -220,24 +252,32 @@
       }
 
       .wand-card-heading,
-      .rotate-card-heading {
+      .rotate-card-heading,
+      .resize-card-heading,
+      .fit-card-heading {
         justify-content: space-between;
         gap: 12px;
         margin-bottom: 4px;
       }
 
       .wand-card-heading strong,
-      .rotate-card-heading strong {
+      .rotate-card-heading strong,
+      .resize-card-heading strong,
+      .fit-card-heading strong {
         font-size: 13px;
       }
 
       .wand-card-heading code,
-      .rotate-card-heading code {
+      .rotate-card-heading code,
+      .resize-card-heading code,
+      .fit-card-heading code {
         color: #bdefff;
       }
 
       .wand-card p,
-      .rotate-card p {
+      .rotate-card p,
+      .resize-card p,
+      .fit-card p {
         margin: 0 0 12px;
         color: rgba(220, 227, 245, 0.65);
         font-size: 11px;
@@ -309,6 +349,103 @@
       }
 
       .rotate-actions button[data-primary] {
+        color: #08121e;
+        border-color: transparent;
+        background: linear-gradient(120deg, #5bdfff, #ffd36a);
+      }
+
+      .resize-presets {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .resize-presets button {
+        min-height: 34px;
+        border: 1px solid rgba(132, 225, 255, 0.24);
+        border-radius: 9px;
+        color: rgba(240, 246, 255, 0.92);
+        background: rgba(255, 255, 255, 0.07);
+        font: 800 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        cursor: pointer;
+      }
+
+      .resize-presets button:hover {
+        color: #08121e;
+        background: linear-gradient(120deg, #5bdfff, #ffd36a);
+      }
+
+      .fit-grid-form {
+        display: grid;
+        gap: 9px;
+        margin-top: 12px;
+      }
+
+      .fit-grid-row {
+        display: grid;
+        grid-template-columns: 1fr minmax(104px, 1.2fr);
+        align-items: center;
+        gap: 10px;
+        color: rgba(240, 246, 255, 0.84);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .fit-grid-row input[type="number"],
+      .fit-grid-row select {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 30px;
+        padding: 5px 8px;
+        border: 1px solid rgba(132, 225, 255, 0.23);
+        border-radius: 8px;
+        color: white;
+        background: rgba(255,255,255,0.07);
+        font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .fit-grid-row select option {
+        color: #111827;
+      }
+
+      .fit-grid-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: rgba(240, 246, 255, 0.84);
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      .fit-grid-detail {
+        min-height: 28px;
+        padding: 8px 9px;
+        border: 1px solid rgba(91, 223, 255, 0.16);
+        border-radius: 9px;
+        color: rgba(189, 239, 255, 0.9);
+        background: rgba(91, 223, 255, 0.06);
+        font: 700 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .fit-grid-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .fit-grid-actions button {
+        min-height: 31px;
+        padding: 0 12px;
+        border: 1px solid rgba(132, 225, 255, 0.24);
+        border-radius: 9px;
+        color: rgba(240, 246, 255, 0.9);
+        background: rgba(255, 255, 255, 0.07);
+        font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        cursor: pointer;
+      }
+
+      .fit-grid-actions button[data-primary] {
         color: #08121e;
         border-color: transparent;
         background: linear-gradient(120deg, #5bdfff, #ffd36a);
@@ -1432,6 +1569,7 @@
       <symbol id="icon-center" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
       <symbol id="icon-crop" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/></symbol>
       <symbol id="icon-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></symbol>
+      <symbol id="icon-resize" viewBox="0 0 24 24"><path d="M8 3H3v5M16 21h5v-5M3 8l6-6M21 16l-6 6"/><rect x="7" y="7" width="10" height="10" rx="1"/></symbol>
       <symbol id="icon-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></symbol>
       <symbol id="icon-cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="m8.2 7.4 10.3 9.2M8.2 16.6l3.9-3.5M14.4 11l4.1-3.6"/></symbol>
       <symbol id="icon-save" viewBox="0 0 24 24"><path d="M5 3h12l3 3v15H4V4a1 1 0 0 1 1-1Z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></symbol>
@@ -1475,6 +1613,32 @@
               <div class="rotate-actions">
                 <button type="button" id="rotate-reset">Restablecer</button>
                 <button type="button" id="rotate-apply" data-primary>Aplicar giro</button>
+              </div>
+            </div>
+          </div>
+          <div class="resize-control" id="resize-control">
+            <button class="icon-button tool-button" data-action="resize-open" id="tool-resize-selection" title="Redimensionar selección" aria-label="Redimensionar selección" aria-haspopup="dialog" aria-expanded="false"><svg class="icon"><use href="#icon-resize"></use></svg></button>
+            <div class="resize-card" id="resize-card" role="dialog" aria-label="Redimensionar selección" hidden>
+              <div class="resize-card-heading"><strong>Redimensionar</strong><code id="resize-size-badge">—</code></div>
+              <p>Arrastra una esquina libremente. El tirador se adhiere a las líneas del grid activo.</p>
+              <div class="resize-presets" aria-label="Tamaños predefinidos">
+                <button type="button" data-resize-scale="0.75">¾</button>
+                <button type="button" data-resize-scale="0.5">½</button>
+                <button type="button" data-resize-scale="0.25">¼</button>
+              </div>
+            </div>
+          </div>
+          <div class="fit-control" id="fit-control">
+            <button class="icon-button tool-button" data-action="fit-open" id="tool-fit-selection" title="Encajar selección al grid" aria-label="Encajar selección al grid" aria-haspopup="dialog" aria-expanded="false"><svg class="icon"><use href="#icon-fit"></use></svg></button>
+            <div class="fit-card" id="fit-card" role="dialog" aria-label="Encajar selección al grid" hidden>
+              <div class="fit-card-heading"><strong>Encajar al grid</strong><code id="fit-grid-badge">—</code></div>
+              <p>Usa los límites alpha reales. Sin escalado, elige suficientes celdas para conservar todos los píxeles.</p>
+              <div class="fit-grid-form">
+                <label class="fit-grid-row" for="fit-grid-margin"><span>Margen interior</span><input id="fit-grid-margin" type="number" min="0" max="64" step="1" value="0" /></label>
+                <label class="fit-grid-row" for="fit-grid-anchor"><span>Anclaje</span><select id="fit-grid-anchor"><option value="top-left">Superior izquierda</option><option value="center">Centro</option><option value="bottom-center">Centro inferior</option></select></label>
+                <label class="fit-grid-check"><input id="fit-grid-scale-down" type="checkbox" /> Reducir proporcionalmente si el bloque más cercano es menor</label>
+                <div class="fit-grid-detail" id="fit-grid-detail">Selecciona una pieza para calcular el encaje.</div>
+                <div class="fit-grid-actions"><button type="button" id="fit-grid-cancel">Cancelar</button><button type="button" id="fit-grid-apply" data-primary>Aplicar encaje</button></div>
               </div>
             </div>
           </div>
@@ -1571,6 +1735,7 @@
           <span class="pill" id="cut-mode-pill"><svg class="icon"><use href="#icon-cut"></use></svg><span>Cortes</span></span>
         </div>
       </div>
+      <div class="tool-tooltip" id="tool-tooltip" role="tooltip" hidden></div>
 
       <div class="stage" id="stage">
         <div class="canvas-wrap">
@@ -1614,6 +1779,12 @@
         <button type="button" data-frame-action="lock" id="frame-context-lock" role="menuitem">Bloquear anchor</button>
       </div>
 
+      <div class="frame-context-menu" id="selection-context-menu" role="menu" hidden>
+        <strong>Selección</strong>
+        <button type="button" data-selection-action="adjust-grid" role="menuitem" title="Ajusta X/Y para rellenar exactamente el bloque de grid más cercano">Ajustar al bloque del grid</button>
+        <button type="button" data-selection-action="fit-grid" role="menuitem">Encajar al grid…</button>
+      </div>
+
       <div class="studio-timeline" id="studio-timeline" hidden aria-label="Timeline de capas">
         <div class="timeline-heading">
           <div class="timeline-controls-left">
@@ -1651,9 +1822,12 @@
       const SET_COMPONENT_VALUE = "streamlit:setComponentValue";
       const SET_FRAME_HEIGHT = "streamlit:setFrameHeight";
       const RENDER = "streamlit:render";
+      const MAX_ZOOM = 256;
 
       const canvas = document.getElementById("editor");
       const context = canvas.getContext("2d");
+      const toolbar = document.getElementById("toolbar");
+      const toolTooltip = document.getElementById("tool-tooltip");
       context.imageSmoothingEnabled = false;
       const stage = document.getElementById("stage");
       const zoomPill = document.getElementById("zoom-pill");
@@ -1681,6 +1855,20 @@
       const rotateAngleBadge = document.getElementById("rotate-angle-badge");
       const rotateResetButton = document.getElementById("rotate-reset");
       const rotateApplyButton = document.getElementById("rotate-apply");
+      const resizeControl = document.getElementById("resize-control");
+      const toolResizeSelection = document.getElementById("tool-resize-selection");
+      const resizeCard = document.getElementById("resize-card");
+      const resizeSizeBadge = document.getElementById("resize-size-badge");
+      const fitControl = document.getElementById("fit-control");
+      const toolFitSelection = document.getElementById("tool-fit-selection");
+      const fitCard = document.getElementById("fit-card");
+      const fitGridBadge = document.getElementById("fit-grid-badge");
+      const fitGridMargin = document.getElementById("fit-grid-margin");
+      const fitGridAnchor = document.getElementById("fit-grid-anchor");
+      const fitGridScaleDown = document.getElementById("fit-grid-scale-down");
+      const fitGridDetail = document.getElementById("fit-grid-detail");
+      const fitGridCancel = document.getElementById("fit-grid-cancel");
+      const fitGridApply = document.getElementById("fit-grid-apply");
       const toolSelectLasso = document.getElementById("tool-select-lasso");
       const toolSelectRect = document.getElementById("tool-select-rect");
       const toolSelectEllipse = document.getElementById("tool-select-ellipse");
@@ -1727,6 +1915,43 @@
         setTimeout(setFrameHeight, 60);
       }
 
+      function tooltipTextFor(element) {
+        return element?.getAttribute("data-tooltip")
+          || element?.getAttribute("title")
+          || element?.getAttribute("aria-label")
+          || "";
+      }
+
+      function showToolTooltip(element) {
+        const text = tooltipTextFor(element);
+        if (!text || element.disabled) {
+          hideToolTooltip();
+          return;
+        }
+        const rect = element.getBoundingClientRect();
+        toolTooltip.textContent = text;
+        toolTooltip.hidden = false;
+        const width = Math.min(280, Math.max(120, toolTooltip.offsetWidth));
+        toolTooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - width - 8, rect.left + rect.width / 2 - width / 2))}px`;
+        toolTooltip.style.top = `${Math.min(window.innerHeight - toolTooltip.offsetHeight - 8, rect.bottom + 8)}px`;
+        requestAnimationFrame(() => toolTooltip.classList.add("visible"));
+      }
+
+      function hideToolTooltip() {
+        toolTooltip.classList.remove("visible");
+        toolTooltip.hidden = true;
+      }
+
+      toolbar.querySelectorAll("button, select, summary, .pill").forEach((element) => {
+        if (!element.getAttribute("title") && element.getAttribute("aria-label")) {
+          element.setAttribute("title", element.getAttribute("aria-label"));
+        }
+        element.addEventListener("pointerenter", () => showToolTooltip(element));
+        element.addEventListener("pointerleave", hideToolTooltip);
+        element.addEventListener("focus", () => showToolTooltip(element));
+        element.addEventListener("blur", hideToolTooltip);
+      });
+
       heightSelects.forEach((select) => {
         select.addEventListener("change", (e) => {
           applyStageHeight(e.target.value, true);
@@ -1765,6 +1990,7 @@
       const frameContextMenu = document.getElementById("frame-context-menu");
       const frameContextTitle = document.getElementById("frame-context-title");
       const frameContextLock = document.getElementById("frame-context-lock");
+      const selectionContextMenu = document.getElementById("selection-context-menu");
       const modePill = document.getElementById("mode-pill");
       const cutModePill = document.getElementById("cut-mode-pill");
       const zoomPillCut = document.getElementById("zoom-pill-cut");
@@ -1839,6 +2065,7 @@
         showAutocenterAll: false,
         showAutocrop: true,
         fitOnLoad: false,
+        autoFitZoom: false,
         fitToken: "",
         fitAppliedToken: "",
         frameToken: "",
@@ -1895,6 +2122,12 @@
         rotationDragging: false,
         rotationStartPointerAngle: 0,
         rotationOriginAngle: 0,
+        resizeDragging: false,
+        resizeCorner: "",
+        resizeOrigin: null,
+        resizePreview: null,
+        resizeAction: "resize",
+        fitGridTargetRect: null,
         floatingTransformPending: null,
         studioSelectionPending: null,
         studioOrderPending: null,
@@ -2283,6 +2516,8 @@
         if (state.mode !== "background" && state.mode !== "layer-edit") {
           setWandCardOpen(false);
           setRotateCardOpen(false);
+          setResizeCardOpen(false);
+          setFitCardOpen(false);
         }
         modePill.textContent = poseMode ? "Preparar pose" : centerMode ? "Movimiento libre" : cutMode ? "Cortes" : layerMode ? "Capas" : "Fondo & Estudio";
         if (cutModePill) {
@@ -2309,6 +2544,8 @@
         toolCropRect.hidden = !(layerMode || poseMode || backgroundMode);
         toolCropEllipse.hidden = !(layerMode || poseMode || backgroundMode);
         rotateControl.hidden = centerMode || cutMode;
+        resizeControl.hidden = centerMode || cutMode || poseMode || !state.floatingSelection;
+        fitControl.hidden = centerMode || cutMode || poseMode || !state.floatingSelection;
         toolSelectLasso.hidden = !studioToolsVisible;
         toolSelectRect.hidden = !studioToolsVisible;
         toolSelectEllipse.hidden = !studioToolsVisible;
@@ -2475,6 +2712,53 @@
         toolRotateSelection.setAttribute("aria-expanded", String(visible));
         if (visible) {
           setWandCardOpen(false);
+          setResizeCardOpen(false);
+          setFitCardOpen(false);
+        }
+      }
+
+      function setResizeCardOpen(open) {
+        const visible = !!open
+          && !!state.floatingSelection
+          && (state.mode === "background" || state.mode === "layer-edit");
+        resizeCard.hidden = !visible;
+        toolResizeSelection.setAttribute("aria-expanded", String(visible));
+        if (visible) {
+          setWandCardOpen(false);
+          setFitCardOpen(false);
+          rotateCard.hidden = true;
+          toolRotateSelection.setAttribute("aria-expanded", "false");
+        }
+      }
+
+      function clearFitGridPreview() {
+        if (!state.resizeAction.startsWith("fit-grid")) return;
+        state.resizeOrigin = null;
+        state.resizePreview = null;
+        state.resizeAction = "resize";
+        state.fitGridTargetRect = null;
+        const rect = floatingResizeRect();
+        fitGridBadge.textContent = rect
+          ? `${Math.max(1, rect.right - rect.left)} × ${Math.max(1, rect.bottom - rect.top)}px`
+          : "—";
+        scheduleDraw();
+      }
+
+      function setFitCardOpen(open) {
+        const visible = !!open
+          && !!state.floatingSelection
+          && (state.mode === "background" || state.mode === "layer-edit");
+        fitCard.hidden = !visible;
+        toolFitSelection.setAttribute("aria-expanded", String(visible));
+        if (visible) {
+          setWandCardOpen(false);
+          rotateCard.hidden = true;
+          toolRotateSelection.setAttribute("aria-expanded", "false");
+          resizeCard.hidden = true;
+          toolResizeSelection.setAttribute("aria-expanded", "false");
+          previewFitSelectionToGrid();
+        } else {
+          clearFitGridPreview();
         }
       }
 
@@ -3071,7 +3355,7 @@
         const parsed = Number(value ?? defaultZoom);
         if (isNaN(parsed) || parsed <= 0) return defaultZoom;
         if (parsed >= 1) {
-          return Math.max(1, Math.min(40, Math.round(parsed * 10) / 10));
+          return Math.max(1, Math.min(MAX_ZOOM, Math.round(parsed * 10) / 10));
         }
         return Math.max(0.05, Math.min(1, Math.round(parsed * 100) / 100));
       }
@@ -3088,7 +3372,7 @@
           const next = current * 1.25;
           return next >= 0.95 ? 1 : Math.round(next * 100) / 100;
         }
-        return Math.min(40, Math.round(current + 1));
+        return Math.min(MAX_ZOOM, Math.max(current + 1, Math.round(current * 1.25)));
       }
 
       function zoomOutStep(current) {
@@ -3566,25 +3850,292 @@
         ) * 180 / Math.PI;
       }
 
+      function floatingResizeRect() {
+        const bounds = state.floatingSelectionBounds;
+        if (!state.floatingSelection || !Array.isArray(bounds) || bounds.length !== 4) {
+          return null;
+        }
+        if (state.resizePreview) {
+          return { ...state.resizePreview };
+        }
+        const [x0, y0, x1, y1] = bounds;
+        return {
+          left: state.floatingSelectionX + x0,
+          top: state.floatingSelectionY + y0,
+          right: state.floatingSelectionX + x1,
+          bottom: state.floatingSelectionY + y1,
+        };
+      }
+
+      function floatingResizeHandles() {
+        const rect = floatingResizeRect();
+        if (!rect) return [];
+        return [
+          { corner: "nw", x: rect.left, y: rect.top },
+          { corner: "ne", x: rect.right, y: rect.top },
+          { corner: "se", x: rect.right, y: rect.bottom },
+          { corner: "sw", x: rect.left, y: rect.bottom },
+        ];
+      }
+
+      function resizeHandleAtPoint(point) {
+        if (Math.abs(state.floatingRotationPreview) > 1e-9) return null;
+        return floatingResizeHandles().find((handle) => {
+          const dx = (point.x - handle.x) * state.zoom;
+          const dy = (point.y - handle.y) * state.zoom;
+          return dx * dx + dy * dy <= 11 * 11;
+        }) || null;
+      }
+
+      function snapResizeEdge(value) {
+        const rounded = Math.round(value);
+        if (!state.showPixelGrid) return rounded;
+        const grid = Math.max(1, Math.round(state.pixelGridSize));
+        const snapped = Math.round(value / grid) * grid;
+        const magneticDistance = 8 / Math.max(0.1, state.zoom);
+        return Math.abs(value - snapped) <= magneticDistance ? snapped : rounded;
+      }
+
+      function updateResizePreview(point) {
+        const origin = state.resizeOrigin;
+        if (!origin) return;
+        let { left, top, right, bottom } = origin.rect;
+        if (state.resizeCorner.includes("w")) left = snapResizeEdge(point.x);
+        if (state.resizeCorner.includes("e")) right = snapResizeEdge(point.x);
+        if (state.resizeCorner.includes("n")) top = snapResizeEdge(point.y);
+        if (state.resizeCorner.includes("s")) bottom = snapResizeEdge(point.y);
+        if (right <= left) {
+          if (state.resizeCorner.includes("w")) left = right - 1;
+          else right = left + 1;
+        }
+        if (bottom <= top) {
+          if (state.resizeCorner.includes("n")) top = bottom - 1;
+          else bottom = top + 1;
+        }
+        state.resizePreview = { left, top, right, bottom };
+        resizeSizeBadge.textContent = `${right - left} × ${bottom - top}px`;
+        scheduleDraw();
+      }
+
+      function commitFloatingResize() {
+        const origin = state.resizeOrigin;
+        const rect = floatingResizeRect();
+        if (!origin || !rect) return;
+        const fitGridAction = state.resizeAction.startsWith("fit-grid");
+        const fitGridMode = state.resizeAction === "fit-grid-adjust" ? "adjust" : "configure";
+        const originalWidth = Math.max(1, origin.rect.right - origin.rect.left);
+        const originalHeight = Math.max(1, origin.rect.bottom - origin.rect.top);
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "floating-resize",
+          action: "end",
+          mode: state.mode,
+          tool: "move",
+          scaleX: (rect.right - rect.left) / originalWidth,
+          scaleY: (rect.bottom - rect.top) / originalHeight,
+          deltaX: Math.round(rect.left - origin.rect.left),
+          deltaY: Math.round(rect.top - origin.rect.top),
+          operationKind: state.floatingOperationKind,
+          fitGrid: fitGridAction,
+          fitGridMode,
+        });
+        state.floatingTransformPending = {
+          x: state.floatingSelectionX,
+          y: state.floatingSelectionY,
+          selectionUrl: state.floatingSelectionUrl,
+          createdAt: Date.now(),
+        };
+        state.resizeDragging = false;
+        state.resizeOrigin = null;
+        state.resizePreview = null;
+        state.resizeAction = "resize";
+        state.fitGridTargetRect = null;
+      }
+
+      function applyResizePreset(scale) {
+        const rect = floatingResizeRect();
+        if (!rect) return;
+        const factor = Math.max(0.01, finiteNumber(scale, 1));
+        state.resizeAction = "resize";
+        state.fitGridTargetRect = null;
+        state.resizeOrigin = { rect: { ...rect } };
+        state.resizePreview = {
+          left: rect.left,
+          top: rect.top,
+          right: rect.left + Math.max(1, Math.round((rect.right - rect.left) * factor)),
+          bottom: rect.top + Math.max(1, Math.round((rect.bottom - rect.top) * factor)),
+        };
+        commitFloatingResize();
+        setResizeCardOpen(false);
+        focusCanvas();
+      }
+
+      function pointHitsFloatingSelection(point) {
+        const rect = floatingResizeRect();
+        return !!rect
+          && point.x >= rect.left
+          && point.x < rect.right
+          && point.y >= rect.top
+          && point.y < rect.bottom;
+      }
+
+      function fitGridOrigin(value, span, limit, grid) {
+        const snapped = Math.round(value / grid) * grid;
+        const maxOrigin = Math.max(0, Math.floor((Math.max(0, limit - span)) / grid) * grid);
+        return Math.max(0, Math.min(maxOrigin, snapped));
+      }
+
+      function previewFitSelectionToGrid() {
+        const current = state.resizeAction === "fit-grid" && state.resizeOrigin
+          ? state.resizeOrigin.rect
+          : floatingResizeRect();
+        if (!current) return false;
+        const sourceWidth = Math.max(1, current.right - current.left);
+        const sourceHeight = Math.max(1, current.bottom - current.top);
+        const grid = Math.max(1, Math.round(state.pixelGridSize || 16));
+        const margin = Math.max(0, Math.min(64, Math.round(finiteNumber(fitGridMargin.value, 0))));
+        fitGridMargin.value = String(margin);
+        const allowScaleDown = !!fitGridScaleDown.checked;
+        const requiredWidth = sourceWidth + margin * 2;
+        const requiredHeight = sourceHeight + margin * 2;
+        let targetWidth = Math.max(grid, Math.round(requiredWidth / grid) * grid);
+        let targetHeight = Math.max(grid, Math.round(requiredHeight / grid) * grid);
+        if (!allowScaleDown) {
+          targetWidth = Math.max(targetWidth, Math.ceil(requiredWidth / grid) * grid);
+          targetHeight = Math.max(targetHeight, Math.ceil(requiredHeight / grid) * grid);
+        }
+        const availableWidth = Math.max(1, targetWidth - margin * 2);
+        const availableHeight = Math.max(1, targetHeight - margin * 2);
+        const uniformScale = allowScaleDown
+          ? Math.min(1, availableWidth / sourceWidth, availableHeight / sourceHeight)
+          : 1;
+        const fittedWidth = Math.max(1, Math.round(sourceWidth * uniformScale));
+        const fittedHeight = Math.max(1, Math.round(sourceHeight * uniformScale));
+        const anchor = fitGridAnchor.value || "top-left";
+        let idealLeft = current.left - margin;
+        let idealTop = current.top - margin;
+        if (anchor === "center") {
+          idealLeft = (current.left + current.right - targetWidth) / 2;
+          idealTop = (current.top + current.bottom - targetHeight) / 2;
+        } else if (anchor === "bottom-center") {
+          idealLeft = (current.left + current.right - targetWidth) / 2;
+          idealTop = current.bottom + margin - targetHeight;
+        }
+        const targetLeft = fitGridOrigin(idealLeft, targetWidth, state.width, grid);
+        const targetTop = fitGridOrigin(idealTop, targetHeight, state.height, grid);
+        const targetRect = {
+          left: targetLeft,
+          top: targetTop,
+          right: targetLeft + targetWidth,
+          bottom: targetTop + targetHeight,
+        };
+        let fittedLeft = targetLeft + margin;
+        let fittedTop = targetTop + margin;
+        if (anchor === "center") {
+          fittedLeft = targetLeft + Math.round((targetWidth - fittedWidth) / 2);
+          fittedTop = targetTop + Math.round((targetHeight - fittedHeight) / 2);
+        } else if (anchor === "bottom-center") {
+          fittedLeft = targetLeft + Math.round((targetWidth - fittedWidth) / 2);
+          fittedTop = targetTop + targetHeight - margin - fittedHeight;
+        }
+        state.resizeOrigin = { rect: { ...current } };
+        state.resizePreview = {
+          left: fittedLeft,
+          top: fittedTop,
+          right: fittedLeft + fittedWidth,
+          bottom: fittedTop + fittedHeight,
+        };
+        state.resizeAction = "fit-grid";
+        state.fitGridTargetRect = targetRect;
+        const deltaX = fittedLeft - current.left;
+        const deltaY = fittedTop - current.top;
+        const scalePercent = Math.round(uniformScale * 100);
+        fitGridBadge.textContent = `${targetWidth} × ${targetHeight}px`;
+        fitGridDetail.textContent = `${sourceWidth}×${sourceHeight} → ${fittedWidth}×${fittedHeight}px · ${targetWidth / grid}×${targetHeight / grid} celdas · mueve ${deltaX >= 0 ? "+" : ""}${deltaX}, ${deltaY >= 0 ? "+" : ""}${deltaY} · escala ${scalePercent}%`;
+        scheduleDraw();
+        return true;
+      }
+
+      function applyFitSelectionToGrid() {
+        if (state.resizeAction !== "fit-grid" && !previewFitSelectionToGrid()) return;
+        commitFloatingResize();
+        fitCard.hidden = true;
+        toolFitSelection.setAttribute("aria-expanded", "false");
+        focusCanvas();
+      }
+
+      function adjustSelectionToNearestGridBlock() {
+        const current = floatingResizeRect();
+        if (!current) return;
+        const sourceWidth = Math.max(1, current.right - current.left);
+        const sourceHeight = Math.max(1, current.bottom - current.top);
+        const grid = Math.max(1, Math.round(state.pixelGridSize || 16));
+        const targetWidth = Math.max(grid, Math.round(sourceWidth / grid) * grid);
+        const targetHeight = Math.max(grid, Math.round(sourceHeight / grid) * grid);
+        const idealLeft = (current.left + current.right - targetWidth) / 2;
+        const idealTop = (current.top + current.bottom - targetHeight) / 2;
+        const targetLeft = fitGridOrigin(idealLeft, targetWidth, state.width, grid);
+        const targetTop = fitGridOrigin(idealTop, targetHeight, state.height, grid);
+        state.resizeOrigin = { rect: { ...current } };
+        state.resizePreview = {
+          left: targetLeft,
+          top: targetTop,
+          right: targetLeft + targetWidth,
+          bottom: targetTop + targetHeight,
+        };
+        state.resizeAction = "fit-grid-adjust";
+        state.fitGridTargetRect = {
+          left: targetLeft,
+          top: targetTop,
+          right: targetLeft + targetWidth,
+          bottom: targetTop + targetHeight,
+        };
+        commitFloatingResize();
+        focusCanvas();
+      }
+
       function drawFloatingSelection() {
         if (!state.floatingSelection) {
           return;
         }
         const bounds = state.floatingSelectionBounds;
+        const resizeRect = floatingResizeRect();
         const geometry = floatingRotationGeometry();
         const previewAngle = state.floatingRotationPreview;
         context.save();
         context.imageSmoothingEnabled = false;
+        if (state.fitGridTargetRect) {
+          const target = state.fitGridTargetRect;
+          context.fillStyle = "rgba(91, 223, 255, 0.08)";
+          context.strokeStyle = "rgba(91, 223, 255, 0.98)";
+          context.lineWidth = Math.max(1 / Math.max(1, state.zoom), 0.35);
+          context.setLineDash([3 / Math.max(1, state.zoom), 2 / Math.max(1, state.zoom)]);
+          context.fillRect(target.left, target.top, target.right - target.left, target.bottom - target.top);
+          context.strokeRect(
+            target.left + 0.5 / Math.max(1, state.zoom),
+            target.top + 0.5 / Math.max(1, state.zoom),
+            target.right - target.left,
+            target.bottom - target.top,
+          );
+          context.setLineDash([]);
+        }
         if (geometry && Math.abs(previewAngle) > 1e-9) {
           context.translate(geometry.centerX, geometry.centerY);
           context.rotate(previewAngle * Math.PI / 180);
           context.translate(-geometry.centerX, -geometry.centerY);
         }
-        context.drawImage(
-          state.floatingSelection,
-          state.floatingSelectionX,
-          state.floatingSelectionY,
-        );
+        if (resizeRect && Array.isArray(bounds) && bounds.length === 4) {
+          const [x0, y0, x1, y1] = bounds;
+          context.drawImage(
+            state.floatingSelection,
+            x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0),
+            resizeRect.left, resizeRect.top,
+            Math.max(1, resizeRect.right - resizeRect.left),
+            Math.max(1, resizeRect.bottom - resizeRect.top),
+          );
+        } else {
+          context.drawImage(state.floatingSelection, state.floatingSelectionX, state.floatingSelectionY);
+        }
         if (state.floatingHighlight) {
           context.drawImage(
             state.floatingHighlight,
@@ -3598,10 +4149,10 @@
           context.lineWidth = 1;
           context.setLineDash([2, 2]);
           context.strokeRect(
-            state.floatingSelectionX + x0 + 0.5,
-            state.floatingSelectionY + y0 + 0.5,
-            Math.max(1, x1 - x0),
-            Math.max(1, y1 - y0),
+            resizeRect.left + 0.5,
+            resizeRect.top + 0.5,
+            Math.max(1, resizeRect.right - resizeRect.left),
+            Math.max(1, resizeRect.bottom - resizeRect.top),
           );
         }
         context.restore();
@@ -3650,6 +4201,21 @@
               rotatedGeometry.handle.y - 11 / Math.max(1, state.zoom),
             );
           }
+          context.restore();
+        }
+        if (resizeRect && Math.abs(previewAngle) < 1e-9) {
+          const handleSize = 9 / Math.max(1, state.zoom);
+          context.save();
+          context.setLineDash([]);
+          floatingResizeHandles().forEach((handle) => {
+            context.fillStyle = state.resizeDragging && state.resizeCorner === handle.corner
+              ? "rgba(91, 223, 255, 1)"
+              : "rgba(255, 232, 168, 1)";
+            context.strokeStyle = "rgba(8, 18, 30, 0.96)";
+            context.lineWidth = Math.max(1 / Math.max(1, state.zoom), 0.35);
+            context.fillRect(handle.x - handleSize / 2, handle.y - handleSize / 2, handleSize, handleSize);
+            context.strokeRect(handle.x - handleSize / 2, handle.y - handleSize / 2, handleSize, handleSize);
+          });
           context.restore();
         }
       }
@@ -3800,6 +4366,10 @@
         state.contextFrame = -1;
       }
 
+      function hideSelectionContextMenu() {
+        selectionContextMenu.hidden = true;
+      }
+
       function showFrameContextMenu(event, frameIndex) {
         state.contextFrame = frameIndex;
         frameContextTitle.textContent = `Frame ${frameIndex}`;
@@ -3813,6 +4383,17 @@
           const bounds = frameContextMenu.getBoundingClientRect();
           frameContextMenu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - bounds.width - 8))}px`;
           frameContextMenu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - bounds.height - 8))}px`;
+        });
+      }
+
+      function showSelectionContextMenu(event) {
+        selectionContextMenu.style.left = `${event.clientX}px`;
+        selectionContextMenu.style.top = `${event.clientY}px`;
+        selectionContextMenu.hidden = false;
+        requestAnimationFrame(() => {
+          const bounds = selectionContextMenu.getBoundingClientRect();
+          selectionContextMenu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - bounds.width - 8))}px`;
+          selectionContextMenu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - bounds.height - 8))}px`;
         });
       }
 
@@ -4045,8 +4626,18 @@
       }
 
       canvas.addEventListener("contextmenu", (event) => {
+        const point = pointerToPixel(event);
+        if (
+          (state.mode === "background" || state.mode === "layer-edit")
+          && state.floatingSelection
+          && pointHitsFloatingSelection(point)
+        ) {
+          hideFrameContextMenu();
+          showSelectionContextMenu(event);
+          event.preventDefault();
+          return;
+        }
         if (state.mode === "segmentation-center" || (state.mode === "pose-layout" && state.tool === "move")) {
-          const point = pointerToPixel(event);
           const frameIndex = pointHitsOverlay(point)
             ? state.activeFrame
             : frameIndexAtPoint(point);
@@ -4077,7 +4668,10 @@
           event.preventDefault();
           return;
         }
-        state.dragging = event.button === 0 || (event.buttons & 1) === 1;
+        state.dragging = event.button === 0;
+        if (!state.dragging) {
+          return;
+        }
         if (canvas.setPointerCapture) {
           try {
             canvas.setPointerCapture(event.pointerId);
@@ -4106,6 +4700,18 @@
           }
         }
         updateCursor();
+        const resizeHandle = event.button === 0 ? resizeHandleAtPoint(point) : null;
+        if (resizeHandle) {
+          state.resizeDragging = true;
+          state.resizeCorner = resizeHandle.corner;
+          state.resizeAction = "resize";
+          state.fitGridTargetRect = null;
+          state.resizeOrigin = { rect: { ...floatingResizeRect() } };
+          state.resizePreview = { ...state.resizeOrigin.rect };
+          setResizeCardOpen(false);
+          event.preventDefault();
+          return;
+        }
         if (event.button === 0 && pointHitsRotationHandle(point)) {
           state.rotationDragging = true;
           state.rotationStartPointerAngle = pointerAngleAroundSelection(point);
@@ -4197,6 +4803,14 @@
           event.preventDefault();
           return;
         }
+        if (state.resizeDragging && state.dragging && (event.buttons & 1)) {
+          state.pointerPixelX = point.x;
+          state.pointerPixelY = point.y;
+          updateResizePreview(point);
+          scheduleCursorUpdate();
+          event.preventDefault();
+          return;
+        }
         if (state.mode === "segmentation-cut") {
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
@@ -4267,6 +4881,12 @@
         const point = pointerToPixel(event);
         state.pointerPixelX = point.x;
         state.pointerPixelY = point.y;
+        if (event.button !== 0) {
+          state.dragging = false;
+          state.pointerVisible = true;
+          updateCursor();
+          return;
+        }
         if (state.rotationDragging) {
           state.rotationDragging = false;
           state.dragging = false;
@@ -4275,6 +4895,15 @@
           } else {
             setRotateAngle(0);
           }
+          state.pointerVisible = true;
+          updateCursor();
+          event.preventDefault();
+          return;
+        }
+        if (state.resizeDragging) {
+          updateResizePreview(point);
+          commitFloatingResize();
+          state.dragging = false;
           state.pointerVisible = true;
           updateCursor();
           event.preventDefault();
@@ -4325,6 +4954,12 @@
         if (state.rotationDragging) {
           state.rotationDragging = false;
           setRotateAngle(state.rotationOriginAngle);
+        }
+        if (state.resizeDragging) {
+          state.resizeDragging = false;
+          state.resizeOrigin = null;
+          state.resizePreview = null;
+          scheduleDraw();
         }
         const cancelObjectMove = (
           (state.mode === "segmentation-center" && state.allowDrag && state.dragging)
@@ -4400,14 +5035,15 @@
       });
 
       canvas.addEventListener("wheel", (event) => {
-        if (!event.ctrlKey) {
+        if (!event.ctrlKey && !event.metaKey) {
           return;
         }
         event.preventDefault();
+        state.autoFitZoom = false;
         if (event.deltaY < 0) {
-          setZoom(state.zoom < 1 ? zoomInStep(state.zoom) : state.zoom + 1, false);
+          setZoom(zoomInStep(state.zoom), true);
         } else {
-          setZoom(state.zoom <= 1 ? zoomOutStep(state.zoom) : state.zoom - 1, false);
+          setZoom(zoomOutStep(state.zoom), true);
         }
       }, { passive: false });
 
@@ -4707,6 +5343,14 @@
           setRotateCardOpen(rotateCard.hidden);
           return;
         }
+        if (action === "resize-open") {
+          setResizeCardOpen(resizeCard.hidden);
+          return;
+        }
+        if (action === "fit-open") {
+          setFitCardOpen(fitCard.hidden);
+          return;
+        }
         if (action === "pixel-action") {
           emitValue({
             eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -4758,25 +5402,28 @@
           return;
         }
         if (action === "zoom-in") {
+          state.autoFitZoom = false;
           if (state.zoom < 1) {
-            setZoom(zoomInStep(state.zoom), false);
+            setZoom(zoomInStep(state.zoom), true);
           } else {
-            setZoom(state.zoom + 1, false);
+            setZoom(zoomInStep(state.zoom), true);
           }
           focusCanvas();
           return;
         }
         if (action === "zoom-out") {
+          state.autoFitZoom = false;
           if (state.zoom <= 1) {
-            setZoom(zoomOutStep(state.zoom), false);
+            setZoom(zoomOutStep(state.zoom), true);
           } else {
-            setZoom(state.zoom - 1, false);
+            setZoom(state.zoom - 1, true);
           }
           focusCanvas();
           return;
         }
         if (action === "fit") {
-          setZoom(computeFitZoom(), false);
+          state.autoFitZoom = true;
+          setZoom(computeFitZoom(), true);
           scheduleViewportFocus();
           focusCanvas();
           return;
@@ -4889,6 +5536,28 @@
         applyRotateAngle();
       });
 
+      resizeCard.querySelectorAll("button[data-resize-scale]").forEach((button) => {
+        button.addEventListener("click", () => applyResizePreset(button.dataset.resizeScale));
+      });
+
+      [fitGridMargin, fitGridAnchor, fitGridScaleDown].forEach((control) => {
+        control.addEventListener("input", () => {
+          if (!fitCard.hidden) previewFitSelectionToGrid();
+        });
+        control.addEventListener("change", () => {
+          if (!fitCard.hidden) previewFitSelectionToGrid();
+        });
+      });
+
+      fitGridCancel.addEventListener("click", () => {
+        setFitCardOpen(false);
+        focusCanvas();
+      });
+
+      fitGridApply.addEventListener("click", () => {
+        applyFitSelectionToGrid();
+      });
+
       document.addEventListener("pointerdown", (event) => {
         if (!wandCard.hidden && !wandControl.contains(event.target)) {
           setWandCardOpen(false);
@@ -4896,8 +5565,31 @@
         if (!rotateCard.hidden && !rotateControl.contains(event.target)) {
           setRotateCardOpen(false);
         }
+        if (!resizeCard.hidden && !resizeControl.contains(event.target)) {
+          setResizeCardOpen(false);
+        }
+        if (!fitCard.hidden && !fitControl.contains(event.target)) {
+          setFitCardOpen(false);
+        }
         if (!frameContextMenu.hidden && !frameContextMenu.contains(event.target)) {
           hideFrameContextMenu();
+        }
+        if (!selectionContextMenu.hidden && !selectionContextMenu.contains(event.target)) {
+          hideSelectionContextMenu();
+        }
+      });
+
+      selectionContextMenu.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-selection-action]");
+        if (!button) return;
+        const action = button.dataset.selectionAction;
+        hideSelectionContextMenu();
+        if (action === "fit-grid") {
+          setFitCardOpen(true);
+          return;
+        }
+        if (action === "adjust-grid") {
+          adjustSelectionToNearestGridBlock();
         }
       });
 
@@ -5446,7 +6138,22 @@
             : null;
           if (floatingSelectionChanged) {
             state.rotationDragging = false;
+            state.resizeDragging = false;
+            state.resizeOrigin = null;
+            state.resizePreview = null;
+            state.resizeAction = "resize";
+            state.fitGridTargetRect = null;
+            fitCard.hidden = true;
+            toolFitSelection.setAttribute("aria-expanded", "false");
             setRotateAngle(0);
+          }
+          if (state.floatingSelectionBounds) {
+            const [x0, y0, x1, y1] = state.floatingSelectionBounds;
+            resizeSizeBadge.textContent = `${Math.max(1, x1 - x0)} × ${Math.max(1, y1 - y0)}px`;
+            fitGridBadge.textContent = `${Math.max(1, x1 - x0)} × ${Math.max(1, y1 - y0)}px`;
+          } else {
+            resizeSizeBadge.textContent = "—";
+            fitGridBadge.textContent = "—";
           }
           state.floatingOperationKind = args.floatingOperationKind === "copy_mask"
             ? "copy_mask"
@@ -5472,6 +6179,7 @@
             && state.fitToken !== state.fitAppliedToken
           ) {
             state.fitAppliedToken = state.fitToken;
+            state.autoFitZoom = true;
             state.zoom = computeFitZoom();
             state.initialized = true;
             focusAfterRender = true;
@@ -5490,7 +6198,7 @@
 
       let responsiveFitFrame = 0;
       const responsiveFitObserver = new ResizeObserver(() => {
-        if (!state.initialized || !state.width || !state.height) {
+        if (!state.initialized || !state.width || !state.height || !state.autoFitZoom) {
           return;
         }
         if (responsiveFitFrame) {
