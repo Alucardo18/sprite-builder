@@ -939,6 +939,94 @@
         background: rgba(91, 223, 255, 0.08);
       }
 
+      .selection-context-menu {
+        min-width: 248px;
+        max-width: min(330px, calc(100vw - 16px));
+        max-height: min(82vh, 620px);
+        overflow-y: auto;
+      }
+
+      .selection-context-section {
+        display: grid;
+        gap: 4px;
+        margin: 3px 0 2px;
+        padding-top: 5px;
+        border-top: 1px solid rgba(255, 255, 255, 0.09);
+      }
+
+      .selection-context-section-title {
+        padding: 2px 7px 1px;
+        color: rgba(187, 210, 238, 0.8);
+        font: 700 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .selection-context-menu button[aria-haspopup="menu"] {
+        position: relative;
+        padding-right: 28px;
+      }
+
+      .selection-context-menu button[aria-haspopup="menu"]::after {
+        position: absolute;
+        right: 9px;
+        content: "›";
+        color: rgba(255, 232, 168, 0.9);
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .selection-context-submenu {
+        display: grid;
+        gap: 4px;
+        margin: 1px 0 2px 10px;
+        padding: 5px;
+        border-left: 2px solid rgba(91, 223, 255, 0.45);
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .selection-context-submenu[hidden] {
+        display: none;
+      }
+
+      .selection-context-submenu-title {
+        padding: 1px 4px;
+        color: rgba(187, 210, 238, 0.76);
+        font-size: 10px;
+      }
+
+      .selection-context-submenu-options {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+      }
+
+      .selection-context-submenu-options button {
+        justify-content: center;
+        min-height: 28px;
+        padding: 4px 5px;
+        font-size: 11px;
+      }
+
+      .selection-align-anchor-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+      }
+
+      .selection-align-anchor-grid button {
+        justify-content: center;
+        min-height: 30px;
+        padding: 4px 3px;
+        font-size: 11px;
+      }
+
+      .selection-context-menu button[aria-pressed="true"] {
+        border-color: rgba(129, 255, 166, 0.7);
+        background: rgba(129, 255, 166, 0.16);
+        color: rgba(225, 255, 233, 1);
+      }
+
       .guide-box {
         position: absolute;
         box-sizing: border-box;
@@ -1620,7 +1708,7 @@
             <button class="icon-button tool-button" data-action="resize-open" id="tool-resize-selection" title="Redimensionar selección" aria-label="Redimensionar selección" aria-haspopup="dialog" aria-expanded="false"><svg class="icon"><use href="#icon-resize"></use></svg></button>
             <div class="resize-card" id="resize-card" role="dialog" aria-label="Redimensionar selección" hidden>
               <div class="resize-card-heading"><strong>Redimensionar</strong><code id="resize-size-badge">—</code></div>
-              <p>Arrastra una esquina libremente. El tirador se adhiere a las líneas del grid activo.</p>
+              <p>Arrastra una esquina en pasos de 1 px. El tirador se adhiere a las líneas del grid activo; mantén Alt/Option para un ajuste preciso sin imán.</p>
               <div class="resize-presets" aria-label="Tamaños predefinidos">
                 <button type="button" data-resize-scale="0.75">¾</button>
                 <button type="button" data-resize-scale="0.5">½</button>
@@ -1779,10 +1867,45 @@
         <button type="button" data-frame-action="lock" id="frame-context-lock" role="menuitem">Bloquear anchor</button>
       </div>
 
-      <div class="frame-context-menu" id="selection-context-menu" role="menu" hidden>
-        <strong>Selección</strong>
-        <button type="button" data-selection-action="adjust-grid" role="menuitem" title="Ajusta X/Y para rellenar exactamente el bloque de grid más cercano">Ajustar al bloque del grid</button>
-        <button type="button" data-selection-action="fit-grid" role="menuitem">Encajar al grid…</button>
+      <div class="frame-context-menu selection-context-menu" id="selection-context-menu" role="menu" aria-label="Acciones de selección" hidden>
+        <strong id="selection-context-title">Selección</strong>
+        <div class="selection-context-section" role="group" aria-label="Grid">
+          <span class="selection-context-section-title">Grid</span>
+          <button type="button" data-selection-action="grid-position" role="menuitem" title="Conserva el tamaño y mueve la selección al origen de grid más cercano">Solo posicionar al grid</button>
+          <button type="button" data-selection-action="fit-grid-proportional" role="menuitem" title="Escala sin suavizado para caber centrada en el bloque de grid más cercano">Encajar conservando proporción</button>
+          <button type="button" data-selection-action="align-grid" role="menuitem" aria-haspopup="menu" aria-expanded="false" title="Alinea la selección dentro del bloque de grid más cercano sin escalar">Alinear dentro del bloque</button>
+          <div class="selection-context-submenu" id="selection-align-submenu" role="menu" aria-label="Alinear dentro del bloque" hidden>
+            <span class="selection-context-submenu-title">Anclaje 3×3</span>
+            <div class="selection-align-anchor-grid" role="group" aria-label="Nueve anclajes">
+              <button type="button" data-selection-align-anchor="top-left" role="menuitem" title="Alinear arriba a la izquierda">↖</button>
+              <button type="button" data-selection-align-anchor="top-center" role="menuitem" title="Alinear arriba al centro">↑</button>
+              <button type="button" data-selection-align-anchor="top-right" role="menuitem" title="Alinear arriba a la derecha">↗</button>
+              <button type="button" data-selection-align-anchor="middle-left" role="menuitem" title="Alinear al centro a la izquierda">←</button>
+              <button type="button" data-selection-align-anchor="center" role="menuitem" title="Centrar dentro del bloque">·</button>
+              <button type="button" data-selection-align-anchor="middle-right" role="menuitem" title="Alinear al centro a la derecha">→</button>
+              <button type="button" data-selection-align-anchor="bottom-left" role="menuitem" title="Alinear abajo a la izquierda">↙</button>
+              <button type="button" data-selection-align-anchor="bottom-center" role="menuitem" title="Alinear abajo al centro">↓</button>
+              <button type="button" data-selection-align-anchor="bottom-right" role="menuitem" title="Alinear abajo a la derecha">↘</button>
+            </div>
+          </div>
+          <button type="button" data-selection-action="adjust-grid" role="menuitem" title="Ajusta X/Y para rellenar exactamente el bloque de grid más cercano">Ajustar al bloque del grid</button>
+          <button type="button" data-selection-action="fit-grid" role="menuitem" title="Abre el encaje configurable al grid">Encajar al grid…</button>
+        </div>
+        <div class="selection-context-section" role="group" aria-label="Edición">
+          <span class="selection-context-section-title">Edición</span>
+          <button type="button" data-selection-action="trim-visible" role="menuitem" title="Recorta la selección al contenido visible sin cambiar de herramienta">Recortar selección al contenido visible</button>
+          <span class="selection-context-submenu-title">Duplicar en celda vecina</span>
+          <div class="selection-context-submenu-options" role="group" aria-label="Dirección de duplicado">
+            <button type="button" data-selection-action="duplicate-grid" data-direction="left" role="menuitem" title="Duplicar una celda a la izquierda">Izquierda</button>
+            <button type="button" data-selection-action="duplicate-grid" data-direction="right" role="menuitem" title="Duplicar una celda a la derecha">Derecha</button>
+            <button type="button" data-selection-action="duplicate-grid" data-direction="up" role="menuitem" title="Duplicar una celda arriba">Arriba</button>
+            <button type="button" data-selection-action="duplicate-grid" data-direction="down" role="menuitem" title="Duplicar una celda abajo">Abajo</button>
+          </div>
+        </div>
+        <div class="selection-context-section" role="group" aria-label="Vista previa local">
+          <span class="selection-context-section-title">Vista previa local</span>
+          <button type="button" id="selection-repeat-toggle" data-selection-action="toggle-repeat" role="menuitem" aria-pressed="false" title="Muestra u oculta ocho copias locales alrededor de la selección">Vista repetida 3×3</button>
+        </div>
       </div>
 
       <div class="studio-timeline" id="studio-timeline" hidden aria-label="Timeline de capas">
@@ -1991,6 +2114,9 @@
       const frameContextTitle = document.getElementById("frame-context-title");
       const frameContextLock = document.getElementById("frame-context-lock");
       const selectionContextMenu = document.getElementById("selection-context-menu");
+      const selectionAlignButton = selectionContextMenu.querySelector('button[data-selection-action="align-grid"]');
+      const selectionAlignSubmenu = document.getElementById("selection-align-submenu");
+      const selectionRepeatToggle = document.getElementById("selection-repeat-toggle");
       const modePill = document.getElementById("mode-pill");
       const cutModePill = document.getElementById("cut-mode-pill");
       const zoomPillCut = document.getElementById("zoom-pill-cut");
@@ -2127,12 +2253,22 @@
         resizeOrigin: null,
         resizePreview: null,
         resizeAction: "resize",
+        resizeScaleOverride: null,
+        resizeFineMode: false,
         fitGridTargetRect: null,
+        floatingRepeatPreview: false,
         floatingTransformPending: null,
         studioSelectionPending: null,
         studioOrderPending: null,
         serverTool: null,
         serverBrushRadius: null,
+        imageRevision: "",
+        overlayRevision: "",
+        moveBaseRevision: "",
+        acknowledgedEventId: "",
+        pendingTool: null,
+        pendingServerRender: null,
+        optimisticSelectionDelete: null,
         canUndo: false,
         canRedo: false,
         undoLabel: "",
@@ -2154,6 +2290,13 @@
       let latestRenderId = 0;
       let drawFrameId = 0;
       let cursorFrameId = 0;
+      const stableLayer = document.createElement("canvas");
+      const stableLayerContext = stableLayer.getContext("2d", { alpha: true });
+      const pendingLayer = document.createElement("canvas");
+      const pendingLayerContext = pendingLayer.getContext("2d", { alpha: true });
+      let stableLayerState = null;
+      let pendingLayerDirty = true;
+      let guidesGeometrySignature = "";
       const ROTATE_CURSOR = 'url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22%3E%3Cpath d=%22M7 5a8 8 0 0 1 11 2%22 fill=%22none%22 stroke=%22%23fff3ba%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22m18 3 .5 4.5L14 7%22 fill=%22none%22 stroke=%22%23fff3ba%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3Cpath d=%22M17 19A8 8 0 0 1 6 17%22 fill=%22none%22 stroke=%22%2308121e%22 stroke-width=%224%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M17 19A8 8 0 0 1 6 17%22 fill=%22none%22 stroke=%22%23fff3ba%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22m6 21-.5-4.5L10 17%22 fill=%22none%22 stroke=%22%23fff3ba%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 12 12, crosshair';
       let studioTimelineSignature = "";
       let cutGuidesSignature = "";
@@ -2324,10 +2467,93 @@
       }
 
       function emitValue(value) {
+        if (state.floatingTransformPending && (value.type === "floating-resize" || value.type === "floating-transform")) {
+          state.floatingTransformPending.eventId = value.eventId;
+        }
         const nextValue = state.mode === "segmentation-center"
           ? { ...value, zoom: state.zoom }
           : value;
+        if (nextValue.type === "toolbar" && nextValue.action === "tool" && nextValue.tool) {
+          state.pendingTool = {
+            eventId: String(nextValue.eventId),
+            tool: normalizeTool(String(nextValue.tool)),
+            frameToken: state.frameToken,
+            createdAt: Date.now(),
+          };
+        }
+        if (state.mode === "background" && eventNeedsServerRender(nextValue)) {
+          if (state.pendingServerRender?.refreshTimer) {
+            clearTimeout(state.pendingServerRender.refreshTimer);
+          }
+          state.pendingServerRender = {
+            eventId: String(nextValue.eventId || ""),
+            tool: normalizeTool(String(nextValue.tool || state.tool || "")),
+            refreshAttempts: 0,
+            refreshTimer: 0,
+            createdAt: Date.now(),
+          };
+        }
         send(SET_COMPONENT_VALUE, { value: nextValue });
+      }
+
+      const PENDING_VISUAL_TTL_MS = 4000;
+      const PENDING_SERVER_RENDER_TTL_MS = 10000;
+
+      function eventNeedsServerRender(value) {
+        const type = String(value?.type || "");
+        if ([
+          "history",
+          "edit-batch",
+          "selection",
+          "crop",
+          "selection-command",
+          "floating-selection",
+          "floating-selection-action",
+          "floating-resize",
+          "floating-transform",
+          "pixel-action",
+        ].includes(type)) {
+          return true;
+        }
+        if (type === "key") {
+          return ["escape", "delete", "backspace"].includes(
+            String(value.key || "").toLowerCase(),
+          );
+        }
+        if (type === "clipboard") {
+          return ["cut", "paste"].includes(String(value.action || ""));
+        }
+        if (type === "toolbar" && String(value.action || "") === "tool") {
+          return true;
+        }
+        if (["pointer", "pointerdown", "pointermove"].includes(type)) {
+          return ["wand", "fill", "replace_color"].includes(
+            normalizeTool(String(value.tool || state.tool || "")),
+          );
+        }
+        return false;
+      }
+
+      function requestServerRenderRefresh(pending) {
+        if (!pending || pending.refreshTimer) {
+          return;
+        }
+        const pendingEventId = pending.eventId;
+        const delay = Math.min(700, 220 + pending.refreshAttempts * 80);
+        pending.refreshTimer = setTimeout(() => {
+          if (state.pendingServerRender?.eventId !== pendingEventId) {
+            return;
+          }
+          pending.refreshTimer = 0;
+          pending.refreshAttempts += 1;
+          emitValue({
+            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "render-refresh",
+            forEventId: pendingEventId,
+            tool: pending.tool,
+          });
+          requestServerRenderRefresh(pending);
+        }, delay);
       }
 
       function emitAnimationControl(action, request = "") {
@@ -2511,6 +2737,13 @@
         const studioToolsVisible = layerMode || backgroundMode;
         if (!centerMode) {
           hideFrameContextMenu();
+        }
+        if ((!layerMode && !backgroundMode) || !state.floatingSelection) {
+          hideSelectionContextMenu();
+          if (state.floatingRepeatPreview) {
+            state.floatingRepeatPreview = false;
+            updateRepeatPreviewControl();
+          }
         }
         document.body.dataset.mode = state.mode;
         if (state.mode !== "background" && state.mode !== "layer-edit") {
@@ -2700,6 +2933,17 @@
         }
       }
 
+      function announceToolSelection(tool) {
+        setActiveTool(tool);
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "toolbar",
+          action: "tool",
+          tool: state.tool,
+          mode: state.mode,
+        });
+      }
+
       function setWandCardOpen(open) {
         const visible = !!open && state.mode === "background";
         wandCard.hidden = !visible;
@@ -2736,6 +2980,7 @@
         state.resizeOrigin = null;
         state.resizePreview = null;
         state.resizeAction = "resize";
+        state.resizeScaleOverride = null;
         state.fitGridTargetRect = null;
         const rect = floatingResizeRect();
         fitGridBadge.textContent = rect
@@ -2779,6 +3024,7 @@
         if (state.rotateAngle === 0) {
           return;
         }
+        draw();
         emitValue({
           eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           type: "pixel-action",
@@ -2846,6 +3092,7 @@
             createdAt: Date.now(),
           };
           const delta = guideDelta();
+          draw();
           emitValue({
             eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
             type: "transform",
@@ -3040,6 +3287,18 @@
         const displayWidth = Math.max(1, Math.round(state.width * state.zoom));
         const displayHeight = Math.max(1, Math.round(state.height * state.zoom));
         const gridStep = Math.max(1, state.pixelGridSize * state.zoom);
+        const geometrySignature = JSON.stringify([
+          centerMode, state.zoom, displayWidth, displayHeight, gridStep, state.showPixelGrid,
+          state.showColumnGuides, state.showRowGuides, state.gridColumns, state.gridRows,
+          state.offsetX, state.offsetY, state.homeOffsetX, state.homeOffsetY,
+          overlayWidth, overlayHeight, state.showCellCenter, state.showFrameGuide,
+          state.showBodyAnchor, state.showTargetAnchor, state.currentAnchorX,
+          state.currentAnchorY, state.targetAnchorX, state.targetAnchorY,
+          state.anchorOffsetX, state.anchorOffsetY, state.showAnchorDelta,
+          state.showGroundLine, state.groundLineY,
+        ]);
+        if (geometrySignature === guidesGeometrySignature) return;
+        guidesGeometrySignature = geometrySignature;
         visualGrid.hidden = !state.showPixelGrid;
         visualGrid.style.width = `${displayWidth}px`;
         visualGrid.style.height = `${displayHeight}px`;
@@ -3507,6 +3766,7 @@
       }
 
       function updatePendingEdits() {
+        pendingLayerDirty = true;
         const count = state.pendingEdits.length;
         pendingEdits.textContent = count ? `Guardar ${count}` : "Guardar";
         commitEditsButton.classList.toggle("active", count > 0);
@@ -3770,8 +4030,9 @@
       }
 
       function draw() {
-        canvas.width = state.width;
-        canvas.height = state.height;
+        // Resizing reallocates the backing bitmap and resets the drawing context.
+        if (canvas.width !== state.width) canvas.width = state.width;
+        if (canvas.height !== state.height) canvas.height = state.height;
         context.imageSmoothingEnabled = false;
         context.clearRect(0, 0, state.width, state.height);
         if (state.playbackTimer && state.animationFrames.length) {
@@ -3788,16 +4049,79 @@
           && !state.floatingSelection
         );
         const baseImage = localLayerMove ? state.moveBase : state.image;
-        if (baseImage) {
-          context.drawImage(baseImage, 0, 0);
-        }
-        if (state.overlay && (state.mode !== "layer-edit" || localLayerMove)) {
-          context.drawImage(state.overlay, state.offsetX, state.offsetY);
+        const stableLayerChanged = !stableLayerState
+          || stableLayerState.width !== state.width
+          || stableLayerState.height !== state.height
+          || stableLayerState.image !== state.image
+          || stableLayerState.imageRevision !== state.imageRevision
+          || stableLayerState.moveBase !== state.moveBase
+          || stableLayerState.moveBaseRevision !== state.moveBaseRevision
+          || stableLayerState.overlay !== state.overlay
+          || stableLayerState.overlayRevision !== state.overlayRevision
+          || stableLayerState.acknowledgedEventId !== state.acknowledgedEventId
+          || stableLayerState.localLayerMove !== localLayerMove
+          || stableLayerState.mode !== state.mode
+          || stableLayerState.offsetX !== state.offsetX
+          || stableLayerState.offsetY !== state.offsetY;
+        if (stableLayerChanged) {
+          stableLayer.width = state.width;
+          stableLayer.height = state.height;
+          stableLayerContext.imageSmoothingEnabled = false;
+          stableLayerContext.clearRect(0, 0, state.width, state.height);
+          if (baseImage) stableLayerContext.drawImage(baseImage, 0, 0);
+          if (state.overlay && (state.mode !== "layer-edit" || localLayerMove)) {
+            stableLayerContext.drawImage(state.overlay, state.offsetX, state.offsetY);
+          }
+          stableLayerState = {
+            width: state.width, height: state.height, image: state.image,
+            imageRevision: state.imageRevision,
+            moveBase: state.moveBase, moveBaseRevision: state.moveBaseRevision,
+            overlay: state.overlay, overlayRevision: state.overlayRevision, localLayerMove,
+            acknowledgedEventId: state.acknowledgedEventId,
+            mode: state.mode, offsetX: state.offsetX, offsetY: state.offsetY,
+          };
+          pendingLayerDirty = true;
         }
         drawPendingEdits();
+        drawOptimisticSelectionDelete();
         drawFloatingSelection();
         drawCropPreview();
         updateGuidesGeometry();
+      }
+
+      function drawOptimisticSelectionDelete() {
+        const pending = state.optimisticSelectionDelete;
+        if (!pending || !pending.overlay || state.mode !== "background") {
+          return;
+        }
+        const maskCanvas = document.createElement("canvas");
+        maskCanvas.width = state.width;
+        maskCanvas.height = state.height;
+        const maskContext = maskCanvas.getContext("2d", { alpha: true });
+        maskContext.imageSmoothingEnabled = false;
+        maskContext.drawImage(pending.overlay, 0, 0);
+        const maskPixels = maskContext.getImageData(0, 0, state.width, state.height).data;
+        const pixels = context.getImageData(0, 0, state.width, state.height);
+        for (let index = 3; index < maskPixels.length; index += 4) {
+          if (maskPixels[index] > 0) {
+            pixels.data[index] = 0;
+          }
+        }
+        context.putImageData(pixels, 0, 0);
+      }
+
+      function previewBackgroundSelectionDelete(eventId) {
+        if (state.mode !== "background" || !state.overlay) {
+          return;
+        }
+        state.optimisticSelectionDelete = {
+          eventId,
+          overlay: state.overlay,
+          createdAt: Date.now(),
+        };
+        state.cropStart = null;
+        state.cropPath = [];
+        draw();
       }
 
       function normalizeRotationAngle(value) {
@@ -3889,10 +4213,10 @@
 
       function snapResizeEdge(value) {
         const rounded = Math.round(value);
-        if (!state.showPixelGrid) return rounded;
+        if (!state.showPixelGrid || state.resizeFineMode) return rounded;
         const grid = Math.max(1, Math.round(state.pixelGridSize));
         const snapped = Math.round(value / grid) * grid;
-        const magneticDistance = 8 / Math.max(0.1, state.zoom);
+        const magneticDistance = Math.min(1, 8 / Math.max(0.1, state.zoom));
         return Math.abs(value - snapped) <= magneticDistance ? snapped : rounded;
       }
 
@@ -3925,30 +4249,45 @@
         const fitGridMode = state.resizeAction === "fit-grid-adjust" ? "adjust" : "configure";
         const originalWidth = Math.max(1, origin.rect.right - origin.rect.left);
         const originalHeight = Math.max(1, origin.rect.bottom - origin.rect.top);
+        const uniformScale = state.resizeScaleOverride === null
+          ? null
+          : finiteNumber(state.resizeScaleOverride, null);
+        const scaleX = uniformScale === null
+          ? (rect.right - rect.left) / originalWidth
+          : uniformScale;
+        const scaleY = uniformScale === null
+          ? (rect.bottom - rect.top) / originalHeight
+          : uniformScale;
+        const eventId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        state.floatingTransformPending = {
+          eventId,
+          x: state.floatingSelectionX,
+          y: state.floatingSelectionY,
+          selectionUrl: state.floatingSelectionUrl,
+          createdAt: Date.now(),
+        };
+        draw();
         emitValue({
-          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          eventId,
           type: "floating-resize",
           action: "end",
           mode: state.mode,
           tool: "move",
-          scaleX: (rect.right - rect.left) / originalWidth,
-          scaleY: (rect.bottom - rect.top) / originalHeight,
+          scaleX: scaleX,
+          scaleY: scaleY,
           deltaX: Math.round(rect.left - origin.rect.left),
           deltaY: Math.round(rect.top - origin.rect.top),
           operationKind: state.floatingOperationKind,
           fitGrid: fitGridAction,
           fitGridMode,
         });
-        state.floatingTransformPending = {
-          x: state.floatingSelectionX,
-          y: state.floatingSelectionY,
-          selectionUrl: state.floatingSelectionUrl,
-          createdAt: Date.now(),
-        };
         state.resizeDragging = false;
         state.resizeOrigin = null;
-        state.resizePreview = null;
+        // Keep the final preview until Python acknowledges this exact edit.
+        scheduleDraw();
         state.resizeAction = "resize";
+        state.resizeScaleOverride = null;
+        state.resizeFineMode = false;
         state.fitGridTargetRect = null;
       }
 
@@ -3957,6 +4296,7 @@
         if (!rect) return;
         const factor = Math.max(0.01, finiteNumber(scale, 1));
         state.resizeAction = "resize";
+        state.resizeScaleOverride = null;
         state.fitGridTargetRect = null;
         state.resizeOrigin = { rect: { ...rect } };
         state.resizePreview = {
@@ -3983,6 +4323,204 @@
         const snapped = Math.round(value / grid) * grid;
         const maxOrigin = Math.max(0, Math.floor((Math.max(0, limit - span)) / grid) * grid);
         return Math.max(0, Math.min(maxOrigin, snapped));
+      }
+
+      function selectionGridSpan(span, limit, grid, contain = false) {
+        const safeLimit = Math.max(1, Math.round(limit));
+        const safeSpan = Math.max(1, Math.round(span));
+        if (safeLimit <= grid) {
+          return safeLimit;
+        }
+        const cells = contain
+          ? Math.ceil(safeSpan / grid)
+          : Math.max(1, Math.round(safeSpan / grid));
+        const rounded = Math.max(1, cells * grid);
+        if (rounded <= safeLimit) {
+          return rounded;
+        }
+        if (contain && safeSpan <= safeLimit) {
+          return safeLimit;
+        }
+        return Math.max(1, Math.min(safeLimit, Math.floor(safeLimit / grid) * grid));
+      }
+
+      function nearestGridBlockForSelection(rect, contain = false) {
+        if (!rect) return null;
+        const grid = Math.max(1, Math.round(state.pixelGridSize || 16));
+        const width = selectionGridSpan(rect.right - rect.left, state.width, grid, contain);
+        const height = selectionGridSpan(rect.bottom - rect.top, state.height, grid, contain);
+        const idealLeft = (rect.left + rect.right - width) / 2;
+        const idealTop = (rect.top + rect.bottom - height) / 2;
+        const left = fitGridOrigin(idealLeft, width, state.width, grid);
+        const top = fitGridOrigin(idealTop, height, state.height, grid);
+        return {
+          left,
+          top,
+          right: left + width,
+          bottom: top + height,
+          grid,
+        };
+      }
+
+      function applyContextFloatingResize(targetRect, uniformScale = null) {
+        const current = floatingResizeRect();
+        if (!current || !targetRect) return false;
+        const scale = uniformScale === null
+          ? null
+          : Math.max(0.01, finiteNumber(uniformScale, 1));
+        const sourceWidth = Math.max(1, current.right - current.left);
+        const sourceHeight = Math.max(1, current.bottom - current.top);
+        const targetWidth = scale === null
+          ? Math.max(1, Math.round(targetRect.right - targetRect.left))
+          : sourceWidth * scale;
+        const targetHeight = scale === null
+          ? Math.max(1, Math.round(targetRect.bottom - targetRect.top))
+          : sourceHeight * scale;
+        const left = Math.max(
+          0,
+          Math.min(Math.max(0, state.width - targetWidth), Math.round(targetRect.left)),
+        );
+        const top = Math.max(
+          0,
+          Math.min(Math.max(0, state.height - targetHeight), Math.round(targetRect.top)),
+        );
+        const right = left + targetWidth;
+        const bottom = top + targetHeight;
+        state.resizeOrigin = { rect: { ...current } };
+        state.resizePreview = { left, top, right, bottom };
+        state.resizeAction = "resize";
+        state.resizeScaleOverride = scale;
+        state.fitGridTargetRect = null;
+        commitFloatingResize();
+        focusCanvas();
+        return true;
+      }
+
+      function positionSelectionAtNearestGrid() {
+        const current = floatingResizeRect();
+        if (!current) return false;
+        const grid = Math.max(1, Math.round(state.pixelGridSize || 16));
+        const width = Math.max(1, current.right - current.left);
+        const height = Math.max(1, current.bottom - current.top);
+        const left = fitGridOrigin(Math.round(current.left / grid) * grid, width, state.width, grid);
+        const top = fitGridOrigin(Math.round(current.top / grid) * grid, height, state.height, grid);
+        return applyContextFloatingResize({
+          left,
+          top,
+          right: left + width,
+          bottom: top + height,
+        }, 1);
+      }
+
+      function fitSelectionProportionallyToNearestGrid() {
+        const current = floatingResizeRect();
+        if (!current) return false;
+        const block = nearestGridBlockForSelection(current, false);
+        if (!block) return false;
+        const sourceWidth = Math.max(1, current.right - current.left);
+        const sourceHeight = Math.max(1, current.bottom - current.top);
+        const uniformScale = Math.min(
+          (block.right - block.left) / sourceWidth,
+          (block.bottom - block.top) / sourceHeight,
+        );
+        const fittedWidth = sourceWidth * uniformScale;
+        const fittedHeight = sourceHeight * uniformScale;
+        const left = block.left + (block.right - block.left - fittedWidth) / 2;
+        const top = block.top + (block.bottom - block.top - fittedHeight) / 2;
+        return applyContextFloatingResize({
+          left,
+          top,
+          right: left + fittedWidth,
+          bottom: top + fittedHeight,
+        }, uniformScale);
+      }
+
+      function alignSelectionInsideNearestGrid(anchor) {
+        const current = floatingResizeRect();
+        if (!current) return false;
+        const block = nearestGridBlockForSelection(current, true);
+        if (!block) return false;
+        const width = Math.max(1, current.right - current.left);
+        const height = Math.max(1, current.bottom - current.top);
+        const safeAnchor = String(anchor || "center");
+        const horizontal = safeAnchor.endsWith("-left")
+          ? "start"
+          : safeAnchor.endsWith("-right")
+            ? "end"
+            : "center";
+        const vertical = safeAnchor.startsWith("top-")
+          ? "start"
+          : safeAnchor.startsWith("bottom-")
+            ? "end"
+            : "center";
+        const left = horizontal === "start"
+          ? block.left
+          : horizontal === "end"
+            ? block.right - width
+            : block.left + Math.round((block.right - block.left - width) / 2);
+        const top = vertical === "start"
+          ? block.top
+          : vertical === "end"
+            ? block.bottom - height
+            : block.top + Math.round((block.bottom - block.top - height) / 2);
+        return applyContextFloatingResize({
+          left,
+          top,
+          right: left + width,
+          bottom: top + height,
+        }, 1);
+      }
+
+      function emitFloatingSelectionAction(action, payload = {}) {
+        if (!state.floatingSelection || !["trim-visible", "duplicate-grid"].includes(action)) {
+          return false;
+        }
+        emitValue({
+          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          type: "floating-selection-action",
+          action,
+          mode: state.mode,
+          tool: "move",
+          ...payload,
+        });
+        return true;
+      }
+
+      function duplicateSelectionInGrid(direction) {
+        const grid = Math.max(1, Math.round(state.pixelGridSize || 16));
+        const deltas = {
+          left: [-grid, 0],
+          right: [grid, 0],
+          up: [0, -grid],
+          down: [0, grid],
+        };
+        const [deltaX, deltaY] = deltas[direction] || [0, 0];
+        if (!deltaX && !deltaY) return false;
+        return emitFloatingSelectionAction("duplicate-grid", {
+          direction,
+          deltaX,
+          deltaY,
+        });
+      }
+
+      function updateRepeatPreviewControl() {
+        if (!selectionRepeatToggle) return;
+        const active = !!state.floatingRepeatPreview && !!state.floatingSelection;
+        selectionRepeatToggle.setAttribute("aria-pressed", String(active));
+        selectionRepeatToggle.textContent = active
+          ? "Vista repetida 3×3 ✓"
+          : "Vista repetida 3×3";
+        selectionRepeatToggle.title = active
+          ? "Oculta las ocho copias locales alrededor de la selección"
+          : "Muestra ocho copias locales alrededor de la selección";
+      }
+
+      function toggleRepeatPreview() {
+        if (!state.floatingSelection) return false;
+        state.floatingRepeatPreview = !state.floatingRepeatPreview;
+        updateRepeatPreviewControl();
+        scheduleDraw();
+        return true;
       }
 
       function previewFitSelectionToGrid() {
@@ -4126,6 +4664,29 @@
         }
         if (resizeRect && Array.isArray(bounds) && bounds.length === 4) {
           const [x0, y0, x1, y1] = bounds;
+          if (state.floatingRepeatPreview) {
+            const copyWidth = Math.max(1, resizeRect.right - resizeRect.left);
+            const copyHeight = Math.max(1, resizeRect.bottom - resizeRect.top);
+            context.save();
+            context.beginPath();
+            context.rect(0, 0, state.width, state.height);
+            context.clip();
+            context.globalAlpha = 0.24;
+            for (const offsetY of [-1, 0, 1]) {
+              for (const offsetX of [-1, 0, 1]) {
+                if (!offsetX && !offsetY) continue;
+                context.drawImage(
+                  state.floatingSelection,
+                  x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0),
+                  resizeRect.left + offsetX * copyWidth,
+                  resizeRect.top + offsetY * copyHeight,
+                  copyWidth,
+                  copyHeight,
+                );
+              }
+            }
+            context.restore();
+          }
           context.drawImage(
             state.floatingSelection,
             x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0),
@@ -4366,8 +4927,29 @@
         state.contextFrame = -1;
       }
 
+      function setSelectionAlignMenuOpen(open) {
+        const visible = !!open && !selectionContextMenu.hidden && !!state.floatingSelection;
+        selectionAlignSubmenu.hidden = !visible;
+        selectionAlignButton.setAttribute("aria-expanded", String(visible));
+        if (visible) {
+          requestAnimationFrame(() => {
+            positionSelectionContextMenu();
+            selectionAlignSubmenu.querySelector("button[role=menuitem]")?.focus();
+          });
+        }
+      }
+
       function hideSelectionContextMenu() {
+        setSelectionAlignMenuOpen(false);
         selectionContextMenu.hidden = true;
+      }
+
+      function positionSelectionContextMenu() {
+        const bounds = selectionContextMenu.getBoundingClientRect();
+        const left = finiteNumber(parseFloat(selectionContextMenu.style.left), 8);
+        const top = finiteNumber(parseFloat(selectionContextMenu.style.top), 8);
+        selectionContextMenu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - bounds.width - 8))}px`;
+        selectionContextMenu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - bounds.height - 8))}px`;
       }
 
       function showFrameContextMenu(event, frameIndex) {
@@ -4387,13 +4969,14 @@
       }
 
       function showSelectionContextMenu(event) {
+        setSelectionAlignMenuOpen(false);
+        updateRepeatPreviewControl();
         selectionContextMenu.style.left = `${event.clientX}px`;
         selectionContextMenu.style.top = `${event.clientY}px`;
         selectionContextMenu.hidden = false;
         requestAnimationFrame(() => {
-          const bounds = selectionContextMenu.getBoundingClientRect();
-          selectionContextMenu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - bounds.width - 8))}px`;
-          selectionContextMenu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - bounds.height - 8))}px`;
+          positionSelectionContextMenu();
+          selectionContextMenu.querySelector("button[role=menuitem]")?.focus();
         });
       }
 
@@ -4443,6 +5026,9 @@
             createdAt: Date.now(),
           };
         }
+        if (action === "end" || action === "cancel") {
+          draw();
+        }
         emitValue({
           eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           type: "transform",
@@ -4465,14 +5051,17 @@
       }
 
       function emitFloatingTransform(event, point) {
+        const eventId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
         state.floatingTransformPending = {
+          eventId,
           x: state.floatingSelectionX,
           y: state.floatingSelectionY,
           selectionUrl: state.floatingSelectionUrl,
           createdAt: Date.now(),
         };
+        draw();
         emitValue({
-          eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          eventId,
           type: "floating-transform",
           action: "end",
           mode: state.mode,
@@ -4548,32 +5137,37 @@
           path,
           ...modifiers(event),
         };
+        // Remove the pointer shape before taking the pending snapshot. The
+        // shape is an interaction overlay, not part of the committed edit.
+        state.cropStart = null;
+        state.cropPath = [];
+        draw();
         emitValue(payload);
       }
 
-      function renderStrokeSegment(from, to, edit = null) {
+      function renderStrokeSegment(from, to, edit = null, target = context) {
         const tool = edit?.tool || state.tool;
         const brushRadius = Math.max(1, Number(edit?.brushRadius || state.brushRadius));
         const radius = Math.max(0, brushRadius - 1);
-        context.save();
-        context.imageSmoothingEnabled = false;
-        context.globalCompositeOperation = tool === "eraser" ? "destination-out" : "source-over";
+        target.save();
+        target.imageSmoothingEnabled = false;
+        target.globalCompositeOperation = tool === "eraser" ? "destination-out" : "source-over";
         const [r, g, b, a = 255] = Array.isArray(edit?.color) ? edit.color : state.paintColor;
-        context.strokeStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-        context.fillStyle = context.strokeStyle;
-        context.lineWidth = radius * 2 + 1;
-        context.lineCap = "round";
-        context.lineJoin = "round";
-        context.beginPath();
-        context.moveTo(from.x + 0.5, from.y + 0.5);
-        context.lineTo(to.x + 0.5, to.y + 0.5);
-        context.stroke();
+        target.strokeStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+        target.fillStyle = target.strokeStyle;
+        target.lineWidth = radius * 2 + 1;
+        target.lineCap = "round";
+        target.lineJoin = "round";
+        target.beginPath();
+        target.moveTo(from.x + 0.5, from.y + 0.5);
+        target.lineTo(to.x + 0.5, to.y + 0.5);
+        target.stroke();
         if (from.x === to.x && from.y === to.y) {
-          context.beginPath();
-          context.arc(from.x + 0.5, from.y + 0.5, Math.max(0.5, radius + 0.5), 0, Math.PI * 2);
-          context.fill();
+          target.beginPath();
+          target.arc(from.x + 0.5, from.y + 0.5, Math.max(0.5, radius + 0.5), 0, Math.PI * 2);
+          target.fill();
         }
-        context.restore();
+        target.restore();
       }
 
       function previewStroke(from, to) {
@@ -4581,6 +5175,16 @@
       }
 
       function drawPendingEdits() {
+        if (!pendingLayerDirty && pendingLayer.width === state.width && pendingLayer.height === state.height) {
+          context.clearRect(0, 0, state.width, state.height);
+          context.drawImage(pendingLayer, 0, 0);
+          return;
+        }
+        pendingLayer.width = state.width;
+        pendingLayer.height = state.height;
+        pendingLayerContext.imageSmoothingEnabled = false;
+        pendingLayerContext.clearRect(0, 0, state.width, state.height);
+        pendingLayerContext.drawImage(stableLayer, 0, 0);
         const committed = state.committedEditsPending?.edits || [];
         for (const edit of [...committed, ...state.pendingEdits]) {
           const path = Array.isArray(edit?.path)
@@ -4591,11 +5195,14 @@
           if (!path.length) {
             continue;
           }
-          renderStrokeSegment(path[0], path[0], edit);
+          renderStrokeSegment(path[0], path[0], edit, pendingLayerContext);
           for (let index = 1; index < path.length; index += 1) {
-            renderStrokeSegment(path[index - 1], path[index], edit);
+            renderStrokeSegment(path[index - 1], path[index], edit, pendingLayerContext);
           }
         }
+        pendingLayerDirty = false;
+        context.clearRect(0, 0, state.width, state.height);
+        context.drawImage(pendingLayer, 0, 0);
       }
 
       function sampleCanvas(point) {
@@ -4705,6 +5312,8 @@
           state.resizeDragging = true;
           state.resizeCorner = resizeHandle.corner;
           state.resizeAction = "resize";
+          state.resizeScaleOverride = null;
+          state.resizeFineMode = !!event.altKey;
           state.fitGridTargetRect = null;
           state.resizeOrigin = { rect: { ...floatingResizeRect() } };
           state.resizePreview = { ...state.resizeOrigin.rect };
@@ -4806,6 +5415,7 @@
         if (state.resizeDragging && state.dragging && (event.buttons & 1)) {
           state.pointerPixelX = point.x;
           state.pointerPixelY = point.y;
+          state.resizeFineMode = !!event.altKey;
           updateResizePreview(point);
           scheduleCursorUpdate();
           event.preventDefault();
@@ -4928,7 +5538,10 @@
           state.tool === "move"
           && (state.mode === "layer-edit" || (state.mode === "background" && state.floatingSelection))
         ) {
-          if (state.floatingSelection) {
+          if (state.floatingSelection && state.dragging) {
+            state.floatingSelectionX = state.dragOriginX + (point.x - state.dragStartX);
+            state.floatingSelectionY = state.dragOriginY + (point.y - state.dragStartY);
+            scheduleDraw();
             emitFloatingTransform(event, point);
           } else {
             emitDrag(event, "end", point);
@@ -5111,43 +5724,43 @@
           return;
         }
         if ((key === "p" || key === "b") && (state.mode === "layer-edit" || state.mode === "background")) {
-          setActiveTool("pencil");
+          announceToolSelection("pencil");
           event.preventDefault();
           return;
         }
         if (key === "m" && (state.mode === "layer-edit" || state.mode === "pose-layout" || state.mode === "background")) {
-          setActiveTool("move");
+          announceToolSelection("move");
           event.preventDefault();
           return;
         }
         if (key === "l" && (state.mode === "layer-edit" || state.mode === "pose-layout" || state.mode === "background")) {
-          setActiveTool("crop_lasso");
+          announceToolSelection("crop_lasso");
           event.preventDefault();
           return;
         }
         if (key === "r" && (state.mode === "layer-edit" || state.mode === "pose-layout" || state.mode === "background")) {
-          setActiveTool("crop_rect");
+          announceToolSelection("crop_rect");
           event.preventDefault();
           return;
         }
         if (key === "o" && (state.mode === "layer-edit" || state.mode === "pose-layout" || state.mode === "background")) {
-          setActiveTool("crop_ellipse");
+          announceToolSelection("crop_ellipse");
           event.preventDefault();
           return;
         }
         if (key === "i" && (state.mode === "background" || state.mode === "layer-edit")) {
-          setActiveTool("eyedropper");
+          announceToolSelection("eyedropper");
           event.preventDefault();
           return;
         }
         if (key === "w" && state.mode === "background" && !state.floatingSelection) {
-          setActiveTool("wand");
+          announceToolSelection("wand");
           setWandCardOpen(true);
           event.preventDefault();
           return;
         }
         if (key === "e" && (state.mode === "background" || state.mode === "layer-edit") && !(state.mode === "background" && state.floatingSelection)) {
-          setActiveTool("eraser");
+          announceToolSelection("eraser");
           event.preventDefault();
           return;
         }
@@ -5314,8 +5927,10 @@
           return;
         }
         if (key === "backspace" || key === "delete") {
+          const eventId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+          previewBackgroundSelectionDelete(eventId);
           emitValue({
-            eventId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            eventId,
             type: "key",
             key: event.key,
             ...modifiers(event),
@@ -5379,7 +5994,7 @@
         }
         if (action === "tool") {
           const tool = button.dataset.tool || "wand";
-          setActiveTool(tool);
+          announceToolSelection(tool);
           if (tool === "wand") {
             setWandCardOpen(true);
           }
@@ -5580,9 +6195,19 @@
       });
 
       selectionContextMenu.addEventListener("click", (event) => {
+        const anchorButton = event.target.closest("button[data-selection-align-anchor]");
+        if (anchorButton) {
+          hideSelectionContextMenu();
+          alignSelectionInsideNearestGrid(anchorButton.dataset.selectionAlignAnchor);
+          return;
+        }
         const button = event.target.closest("button[data-selection-action]");
         if (!button) return;
         const action = button.dataset.selectionAction;
+        if (action === "align-grid") {
+          setSelectionAlignMenuOpen(selectionAlignSubmenu.hidden);
+          return;
+        }
         hideSelectionContextMenu();
         if (action === "fit-grid") {
           setFitCardOpen(true);
@@ -5590,7 +6215,37 @@
         }
         if (action === "adjust-grid") {
           adjustSelectionToNearestGridBlock();
+          return;
         }
+        if (action === "grid-position") {
+          positionSelectionAtNearestGrid();
+          return;
+        }
+        if (action === "fit-grid-proportional") {
+          fitSelectionProportionallyToNearestGrid();
+          return;
+        }
+        if (action === "trim-visible") {
+          emitFloatingSelectionAction("trim-visible");
+          focusCanvas();
+          return;
+        }
+        if (action === "duplicate-grid") {
+          duplicateSelectionInGrid(button.dataset.direction || "");
+          focusCanvas();
+          return;
+        }
+        if (action === "toggle-repeat") {
+          toggleRepeatPreview();
+          focusCanvas();
+        }
+      });
+
+      selectionContextMenu.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        hideSelectionContextMenu();
+        focusCanvas();
+        event.preventDefault();
       });
 
       frameContextMenu.addEventListener("click", (event) => {
@@ -5796,6 +6451,52 @@
         }
         const args = message.args || {};
         const renderId = ++latestRenderId;
+        state.imageRevision = String(args.imageRevision || "");
+        state.overlayRevision = String(args.overlayRevision || "");
+        state.moveBaseRevision = String(args.moveBaseRevision || "");
+        state.acknowledgedEventId = String(args.acknowledgedEventId || "");
+        const pendingServerRender = state.pendingServerRender;
+        const serverRenderAcknowledged = !!pendingServerRender
+          && state.acknowledgedEventId === pendingServerRender.eventId;
+        const serverRenderExpired = !!pendingServerRender
+          && Date.now() - pendingServerRender.createdAt > PENDING_SERVER_RENDER_TTL_MS;
+        if (serverRenderAcknowledged) {
+          if (pendingServerRender.refreshTimer) {
+            clearTimeout(pendingServerRender.refreshTimer);
+            pendingServerRender.refreshTimer = 0;
+          }
+          state.pendingServerRender = null;
+        } else if (pendingServerRender && !serverRenderExpired) {
+          requestServerRenderRefresh(pendingServerRender);
+        } else if (serverRenderExpired) {
+          if (pendingServerRender.refreshTimer) {
+            clearTimeout(pendingServerRender.refreshTimer);
+          }
+          state.pendingServerRender = null;
+        }
+        const incomingFrameToken = hasOwn(args, "frameToken")
+          ? String(args.frameToken || "")
+          : "";
+        const pendingTool = state.pendingTool;
+        const pendingToolAcknowledged = !!pendingTool
+          && (
+            state.acknowledgedEventId === pendingTool.eventId
+            || String(args.tool || "") === pendingTool.tool
+          );
+        const pendingToolFrameChanged = !!pendingTool
+          && !!pendingTool.frameToken
+          && !!incomingFrameToken
+          && pendingTool.frameToken !== incomingFrameToken;
+        const pendingToolExpired = !!pendingTool
+          && Date.now() - pendingTool.createdAt > PENDING_VISUAL_TTL_MS;
+        if (pendingToolAcknowledged || pendingToolFrameChanged || pendingToolExpired) {
+          state.pendingTool = null;
+        }
+        const optimisticDeleteExpired = !!state.optimisticSelectionDelete
+          && Date.now() - (state.optimisticSelectionDelete.createdAt || 0) > PENDING_VISUAL_TTL_MS;
+        if (optimisticDeleteExpired) {
+          state.optimisticSelectionDelete = null;
+        }
         state.canUndo = !!args.canUndo;
         state.canRedo = !!args.canRedo;
         state.undoLabel = String(args.undoLabel || "");
@@ -5855,12 +6556,19 @@
         switchPendingEditContext(editContextKey());
         if (frameChanged) {
           state.cutCommitPending = null;
-          state.floatingTransformPending = null;
+          // Background frame tokens include edit revisions; acknowledgement below
+          // reconciles the pending preview after the new images finish loading.
+          if (state.mode !== "background") state.floatingTransformPending = null;
         }
         state.width = Math.max(1, Number(args.width || 1));
         state.height = Math.max(1, Number(args.height || 1));
         const incomingTool = normalizeTool(String(args.tool || state.tool || "wand"));
-        if (!state.initialized || frameChanged || incomingTool !== state.serverTool) {
+        if (state.pendingTool) {
+          // Keep the local choice while a rerun still carries the previous
+          // server tool. The toolbar event (or a later action using the same
+          // tool) clears this pending value above.
+          state.tool = state.pendingTool.tool;
+        } else if (!state.initialized || frameChanged || incomingTool !== state.serverTool) {
           state.tool = incomingTool;
         }
         state.serverTool = incomingTool;
@@ -6092,6 +6800,11 @@
           state.floatingSelectionUrl = floatingSelectionUrl;
           state.floatingHighlight = floatingHighlight;
           state.floatingHighlightUrl = floatingHighlightUrl;
+          if (floatingSelectionChanged || !floatingSelection) {
+            state.floatingRepeatPreview = false;
+            updateRepeatPreviewControl();
+            hideSelectionContextMenu();
+          }
           state.animationFrames = animationFrames.filter(Boolean);
           state.animationFrameUrls = animationFrameUrls;
           state.animationFps = Math.max(1, Math.min(60, Math.round(finiteNumber(args.animationFps, 8))));
@@ -6115,24 +6828,23 @@
           const incomingFloatingX = Math.round(Number(args.floatingSelectionX || 0));
           const incomingFloatingY = Math.round(Number(args.floatingSelectionY || 0));
           const pendingFloating = state.floatingTransformPending;
-          const floatingAcknowledged = !!pendingFloating && (
-            floatingSelectionUrl !== pendingFloating.selectionUrl
-            || (
-              incomingFloatingX === pendingFloating.x
-              && incomingFloatingY === pendingFloating.y
-            )
-          );
-          const floatingExpired = !!pendingFloating
-            && Date.now() - pendingFloating.createdAt > 4000;
-          if (!pendingFloating || floatingAcknowledged || floatingExpired) {
+          const floatingAcknowledged = !!pendingFloating
+            && (
+              args.acknowledgedEventId === pendingFloating.eventId
+              || Date.now() - pendingFloating.createdAt > 4000
+            );
+          // A rerun may deliver the pre-edit payload first. Never mistake matching
+          // coordinates (especially resize at 0,0) for a completed operation.
+          if (!state.dragging && (!pendingFloating || floatingAcknowledged)) {
             state.floatingSelectionX = incomingFloatingX;
             state.floatingSelectionY = incomingFloatingY;
-            if (floatingAcknowledged || floatingExpired) {
+            state.floatingSelectionStartX = state.floatingSelectionX;
+            state.floatingSelectionStartY = state.floatingSelectionY;
+            if (floatingAcknowledged) {
               state.floatingTransformPending = null;
+              state.resizePreview = null;
             }
           }
-          state.floatingSelectionStartX = state.floatingSelectionX;
-          state.floatingSelectionStartY = state.floatingSelectionY;
           state.floatingSelectionBounds = Array.isArray(args.floatingSelectionBounds)
             ? args.floatingSelectionBounds.map((value) => Math.round(Number(value)))
             : null;
@@ -6142,6 +6854,8 @@
             state.resizeOrigin = null;
             state.resizePreview = null;
             state.resizeAction = "resize";
+            state.resizeScaleOverride = null;
+            state.resizeFineMode = false;
             state.fitGridTargetRect = null;
             fitCard.hidden = true;
             toolFitSelection.setAttribute("aria-expanded", "false");
@@ -6164,6 +6878,7 @@
             || Date.now() - committedEdits.createdAt > 4000
           )) {
             state.committedEditsPending = null;
+            pendingLayerDirty = true;
           }
           if (frameChanged) {
             state.activeFrameToken = state.frameToken;
@@ -6187,7 +6902,22 @@
             state.zoom = clampZoom(args.zoom || state.zoom || 8);
             state.initialized = true;
           }
+          if (
+            state.optimisticSelectionDelete
+            && state.acknowledgedEventId === state.optimisticSelectionDelete.eventId
+          ) {
+            state.optimisticSelectionDelete = null;
+          }
           redraw();
+          if (
+            serverRenderAcknowledged
+            && (!state.pendingServerRender || state.pendingServerRender.eventId === pendingServerRender.eventId)
+          ) {
+            if (pendingServerRender?.refreshTimer) {
+              clearTimeout(pendingServerRender.refreshTimer);
+            }
+            state.pendingServerRender = null;
+          }
           if (focusAfterRender) {
             scheduleViewportFocus();
           }

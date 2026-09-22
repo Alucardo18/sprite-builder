@@ -68,9 +68,9 @@ def _component_probe() -> Iterator[_ComponentProbe]:
     image_cache = getattr(components, "_IMAGE_DATA_URI_CACHE", None)
     original_cache_get = getattr(image_cache, "get", None)
     try:
-        def counted_image_data_uri(image: Image.Image) -> str:
+        def counted_image_data_uri(image: Image.Image, *args: Any, **kwargs: Any) -> str:
             probe.image_uri_calls += 1
-            return originals["image_data_uri"](image)
+            return originals["image_data_uri"](image, *args, **kwargs)
 
         def counted_cache_get(key: object) -> str | None:
             value = original_cache_get(key)

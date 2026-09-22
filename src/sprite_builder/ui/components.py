@@ -121,8 +121,18 @@ def _image_data_uri_cached(
     return uri
 
 
-def image_data_uri(image: Image.Image) -> str:
+def image_data_uri(image: Image.Image, *, revision: str | None = None) -> str:
     stable = image if image.mode in {"1", "L", "LA", "RGB", "RGBA"} else image.convert("RGBA")
+    if revision:
+        key = ("revision", str(revision), stable.mode, stable.size)
+        cached = _IMAGE_DATA_URI_CACHE.get(key)
+        if cached is not None:
+            return cached
+        buffer = io.BytesIO()
+        stable.save(buffer, format="PNG", optimize=False)
+        uri = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+        _IMAGE_DATA_URI_CACHE.put(key, uri)
+        return uri
     uri = _image_data_uri_cached(stable.mode, stable.size, stable.tobytes())
     return uri
 
@@ -251,6 +261,13 @@ def terrain_pattern_studio(
     return cast(dict[str, Any] | None, result)
 
 
+def _safe_image_data_uri(image: Image.Image, *, revision: str | None = None) -> str:
+    try:
+        return image_data_uri(image, revision=revision)
+    except TypeError:
+        return image_data_uri(image)
+
+
 def pixel_editor(
     image: Image.Image,
     *,
@@ -292,6 +309,7 @@ def pixel_editor(
     fit_on_load: bool = False,
     fit_token: str = "",
     frame_token: str = "",
+    acknowledged_event_id: str = "",
     cut_positions: tuple[int, ...] | list[int] | None = None,
     cut_positions_x: tuple[int, ...] | list[int] | None = None,
     cut_positions_y: tuple[int, ...] | list[int] | None = None,
@@ -316,11 +334,20 @@ def pixel_editor(
     animation_fps: int = 8,
     animation_durations: Sequence[int] | None = None,
     palette_colors: Sequence[str] | None = None,
+    image_revision: str | None = None,
+    overlay_revision: str | None = None,
+    move_base_revision: str | None = None,
     key: str,
 ) -> dict[str, Any] | None:
-    image_uri = image_data_uri(image)
-    overlay_uri = image_data_uri(overlay) if overlay is not None else None
-    move_base_uri = image_data_uri(move_base) if move_base is not None else None
+    image_uri = _safe_image_data_uri(image, revision=image_revision)
+    overlay_uri = (
+        _safe_image_data_uri(overlay, revision=overlay_revision) if overlay is not None else None
+    )
+    move_base_uri = (
+        _safe_image_data_uri(move_base, revision=move_base_revision)
+        if move_base is not None
+        else None
+    )
     animation_payload = tuple(animation_frames or ())
     result = _PIXEL_EDITOR(
         image=image_uri,
@@ -364,6 +391,10 @@ def pixel_editor(
         fitOnLoad=bool(fit_on_load),
         fitToken=str(fit_token),
         frameToken=str(frame_token),
+        imageRevision=str(image_revision or ""),
+        overlayRevision=str(overlay_revision or ""),
+        moveBaseRevision=str(move_base_revision or ""),
+        acknowledgedEventId=str(acknowledged_event_id),
         cutPositions=None if cut_positions is None else [int(value) for value in cut_positions],
         cutPositionsX=(
             None if cut_positions_x is None else [int(value) for value in cut_positions_x]

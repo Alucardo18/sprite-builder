@@ -812,6 +812,10 @@ def test_floating_selection_resize_has_corner_handles_presets_and_grid_snap() ->
     assert "function floatingResizeHandles" in component_source
     assert "function resizeHandleAtPoint" in component_source
     assert "function snapResizeEdge" in component_source
+    assert "Math.min(1, 8 / Math.max(0.1, state.zoom))" in component_source
+    assert "state.resizeFineMode" in component_source
+    assert "state.resizeFineMode = !!event.altKey" in component_source
+    assert "mantén Alt/Option para un ajuste preciso sin imán" in component_source
     assert "state.pixelGridSize" in component_source
     assert 'type: "floating-resize"' in component_source
     assert "scaleX:" in component_source
@@ -862,6 +866,89 @@ def test_context_menu_adjusts_selection_to_fill_nearest_grid_block() -> None:
     assert "adjustSelectionToNearestGridBlock();" in component_source
     assert 'str(event.get("fitGridMode", "")) == "adjust"' in app_source
     assert '"Ajustar selección al grid"' in app_source
+
+
+def test_selection_context_menu_covers_grid_edit_duplicate_and_existing_actions() -> None:
+    source = _component_source()
+    menu_start = source.index('id="selection-context-menu"')
+    menu_end = source.index('id="studio-timeline"', menu_start)
+    menu = source[menu_start:menu_end]
+
+    for action in (
+        "grid-position",
+        "fit-grid-proportional",
+        "align-grid",
+        "adjust-grid",
+        "fit-grid",
+        "trim-visible",
+        "toggle-repeat",
+    ):
+        assert f'data-selection-action="{action}"' in menu
+    assert menu.count('data-selection-action="duplicate-grid"') == 4
+    assert {
+        match.group(1)
+        for match in re.finditer(r'data-selection-action="duplicate-grid" data-direction="([^"]+)"', menu)
+    } == {"left", "right", "up", "down"}
+    assert menu.count("data-selection-align-anchor=") == 9
+    assert 'data-selection-action="adjust-grid"' in menu
+    assert 'data-selection-action="fit-grid"' in menu
+
+
+def test_selection_context_actions_keep_resize_scale_and_bounds_contract() -> None:
+    component_source = _component_source()
+    app_source = _ui_app_source()
+
+    position = component_source[
+        component_source.index("function positionSelectionAtNearestGrid()") :
+        component_source.index("function fitSelectionProportionallyToNearestGrid()")
+    ]
+    fit = component_source[
+        component_source.index("function fitSelectionProportionallyToNearestGrid()") :
+        component_source.index("function alignSelectionInsideNearestGrid(anchor)")
+    ]
+    align = component_source[
+        component_source.index("function alignSelectionInsideNearestGrid(anchor)") :
+        component_source.index("function emitFloatingSelectionAction(action")
+    ]
+
+    assert "Math.round(current.left / grid) * grid" in position
+    assert "Math.round(current.top / grid) * grid" in position
+    assert "}, 1);" in position
+    assert "const uniformScale = Math.min(" in fit
+    assert "const fittedWidth = sourceWidth * uniformScale" in fit
+    assert "const fittedHeight = sourceHeight * uniformScale" in fit
+    assert "}, uniformScale);" in fit
+    assert "state.resizeScaleOverride === null" in component_source
+    assert "data-selection-align-anchor" in component_source
+    assert "}, 1);" in align
+    assert "Image.Resampling.NEAREST" in app_source
+    assert "Math.min(Math.max(0, state.width - targetWidth), Math.round(targetRect.left))" in component_source
+    assert "Math.min(Math.max(0, state.height - targetHeight), Math.round(targetRect.top))" in component_source
+
+
+def test_selection_repeat_preview_is_local_non_emitting_and_resets_without_selection() -> None:
+    source = _component_source()
+    toggle = source[
+        source.index("function toggleRepeatPreview()") :
+        source.index("function previewFitSelectionToGrid()")
+    ]
+    draw = source[
+        source.index("if (state.floatingRepeatPreview) {") :
+        source.index("context.drawImage(\n            state.floatingSelection", source.index("if (state.floatingRepeatPreview) {"))
+    ]
+    mode_ui = source[
+        source.index("if ((!layerMode && !backgroundMode) || !state.floatingSelection)") :
+        source.index("document.body.dataset.mode", source.index("if ((!layerMode && !backgroundMode) || !state.floatingSelection)"))
+    ]
+
+    assert "emitValue" not in toggle
+    assert "for (const offsetY of [-1, 0, 1])" in draw
+    assert "for (const offsetX of [-1, 0, 1])" in draw
+    assert "if (!offsetX && !offsetY) continue" in draw
+    assert "context.imageSmoothingEnabled = false" in source[: source.index("if (state.floatingRepeatPreview)")]
+    assert "context.clip()" in draw
+    assert "state.floatingRepeatPreview = false" in mode_ui
+    assert "updateRepeatPreviewControl()" in mode_ui
 
 
 def test_right_click_opens_selection_menu_without_committing_floating_transform() -> None:

@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import importlib
+import inspect
 import io
 import json
 import os
 import uuid
 import zipfile
+from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -62,9 +65,17 @@ from sprite_builder.sheets import (
     select_similar_pixels,
     shift_mask,
     transform_cel_selection,
-    transform_masked_pixels,
     trim_transparent_frames,
 )
+from sprite_builder.sheets import manual as _manual_module
+
+# Streamlit can rerun this entrypoint while dependencies still contain an older
+# function signature. Refresh only incompatible editor modules, preserving the
+# session and avoiding module reloads during normal editing.
+if "source_bounds" not in inspect.signature(_manual_module.transform_masked_pixels).parameters:
+    importlib.reload(_manual_module)
+from sprite_builder.sheets.manual import transform_masked_pixels
+
 from sprite_builder.sheets.models import ExportCropConfig
 from sprite_builder.tilesets import (
     TerrainEdgeProfile,
@@ -107,6 +118,13 @@ from sprite_builder.tilesets.palette_analyzer import (
     generate_biome_ecosystem_sets,
     harvest_image_terrain_tiles,
 )
+from sprite_builder.ui import components as _components_module
+
+if not {
+    "acknowledged_event_id",
+    "image_revision",
+}.issubset(inspect.signature(_components_module.pixel_editor).parameters):
+    importlib.reload(_components_module)
 from sprite_builder.ui.components import (
     header_navigation,
     image_data_uri,
@@ -447,6 +465,56 @@ def _compose_direct_studio_export(
             dest=(int(floating_x), int(floating_y)),
         )
     return result
+
+
+def _direct_studio_export_png(
+    prefix: str,
+    background: Image.Image,
+    *,
+    background_revision: str,
+    floating_piece: Image.Image | None,
+    floating_x: int,
+    floating_y: int,
+    operation_kind: str,
+) -> bytes:
+    """Encode an exact visible Studio revision once, including uncommitted placement."""
+
+    floating_revision = None
+    if floating_piece is not None:
+        rgba = floating_piece.convert("RGBA")
+        floating_revision = hashlib.sha256(rgba.tobytes()).hexdigest()
+    revision = _stable_ui_signature(
+        {
+            "background": background_revision,
+            "floating": floating_revision,
+            "floating_x": int(floating_x),
+            "floating_y": int(floating_y),
+            "operation_kind": str(operation_kind),
+        }
+    )
+    cache_key = f"{prefix}:direct_export_png_cache"
+    cache = st.session_state.get(cache_key)
+    if not isinstance(cache, OrderedDict):
+        cache = OrderedDict()
+    cached = cache.get(revision)
+    if isinstance(cached, bytes):
+        cache.move_to_end(revision)
+        return cached
+    composed = _compose_direct_studio_export(
+        background,
+        floating_piece=floating_piece,
+        floating_x=floating_x,
+        floating_y=floating_y,
+    )
+    payload = _png_bytes(composed)
+    cache[revision] = payload
+    cache_bytes = sum(len(item) for item in cache.values() if isinstance(item, bytes))
+    while len(cache) > 4 or (cache_bytes > 16 * 1024 * 1024 and len(cache) > 1):
+        _, removed = cache.popitem(last=False)
+        if isinstance(removed, bytes):
+            cache_bytes -= len(removed)
+    st.session_state[cache_key] = cache
+    return payload
 
 
 _PALETTE_CACHE: dict[tuple[int, int, bytes], list[str]] = {}
@@ -3514,12 +3582,17 @@ def _unpack_selection_masks(
 
 def _background_history_snapshot(prefix: str) -> dict[str, Any]:
     operations = st.session_state.get(f"{prefix}:background_manual_ops", {})
-    return {
-        "manual_operations": json.loads(json.dumps(operations)),
-        "selection_masks": _pack_selection_masks(
-            st.session_state.get(f"{prefix}:background_selection_masks", [])
-        ),
-    }
+    packed_masks = _pack_selection_masks(
+        st.session_state.get(f"{prefix}:background_selection_masks", [])
+    )
+    operations_json = json.dumps(operations, sort_keys=True, separators=(",", ":"))
+    revision = _stable_ui_signature(
+        {"manual_operations": operations_json, "selection_masks": packed_masks}
+    )
+    pool = st.session_state.setdefault(f"{prefix}:background_history_revisions", {})
+    if revision not in pool:
+        pool[revision] = (operations_json, tuple(packed_masks))
+    return {"revision": revision}
 
 
 def _clear_background_floating_selection(prefix: str) -> None:
@@ -3608,6 +3681,25 @@ def _record_editor_history(
     if len(stacks["undo"]) > _EDITOR_HISTORY_LIMIT:
         del stacks["undo"][:-_EDITOR_HISTORY_LIMIT]
     stacks["redo"].clear()
+    if scope == "background":
+        referenced = {
+            revision
+            for stack_name in ("undo", "redo")
+            for command in stacks[stack_name]
+            for snapshot_name in ("before", "after")
+            if isinstance(command.get(snapshot_name), Mapping)
+            if isinstance(
+                revision := command[snapshot_name].get("revision"), str
+            )
+        }
+        pool_key = f"{session.session_id}:background_history_revisions"
+        pool = st.session_state.get(pool_key)
+        if isinstance(pool, dict):
+            st.session_state[pool_key] = {
+                revision: value
+                for revision, value in pool.items()
+                if revision in referenced
+            }
     return True
 
 
@@ -3620,12 +3712,22 @@ def _apply_editor_history_snapshot(
     prefix = session.session_id
     if scope == "background":
         raw_operations = snapshot.get("manual_operations", {})
+        packed_masks = snapshot.get("selection_masks", [])
+        revision = snapshot.get("revision")
+        if isinstance(revision, str):
+            pooled = st.session_state.get(
+                f"{prefix}:background_history_revisions", {}
+            ).get(revision)
+            if not (isinstance(pooled, tuple) and len(pooled) == 2):
+                raise ValueError(f"Missing background history revision {revision}")
+            raw_operations = json.loads(pooled[0])
+            packed_masks = pooled[1]
         st.session_state[f"{prefix}:background_manual_ops"] = {
             int(index): [dict(item) for item in items]
             for index, items in raw_operations.items()
         }
         st.session_state[f"{prefix}:background_selection_masks"] = _unpack_selection_masks(
-            snapshot.get("selection_masks", [])
+            packed_masks
         )
         _clear_background_floating_selection(prefix)
         return
@@ -3734,15 +3836,33 @@ def _history_label(scope: str, event: Mapping[str, Any]) -> str:
             if str(event.get("operationKind", "")) == "copy_mask":
                 return "Pegar selección"
             return "Mover selección"
+        if event_type == "floating-selection-action":
+            return (
+                "Recortar al contenido visible"
+                if str(event.get("action", "")) == "trim-visible"
+                else "Duplicar selección al grid"
+            )
         if event_type == "crop":
             return _background_tool_label(tool)
-        return "Borrador" if tool == "eraser" or event_type == "edit-batch" else "Varita"
+        if event_type in {"pointer", "pointerdown", "pointermove"}:
+            if tool == "fill":
+                return "cubeta / relleno"
+            return _background_tool_label(tool)
+        if event_type == "edit-batch":
+            return "Lápiz / borrador"
+        return _background_tool_label(tool)
     if scope == "studio":
         if event_type == "floating-resize" and bool(event.get("fitGrid")):
             return (
                 "Ajustar selección al grid"
                 if str(event.get("fitGridMode", "")) == "adjust"
                 else "Encajar selección al grid"
+            )
+        if event_type == "floating-selection-action":
+            return (
+                "Recortar al contenido visible"
+                if str(event.get("action", "")) == "trim-visible"
+                else "Duplicar selección al grid"
             )
         return {
             "edit-batch": "Pintar",
@@ -3940,6 +4060,109 @@ def _alpha_fit_bounds(
         left += local_left
         right = left + (local_right - local_left)
     return left, top, right, bottom
+
+
+def _event_integer(value: Any) -> int | None:
+    """Parse a frontend coordinate only when it is a finite integer."""
+
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, (float, np.floating)):
+        numeric = float(value)
+        if not np.isfinite(numeric) or not numeric.is_integer():
+            return None
+        return int(numeric)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return int(text)
+        except ValueError:
+            return None
+    return None
+
+
+def _duplicate_grid_delta(event: Mapping[str, Any]) -> tuple[int, int] | None:
+    """Resolve a safe integer neighbor offset from a contextual action."""
+
+    directions = {
+        "left": (-1, 0),
+        "right": (1, 0),
+        "up": (0, -1),
+        "down": (0, 1),
+    }
+    direction = str(
+        event.get("direction", event.get("gridDirection", event.get("grid_direction", "")))
+    ).strip().lower()
+    direction_delta = directions.get(direction)
+    raw_grid = event.get(
+        "pixelGridSize",
+        event.get("pixel_grid_size", event.get("gridSize", event.get("grid_size", 1))),
+    )
+    grid_size = _event_integer(raw_grid)
+    if grid_size is None or grid_size <= 0:
+        grid_size = 1
+
+    has_delta_x = "deltaX" in event and event.get("deltaX") is not None
+    has_delta_y = "deltaY" in event and event.get("deltaY") is not None
+    delta_x = _event_integer(event.get("deltaX")) if has_delta_x else None
+    delta_y = _event_integer(event.get("deltaY")) if has_delta_y else None
+    if (has_delta_x and delta_x is None) or (has_delta_y and delta_y is None):
+        return None
+    if delta_x is None:
+        if direction_delta is None:
+            delta_x = 0
+        else:
+            delta_x = direction_delta[0] * grid_size
+    if delta_y is None:
+        if direction_delta is None:
+            delta_y = 0
+        else:
+            delta_y = direction_delta[1] * grid_size
+    if delta_x == 0 and delta_y == 0:
+        return None
+    return int(delta_x), int(delta_y)
+
+
+def _alpha_mask_in_bounds(
+    image: Image.Image,
+    bounds: tuple[int, int, int, int] | None,
+) -> np.ndarray:
+    """Return real-alpha pixels restricted to a dense visual rectangle."""
+
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8)
+    mask = rgba[..., 3] > 0
+    if bounds is None:
+        return np.zeros(mask.shape, dtype=bool)
+    x0, y0, x1, y1 = (int(value) for value in bounds)
+    constrained = np.zeros(mask.shape, dtype=bool)
+    x0 = max(0, min(mask.shape[1], x0))
+    x1 = max(x0, min(mask.shape[1], x1))
+    y0 = max(0, min(mask.shape[0], y0))
+    y1 = max(y0, min(mask.shape[0], y1))
+    constrained[y0:y1, x0:x1] = mask[y0:y1, x0:x1]
+    return constrained
+
+
+def _image_with_alpha_mask(image: Image.Image, mask: np.ndarray) -> Image.Image:
+    """Keep exact RGBA pixels while making every unselected pixel transparent."""
+
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+    if mask.shape != rgba.shape[:2]:
+        raise ValueError("Floating selection mask must match image size")
+    rgba[~np.asarray(mask, dtype=bool), 3] = 0
+    return Image.fromarray(rgba, "RGBA")
+
+
+def _images_equal(left: Image.Image | None, right: Image.Image | None) -> bool:
+    if not isinstance(left, Image.Image) or not isinstance(right, Image.Image):
+        return False
+    if left.size != right.size or left.mode != "RGBA" or right.mode != "RGBA":
+        return False
+    return bool(np.array_equal(np.asarray(left), np.asarray(right)))
 
 
 def _onion_skin_tint(
@@ -4507,6 +4730,9 @@ def _handle_layer_editor_event(
     can_move_locked_source = event_type == "transform" and tool == "move"
     can_move_floating_selection = event_type in {"floating-transform", "floating-resize"} and tool == "move"
     can_cancel_floating_selection = event_type == "floating-selection" and event.get("action") == "cancel"
+    can_edit_floating_selection = event_type == "floating-selection-action" and str(
+        event.get("action", "")
+    ) in {"trim-visible", "duplicate-grid"}
     can_cut_locked_source = event_type == "crop" and tool in {
         "crop_lasso",
         "crop_rect",
@@ -4517,6 +4743,7 @@ def _handle_layer_editor_event(
         and not can_move_locked_source
         and not can_move_floating_selection
         and not can_cancel_floating_selection
+        and not can_edit_floating_selection
         and not can_cut_locked_source
     ):
         st.session_state[f"{prefix}:layer_editor_notice"] = (
@@ -4550,6 +4777,186 @@ def _handle_layer_editor_event(
                 reason="cancel-floating-selection",
             )
         _clear_floating_selection(prefix)
+        return True
+    if event_type == "floating-selection-action":
+        action = str(event.get("action", ""))
+        if action not in {"trim-visible", "duplicate-grid"}:
+            return False
+        selection = st.session_state.get(f"{prefix}:layer_editor_floating_selection")
+        selection_layer_id = active_layer_id
+        floating_frames: dict[Any, Any] = {}
+        if isinstance(selection, dict):
+            raw_layer_id = selection.get("layer_id")
+            if raw_layer_id in {layer.layer_id for layer in document.layers}:
+                selection_layer_id = str(raw_layer_id)
+            raw_frames = selection.get("frames")
+            if isinstance(raw_frames, dict):
+                floating_frames = raw_frames
+
+        if action == "trim-visible":
+            if not floating_frames:
+                return False
+            updated_frames: dict[int, dict[str, Any]] = {}
+            base_changed = False
+            state_changed = False
+            for raw_index, raw_floating in floating_frames.items():
+                frame_index = _event_integer(raw_index)
+                if frame_index is None or not isinstance(raw_floating, dict):
+                    continue
+                original = raw_floating.get("original")
+                piece = raw_floating.get("piece")
+                mask = raw_floating.get("mask")
+                if (
+                    not isinstance(original, Image.Image)
+                    or not isinstance(piece, Image.Image)
+                    or not isinstance(mask, np.ndarray)
+                    or original.size != piece.size
+                    or mask.shape != (piece.height, piece.width)
+                ):
+                    updated_frames[frame_index] = raw_floating
+                    continue
+                bounds = _alpha_fit_bounds(piece)
+                if bounds is None:
+                    updated_frames[frame_index] = raw_floating
+                    continue
+                next_mask = _alpha_mask_in_bounds(piece, bounds)
+                if not next_mask.any():
+                    updated_frames[frame_index] = raw_floating
+                    continue
+                next_piece = _image_with_alpha_mask(original, next_mask)
+                next_remainder = original.convert("RGBA").copy()
+                remainder_rgba = np.asarray(next_remainder, dtype=np.uint8).copy()
+                remainder_rgba[next_mask, 3] = 0
+                next_remainder = Image.fromarray(remainder_rgba, "RGBA")
+                current = images.get((selection_layer_id, frame_index))
+                if not _images_equal(current, next_remainder):
+                    images[(selection_layer_id, frame_index)] = next_remainder
+                    base_changed = True
+                updated = dict(raw_floating)
+                updated["mask"] = next_mask
+                updated["piece"] = next_piece
+                updated["remainder"] = next_remainder
+                updated["bounds"] = bounds
+                updated_frames[frame_index] = updated
+                if (
+                    not isinstance(raw_floating.get("mask"), np.ndarray)
+                    or not np.array_equal(raw_floating["mask"], next_mask)
+                    or not _images_equal(raw_floating.get("piece"), next_piece)
+                    or not _images_equal(raw_floating.get("remainder"), next_remainder)
+                    or tuple(raw_floating.get("bounds", ())) != tuple(bounds)
+                ):
+                    state_changed = True
+                _set_layer_selection_mask(
+                    prefix,
+                    selection_layer_id,
+                    frame_index,
+                    next_mask,
+                )
+            if not updated_frames or not state_changed and not base_changed:
+                return False
+            next_selection = dict(selection) if isinstance(selection, dict) else {}
+            next_selection["layer_id"] = selection_layer_id
+            next_selection["frames"] = updated_frames
+            st.session_state[f"{prefix}:layer_editor_floating_selection"] = next_selection
+            st.session_state[tool_key] = "move"
+            st.session_state[f"{prefix}:layer_editor_notice"] = (
+                "Selección ajustada al contenido visible. Puedes moverla; Esc cancela."
+            )
+            if base_changed:
+                store.save_layer_document(
+                    session,
+                    document.revised(),
+                    images,
+                    reason="trim-floating-selection",
+                )
+            return True
+
+        delta = _duplicate_grid_delta(event)
+        if delta is None:
+            st.session_state[f"{prefix}:layer_editor_notice"] = (
+                "La duplicación al grid necesita una dirección y un desplazamiento entero."
+            )
+            return False
+        delta_x, delta_y = delta
+        source_entries: list[tuple[int, dict[str, Any] | None]] = []
+        if floating_frames:
+            for raw_index, raw_floating in floating_frames.items():
+                frame_index = _event_integer(raw_index)
+                if frame_index is not None:
+                    source_entries.append((frame_index, raw_floating if isinstance(raw_floating, dict) else None))
+        else:
+            source_entries = [
+                (frame_index, None)
+                for frame_index in (frames or (active_frame,))
+            ]
+        next_frames: dict[int, dict[str, Any]] = {}
+        base_changed = False
+        for frame_index, floating in source_entries:
+            cel = document.cel(selection_layer_id, frame_index)
+            current = images.get((selection_layer_id, frame_index))
+            if cel is None or not isinstance(current, Image.Image):
+                continue
+            if floating is not None:
+                original = floating.get("original")
+                source_mask = floating.get("mask")
+            else:
+                original = current.copy()
+                source_mask = _layer_selection_mask(prefix, selection_layer_id, frame_index)
+            if (
+                not isinstance(original, Image.Image)
+                or not isinstance(source_mask, np.ndarray)
+                or source_mask.shape != (original.height, original.width)
+                or not source_mask.any()
+            ):
+                continue
+            copied, next_mask = transform_masked_pixels(
+                original,
+                source_mask,
+                clear_source=False,
+                offset_x=delta_x,
+                offset_y=delta_y,
+            )
+            piece = _image_with_alpha_mask(copied, next_mask)
+            bounds = _alpha_fit_bounds(piece)
+            if bounds is None:
+                continue
+            restored = original.convert("RGBA").copy()
+            if not _images_equal(current, restored):
+                images[(selection_layer_id, frame_index)] = restored
+                base_changed = True
+            next_frames[frame_index] = {
+                "mask": next_mask,
+                "piece": piece,
+                "original": restored.copy(),
+                "remainder": restored.copy(),
+                "offset_x": cel.offset_x,
+                "offset_y": cel.offset_y,
+                "bounds": bounds,
+            }
+            _set_layer_selection_mask(
+                prefix,
+                selection_layer_id,
+                frame_index,
+                next_mask,
+            )
+        if not next_frames:
+            return False
+        next_selection = dict(selection) if isinstance(selection, dict) else {}
+        next_selection["layer_id"] = selection_layer_id
+        next_selection["frames"] = next_frames
+        next_selection["shape"] = "grid-duplicate"
+        st.session_state[f"{prefix}:layer_editor_floating_selection"] = next_selection
+        st.session_state[tool_key] = "move"
+        st.session_state[f"{prefix}:layer_editor_notice"] = (
+            "Copia creada en la celda vecina. Puedes moverla; Esc cancela."
+        )
+        if base_changed:
+            store.save_layer_document(
+                session,
+                document.revised(),
+                images,
+                reason="duplicate-grid-floating-selection",
+            )
         return True
     if event_type == "crop" and tool in {"crop_lasso", "crop_rect", "crop_ellipse"}:
         shape = str(event.get("shape", "lasso"))
@@ -5174,6 +5581,7 @@ def _ensure_background_editor_state(
     tolerance_key = f"{prefix}:background_wand_tolerance"
     contiguous_key = f"{prefix}:background_wand_contiguous"
     event_key = f"{prefix}:background_last_event"
+    acknowledged_event_key = f"{prefix}:background_acknowledged_event"
     floating_key = f"{prefix}:background_floating_selection"
     clipboard_key = f"{prefix}:background_clipboard"
     if tool_key not in st.session_state:
@@ -5198,6 +5606,8 @@ def _ensure_background_editor_state(
         st.session_state[contiguous_key] = bool(default_contiguous)
     if event_key not in st.session_state:
         st.session_state[event_key] = None
+    if acknowledged_event_key not in st.session_state:
+        st.session_state[acknowledged_event_key] = ""
     if floating_key not in st.session_state:
         st.session_state[floating_key] = None
     if clipboard_key not in st.session_state:
@@ -5214,6 +5624,86 @@ def _selection_mode_from_event(event: dict[str, Any]) -> str:
     return "replace"
 
 
+def _delete_background_selection_callback(session: Any, selected_frame: int) -> None:
+    """Apply a native selection action before Streamlit renders the canvas."""
+
+    prefix = session.session_id
+    selections = list(st.session_state[f"{prefix}:background_selection_masks"])
+    mask = selections[selected_frame]
+    if not isinstance(mask, np.ndarray) or not mask.any():
+        return
+    history_before = _background_history_snapshot(prefix)
+    operations = {
+        int(index): [dict(item) for item in items]
+        for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
+    }
+    operations.setdefault(selected_frame, []).append(
+        {"kind": "erase_mask", **encode_mask(mask)}
+    )
+    selections[selected_frame] = None
+    st.session_state[f"{prefix}:background_manual_ops"] = operations
+    st.session_state[f"{prefix}:background_selection_masks"] = selections
+    _record_editor_history(
+        session,
+        scope="background",
+        label="Borrar selección",
+        before=history_before,
+        after=_background_history_snapshot(prefix),
+    )
+
+
+def _clear_background_selection_callback(session: Any, selected_frame: int) -> None:
+    prefix = session.session_id
+    selections = list(st.session_state[f"{prefix}:background_selection_masks"])
+    mask = selections[selected_frame]
+    if not isinstance(mask, np.ndarray) or not mask.any():
+        return
+    history_before = _background_history_snapshot(prefix)
+    selections[selected_frame] = None
+    st.session_state[f"{prefix}:background_selection_masks"] = selections
+    _record_editor_history(
+        session,
+        scope="background",
+        label="Limpiar selección",
+        before=history_before,
+        after=_background_history_snapshot(prefix),
+    )
+
+
+def _reset_background_frame_callback(session: Any, selected_frame: int) -> None:
+    prefix = session.session_id
+    history_before = _background_history_snapshot(prefix)
+    operations = st.session_state[f"{prefix}:background_manual_ops"]
+    st.session_state[f"{prefix}:background_manual_ops"] = {
+        int(index): [dict(item) for item in items]
+        for index, items in operations.items()
+        if int(index) != selected_frame and items
+    }
+    _clear_background_floating_selection(prefix)
+    _record_editor_history(
+        session,
+        scope="background",
+        label="Restablecer frame",
+        before=history_before,
+        after=_background_history_snapshot(prefix),
+    )
+
+
+def _reset_all_background_callback(session: Any) -> None:
+    prefix = session.session_id
+    history_before = _background_history_snapshot(prefix)
+    st.session_state[f"{prefix}:background_manual_ops"] = {}
+    st.session_state[f"{prefix}:background_selection_masks"] = [None]
+    _clear_background_floating_selection(prefix)
+    _record_editor_history(
+        session,
+        scope="background",
+        label="Restablecer fondo",
+        before=history_before,
+        after=_background_history_snapshot(prefix),
+    )
+
+
 def _handle_background_editor_event(
     session: Any,
     frames: Sequence[Image.Image],
@@ -5226,11 +5716,27 @@ def _handle_background_editor_event(
     if not event:
         return False
     prefix = session.session_id
+    event_type = str(event.get("type", ""))
     event_id = event.get("eventId")
     last_event = st.session_state.get(f"{prefix}:background_last_event")
+    if event_type == "render-refresh":
+        # A refresh is only a retry for the event named by ``forEventId``.
+        # Never let its synthetic event id replace the real acknowledgement:
+        # doing so keeps the iframe retry loop alive and lets an old retry
+        # restore a tool that the user has already changed.
+        for_event_id = str(event.get("forEventId", ""))
+        if for_event_id and for_event_id == str(last_event or ""):
+            requested_tool = event.get("tool")
+            if requested_tool is not None:
+                tool = _normalize_background_tool(requested_tool)
+                st.session_state[f"{prefix}:background_tool"] = tool
+                st.session_state[f"{prefix}:background_tool_widget_sync"] = tool
+            st.session_state[f"{prefix}:background_acknowledged_event"] = for_event_id
+        return False
     if not event_id or event_id == last_event:
         return False
     st.session_state[f"{prefix}:background_last_event"] = event_id
+    st.session_state[f"{prefix}:background_acknowledged_event"] = str(event_id)
     if event.get("type") == "key":
         key = str(event.get("key", "")).lower()
         if key in {"b", "p"}:
@@ -5261,9 +5767,13 @@ def _handle_background_editor_event(
             selections = list(st.session_state[f"{prefix}:background_selection_masks"])
             selections[selected_frame] = None
             st.session_state[f"{prefix}:background_selection_masks"] = selections
+            _clear_background_floating_selection(prefix)
         elif key in {"delete", "backspace"}:
             selections = list(st.session_state[f"{prefix}:background_selection_masks"])
             mask = selections[selected_frame]
+            floating = st.session_state.get(f"{prefix}:background_floating_selection")
+            if (mask is None or not mask.any()) and isinstance(floating, dict) and int(floating.get("frame_index", -1)) == selected_frame:
+                mask = floating.get("mask")
             if isinstance(mask, np.ndarray) and mask.size and mask.any():
                 operations = {
                     int(index): [dict(item) for item in items]
@@ -5278,6 +5788,7 @@ def _handle_background_editor_event(
                 selections[selected_frame] = None
                 st.session_state[f"{prefix}:background_manual_ops"] = operations
                 st.session_state[f"{prefix}:background_selection_masks"] = selections
+            _clear_background_floating_selection(prefix)
         return True
 
     if event.get("type") == "toolbar":
@@ -5298,7 +5809,7 @@ def _handle_background_editor_event(
             st.session_state[f"{prefix}:background_brush_radius"] = radius
             st.session_state[f"{prefix}:background_brush_radius_widget_sync"] = radius
             return True
-        if action == "wand-settings":
+        if action == "wand-settings" or str(event.get("action", "")) == "wand-settings":
             st.session_state[f"{prefix}:background_wand_tolerance"] = max(
                 0,
                 min(255, int(event.get("wandTolerance", tolerance))),
@@ -5313,8 +5824,226 @@ def _handle_background_editor_event(
             return True
         return False
 
-    event_type = str(event.get("type", ""))
+    if event_type == "floating-selection-action":
+        action = str(event.get("action", ""))
+        if action not in {"trim-visible", "duplicate-grid"}:
+            return False
+        frame = frames[selected_frame]
+        selections = list(st.session_state[f"{prefix}:background_selection_masks"])
+        floating = st.session_state.get(f"{prefix}:background_floating_selection")
+        if (
+            not isinstance(floating, dict)
+            or int(floating.get("frame_index", -1)) != selected_frame
+            or not isinstance(floating.get("piece"), Image.Image)
+            or not isinstance(floating.get("mask"), np.ndarray)
+        ):
+            floating = None
+
+        if action == "trim-visible":
+            if floating is None:
+                return False
+            piece = floating["piece"]
+            mask = np.asarray(floating["mask"], dtype=bool)
+            if mask.shape != (piece.height, piece.width):
+                return False
+            bounds = _alpha_fit_bounds(piece)
+            if bounds is None:
+                return False
+            next_mask = _alpha_mask_in_bounds(piece, bounds)
+            if not next_mask.any():
+                return False
+            previous_mask = floating.get("mask")
+            previous_piece = floating.get("piece")
+            previous_remainder = floating.get("remainder")
+            previous_bounds = tuple(floating.get("bounds", ()))
+            pending_copy = bool(floating.get("pending_copy"))
+            operations_changed = False
+            if pending_copy:
+                source_base = floating.get("source_base")
+                source_mask = floating.get("source_mask")
+                if (
+                    not isinstance(source_base, Image.Image)
+                    or not isinstance(source_mask, np.ndarray)
+                    or source_mask.shape != (source_base.height, source_base.width)
+                ):
+                    return False
+                source_piece = _image_with_alpha_mask(source_base, source_mask)
+                source_bounds = _alpha_fit_bounds(source_piece)
+                if source_bounds is None:
+                    return False
+                trimmed_source_mask = _alpha_mask_in_bounds(source_piece, source_bounds)
+                copy_offset_x = int(floating.get("copy_offset_x", 0))
+                copy_offset_y = int(floating.get("copy_offset_y", 0))
+                copied, next_mask = transform_masked_pixels(
+                    source_base,
+                    trimmed_source_mask,
+                    clear_source=False,
+                    offset_x=copy_offset_x,
+                    offset_y=copy_offset_y,
+                )
+                next_piece = _image_with_alpha_mask(copied, next_mask)
+                next_bounds = _alpha_fit_bounds(next_piece)
+                if next_bounds is None:
+                    return False
+                next_remainder = floating.get("remainder")
+                if not isinstance(next_remainder, Image.Image):
+                    next_remainder = source_base.copy()
+                next_source_mask = trimmed_source_mask
+                replacement = {
+                    "kind": "copy_mask",
+                    **encode_mask(next_source_mask),
+                    "offset_x": copy_offset_x,
+                    "offset_y": copy_offset_y,
+                    "quarter_turns": 0,
+                }
+                operations = {
+                    int(index): [dict(item) for item in items]
+                    for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
+                }
+                operation_target = floating.get("copy_operation")
+                items = operations.setdefault(selected_frame, [])
+                replaced = False
+                for operation_index in range(len(items) - 1, -1, -1):
+                    if operation_target is None or items[operation_index] == operation_target:
+                        items[operation_index] = replacement
+                        replaced = True
+                        break
+                if not replaced:
+                    items.append(replacement)
+                operations_changed = operations != st.session_state[
+                    f"{prefix}:background_manual_ops"
+                ]
+                st.session_state[f"{prefix}:background_manual_ops"] = operations
+                floating["source_mask"] = next_source_mask
+                floating["copy_operation"] = replacement
+                floating["piece"] = next_piece
+                floating["mask"] = next_mask
+                floating["remainder"] = next_remainder.copy()
+                floating["bounds"] = next_bounds
+                bounds = next_bounds
+            else:
+                next_piece = _image_with_alpha_mask(piece, next_mask)
+                next_remainder = frame.convert("RGBA").copy()
+                remainder_rgba = np.asarray(next_remainder, dtype=np.uint8).copy()
+                remainder_rgba[next_mask, 3] = 0
+                next_remainder = Image.fromarray(remainder_rgba, "RGBA")
+                floating["piece"] = next_piece
+                floating["mask"] = next_mask
+                floating["remainder"] = next_remainder
+                floating["bounds"] = bounds
+
+            state_changed = (
+                not isinstance(previous_mask, np.ndarray)
+                or not np.array_equal(previous_mask, next_mask)
+                or not _images_equal(previous_piece, next_piece)
+                or not _images_equal(previous_remainder, floating.get("remainder"))
+                or previous_bounds != tuple(bounds)
+            )
+            state_changed = state_changed or operations_changed
+            selections[selected_frame] = next_mask
+            st.session_state[f"{prefix}:background_selection_masks"] = selections
+            st.session_state[f"{prefix}:background_floating_selection"] = floating
+            st.session_state[f"{prefix}:background_tool"] = "move"
+            st.session_state[f"{prefix}:background_tool_widget_sync"] = "move"
+            st.session_state[f"{prefix}:background_notice"] = (
+                "Selección ajustada al contenido visible. Puedes moverla; Esc cancela."
+            )
+            return bool(state_changed)
+
+        delta = _duplicate_grid_delta(event)
+        if delta is None:
+            st.session_state[f"{prefix}:background_notice"] = (
+                "La duplicación al grid necesita una dirección y un desplazamiento entero."
+            )
+            return False
+        delta_x, delta_y = delta
+        if floating is not None:
+            source_mask = np.asarray(floating["mask"], dtype=bool)
+            source_base = floating.get("source_base")
+            if not isinstance(source_base, Image.Image):
+                source_base = frame.convert("RGBA").copy()
+            copy_offset_x = int(floating.get("copy_offset_x", floating.get("x", 0))) + delta_x
+            copy_offset_y = int(floating.get("copy_offset_y", floating.get("y", 0))) + delta_y
+        else:
+            source_mask = selections[selected_frame]
+            source_base = frame.convert("RGBA").copy()
+            copy_offset_x = delta_x
+            copy_offset_y = delta_y
+        if (
+            not isinstance(source_mask, np.ndarray)
+            or source_mask.shape != (source_base.height, source_base.width)
+            or not source_mask.any()
+        ):
+            return False
+        copied, next_mask = transform_masked_pixels(
+            source_base,
+            source_mask,
+            clear_source=False,
+            offset_x=copy_offset_x,
+            offset_y=copy_offset_y,
+        )
+        next_piece = _image_with_alpha_mask(copied, next_mask)
+        next_bounds = _alpha_fit_bounds(next_piece)
+        if next_bounds is None:
+            return False
+        copy_operation = {
+            "kind": "copy_mask",
+            **encode_mask(source_mask),
+            "offset_x": copy_offset_x,
+            "offset_y": copy_offset_y,
+            "quarter_turns": 0,
+        }
+        operations = {
+            int(index): [dict(item) for item in items]
+            for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
+        }
+        operations.setdefault(selected_frame, []).append(copy_operation)
+        st.session_state[f"{prefix}:background_manual_ops"] = operations
+        floating_remainder = source_base.copy()
+        st.session_state[f"{prefix}:background_floating_selection"] = {
+            "frame_index": selected_frame,
+            "mask": next_mask,
+            "piece": next_piece,
+            "remainder": floating_remainder,
+            "tool": "move",
+            "bounds": next_bounds,
+            "operation_kind": "move_mask",
+            "quarter_turns": 0,
+            "x": 0,
+            "y": 0,
+            "pending_copy": True,
+            "source_mask": source_mask.copy(),
+            "source_base": source_base.copy(),
+            "copy_offset_x": copy_offset_x,
+            "copy_offset_y": copy_offset_y,
+            "copy_operation": copy_operation,
+        }
+        selections[selected_frame] = next_mask
+        st.session_state[f"{prefix}:background_selection_masks"] = selections
+        st.session_state[f"{prefix}:background_tool"] = "move"
+        st.session_state[f"{prefix}:background_tool_widget_sync"] = "move"
+        st.session_state[f"{prefix}:background_notice"] = (
+            "Copia creada en la celda vecina. Puedes moverla; Esc cancela."
+        )
+        return True
     if event_type == "floating-selection" and event.get("action") == "cancel":
+        floating = st.session_state.get(f"{prefix}:background_floating_selection")
+        if isinstance(floating, dict) and floating.get("pending_copy"):
+            operation_target = floating.get("copy_operation")
+            operations = {
+                int(index): [dict(item) for item in items]
+                for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
+            }
+            items = operations.get(selected_frame, [])
+            for operation_index in range(len(items) - 1, -1, -1):
+                if operation_target is None or items[operation_index] == operation_target:
+                    del items[operation_index]
+                    break
+            if items:
+                operations[selected_frame] = items
+            else:
+                operations.pop(selected_frame, None)
+            st.session_state[f"{prefix}:background_manual_ops"] = operations
         _clear_background_floating_selection(prefix)
         selections = list(st.session_state[f"{prefix}:background_selection_masks"])
         selections[selected_frame] = None
@@ -5798,7 +6527,6 @@ def _handle_background_editor_event(
             for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
         }
         operations.setdefault(selected_frame, []).append(operation)
-        st.session_state[f"{prefix}:background_manual_ops"] = operations
         resized_frame, next_mask = transform_masked_pixels(
             frames[selected_frame],
             mask,
@@ -5811,6 +6539,7 @@ def _handle_background_editor_event(
             resize_from_top_left=True,
             source_bounds=source_bounds,
         )
+        st.session_state[f"{prefix}:background_manual_ops"] = operations
         selections = list(st.session_state[f"{prefix}:background_selection_masks"])
         selections[selected_frame] = next_mask
         st.session_state[f"{prefix}:background_selection_masks"] = selections
@@ -5904,13 +6633,13 @@ def _handle_background_editor_event(
     x = int(event.get("x", 0))
     y = int(event.get("y", 0))
     frame = frames[selected_frame]
-    sampled = sample_pixel(frame, (x, y))
-    st.session_state[f"{prefix}:background_sampled_color"] = sampled
-    st.session_state[f"{prefix}:background_color_picker_sync"] = _rgb_to_hex(sampled[:3])
     tool = _normalize_background_tool(event.get("tool", st.session_state[f"{prefix}:background_tool"]))
     st.session_state[f"{prefix}:background_tool"] = tool
     st.session_state[f"{prefix}:background_tool_widget_sync"] = tool
     if tool == "eyedropper":
+        sampled = sample_pixel(frame, (x, y))
+        st.session_state[f"{prefix}:background_sampled_color"] = sampled
+        st.session_state[f"{prefix}:background_color_picker_sync"] = _rgb_to_hex(sampled[:3])
         return True
     if tool == "eraser":
         stroke = event.get("path")
@@ -6715,41 +7444,79 @@ def _ensure_sheet_processing(
     edit invalidates only this derived in-memory result.
     """
 
-    signature = _stable_ui_signature(
-        {
-            "source_sha256": session.source_sha256,
-            "background": background_config.to_dict(),
-            "segmentation": segmentation_config.to_dict(),
-            "manual_operations": manual_operations,
+    prefix = session.session_id
+    base_signature = _stable_ui_signature(
+        {"source_sha256": session.source_sha256, "background": background_config.to_dict()}
+    )
+    base_key = f"{prefix}:background_base_cache"
+    base_cached = st.session_state.get(base_key)
+    if isinstance(base_cached, dict) and base_cached.get("signature") == base_signature:
+        background_base = base_cached.get("image")
+    else:
+        reports: list[dict[str, Any]] = []
+        background_base = apply_background_removal(
+            (source,), background_config, reports=reports
+        )[0]
+        st.session_state[base_key] = {
+            "signature": base_signature, "image": background_base, "reports": reports
         }
-    )
-    cache_key = f"{session.session_id}:sheet_processing_cache"
-    cached = st.session_state.get(cache_key)
-    if isinstance(cached, dict) and cached.get("signature") == signature:
-        cached_background = cached.get("background_source")
-        cached_segmentation = cached.get("segmentation")
-        if isinstance(cached_background, Image.Image) and cached_segmentation is not None:
-            return cached_background, cached_segmentation, signature
 
-    background_reports: list[dict[str, Any]] = []
-    background_source = apply_background_removal(
-        (source,), background_config, reports=background_reports
-    )[0]
-    background_source = apply_manual_background_edits(
-        (background_source,),
-        manual_operations,
-    )[0]
-    segmentation = segment_sheet(
-        background_source,
-        segmentation_config,
-        background_rgb=background_config.color,
+    ordered_ops = [dict(item) for item in manual_operations.get(0, ())]
+    ops_signatures = [base_signature]
+    for operation in ordered_ops:
+        operation_signature = _stable_ui_signature(operation)
+        ops_signatures.append(
+            hashlib.sha256(
+                f"{ops_signatures[-1]}:{operation_signature}".encode("ascii")
+            ).hexdigest()
+        )
+    checkpoints_key = f"{prefix}:background_edit_checkpoints"
+    checkpoints = st.session_state.get(checkpoints_key)
+    if not isinstance(checkpoints, OrderedDict):
+        checkpoints = OrderedDict()
+    start = 0
+    background_source = background_base
+    for index in range(len(ops_signatures) - 1, -1, -1):
+        checkpoint = checkpoints.get(ops_signatures[index])
+        if isinstance(checkpoint, Image.Image):
+            start = index
+            background_source = checkpoint
+            checkpoints.move_to_end(ops_signatures[index])
+            break
+    for index in range(start, len(ordered_ops)):
+        background_source = apply_manual_background_edits(
+            (background_source,), {0: [ordered_ops[index]]}
+        )[0]
+        checkpoints[ops_signatures[index + 1]] = background_source
+        checkpoints.move_to_end(ops_signatures[index + 1])
+    checkpoints.setdefault(base_signature, background_base)
+    checkpoint_bytes = sum(
+        image.width * image.height * len(image.getbands())
+        for image in checkpoints.values()
+        if isinstance(image, Image.Image)
     )
-    st.session_state[cache_key] = {
-        "signature": signature,
-        "background_source": background_source,
-        "segmentation": segmentation,
-        "background_reports": background_reports,
-    }
+    while len(checkpoints) > 16 or (
+        checkpoint_bytes > 32 * 1024 * 1024 and len(checkpoints) > 1
+    ):
+        _, removed = checkpoints.popitem(last=False)
+        if isinstance(removed, Image.Image):
+            checkpoint_bytes -= removed.width * removed.height * len(removed.getbands())
+    st.session_state[checkpoints_key] = checkpoints
+
+    signature = _stable_ui_signature(
+        {"background": ops_signatures[-1], "segmentation": segmentation_config.to_dict()}
+    )
+    segmentation_key = f"{prefix}:segmentation_cache"
+    segmentation_cached = st.session_state.get(segmentation_key)
+    if isinstance(segmentation_cached, dict) and segmentation_cached.get("signature") == signature:
+        segmentation = segmentation_cached.get("segmentation")
+    else:
+        segmentation = segment_sheet(
+            background_source, segmentation_config, background_rgb=background_config.color
+        )
+        st.session_state[segmentation_key] = {
+            "signature": signature, "segmentation": segmentation
+        }
     return background_source, segmentation, signature
 
 
@@ -7719,26 +8486,6 @@ def main() -> None:
             except ArtifactIntegrityError:
                 pass
         _ensure_adjustment_state(session, len(working_frames))
-        center_analysis = _ensure_center_analysis(
-            session,
-            working_frames,
-            center_config,
-            frames_signature=working_frames_signature,
-        )
-        try:
-            centered = _ensure_center_result(
-                session,
-                working_frames,
-                center_config,
-                center_analysis,
-                frames_signature=working_frames_signature,
-                manual_offsets=st.session_state[f"{prefix}:offsets"],
-                locked=st.session_state[f"{prefix}:locks"],
-                notes=st.session_state[f"{prefix}:notes"],
-            )
-        except (OverflowError, IndexError) as exc:
-            center_error = str(exc)
-            centered = _fallback_centering(working_frames, center_config)
     except (ValueError, OverflowError) as exc:
         processing_error = str(exc)
 
@@ -7758,10 +8505,6 @@ def main() -> None:
     )
     if processing_error:
         st.error(processing_error)
-    elif center_error:
-        st.warning(
-            f"{center_error} · Se abrió un fallback manual para que puedas ajustar el sheet."
-        )
 
     global_history = _history_controls(session)
     history_col1, history_col2, history_status = st.columns((0.8, 0.8, 4.4), gap="small")
@@ -7868,6 +8611,30 @@ def main() -> None:
     align_tab = prepare_align_tab
     studio_tab = prepare_align_tab
     final_tab = export_tab
+    if (prepare_align_tab.open or export_tab.open) and processing_error is None:
+        center_analysis = _ensure_center_analysis(
+            session,
+            working_frames,
+            center_config,
+            frames_signature=working_frames_signature,
+        )
+        try:
+            centered = _ensure_center_result(
+                session,
+                working_frames,
+                center_config,
+                center_analysis,
+                frames_signature=working_frames_signature,
+                manual_offsets=st.session_state[f"{prefix}:offsets"],
+                locked=st.session_state[f"{prefix}:locks"],
+                notes=st.session_state[f"{prefix}:notes"],
+            )
+        except (OverflowError, IndexError) as exc:
+            center_error = str(exc)
+            centered = _fallback_centering(working_frames, center_config)
+            st.warning(
+                f"{center_error} · Se abrió un fallback manual para que puedas ajustar el sheet."
+            )
     history_notice_key = f"{session.session_id}:editor_history_notice"
     if history_notice_key in st.session_state:
         st.toast(str(st.session_state.pop(history_notice_key)))
@@ -7975,9 +8742,20 @@ def main() -> None:
                     )
                     history_controls = _history_controls(session)
                     bg_palette = _extract_palette_colors(editor_background)
+                    background_frame_revision = (
+                        f"{prefix}:background:{processing_signature}:{selected_bg}"
+                    )
+                    ack_event = st.session_state.get(f"{prefix}:background_acknowledged_event", "")
                     event = pixel_editor(
                         editor_background,
+                        image_revision=f"{background_frame_revision}:image",
+                        acknowledged_event_id=ack_event,
                         overlay=overlay,
+                        overlay_revision=(
+                            f"{background_frame_revision}:overlay:"
+                            f"{int(isinstance(selection_mask, np.ndarray) and selection_mask.any())}:"
+                            f"{floating_piece is not None}"
+                        ),
                         sample=st.session_state[f"{prefix}:background_sampled_color"],
                         paint_color=tuple(
                             st.session_state.get(
@@ -8003,15 +8781,28 @@ def main() -> None:
                         ),
                         zoom=tool_zoom,
                         frame_token=(
-                            f"{prefix}:background:"
-                            f"{_stable_ui_signature(st.session_state[f'{prefix}:background_manual_ops'])}"
+                            background_frame_revision
                         ),
                         **history_controls,
                         key=f"{prefix}:pixel_editor:{selected_bg}",
                     )
                     if _handle_editor_history_event(store, session, event):
+                        event_id = str(event.get("eventId", "") if event else "")
+                        st.session_state[f"{prefix}:background_last_event"] = event_id
+                        st.session_state[f"{prefix}:background_acknowledged_event"] = event_id
+                        # The component invocation above still contains the
+                        # pre-history image. Rebuild it immediately with the
+                        # restored snapshot instead of waiting for another
+                        # pointer event or for the iframe fallback timer.
                         st.rerun()
-                    history_before = _background_history_snapshot(prefix)
+                    new_editor_event = bool(
+                        event and event.get("eventId")
+                        and event.get("eventId") != st.session_state.get(f"{prefix}:background_last_event")
+                    )
+                    history_before = (
+                        _background_history_snapshot(prefix)
+                        if new_editor_event and not _is_editor_zoom_event(event) else {}
+                    )
                     changed = _handle_background_editor_event(
                         session,
                         (background_source,),
@@ -8020,7 +8811,10 @@ def main() -> None:
                         tolerance=manual_tolerance,
                         contiguous=contiguous,
                     )
-                    if changed and event and not _is_editor_zoom_event(event):
+                    if changed and event and not _is_editor_zoom_event(event) and not (
+                        event.get("type") == "toolbar"
+                        and event.get("action") == "tool"
+                    ):
                         _record_editor_history(
                             session,
                             scope="background",
@@ -8037,7 +8831,12 @@ def main() -> None:
                         changes_visible_state = (
                             event_type == "edit-batch"
                             or event_type in {"crop", "selection", "selection-command"}
-                            or event_type in {"floating-transform", "floating-resize", "floating-selection"}
+                            or event_type in {
+                                "floating-transform",
+                                "floating-resize",
+                                "floating-selection",
+                                "floating-selection-action",
+                            }
                             or (
                                 event_type == "clipboard"
                                 and str(event.get("action", "")) == "paste"
@@ -8045,11 +8844,8 @@ def main() -> None:
                             or event_type == "pixel-action"
                             or (
                                 event_type == "toolbar"
-                                and str(event.get("action", "")) == "wand-settings"
-                            )
-                            or (
-                                event_type == "toolbar"
-                                and str(event.get("action", "")) == "zoom"
+                                and str(event.get("action", ""))
+                                in {"tool", "brush-radius", "wand-settings", "zoom"}
                             )
                             or (
                                 event_type in {"pointer", "pointerdown", "pointermove"}
@@ -8064,13 +8860,32 @@ def main() -> None:
                             )
                             or (
                                 event_type == "key"
-                                and key_action in {"escape", "delete", "backspace"}
+                                and key_action
+                                in {
+                                    "b",
+                                    "p",
+                                    "m",
+                                    "l",
+                                    "r",
+                                    "o",
+                                    "i",
+                                    "w",
+                                    "e",
+                                    "escape",
+                                    "delete",
+                                    "backspace",
+                                }
                             )
                         )
                         if changes_visible_state:
-                            # This run was built from the pre-edit pixels. Abort before
-                            # the selection overlay, sampled swatch, or downstream tabs
-                            # render stale state. The next run reuses unaffected caches.
+                            st.session_state[
+                                f"{prefix}:background_acknowledged_event"
+                            ] = str(event.get("eventId", ""))
+                            # The component call was built before this event
+                            # mutated Session State. Render the acknowledged
+                            # state now; otherwise the iframe remains on its
+                            # optimistic preview until another browser event
+                            # happens to trigger a run.
                             st.rerun()
                 left_col, right_col = st.columns((1.15, 0.85), gap="large")
                 with left_col:
@@ -8082,15 +8897,22 @@ def main() -> None:
                             background_source,
                             "Resultado de trabajo",
                         )
-                        direct_export_image = _compose_direct_studio_export(
-                            editor_background,
-                            floating_piece=floating_piece,
-                            floating_x=floating_x,
-                            floating_y=floating_y,
+                        floating_operation_kind = (
+                            str(floating.get("operation_kind", "move_mask"))
+                            if isinstance(floating, dict)
+                            else "move_mask"
                         )
                         st.download_button(
                             "Descargar PNG actual",
-                            data=_png_bytes(direct_export_image),
+                            data=_direct_studio_export_png(
+                                prefix,
+                                editor_background,
+                                background_revision=processing_signature,
+                                floating_piece=floating_piece,
+                                floating_x=floating_x,
+                                floating_y=floating_y,
+                                operation_kind=floating_operation_kind,
+                            ),
                             file_name=f"{session.session_id}-studio.png",
                             mime="image/png",
                             width="stretch",
@@ -8110,9 +8932,10 @@ def main() -> None:
                         st.session_state[color_picker_key] = st.session_state.pop(
                             color_picker_sync_key
                         )
+                    elif color_picker_key not in st.session_state:
+                        st.session_state[color_picker_key] = _rgb_to_hex(sampled_rgba[:3])
                     color_hex = st.color_picker(
                         "Color activo (lápiz / relleno)",
-                        value=_rgb_to_hex(sampled_rgba[:3]),
                         key=color_picker_key,
                     )
                     picked_rgba = (*_hex_to_rgb(color_hex), sampled_rgba[3] if len(sampled_rgba) == 4 else 255)
@@ -8148,49 +8971,22 @@ def main() -> None:
                         f"{'contigua' if contiguous else 'global'}"
                     )
                     action_col1, action_col2 = st.columns(2)
-                    if action_col1.button(
+                    action_col1.button(
                         "Borrar selección",
                         width="stretch",
                         disabled=selection_pixels == 0 or floating_piece is not None,
                         key=f"{prefix}:bg_delete_selection:{selected_bg}",
-                    ):
-                        history_before = _background_history_snapshot(prefix)
-                        operations = {
-                            int(index): [dict(item) for item in items]
-                            for index, items in st.session_state[f"{prefix}:background_manual_ops"].items()
-                        }
-                        if isinstance(selection_mask, np.ndarray) and selection_mask.any():
-                            operations.setdefault(selected_bg, []).append(
-                                {"kind": "erase_mask", **encode_mask(selection_mask)}
-                            )
-                            st.session_state[f"{prefix}:background_manual_ops"] = operations
-                            selection_masks[selected_bg] = None
-                            st.session_state[f"{prefix}:background_selection_masks"] = selection_masks
-                            _record_editor_history(
-                                session,
-                                scope="background",
-                                label="Borrar selección",
-                                before=history_before,
-                                after=_background_history_snapshot(prefix),
-                            )
-                            st.rerun()
-                    if action_col2.button(
+                        on_click=_delete_background_selection_callback,
+                        args=(session, selected_bg),
+                    )
+                    action_col2.button(
                         "Limpiar selección",
                         width="stretch",
                         disabled=selection_pixels == 0 or floating_piece is not None,
                         key=f"{prefix}:bg_clear_selection:{selected_bg}",
-                    ):
-                        history_before = _background_history_snapshot(prefix)
-                        selection_masks[selected_bg] = None
-                        st.session_state[f"{prefix}:background_selection_masks"] = selection_masks
-                        _record_editor_history(
-                            session,
-                            scope="background",
-                            label="Limpiar selección",
-                            before=history_before,
-                            after=_background_history_snapshot(prefix),
-                        )
-                        st.rerun()
+                        on_click=_clear_background_selection_callback,
+                        args=(session, selected_bg),
+                    )
                     operations = st.session_state[f"{prefix}:background_manual_ops"]
                     frame_ops = operations.get(selected_bg, [])
                     with st.expander(
@@ -8226,46 +9022,20 @@ def main() -> None:
                         else:
                             st.caption("Todavía no hay ediciones manuales en este frame.")
                         clear_col, clear_all_col = st.columns(2)
-                        if clear_col.button(
+                        clear_col.button(
                             "Restablecer frame",
                             width="stretch",
                             key=f"{prefix}:bg_clear_frame:{selected_bg}",
-                        ):
-                            history_before = _background_history_snapshot(prefix)
-                            updated = {
-                                int(index): [dict(item) for item in items]
-                                for index, items in operations.items()
-                                if int(index) != selected_bg and items
-                            }
-                            st.session_state[f"{prefix}:background_manual_ops"] = updated
-                            _clear_background_floating_selection(prefix)
-                            _record_editor_history(
-                                session,
-                                scope="background",
-                                label="Restablecer frame",
-                                before=history_before,
-                                after=_background_history_snapshot(prefix),
-                            )
-                            st.rerun()
-                        if clear_all_col.button(
+                            on_click=_reset_background_frame_callback,
+                            args=(session, selected_bg),
+                        )
+                        clear_all_col.button(
                             "Restablecer todo",
                             width="stretch",
                             key=f"{prefix}:bg_clear_all",
-                        ):
-                            history_before = _background_history_snapshot(prefix)
-                            st.session_state[f"{prefix}:background_manual_ops"] = {}
-                            st.session_state[f"{prefix}:background_selection_masks"] = [
-                                None
-                            ]
-                            _clear_background_floating_selection(prefix)
-                            _record_editor_history(
-                                session,
-                                scope="background",
-                                label="Restablecer fondo",
-                                before=history_before,
-                                after=_background_history_snapshot(prefix),
-                            )
-                            st.rerun()
+                            on_click=_reset_all_background_callback,
+                            args=(session,),
+                        )
                 if st.button(
                     "Guardar remoción de fondo",
                     type="primary",
@@ -8274,7 +9044,7 @@ def main() -> None:
                 ):
                     session.background_removal_config = background_config
                     processing_cache = st.session_state.get(
-                        f"{prefix}:sheet_processing_cache", {}
+                        f"{prefix}:background_base_cache", {}
                     )
                     background_metadata: dict[str, Any] = {
                         "processing_signature": background_processing_signature,
@@ -8287,10 +9057,10 @@ def main() -> None:
                         }
                     }
                     if isinstance(processing_cache, dict) and processing_cache.get(
-                        "background_reports"
+                        "reports"
                     ):
                         background_metadata["background_removal"] = {
-                            "frames": list(processing_cache["background_reports"])
+                            "frames": list(processing_cache["reports"])
                         }
                     store.commit_stage(
                         session,
@@ -9469,8 +10239,21 @@ def main() -> None:
                                     )
                                     history_controls = _history_controls(session)
                                     studio_palette = _extract_palette_colors(composite)
+                                    onion_opacity_revision = float(
+                                        st.session_state.get(
+                                            f"{prefix}:studio_onion_opacity",
+                                            0.28,
+                                        )
+                                    )
+                                    layer_frame_revision = (
+                                        f"{prefix}:layers:{document.document_id}:r{document.revision}:"
+                                        f"{active_layer_id}:{active_frame}:onion:{int(onion_enabled)}:"
+                                        f"{onion_opacity_revision:.4f}"
+                                    )
                                     event = pixel_editor(
                                         composite,
+                                        image_revision=f"{layer_frame_revision}:image",
+                                        acknowledged_event_id=st.session_state.get(f"{prefix}:layer_editor_last_event", ""),
                                         overlay=move_overlay,
                                         move_base=move_base,
                                         sample=tuple(st.session_state[color_key]),
@@ -9492,8 +10275,7 @@ def main() -> None:
                                             f"{active_layer_id}:{active_frame}"
                                         ),
                                         frame_token=(
-                                            f"{prefix}:layers:{document.document_id}:{active_layer_id}:"
-                                            f"{active_frame}"
+                                            layer_frame_revision
                                         ),
                                         studio_layers=studio_layers,
                                         active_layer_id=active_layer_id,
@@ -9515,7 +10297,14 @@ def main() -> None:
                                     )
                                     if _handle_editor_history_event(store, session, event):
                                         st.rerun()
-                                    history_before = _layer_history_snapshot(session)
+                                    new_editor_event = bool(
+                                        event and event.get("eventId")
+                                        and event.get("eventId") != st.session_state.get(f"{prefix}:layer_editor_last_event")
+                                    )
+                                    history_before = (
+                                        _layer_history_snapshot(session)
+                                        if new_editor_event and not _is_editor_zoom_event(event) else {}
+                                    )
                                     changed = _handle_layer_editor_event(
                                         store,
                                         session,
@@ -9527,7 +10316,10 @@ def main() -> None:
                                         target_frames=selected_frames,
                                         composite=composite,
                                     )
-                                    if changed and event and not _is_editor_zoom_event(event):
+                                    if changed and event and not _is_editor_zoom_event(event) and not (
+                                        event.get("type") == "toolbar"
+                                        and event.get("action") == "tool"
+                                    ):
                                         _record_editor_history(
                                             session,
                                             scope="studio",
@@ -9535,6 +10327,8 @@ def main() -> None:
                                             before=history_before,
                                             after=_layer_history_snapshot(session),
                                         )
+                                    if new_editor_event and not changed and event.get("type") in {"floating-transform", "floating-resize"}:
+                                        st.rerun()
                                     # The current run loaded the previous immutable layer
                                     # revision. Stop before downstream previews can publish
                                     # stale pixels or offsets. The component keeps its local
@@ -9548,6 +10342,7 @@ def main() -> None:
                                             "clipboard",
                                             "pixel-action",
                                             "floating-selection",
+                                            "floating-selection-action",
                                         }
                                         or event.get("type") in {
                                             "floating-transform",

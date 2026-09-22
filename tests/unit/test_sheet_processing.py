@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from sprite_builder.alignment import estimate_feet_anchor
+from sprite_builder.sheets.layers import LayeredSpriteDocument, SpriteCel, SpriteLayer
 from sprite_builder.sheets import (
     AutoCenterConfig,
     BackgroundRemovalConfig,
@@ -40,6 +41,7 @@ from sprite_builder.sheets import (
     trim_transparent_frames,
 )
 from sprite_builder.ui.app import (
+    _alpha_fit_bounds,
     _alignment_drag_overlay,
     _alignment_export_readiness,
     _center_history_snapshot,
@@ -50,11 +52,13 @@ from sprite_builder.ui.app import (
     _handle_background_editor_event,
     _handle_center_editor_event,
     _handle_editor_history_event,
+    _handle_layer_editor_event,
     _normalized_grid_cut_positions,
     _normalized_segmentation_cut_positions,
     _pack_selection_masks,
     _record_editor_history,
     _reset_alignment_state_for_segmentation,
+    _resize_floating_piece,
     _safe_trim_transparent_frames,
     _segmentation_saved_for_processing,
     _unpack_selection_masks,
@@ -127,6 +131,28 @@ def test_direct_studio_export_composites_floating_selection_without_mutating_inp
     assert exported.getpixel((0, 0)) == (10, 20, 30, 255)
     assert background.tobytes() == background_before
     assert piece.tobytes() == piece_before
+
+
+def test_floating_resize_uses_nearest_pixels_and_keeps_alpha_bounds() -> None:
+    piece = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+    pixels = piece.load()
+    pixels[2, 2] = (255, 0, 0, 255)
+    pixels[3, 2] = (0, 255, 0, 255)
+    pixels[2, 3] = (0, 0, 255, 255)
+    pixels[3, 3] = (255, 255, 0, 255)
+
+    resized = _resize_floating_piece(
+        piece,
+        (2, 2, 4, 4),
+        scale_x=2,
+        scale_y=2,
+    )
+
+    assert _alpha_fit_bounds(resized) == (2, 2, 6, 6)
+    assert resized.getpixel((2, 2)) == resized.getpixel((3, 3)) == (255, 0, 0, 255)
+    assert resized.getpixel((4, 2)) == resized.getpixel((5, 3)) == (0, 255, 0, 255)
+    assert resized.getpixel((2, 4)) == resized.getpixel((3, 5)) == (0, 0, 255, 255)
+    assert resized.getpixel((4, 4)) == resized.getpixel((5, 5)) == (255, 255, 0, 255)
 
 
 def test_export_preview_columns_match_the_output_layout() -> None:
@@ -949,6 +975,368 @@ def test_background_rect_crop_tool_creates_a_pixel_selection() -> None:
     operation = ss[f"{prefix}:background_manual_ops"][0][-1]
     assert operation["kind"] == "move_mask"
     assert (operation["offset_x"], operation["offset_y"]) == (2, 1)
+
+
+def _floating_visual_fixture(
+    color: tuple[int, int, int, int],
+) -> tuple[Image.Image, Image.Image, np.ndarray, Image.Image]:
+    original = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(original)
+    draw.rectangle((8, 6, 19, 17), fill=color)
+    original.putpixel((12, 2), color)
+    original.putpixel((2, 12), color)
+    original.putpixel((29, 29), (17, 29, 43, 255))
+    mask = np.zeros((32, 32), dtype=bool)
+    mask[6:18, 8:20] = True
+    mask[2, 12] = True
+    mask[12, 2] = True
+    piece = original.copy()
+    piece_rgba = np.asarray(piece, dtype=np.uint8).copy()
+    piece_rgba[~mask, 3] = 0
+    piece = Image.fromarray(piece_rgba, "RGBA")
+    remainder = original.copy()
+    remainder_rgba = np.asarray(remainder, dtype=np.uint8).copy()
+    remainder_rgba[mask, 3] = 0
+    remainder = Image.fromarray(remainder_rgba, "RGBA")
+    return original, piece, mask, remainder
+
+
+def test_background_trim_visible_preserves_remainder_and_is_idempotent() -> None:
+    from streamlit import session_state as ss
+
+    ss.clear()
+    prefix = "sheet-background-trim-visible"
+    session = type("Session", (), {"session_id": prefix})()
+    original, piece, mask, remainder = _floating_visual_fixture((220, 80, 40, 255))
+    ss[f"{prefix}:background_last_event"] = None
+    ss[f"{prefix}:background_tool"] = "move"
+    ss[f"{prefix}:background_selection_masks"] = [mask.copy()]
+    ss[f"{prefix}:background_manual_ops"] = {}
+    ss[f"{prefix}:background_floating_selection"] = {
+        "frame_index": 0,
+        "mask": mask.copy(),
+        "piece": piece,
+        "remainder": remainder,
+        "bounds": (2, 2, 20, 18),
+    }
+
+    changed = _handle_background_editor_event(
+        session,
+        (original,),
+        0,
+        {
+            "eventId": "trim-background-1",
+            "type": "floating-selection-action",
+            "action": "trim-visible",
+            "tool": "move",
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+
+    expected_mask = np.zeros_like(mask)
+    expected_mask[6:18, 8:20] = True
+    assert changed is True
+    floating = ss[f"{prefix}:background_floating_selection"]
+    assert np.array_equal(floating["mask"], expected_mask)
+    assert floating["piece"].getpixel((12, 2))[3] == 0
+    assert floating["piece"].getpixel((12, 6)) == (220, 80, 40, 255)
+    assert floating["remainder"].getpixel((12, 2)) == (220, 80, 40, 255)
+    assert floating["remainder"].getpixel((29, 29)) == (17, 29, 43, 255)
+    assert ss[f"{prefix}:background_tool"] == "move"
+    assert ss[f"{prefix}:background_tool_widget_sync"] == "move"
+    assert np.array_equal(ss[f"{prefix}:background_selection_masks"][0], expected_mask)
+
+    replayed = _handle_background_editor_event(
+        session,
+        (original,),
+        0,
+        {
+            "eventId": "trim-background-2",
+            "type": "floating-selection-action",
+            "action": "trim-visible",
+            "tool": "move",
+        },
+        tolerance=0,
+        contiguous=True,
+    )
+    assert replayed is False
+    assert ss[f"{prefix}:background_manual_ops"] == {}
+
+
+def test_layer_trim_visible_updates_every_selected_frame_and_is_idempotent() -> None:
+    from streamlit import session_state as ss
+
+    ss.clear()
+    prefix = "sheet-layer-trim-visible"
+    session = type("Session", (), {"session_id": prefix})()
+    document = LayeredSpriteDocument(
+        schema_version="1.0",
+        document_id="trim-doc",
+        canvas_width=32,
+        canvas_height=32,
+        frame_count=2,
+        layers=(SpriteLayer("body", "Body", role="body"),),
+        cels=(
+            SpriteCel("body", 0, "", ""),
+            SpriteCel("body", 1, "", ""),
+        ),
+    )
+    images: dict[tuple[str, int], Image.Image] = {}
+    floating_frames: dict[int, dict[str, object]] = {}
+    for frame_index, color in enumerate(((220, 80, 40, 255), (40, 120, 220, 255))):
+        original, piece, mask, remainder = _floating_visual_fixture(color)
+        images[("body", frame_index)] = remainder
+        floating_frames[frame_index] = {
+            "mask": mask.copy(),
+            "piece": piece,
+            "original": original.copy(),
+            "remainder": remainder.copy(),
+            "bounds": (2, 2, 20, 18),
+        }
+
+    class CaptureStore:
+        def __init__(self) -> None:
+            self.reasons: list[str] = []
+
+        def save_layer_document(self, session, document, images, *, reason):
+            self.reasons.append(reason)
+            return document
+
+    store = CaptureStore()
+    ss[f"{prefix}:layer_editor_last_event"] = None
+    ss[f"{prefix}:layer_editor_selection_masks"] = {}
+    ss[f"{prefix}:layer_editor_tool"] = "move"
+    ss[f"{prefix}:layer_editor_floating_selection"] = {
+        "layer_id": "body",
+        "frames": floating_frames,
+        "shape": "rect",
+    }
+
+    changed = _handle_layer_editor_event(
+        store,
+        session,
+        document,
+        images,
+        {
+            "eventId": "trim-layer-1",
+            "type": "floating-selection-action",
+            "action": "trim-visible",
+            "tool": "move",
+        },
+        active_layer_id="body",
+        active_frame=0,
+        target_frames=(0, 1),
+        composite=Image.new("RGBA", (32, 32)),
+    )
+
+    expected_mask = np.zeros((32, 32), dtype=bool)
+    expected_mask[6:18, 8:20] = True
+    assert changed is True
+    assert store.reasons == ["trim-floating-selection"]
+    assert ss[f"{prefix}:layer_editor_tool"] == "move"
+    selection_masks = ss[f"{prefix}:layer_editor_selection_masks"]
+    assert set(selection_masks) == {"body:0", "body:1"}
+    for frame_index in (0, 1):
+        assert np.array_equal(selection_masks[f"body:{frame_index}"], expected_mask)
+        assert images[("body", frame_index)].getpixel((12, 6))[3] == 0
+        assert images[("body", frame_index)].getpixel((12, 2))[3] == 255
+        assert images[("body", frame_index)].getpixel((29, 29)) == (17, 29, 43, 255)
+        current = ss[f"{prefix}:layer_editor_floating_selection"]["frames"][frame_index]
+        assert current["piece"].getpixel((12, 6))[3] == 255
+        assert current["piece"].getpixel((12, 2))[3] == 0
+
+    replayed = _handle_layer_editor_event(
+        store,
+        session,
+        document,
+        images,
+        {
+            "eventId": "trim-layer-2",
+            "type": "floating-selection-action",
+            "action": "trim-visible",
+            "tool": "move",
+        },
+        active_layer_id="body",
+        active_frame=0,
+        target_frames=(0, 1),
+        composite=Image.new("RGBA", (32, 32)),
+    )
+    assert replayed is False
+    assert store.reasons == ["trim-floating-selection"]
+
+
+def test_layer_duplicate_grid_offsets_all_directions_clips_and_deduplicates_replay() -> None:
+    from streamlit import session_state as ss
+
+    directions = {
+        "left": (-4, 0),
+        "right": (4, 0),
+        "up": (0, -4),
+        "down": (0, 4),
+    }
+    for index, (direction, (delta_x, delta_y)) in enumerate(directions.items()):
+        ss.clear()
+        prefix = f"sheet-layer-duplicate-{direction}"
+        session = type("Session", (), {"session_id": prefix})()
+        document = LayeredSpriteDocument(
+            schema_version="1.0",
+            document_id=f"duplicate-doc-{direction}",
+            canvas_width=8,
+            canvas_height=8,
+            frame_count=2,
+            layers=(SpriteLayer("body", "Body", role="body"),),
+            cels=(
+                SpriteCel("body", 0, "", ""),
+                SpriteCel("body", 1, "", ""),
+            ),
+        )
+        images: dict[tuple[str, int], Image.Image] = {}
+        selection_masks: dict[str, np.ndarray] = {}
+        original_bytes: dict[int, bytes] = {}
+        for frame_index, color in enumerate(((220, 80, 40, 255), (40, 120, 220, 255))):
+            image = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+            ImageDraw.Draw(image).rectangle((2, 2, 4, 4), fill=color)
+            images[("body", frame_index)] = image
+            original_bytes[frame_index] = image.tobytes()
+            mask = np.zeros((8, 8), dtype=bool)
+            mask[2:5, 2:5] = True
+            selection_masks[f"body:{frame_index}"] = mask
+        class CaptureStore:
+            def save_layer_document(self, session, document, images, *, reason):
+                return document
+
+        ss[f"{prefix}:layer_editor_last_event"] = None
+        ss[f"{prefix}:layer_editor_selection_masks"] = selection_masks
+        ss[f"{prefix}:layer_editor_tool"] = "move"
+        store = CaptureStore()
+        event = {
+            "eventId": f"duplicate-layer-{index}",
+            "type": "floating-selection-action",
+            "action": "duplicate-grid",
+            "direction": direction,
+            "pixelGridSize": 4,
+            "tool": "move",
+        }
+
+        changed = _handle_layer_editor_event(
+            store,
+            session,
+            document,
+            images,
+            event,
+            active_layer_id="body",
+            active_frame=0,
+            target_frames=(0, 1),
+            composite=Image.new("RGBA", (8, 8)),
+        )
+
+        assert changed is True
+        floating = ss[f"{prefix}:layer_editor_floating_selection"]
+        assert floating["shape"] == "grid-duplicate"
+        assert set(floating["frames"]) == {0, 1}
+        assert ss[f"{prefix}:layer_editor_tool"] == "move"
+        for frame_index in (0, 1):
+            expected_mask = shift_mask(
+                selection_masks[f"body:{frame_index}"],
+                offset_x=delta_x,
+                offset_y=delta_y,
+            )
+            actual = floating["frames"][frame_index]
+            assert np.array_equal(actual["mask"], expected_mask)
+            assert np.array_equal(
+                np.asarray(actual["piece"].getchannel("A")) > 0,
+                expected_mask,
+            )
+            assert images[("body", frame_index)].tobytes() == original_bytes[frame_index]
+            assert actual["original"].tobytes() == original_bytes[frame_index]
+
+        replayed = _handle_layer_editor_event(
+            store,
+            session,
+            document,
+            images,
+            event,
+            active_layer_id="body",
+            active_frame=0,
+            target_frames=(0, 1),
+            composite=Image.new("RGBA", (8, 8)),
+        )
+        assert replayed is False
+        assert ss[f"{prefix}:layer_editor_floating_selection"]["frames"][0]["piece"].tobytes() == floating["frames"][0]["piece"].tobytes()
+
+
+def test_background_duplicate_grid_uses_exact_offsets_and_keeps_source_pixels() -> None:
+    from streamlit import session_state as ss
+
+    directions = {
+        "left": (-4, 0),
+        "right": (4, 0),
+        "up": (0, -4),
+        "down": (0, 4),
+    }
+    for index, (direction, (delta_x, delta_y)) in enumerate(directions.items()):
+        ss.clear()
+        prefix = f"sheet-background-duplicate-{direction}"
+        session = type("Session", (), {"session_id": prefix})()
+        frame = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+        ImageDraw.Draw(frame).rectangle((2, 2, 4, 4), fill=(220, 80, 40, 255))
+        source_mask = np.zeros((8, 8), dtype=bool)
+        source_mask[2:5, 2:5] = True
+        ss[f"{prefix}:background_last_event"] = None
+        ss[f"{prefix}:background_tool"] = "move"
+        ss[f"{prefix}:background_selection_masks"] = [source_mask.copy()]
+        ss[f"{prefix}:background_manual_ops"] = {}
+        ss[f"{prefix}:background_floating_selection"] = None
+        event = {
+            "eventId": f"duplicate-background-{index}",
+            "type": "floating-selection-action",
+            "action": "duplicate-grid",
+            "direction": direction,
+            "pixelGridSize": 4,
+            "tool": "move",
+        }
+
+        changed = _handle_background_editor_event(
+            session,
+            (frame,),
+            0,
+            event,
+            tolerance=0,
+            contiguous=True,
+        )
+
+        assert changed is True
+        operation = ss[f"{prefix}:background_manual_ops"][0][0]
+        assert operation["kind"] == "copy_mask"
+        assert (operation["offset_x"], operation["offset_y"]) == (delta_x, delta_y)
+        floating = ss[f"{prefix}:background_floating_selection"]
+        expected_mask = shift_mask(source_mask, offset_x=delta_x, offset_y=delta_y)
+        assert floating["pending_copy"] is True
+        assert np.array_equal(floating["mask"], expected_mask)
+        assert np.array_equal(
+            np.asarray(floating["piece"].getchannel("A")) > 0,
+            expected_mask,
+        )
+        rendered = apply_manual_background_edits(
+            (frame,),
+            ss[f"{prefix}:background_manual_ops"],
+        )[0]
+        assert rendered.getpixel((3, 3)) == (220, 80, 40, 255)
+        if expected_mask.any():
+            copied_point = tuple(np.argwhere(expected_mask)[0][::-1])
+            assert rendered.getpixel(copied_point) == (220, 80, 40, 255)
+
+        replayed = _handle_background_editor_event(
+            session,
+            (frame,),
+            0,
+            event,
+            tolerance=0,
+            contiguous=True,
+        )
+        assert replayed is False
+        assert len(ss[f"{prefix}:background_manual_ops"][0]) == 1
 
 
 def test_background_clipboard_copy_paste_and_rotate_follow_selection() -> None:
